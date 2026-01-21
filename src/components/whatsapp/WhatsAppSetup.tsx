@@ -164,47 +164,52 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
 
     try {
       window.FB.login(
-        async (response) => {
+        (response) => {
           if (finished) return;
           finished = true;
           window.clearTimeout(timeoutId);
 
           if (response.authResponse?.code) {
-            try {
-              const { data: { session } } = await supabase.auth.getSession();
-              if (!session) {
-                throw new Error('No session found');
+            // Handle async operations inside a sync callback
+            (async () => {
+              try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (!session) {
+                  throw new Error('No session found');
+                }
+
+                const { data, error } = await supabase.functions.invoke('whatsapp-exchange-token', {
+                  body: { code: response.authResponse.code },
+                });
+
+                if (error) throw error;
+
+                toast({
+                  title: "¡Cuenta conectada!",
+                  description: `WhatsApp ${data.account.phone_number} conectado exitosamente.`,
+                });
+
+                fetchAccounts();
+                onAccountConnected?.();
+              } catch (error: any) {
+                console.error('Error exchanging token:', error);
+                toast({
+                  title: "Error",
+                  description: error.message || "Error al conectar la cuenta de WhatsApp.",
+                  variant: "destructive",
+                });
+              } finally {
+                setConnecting(false);
               }
-
-              const { data, error } = await supabase.functions.invoke('whatsapp-exchange-token', {
-                body: { code: response.authResponse.code },
-              });
-
-              if (error) throw error;
-
-              toast({
-                title: "¡Cuenta conectada!",
-                description: `WhatsApp ${data.account.phone_number} conectado exitosamente.`,
-              });
-
-              fetchAccounts();
-              onAccountConnected?.();
-            } catch (error: any) {
-              console.error('Error exchanging token:', error);
-              toast({
-                title: "Error",
-                description: error.message || "Error al conectar la cuenta de WhatsApp.",
-                variant: "destructive",
-              });
-            }
+            })();
           } else {
             toast({
               title: "Cancelado",
               description: "El proceso de conexión fue cancelado.",
               variant: "destructive",
             });
+            setConnecting(false);
           }
-          setConnecting(false);
         },
         {
           config_id: metaConfig.configId,
