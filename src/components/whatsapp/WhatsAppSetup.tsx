@@ -54,13 +54,26 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
   const [fbLoaded, setFbLoaded] = useState(false);
+  const [metaConfig, setMetaConfig] = useState<{ appId: string; configId: string }>({ appId: '', configId: '' });
+  const [configLoading, setConfigLoading] = useState(true);
   const { toast } = useToast();
 
-  // Meta App configuration - these will be loaded from env
-  const META_APP_ID = import.meta.env.VITE_META_APP_ID || '';
-  const META_CONFIG_ID = import.meta.env.VITE_META_CONFIG_ID || '';
+  // Fetch Meta configuration from Edge Function
+  const fetchMetaConfig = useCallback(async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('get-meta-config');
+      if (error) throw error;
+      setMetaConfig({ appId: data.appId || '', configId: data.configId || '' });
+    } catch (error) {
+      console.error('Error fetching meta config:', error);
+    } finally {
+      setConfigLoading(false);
+    }
+  }, []);
 
   const loadFacebookSDK = useCallback(() => {
+    if (!metaConfig.appId) return;
+    
     if (window.FB) {
       setFbLoaded(true);
       return;
@@ -68,7 +81,7 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
 
     window.fbAsyncInit = function () {
       window.FB.init({
-        appId: META_APP_ID,
+        appId: metaConfig.appId,
         cookie: true,
         xfbml: true,
         version: 'v21.0',
@@ -82,12 +95,18 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
     script.async = true;
     script.defer = true;
     document.body.appendChild(script);
-  }, [META_APP_ID]);
+  }, [metaConfig.appId]);
 
   useEffect(() => {
-    loadFacebookSDK();
+    fetchMetaConfig();
     fetchAccounts();
-  }, [loadFacebookSDK]);
+  }, [fetchMetaConfig]);
+
+  useEffect(() => {
+    if (metaConfig.appId) {
+      loadFacebookSDK();
+    }
+  }, [metaConfig.appId, loadFacebookSDK]);
 
   const fetchAccounts = async () => {
     try {
@@ -115,7 +134,7 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
       return;
     }
 
-    if (!META_CONFIG_ID) {
+    if (!metaConfig.configId) {
       toast({
         title: "Configuración requerida",
         description: "El Configuration ID de Meta no está configurado. Contacta al administrador.",
@@ -166,7 +185,7 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
         setConnecting(false);
       },
       {
-        config_id: META_CONFIG_ID,
+        config_id: metaConfig.configId,
         response_type: 'code',
         override_default_response_type: true,
         extras: {
@@ -194,7 +213,7 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
     });
   };
 
-  if (loading) {
+  if (loading || configLoading) {
     return (
       <div className="flex items-center justify-center p-8">
         <Loader2 className="w-6 h-6 animate-spin text-primary" />
@@ -291,15 +310,14 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
             </ul>
           </div>
 
-          {!META_APP_ID || !META_CONFIG_ID ? (
+          {!metaConfig.appId || !metaConfig.configId ? (
             <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
               <div className="flex items-start gap-2">
                 <AlertCircle className="w-5 h-5 text-destructive mt-0.5" />
                 <div>
                   <h4 className="font-medium text-destructive">Configuración pendiente</h4>
                   <p className="text-sm text-muted-foreground mt-1">
-                    Las credenciales de Meta no están configuradas. Por favor configura VITE_META_APP_ID y 
-                    VITE_META_CONFIG_ID en las variables de entorno.
+                    Las credenciales de Meta no están configuradas. Contacta al administrador del sistema.
                   </p>
                 </div>
               </div>
