@@ -358,25 +358,38 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
               </div>
             </div>
           ) : (
-            <Button 
-              onClick={handleEmbeddedSignup} 
-              disabled={connecting || !fbLoaded}
-              className="w-full bg-gradient-hero hover:opacity-90"
-              size="lg"
-            >
-              {connecting ? (
-                <>
-                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                  Conectando...
-                </>
-              ) : (
-                <>
-                  <MessageCircle className="w-5 h-5 mr-2" />
-                  Conectar WhatsApp Business
-                  <ExternalLink className="w-4 h-4 ml-2" />
-                </>
-              )}
-            </Button>
+            <div className="space-y-3">
+              <Button 
+                onClick={handleEmbeddedSignup} 
+                disabled={connecting || !fbLoaded}
+                className="w-full bg-gradient-hero hover:opacity-90"
+                size="lg"
+              >
+                {connecting ? (
+                  <>
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    Conectando...
+                  </>
+                ) : (
+                  <>
+                    <MessageCircle className="w-5 h-5 mr-2" />
+                    Conectar WhatsApp Business
+                    <ExternalLink className="w-4 h-4 ml-2" />
+                  </>
+                )}
+              </Button>
+              
+              {/* Fallback: open in new tab to avoid iframe popup blocking */}
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full"
+                onClick={() => window.open(window.location.href, '_blank')}
+              >
+                <ExternalLink className="w-4 h-4 mr-2" />
+                Abrir en nueva pestaña (si el popup no aparece)
+              </Button>
+            </div>
           )}
 
           {/* Help Link */}
