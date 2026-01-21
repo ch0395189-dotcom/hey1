@@ -1,0 +1,345 @@
+import { useState, useEffect, useCallback } from "react";
+import { motion } from "framer-motion";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { 
+  MessageCircle, 
+  CheckCircle2, 
+  ExternalLink, 
+  Loader2,
+  AlertCircle,
+  Copy,
+  Phone
+} from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+
+declare global {
+  interface Window {
+    FB: {
+      init: (params: { appId: string; cookie: boolean; xfbml: boolean; version: string }) => void;
+      login: (
+        callback: (response: { authResponse?: { code: string } }) => void,
+        options: {
+          config_id: string;
+          response_type: string;
+          override_default_response_type: boolean;
+          extras: {
+            feature: string;
+            version: number;
+          };
+        }
+      ) => void;
+    };
+    fbAsyncInit: () => void;
+  }
+}
+
+interface WhatsAppAccount {
+  id: string;
+  phone_number: string;
+  display_name: string | null;
+  is_active: boolean;
+  webhook_verify_token: string | null;
+  created_at: string;
+}
+
+interface WhatsAppSetupProps {
+  onAccountConnected?: () => void;
+}
+
+export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
+  const [accounts, setAccounts] = useState<WhatsAppAccount[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [connecting, setConnecting] = useState(false);
+  const [fbLoaded, setFbLoaded] = useState(false);
+  const { toast } = useToast();
+
+  // Meta App configuration - these will be loaded from env
+  const META_APP_ID = import.meta.env.VITE_META_APP_ID || '';
+  const META_CONFIG_ID = import.meta.env.VITE_META_CONFIG_ID || '';
+
+  const loadFacebookSDK = useCallback(() => {
+    if (window.FB) {
+      setFbLoaded(true);
+      return;
+    }
+
+    window.fbAsyncInit = function () {
+      window.FB.init({
+        appId: META_APP_ID,
+        cookie: true,
+        xfbml: true,
+        version: 'v21.0',
+      });
+      setFbLoaded(true);
+    };
+
+    const script = document.createElement('script');
+    script.id = 'facebook-jssdk';
+    script.src = 'https://connect.facebook.net/en_US/sdk.js';
+    script.async = true;
+    script.defer = true;
+    document.body.appendChild(script);
+  }, [META_APP_ID]);
+
+  useEffect(() => {
+    loadFacebookSDK();
+    fetchAccounts();
+  }, [loadFacebookSDK]);
+
+  const fetchAccounts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('whatsapp_accounts')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setAccounts(data || []);
+    } catch (error: any) {
+      console.error('Error fetching accounts:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEmbeddedSignup = async () => {
+    if (!window.FB) {
+      toast({
+        title: "Error",
+        description: "Facebook SDK no está cargado. Recarga la página.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!META_CONFIG_ID) {
+      toast({
+        title: "Configuración requerida",
+        description: "El Configuration ID de Meta no está configurado. Contacta al administrador.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setConnecting(true);
+
+    window.FB.login(
+      async (response) => {
+        if (response.authResponse?.code) {
+          try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) {
+              throw new Error('No session found');
+            }
+
+            const { data, error } = await supabase.functions.invoke('whatsapp-exchange-token', {
+              body: { code: response.authResponse.code },
+            });
+
+            if (error) throw error;
+
+            toast({
+              title: "¡Cuenta conectada!",
+              description: `WhatsApp ${data.account.phone_number} conectado exitosamente.`,
+            });
+
+            fetchAccounts();
+            onAccountConnected?.();
+          } catch (error: any) {
+            console.error('Error exchanging token:', error);
+            toast({
+              title: "Error",
+              description: error.message || "Error al conectar la cuenta de WhatsApp.",
+              variant: "destructive",
+            });
+          }
+        } else {
+          toast({
+            title: "Cancelado",
+            description: "El proceso de conexión fue cancelado.",
+            variant: "destructive",
+          });
+        }
+        setConnecting(false);
+      },
+      {
+        config_id: META_CONFIG_ID,
+        response_type: 'code',
+        override_default_response_type: true,
+        extras: {
+          feature: 'whatsapp_embedded_signup',
+          version: 2,
+        },
+      }
+    );
+  };
+
+  const copyWebhookUrl = (token: string) => {
+    const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-webhook`;
+    navigator.clipboard.writeText(webhookUrl);
+    toast({
+      title: "URL copiada",
+      description: "La URL del webhook ha sido copiada al portapapeles.",
+    });
+  };
+
+  const copyVerifyToken = (token: string) => {
+    navigator.clipboard.writeText(token);
+    toast({
+      title: "Token copiado",
+      description: "El token de verificación ha sido copiado al portapapeles.",
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Connected Accounts */}
+      {accounts.length > 0 && (
+        <div className="space-y-4">
+          <h3 className="font-display font-semibold text-lg">Cuentas conectadas</h3>
+          {accounts.map((account, index) => (
+            <motion.div
+              key={account.id}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.1 }}
+            >
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-full bg-gradient-hero flex items-center justify-center">
+                        <Phone className="w-6 h-6 text-primary-foreground" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{account.display_name || account.phone_number}</span>
+                          <Badge variant={account.is_active ? "default" : "secondary"}>
+                            {account.is_active ? "Activo" : "Inactivo"}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground">{account.phone_number}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => copyWebhookUrl(account.webhook_verify_token || '')}
+                      >
+                        <Copy className="w-4 h-4 mr-1" />
+                        Webhook URL
+                      </Button>
+                      {account.webhook_verify_token && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => copyVerifyToken(account.webhook_verify_token!)}
+                        >
+                          <Copy className="w-4 h-4 mr-1" />
+                          Token
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
+        </div>
+      )}
+
+      {/* Connect New Account */}
+      <Card className="border-dashed">
+        <CardHeader className="text-center">
+          <div className="w-16 h-16 rounded-full bg-gradient-hero flex items-center justify-center mx-auto mb-4">
+            <MessageCircle className="w-8 h-8 text-primary-foreground" />
+          </div>
+          <CardTitle className="font-display">Conectar cuenta de WhatsApp Business</CardTitle>
+          <CardDescription>
+            Conecta tu cuenta de WhatsApp Business API para comenzar a recibir y enviar mensajes
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Requirements */}
+          <div className="bg-muted rounded-lg p-4 space-y-3">
+            <h4 className="font-medium text-sm">Requisitos:</h4>
+            <ul className="space-y-2 text-sm">
+              <li className="flex items-start gap-2">
+                <CheckCircle2 className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                <span>Cuenta de Meta Business verificada</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <CheckCircle2 className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                <span>Número de teléfono para WhatsApp Business (no asociado a WhatsApp personal)</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <CheckCircle2 className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                <span>Acceso como administrador a tu cuenta de Meta Business</span>
+              </li>
+            </ul>
+          </div>
+
+          {!META_APP_ID || !META_CONFIG_ID ? (
+            <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-5 h-5 text-destructive mt-0.5" />
+                <div>
+                  <h4 className="font-medium text-destructive">Configuración pendiente</h4>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Las credenciales de Meta no están configuradas. Por favor configura VITE_META_APP_ID y 
+                    VITE_META_CONFIG_ID en las variables de entorno.
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <Button 
+              onClick={handleEmbeddedSignup} 
+              disabled={connecting || !fbLoaded}
+              className="w-full bg-gradient-hero hover:opacity-90"
+              size="lg"
+            >
+              {connecting ? (
+                <>
+                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                  Conectando...
+                </>
+              ) : (
+                <>
+                  <MessageCircle className="w-5 h-5 mr-2" />
+                  Conectar WhatsApp Business
+                  <ExternalLink className="w-4 h-4 ml-2" />
+                </>
+              )}
+            </Button>
+          )}
+
+          {/* Help Link */}
+          <p className="text-xs text-center text-muted-foreground">
+            ¿Necesitas ayuda?{" "}
+            <a 
+              href="https://developers.facebook.com/docs/whatsapp/cloud-api/get-started" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-primary hover:underline"
+            >
+              Ver documentación de WhatsApp Business API
+            </a>
+          </p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};

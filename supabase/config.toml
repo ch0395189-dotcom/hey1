@@ -5,3 +5,12 @@ verify_jwt = false
 
 [functions.bold-webhook]
 verify_jwt = false
+
+[functions.whatsapp-exchange-token]
+verify_jwt = false
+
+[functions.whatsapp-webhook]
+verify_jwt = false
+
+[functions.whatsapp-send-message]
+verify_jwt = false
