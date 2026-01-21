@@ -12,8 +12,13 @@ serve(async (req) => {
 
   try {
     // These are public configuration IDs, not secrets
-    const metaAppId = Deno.env.get("META_APP_ID") || "";
-    const metaConfigId = Deno.env.get("META_CONFIG_ID") || "";
+    // Support both legacy and new env var names to avoid config mismatches.
+    const metaAppId = Deno.env.get("META_APP_ID") || Deno.env.get("VITE_META_APP_ID") || "";
+    const metaConfigId =
+      Deno.env.get("META_CONFIG_ID") || Deno.env.get("VITE_META_CONFIG_ID") || "";
+
+    console.log("get-meta-config: metaAppIdPresent=", Boolean(metaAppId));
+    console.log("get-meta-config: metaConfigIdPresent=", Boolean(metaConfigId));
 
     return new Response(
       JSON.stringify({
