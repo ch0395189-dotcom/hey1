@@ -14,16 +14,228 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      conversations: {
+        Row: {
+          assigned_to: string | null
+          created_at: string
+          customer_name: string | null
+          customer_phone: string
+          customer_profile_pic: string | null
+          id: string
+          is_archived: boolean
+          last_message_at: string
+          unread_count: number
+          updated_at: string
+          whatsapp_account_id: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          created_at?: string
+          customer_name?: string | null
+          customer_phone: string
+          customer_profile_pic?: string | null
+          id?: string
+          is_archived?: boolean
+          last_message_at?: string
+          unread_count?: number
+          updated_at?: string
+          whatsapp_account_id: string
+        }
+        Update: {
+          assigned_to?: string | null
+          created_at?: string
+          customer_name?: string | null
+          customer_phone?: string
+          customer_profile_pic?: string | null
+          id?: string
+          is_archived?: boolean
+          last_message_at?: string
+          unread_count?: number
+          updated_at?: string
+          whatsapp_account_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversations_whatsapp_account_id_fkey"
+            columns: ["whatsapp_account_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messages: {
+        Row: {
+          content: string | null
+          conversation_id: string
+          created_at: string
+          direction: string
+          id: string
+          media_url: string | null
+          message_type: string
+          status: string | null
+          whatsapp_message_id: string | null
+        }
+        Insert: {
+          content?: string | null
+          conversation_id: string
+          created_at?: string
+          direction: string
+          id?: string
+          media_url?: string | null
+          message_type?: string
+          status?: string | null
+          whatsapp_message_id?: string | null
+        }
+        Update: {
+          content?: string | null
+          conversation_id?: string
+          created_at?: string
+          direction?: string
+          id?: string
+          media_url?: string | null
+          message_type?: string
+          status?: string | null
+          whatsapp_message_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          company_name: string | null
+          created_at: string
+          full_name: string | null
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          company_name?: string | null
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          company_name?: string | null
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      subscriptions: {
+        Row: {
+          created_at: string
+          current_period_end: string | null
+          current_period_start: string | null
+          id: string
+          plan: Database["public"]["Enums"]["subscription_plan"]
+          status: Database["public"]["Enums"]["subscription_status"]
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          trial_end: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          id?: string
+          plan?: Database["public"]["Enums"]["subscription_plan"]
+          status?: Database["public"]["Enums"]["subscription_status"]
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          trial_end?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          id?: string
+          plan?: Database["public"]["Enums"]["subscription_plan"]
+          status?: Database["public"]["Enums"]["subscription_status"]
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          trial_end?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      whatsapp_accounts: {
+        Row: {
+          access_token: string
+          business_account_id: string
+          created_at: string
+          display_name: string | null
+          id: string
+          is_active: boolean
+          phone_number: string
+          phone_number_id: string
+          updated_at: string
+          user_id: string
+          webhook_verify_token: string | null
+        }
+        Insert: {
+          access_token: string
+          business_account_id: string
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          is_active?: boolean
+          phone_number: string
+          phone_number_id: string
+          updated_at?: string
+          user_id: string
+          webhook_verify_token?: string | null
+        }
+        Update: {
+          access_token?: string
+          business_account_id?: string
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          is_active?: boolean
+          phone_number?: string
+          phone_number_id?: string
+          updated_at?: string
+          user_id?: string
+          webhook_verify_token?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      user_owns_conversation: { Args: { conv_id: string }; Returns: boolean }
+      user_owns_whatsapp_account: {
+        Args: { account_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      subscription_plan: "starter" | "professional" | "enterprise"
+      subscription_status: "active" | "canceled" | "past_due" | "trialing"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +362,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      subscription_plan: ["starter", "professional", "enterprise"],
+      subscription_status: ["active", "canceled", "past_due", "trialing"],
+    },
   },
 } as const
