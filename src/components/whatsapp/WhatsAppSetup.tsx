@@ -58,6 +58,8 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
   const [configLoading, setConfigLoading] = useState(true);
   const { toast } = useToast();
 
+  const FB_LOGIN_TIMEOUT_MS = 20000;
+
   // Fetch Meta configuration from Edge Function
   const fetchMetaConfig = useCallback(async () => {
     try {
@@ -145,55 +147,88 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
 
     setConnecting(true);
 
-    window.FB.login(
-      async (response) => {
-        if (response.authResponse?.code) {
-          try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) {
-              throw new Error('No session found');
+    // In some environments (iframes / strict popup blockers) FB.login may never call its callback.
+    // Avoid leaving the UI stuck in "Conectando..." by enforcing a timeout.
+    let finished = false;
+    const timeoutId = window.setTimeout(() => {
+      if (finished) return;
+      finished = true;
+      setConnecting(false);
+      toast({
+        title: "No se abrió el popup de Meta",
+        description:
+          "Parece que el navegador bloqueó la ventana emergente. Permite popups para este sitio o abre la app en una pestaña nueva y reintenta.",
+        variant: "destructive",
+      });
+    }, FB_LOGIN_TIMEOUT_MS);
+
+    try {
+      window.FB.login(
+        async (response) => {
+          if (finished) return;
+          finished = true;
+          window.clearTimeout(timeoutId);
+
+          if (response.authResponse?.code) {
+            try {
+              const { data: { session } } = await supabase.auth.getSession();
+              if (!session) {
+                throw new Error('No session found');
+              }
+
+              const { data, error } = await supabase.functions.invoke('whatsapp-exchange-token', {
+                body: { code: response.authResponse.code },
+              });
+
+              if (error) throw error;
+
+              toast({
+                title: "¡Cuenta conectada!",
+                description: `WhatsApp ${data.account.phone_number} conectado exitosamente.`,
+              });
+
+              fetchAccounts();
+              onAccountConnected?.();
+            } catch (error: any) {
+              console.error('Error exchanging token:', error);
+              toast({
+                title: "Error",
+                description: error.message || "Error al conectar la cuenta de WhatsApp.",
+                variant: "destructive",
+              });
             }
-
-            const { data, error } = await supabase.functions.invoke('whatsapp-exchange-token', {
-              body: { code: response.authResponse.code },
-            });
-
-            if (error) throw error;
-
+          } else {
             toast({
-              title: "¡Cuenta conectada!",
-              description: `WhatsApp ${data.account.phone_number} conectado exitosamente.`,
-            });
-
-            fetchAccounts();
-            onAccountConnected?.();
-          } catch (error: any) {
-            console.error('Error exchanging token:', error);
-            toast({
-              title: "Error",
-              description: error.message || "Error al conectar la cuenta de WhatsApp.",
+              title: "Cancelado",
+              description: "El proceso de conexión fue cancelado.",
               variant: "destructive",
             });
           }
-        } else {
-          toast({
-            title: "Cancelado",
-            description: "El proceso de conexión fue cancelado.",
-            variant: "destructive",
-          });
-        }
-        setConnecting(false);
-      },
-      {
-        config_id: metaConfig.configId,
-        response_type: 'code',
-        override_default_response_type: true,
-        extras: {
-          feature: 'whatsapp_embedded_signup',
-          version: 2,
+          setConnecting(false);
         },
+        {
+          config_id: metaConfig.configId,
+          response_type: 'code',
+          override_default_response_type: true,
+          extras: {
+            feature: 'whatsapp_embedded_signup',
+            version: 2,
+          },
+        }
+      );
+    } catch (error: any) {
+      if (!finished) {
+        finished = true;
+        window.clearTimeout(timeoutId);
       }
-    );
+      setConnecting(false);
+      console.error('FB.login error:', error);
+      toast({
+        title: "Error",
+        description: error?.message || "No se pudo iniciar el login de Meta.",
+        variant: "destructive",
+      });
+    }
   };
 
   const copyWebhookUrl = (token: string) => {
