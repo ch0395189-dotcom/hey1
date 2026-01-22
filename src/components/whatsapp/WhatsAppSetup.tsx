@@ -32,6 +32,12 @@ declare global {
           extras: {
             feature: string;
             version: number;
+            sessionInfoListener?: (sessionInfo: {
+              accessToken?: string;
+              code?: string;
+              phone_number_id?: string;
+              waba_id?: string;
+            }) => void;
           };
         }
       ) => void;
@@ -172,6 +178,41 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
     }
   }, [metaConfig.appId, loadFacebookSDK]);
 
+  const exchangeCredentials = async (params: { code?: string; access_token?: string; phone_number_id?: string; waba_id?: string }) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('No session found');
+      }
+
+      console.log('Calling whatsapp-exchange-token with:', params);
+      const { data, error } = await supabase.functions.invoke('whatsapp-exchange-token', {
+        body: params,
+      });
+
+      console.log('Exchange response:', { data, error });
+
+      if (error) throw error;
+
+      toast({
+        title: "¡Cuenta conectada!",
+        description: `WhatsApp ${data.account.phone_number} conectado exitosamente.`,
+      });
+
+      fetchAccounts();
+      onAccountConnected?.();
+      return true;
+    } catch (error: any) {
+      console.error('Error exchanging token:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Error al conectar la cuenta de WhatsApp.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
   const handleEmbeddedSignup = async () => {
     if (!window.FB) {
       toast({
@@ -208,6 +249,42 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
       });
     }, FB_LOGIN_TIMEOUT_MS);
 
+    // Session info listener for Embedded Signup v2 - captures data when user completes setup
+    const sessionInfoListener = async (sessionInfo: {
+      accessToken?: string;
+      code?: string;
+      phone_number_id?: string;
+      waba_id?: string;
+    }) => {
+      console.log('sessionInfoListener received:', JSON.stringify(sessionInfo, null, 2));
+      
+      if (finished) {
+        console.log('Already finished, ignoring sessionInfoListener');
+        return;
+      }
+      finished = true;
+      window.clearTimeout(timeoutId);
+
+      if (sessionInfo.accessToken || sessionInfo.code) {
+        const success = await exchangeCredentials({
+          code: sessionInfo.code,
+          access_token: sessionInfo.accessToken,
+          phone_number_id: sessionInfo.phone_number_id,
+          waba_id: sessionInfo.waba_id,
+        });
+        if (!success) {
+          setConnecting(false);
+        }
+      } else {
+        toast({
+          title: "Conexión incompleta",
+          description: "No se recibieron credenciales del proceso de Meta.",
+          variant: "destructive",
+        });
+        setConnecting(false);
+      }
+    };
+
     try {
       console.log('Starting FB.login with config_id:', metaConfig.configId);
       window.FB.login(
@@ -225,39 +302,12 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
           const accessToken = response.authResponse?.accessToken;
 
           if (code || accessToken) {
-            console.log('Got auth credential, exchanging/saving token...');
-            // Handle async operations inside a sync callback
+            console.log('Got auth credential from callback, exchanging/saving token...');
             (async () => {
-              try {
-                const { data: { session } } = await supabase.auth.getSession();
-                if (!session) {
-                  throw new Error('No session found');
-                }
-
-                console.log('Calling whatsapp-exchange-token...');
-                const { data, error } = await supabase.functions.invoke('whatsapp-exchange-token', {
-                  body: code ? { code } : { access_token: accessToken },
-                });
-
-                console.log('Exchange response:', { data, error });
-
-                if (error) throw error;
-
-                toast({
-                  title: "¡Cuenta conectada!",
-                  description: `WhatsApp ${data.account.phone_number} conectado exitosamente.`,
-                });
-
-                fetchAccounts();
-                onAccountConnected?.();
-              } catch (error: any) {
-                console.error('Error exchanging token:', error);
-                toast({
-                  title: "Error",
-                  description: error.message || "Error al conectar la cuenta de WhatsApp.",
-                  variant: "destructive",
-                });
-              } finally {
+              const success = await exchangeCredentials(
+                code ? { code } : { access_token: accessToken }
+              );
+              if (!success) {
                 setConnecting(false);
               }
             })();
@@ -279,6 +329,7 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
           extras: {
             feature: 'whatsapp_embedded_signup',
             version: 2,
+            sessionInfoListener,
           },
         }
       );
