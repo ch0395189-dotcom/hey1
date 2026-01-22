@@ -10,8 +10,11 @@ import {
   Loader2,
   AlertCircle,
   Copy,
-  Phone
+  Phone,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react";
+import { TestMessageSender } from "./TestMessageSender";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -57,6 +60,7 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
   const [fbLoaded, setFbLoaded] = useState(false);
   const [metaConfig, setMetaConfig] = useState<{ appId: string; configId: string }>({ appId: '', configId: '' });
   const [configLoading, setConfigLoading] = useState(true);
+  const [expandedAccount, setExpandedAccount] = useState<string | null>(null);
   const { toast } = useToast();
 
   const FB_LOGIN_TIMEOUT_MS = 20000;
@@ -367,8 +371,36 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
                           Token
                         </Button>
                       )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setExpandedAccount(
+                          expandedAccount === account.id ? null : account.id
+                        )}
+                      >
+                        {expandedAccount === account.id ? (
+                          <ChevronUp className="w-4 h-4" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4" />
+                        )}
+                      </Button>
                     </div>
                   </div>
+                  
+                  {/* Test Message Sender (expandable) */}
+                  {expandedAccount === account.id && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="mt-4 pt-4 border-t"
+                    >
+                      <TestMessageSender 
+                        accountId={account.id} 
+                        accountPhone={account.phone_number} 
+                      />
+                    </motion.div>
+                  )}
                 </CardContent>
               </Card>
             </motion.div>
