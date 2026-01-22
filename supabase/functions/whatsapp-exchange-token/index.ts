@@ -6,7 +6,8 @@ const corsHeaders = {
 };
 
 interface ExchangeTokenRequest {
-  code: string;
+  code?: string;
+  access_token?: string;
 }
 
 interface TokenResponse {
@@ -62,14 +63,9 @@ Deno.serve(async (req) => {
 
     const userId = user.id;
 
-    const { code } = await req.json() as ExchangeTokenRequest;
-
-    if (!code) {
-      return new Response(
-        JSON.stringify({ error: 'Code is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    const body = (await req.json().catch(() => ({}))) as ExchangeTokenRequest;
+    const code = body.code;
+    let accessToken: string | undefined = body.access_token;
 
     const META_APP_ID = Deno.env.get('META_APP_ID');
     const META_APP_SECRET = Deno.env.get('META_APP_SECRET');
@@ -81,21 +77,30 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Step 1: Exchange code for access token
-    const tokenUrl = `https://graph.facebook.com/v21.0/oauth/access_token?client_id=${META_APP_ID}&client_secret=${META_APP_SECRET}&code=${code}`;
-    
-    const tokenResponse = await fetch(tokenUrl);
-    const tokenData = await tokenResponse.json() as TokenResponse & { error?: { message: string } };
+    if (!accessToken && code) {
+      // Step 1: Exchange code for access token
+      const tokenUrl = `https://graph.facebook.com/v21.0/oauth/access_token?client_id=${META_APP_ID}&client_secret=${META_APP_SECRET}&code=${code}`;
 
-    if (tokenData.error) {
-      console.error('Token exchange error:', tokenData.error);
+      const tokenResponse = await fetch(tokenUrl);
+      const tokenData = await tokenResponse.json() as TokenResponse & { error?: { message: string } };
+
+      if (tokenData.error) {
+        console.error('Token exchange error:', tokenData.error);
+        return new Response(
+          JSON.stringify({ error: 'Failed to exchange token', details: tokenData.error.message }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      accessToken = tokenData.access_token;
+    }
+
+    if (!accessToken) {
       return new Response(
-        JSON.stringify({ error: 'Failed to exchange token', details: tokenData.error.message }),
+        JSON.stringify({ error: 'code or access_token is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    const accessToken = tokenData.access_token;
 
     // Step 2: Get shared WABAs
     const wabaUrl = `https://graph.facebook.com/v21.0/debug_token?input_token=${accessToken}&access_token=${META_APP_ID}|${META_APP_SECRET}`;
@@ -186,7 +191,7 @@ Deno.serve(async (req) => {
         phone_number: phoneNumber.display_phone_number,
         phone_number_id: phoneNumberId,
         business_account_id: wabaId,
-        access_token: accessToken,
+         access_token: accessToken,
         webhook_verify_token: webhookVerifyToken,
         display_name: phoneNumber.verified_name,
         is_active: true,

@@ -20,11 +20,12 @@ declare global {
     FB: {
       init: (params: { appId: string; cookie: boolean; xfbml: boolean; version: string }) => void;
       login: (
-        callback: (response: { authResponse?: { code: string } }) => void,
+        callback: (response: { authResponse?: { code?: string; accessToken?: string } }) => void,
         options: {
           config_id: string;
           response_type: string;
           override_default_response_type: boolean;
+          redirect_uri?: string;
           extras: {
             feature: string;
             version: number;
@@ -99,18 +100,7 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
     document.body.appendChild(script);
   }, [metaConfig.appId]);
 
-  useEffect(() => {
-    fetchMetaConfig();
-    fetchAccounts();
-  }, [fetchMetaConfig]);
-
-  useEffect(() => {
-    if (metaConfig.appId) {
-      loadFacebookSDK();
-    }
-  }, [metaConfig.appId, loadFacebookSDK]);
-
-  const fetchAccounts = async () => {
+  const fetchAccounts = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('whatsapp_accounts')
@@ -124,7 +114,59 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchMetaConfig();
+    fetchAccounts();
+  }, [fetchMetaConfig, fetchAccounts]);
+
+  // Fallback: if Meta redirects back with ?code=..., finish linking automatically
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const code = url.searchParams.get('code');
+    if (!code) return;
+
+    // Clean URL early to avoid re-processing on refresh/back
+    url.searchParams.delete('code');
+    const nextUrl = `${url.pathname}${url.searchParams.toString() ? `?${url.searchParams.toString()}` : ''}${url.hash}`;
+    window.history.replaceState({}, document.title, nextUrl);
+
+    (async () => {
+      try {
+        setConnecting(true);
+        console.log('Detected OAuth code in URL, calling whatsapp-exchange-token...');
+        const { data, error } = await supabase.functions.invoke('whatsapp-exchange-token', {
+          body: { code },
+        });
+        console.log('Exchange response (from URL code):', { data, error });
+        if (error) throw error;
+
+        toast({
+          title: '¡Cuenta conectada!',
+          description: `WhatsApp ${data.account.phone_number} conectado exitosamente.`,
+        });
+
+        fetchAccounts();
+        onAccountConnected?.();
+      } catch (error: any) {
+        console.error('Error exchanging token from URL code:', error);
+        toast({
+          title: 'Error',
+          description: error?.message || 'No se pudo finalizar la vinculación.',
+          variant: 'destructive',
+        });
+      } finally {
+        setConnecting(false);
+      }
+    })();
+  }, [fetchAccounts, onAccountConnected, toast]);
+
+  useEffect(() => {
+    if (metaConfig.appId) {
+      loadFacebookSDK();
+    }
+  }, [metaConfig.appId, loadFacebookSDK]);
 
   const handleEmbeddedSignup = async () => {
     if (!window.FB) {
@@ -175,8 +217,11 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
           finished = true;
           window.clearTimeout(timeoutId);
 
-          if (response.authResponse?.code) {
-            console.log('Got auth code, exchanging token...');
+          const code = response.authResponse?.code;
+          const accessToken = response.authResponse?.accessToken;
+
+          if (code || accessToken) {
+            console.log('Got auth credential, exchanging/saving token...');
             // Handle async operations inside a sync callback
             (async () => {
               try {
@@ -187,7 +232,7 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
 
                 console.log('Calling whatsapp-exchange-token...');
                 const { data, error } = await supabase.functions.invoke('whatsapp-exchange-token', {
-                  body: { code: response.authResponse.code },
+                  body: code ? { code } : { access_token: accessToken },
                 });
 
                 console.log('Exchange response:', { data, error });
@@ -226,6 +271,7 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
           config_id: metaConfig.configId,
           response_type: 'code',
           override_default_response_type: true,
+          redirect_uri: `${window.location.origin}${window.location.pathname}`,
           extras: {
             feature: 'whatsapp_embedded_signup',
             version: 2,
