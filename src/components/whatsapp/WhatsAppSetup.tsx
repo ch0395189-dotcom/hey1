@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   MessageCircle, 
   CheckCircle2, 
@@ -12,9 +13,12 @@ import {
   Copy,
   Phone,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Settings2,
+  Zap
 } from "lucide-react";
 import { TestMessageSender } from "./TestMessageSender";
+import { ManualWhatsAppSetup } from "./ManualWhatsAppSetup";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -459,98 +463,120 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
         </div>
       )}
 
-      {/* Connect New Account */}
-      <Card className="border-dashed">
-        <CardHeader className="text-center">
-          <div className="w-16 h-16 rounded-full bg-gradient-hero flex items-center justify-center mx-auto mb-4">
-            <MessageCircle className="w-8 h-8 text-primary-foreground" />
-          </div>
-          <CardTitle className="font-display">Conectar cuenta de WhatsApp Business</CardTitle>
-          <CardDescription>
-            Conecta tu cuenta de WhatsApp Business API para comenzar a recibir y enviar mensajes
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Requirements */}
-          <div className="bg-muted rounded-lg p-4 space-y-3">
-            <h4 className="font-medium text-sm">Requisitos:</h4>
-            <ul className="space-y-2 text-sm">
-              <li className="flex items-start gap-2">
-                <CheckCircle2 className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-                <span>Cuenta de Meta Business verificada</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <CheckCircle2 className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-                <span>Número de teléfono para WhatsApp Business (no asociado a WhatsApp personal)</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <CheckCircle2 className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-                <span>Acceso como administrador a tu cuenta de Meta Business</span>
-              </li>
-            </ul>
-          </div>
-
-          {!metaConfig.appId || !metaConfig.configId ? (
-            <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
-              <div className="flex items-start gap-2">
-                <AlertCircle className="w-5 h-5 text-destructive mt-0.5" />
-                <div>
-                  <h4 className="font-medium text-destructive">Configuración pendiente</h4>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Las credenciales de Meta no están configuradas. Contacta al administrador del sistema.
-                  </p>
-                </div>
+      {/* Connect New Account with Tabs */}
+      <Tabs defaultValue="automatic" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="automatic" className="flex items-center gap-2">
+            <Zap className="w-4 h-4" />
+            Conexión Automática
+          </TabsTrigger>
+          <TabsTrigger value="manual" className="flex items-center gap-2">
+            <Settings2 className="w-4 h-4" />
+            Conexión Manual
+          </TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="automatic" className="mt-4">
+          <Card className="border-dashed">
+            <CardHeader className="text-center">
+              <div className="w-16 h-16 rounded-full bg-gradient-hero flex items-center justify-center mx-auto mb-4">
+                <MessageCircle className="w-8 h-8 text-primary-foreground" />
               </div>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <Button 
-                onClick={handleEmbeddedSignup} 
-                disabled={connecting || !fbLoaded}
-                className="w-full bg-gradient-hero hover:opacity-90"
-                size="lg"
-              >
-                {connecting ? (
-                  <>
-                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                    Conectando...
-                  </>
-                ) : (
-                  <>
-                    <MessageCircle className="w-5 h-5 mr-2" />
-                    Conectar WhatsApp Business
-                    <ExternalLink className="w-4 h-4 ml-2" />
-                  </>
-                )}
-              </Button>
-              
-              {/* Fallback: open in new tab to avoid iframe popup blocking */}
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full"
-                onClick={() => window.open(window.location.href, '_blank')}
-              >
-                <ExternalLink className="w-4 h-4 mr-2" />
-                Abrir en nueva pestaña (si el popup no aparece)
-              </Button>
-            </div>
-          )}
+              <CardTitle className="font-display">Conectar cuenta de WhatsApp Business</CardTitle>
+              <CardDescription>
+                Conecta tu cuenta de WhatsApp Business API mediante Meta Embedded Signup
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Requirements */}
+              <div className="bg-muted rounded-lg p-4 space-y-3">
+                <h4 className="font-medium text-sm">Requisitos:</h4>
+                <ul className="space-y-2 text-sm">
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                    <span>Cuenta de Meta Business verificada</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                    <span>Número de teléfono para WhatsApp Business (no asociado a WhatsApp personal)</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                    <span>Acceso como administrador a tu cuenta de Meta Business</span>
+                  </li>
+                </ul>
+              </div>
 
-          {/* Help Link */}
-          <p className="text-xs text-center text-muted-foreground">
-            ¿Necesitas ayuda?{" "}
-            <a 
-              href="https://developers.facebook.com/docs/whatsapp/cloud-api/get-started" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="text-primary hover:underline"
-            >
-              Ver documentación de WhatsApp Business API
-            </a>
-          </p>
-        </CardContent>
-      </Card>
+              {!metaConfig.appId || !metaConfig.configId ? (
+                <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="w-5 h-5 text-destructive mt-0.5" />
+                    <div>
+                      <h4 className="font-medium text-destructive">Configuración pendiente</h4>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Las credenciales de Meta no están configuradas. Contacta al administrador del sistema.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <Button 
+                    onClick={handleEmbeddedSignup} 
+                    disabled={connecting || !fbLoaded}
+                    className="w-full bg-gradient-hero hover:opacity-90"
+                    size="lg"
+                  >
+                    {connecting ? (
+                      <>
+                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                        Conectando...
+                      </>
+                    ) : (
+                      <>
+                        <MessageCircle className="w-5 h-5 mr-2" />
+                        Conectar WhatsApp Business
+                        <ExternalLink className="w-4 h-4 ml-2" />
+                      </>
+                    )}
+                  </Button>
+                  
+                  {/* Fallback: open in new tab to avoid iframe popup blocking */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    onClick={() => window.open(window.location.href, '_blank')}
+                  >
+                    <ExternalLink className="w-4 h-4 mr-2" />
+                    Abrir en nueva pestaña (si el popup no aparece)
+                  </Button>
+                </div>
+              )}
+
+              {/* Help Link */}
+              <p className="text-xs text-center text-muted-foreground">
+                ¿Necesitas ayuda?{" "}
+                <a 
+                  href="https://developers.facebook.com/docs/whatsapp/cloud-api/get-started" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline"
+                >
+                  Ver documentación de WhatsApp Business API
+                </a>
+              </p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="manual" className="mt-4">
+          <ManualWhatsAppSetup onAccountConnected={() => {
+            fetchAccounts();
+            onAccountConnected?.();
+          }} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
