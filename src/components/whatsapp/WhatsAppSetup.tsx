@@ -163,13 +163,20 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
     }, FB_LOGIN_TIMEOUT_MS);
 
     try {
+      console.log('Starting FB.login with config_id:', metaConfig.configId);
       window.FB.login(
         (response) => {
-          if (finished) return;
+          console.log('FB.login callback received:', JSON.stringify(response, null, 2));
+          
+          if (finished) {
+            console.log('Already finished, ignoring callback');
+            return;
+          }
           finished = true;
           window.clearTimeout(timeoutId);
 
           if (response.authResponse?.code) {
+            console.log('Got auth code, exchanging token...');
             // Handle async operations inside a sync callback
             (async () => {
               try {
@@ -178,9 +185,12 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
                   throw new Error('No session found');
                 }
 
+                console.log('Calling whatsapp-exchange-token...');
                 const { data, error } = await supabase.functions.invoke('whatsapp-exchange-token', {
                   body: { code: response.authResponse.code },
                 });
+
+                console.log('Exchange response:', { data, error });
 
                 if (error) throw error;
 
@@ -203,9 +213,10 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
               }
             })();
           } else {
+            console.log('No auth code in response:', response);
             toast({
-              title: "Cancelado",
-              description: "El proceso de conexión fue cancelado.",
+              title: "Conexión incompleta",
+              description: "El proceso fue cancelado o el popup se cerró antes de completar.",
               variant: "destructive",
             });
             setConnecting(false);
