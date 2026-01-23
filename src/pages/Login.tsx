@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { MessageCircle, Mail, Lock, ArrowLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { WhatsAppFloatingButton } from "@/components/ui/WhatsAppFloatingButton";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -146,6 +147,8 @@ const Login = () => {
           </p>
         </motion.div>
       </div>
+
+      <WhatsAppFloatingButton />
     </div>
   );
 };
