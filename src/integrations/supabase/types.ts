@@ -223,6 +223,8 @@ export type Database = {
           id: string
           is_archived: boolean
           last_message_at: string
+          platform: string
+          platform_account_id: string | null
           unread_count: number
           updated_at: string
           whatsapp_account_id: string
@@ -236,6 +238,8 @@ export type Database = {
           id?: string
           is_archived?: boolean
           last_message_at?: string
+          platform?: string
+          platform_account_id?: string | null
           unread_count?: number
           updated_at?: string
           whatsapp_account_id: string
@@ -249,11 +253,20 @@ export type Database = {
           id?: string
           is_archived?: boolean
           last_message_at?: string
+          platform?: string
+          platform_account_id?: string | null
           unread_count?: number
           updated_at?: string
           whatsapp_account_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "conversations_platform_account_id_fkey"
+            columns: ["platform_account_id"]
+            isOneToOne: false
+            referencedRelation: "platform_accounts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "conversations_whatsapp_account_id_fkey"
             columns: ["whatsapp_account_id"]
@@ -376,6 +389,54 @@ export type Database = {
           sent_at?: string
           status?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      platform_accounts: {
+        Row: {
+          account_name: string | null
+          created_at: string
+          id: string
+          instagram_account_id: string | null
+          is_active: boolean
+          page_access_token: string | null
+          page_id: string | null
+          platform: string
+          tiktok_access_token: string | null
+          tiktok_open_id: string | null
+          updated_at: string
+          user_id: string
+          webhook_verify_token: string | null
+        }
+        Insert: {
+          account_name?: string | null
+          created_at?: string
+          id?: string
+          instagram_account_id?: string | null
+          is_active?: boolean
+          page_access_token?: string | null
+          page_id?: string | null
+          platform: string
+          tiktok_access_token?: string | null
+          tiktok_open_id?: string | null
+          updated_at?: string
+          user_id: string
+          webhook_verify_token?: string | null
+        }
+        Update: {
+          account_name?: string | null
+          created_at?: string
+          id?: string
+          instagram_account_id?: string | null
+          is_active?: boolean
+          page_access_token?: string | null
+          page_id?: string | null
+          platform?: string
+          tiktok_access_token?: string | null
+          tiktok_open_id?: string | null
+          updated_at?: string
+          user_id?: string
+          webhook_verify_token?: string | null
         }
         Relationships: []
       }
@@ -531,6 +592,10 @@ export type Database = {
         Returns: boolean
       }
       user_owns_conversation: { Args: { conv_id: string }; Returns: boolean }
+      user_owns_platform_account: {
+        Args: { account_id: string }
+        Returns: boolean
+      }
       user_owns_whatsapp_account: {
         Args: { account_id: string }
         Returns: boolean
