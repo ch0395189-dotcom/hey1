@@ -18,6 +18,10 @@ import {
   FileText,
   Video,
   X,
+  Mic,
+  Square,
+  Play,
+  Pause,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -25,8 +29,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import EmojiPicker from "emoji-picker-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 
@@ -57,7 +68,7 @@ interface ChatWindowProps {
 interface AttachedFile {
   file: File;
   preview: string;
-  type: 'image' | 'video' | 'document';
+  type: 'image' | 'video' | 'document' | 'audio';
 }
 
 export const ChatWindow = ({ conversation, onConversationUpdated }: ChatWindowProps) => {
@@ -66,9 +77,24 @@ export const ChatWindow = ({ conversation, onConversationUpdated }: ChatWindowPr
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(false);
   const [attachedFile, setAttachedFile] = useState<AttachedFile | null>(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  
+  const {
+    isRecording,
+    isPaused,
+    duration,
+    audioBlob,
+    audioUrl,
+    isSupported: audioSupported,
+    startRecording,
+    stopRecording,
+    pauseRecording,
+    resumeRecording,
+    clearRecording,
+  } = useAudioRecorder();
 
   useEffect(() => {
     if (conversation) {
@@ -243,6 +269,52 @@ export const ChatWindow = ({ conversation, onConversationUpdated }: ChatWindowPr
     }
   };
 
+  const handleSendAudio = async () => {
+    if (!audioBlob || !conversation || sending) return;
+
+    setSending(true);
+    try {
+      const audioFile = new File([audioBlob], `audio-${Date.now()}.webm`, { type: audioBlob.type });
+      const mediaUrl = await uploadMediaToStorage(audioFile);
+
+      const { error } = await supabase.functions.invoke('whatsapp-send-message', {
+        body: {
+          conversation_id: conversation.id,
+          media_url: mediaUrl,
+          media_type: 'audio',
+        },
+      });
+
+      if (error) throw error;
+
+      clearRecording();
+      toast({
+        title: "Audio enviado",
+        description: "Tu mensaje de voz ha sido enviado.",
+      });
+    } catch (error: any) {
+      console.error('Error sending audio:', error);
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo enviar el audio.",
+        variant: "destructive",
+      });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const formatDuration = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const handleEmojiClick = (emojiData: { emoji: string }) => {
+    setNewMessage((prev) => prev + emojiData.emoji);
+    setShowEmojiPicker(false);
+  };
+
   const handleArchive = async () => {
     if (!conversation) return;
 
@@ -268,7 +340,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated }: ChatWindowPr
       case 'delivered':
         return <CheckCheck className="w-3 h-3" />;
       case 'read':
-        return <CheckCheck className="w-3 h-3 text-blue-500" />;
+        return <CheckCheck className="w-3 h-3 text-primary" />;
       case 'failed':
         return <AlertCircle className="w-3 h-3 text-destructive" />;
       default:
@@ -436,6 +508,12 @@ export const ChatWindow = ({ conversation, onConversationUpdated }: ChatWindowPr
                               <FileText className="w-8 h-8" />
                               <span className="text-sm">Documento adjunto</span>
                             </a>
+                          ) : msg.message_type === 'audio' ? (
+                            <audio 
+                              src={msg.media_url} 
+                              controls 
+                              className="max-w-full"
+                            />
                           ) : null}
                         </div>
                       )}
@@ -501,6 +579,64 @@ export const ChatWindow = ({ conversation, onConversationUpdated }: ChatWindowPr
         </div>
       )}
 
+      {/* Audio Recording Preview */}
+      {(isRecording || audioUrl) && (
+        <div className="px-4 py-3 border-t border-border bg-muted/50">
+          <div className="max-w-3xl mx-auto flex items-center gap-3">
+            {isRecording ? (
+              <>
+                <div className="flex items-center gap-2 flex-1">
+                  <div className="w-3 h-3 rounded-full bg-destructive animate-pulse" />
+                  <span className="text-sm font-medium">Grabando...</span>
+                  <span className="text-sm text-muted-foreground">{formatDuration(duration)}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={isPaused ? resumeRecording : pauseRecording}
+                  >
+                    {isPaused ? <Play className="w-4 h-4" /> : <Pause className="w-4 h-4" />}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      stopRecording();
+                    }}
+                  >
+                    <Square className="w-4 h-4 text-destructive" />
+                  </Button>
+                </div>
+              </>
+            ) : audioUrl && (
+              <>
+                <audio src={audioUrl} controls className="flex-1 h-10" />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={clearRecording}
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+                <Button
+                  type="button"
+                  size="icon"
+                  className="bg-gradient-hero hover:opacity-90"
+                  onClick={handleSendAudio}
+                  disabled={sending}
+                >
+                  <Send className="w-4 h-4" />
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Message Input */}
       <form onSubmit={handleSendMessage} className="p-4 border-t border-border bg-card">
         <div className="max-w-3xl mx-auto flex items-center gap-3">
@@ -511,9 +647,20 @@ export const ChatWindow = ({ conversation, onConversationUpdated }: ChatWindowPr
             accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
             className="hidden"
           />
-          <Button type="button" variant="ghost" size="icon" className="shrink-0">
-            <Smile className="w-5 h-5 text-muted-foreground" />
-          </Button>
+          <Popover open={showEmojiPicker} onOpenChange={setShowEmojiPicker}>
+            <PopoverTrigger asChild>
+              <Button type="button" variant="ghost" size="icon" className="shrink-0">
+                <Smile className="w-5 h-5 text-muted-foreground" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-full p-0 border-0" side="top" align="start">
+              <EmojiPicker 
+                onEmojiClick={handleEmojiClick} 
+                width="100%"
+                height={350}
+              />
+            </PopoverContent>
+          </Popover>
           <Button 
             type="button" 
             variant="ghost" 
@@ -528,16 +675,37 @@ export const ChatWindow = ({ conversation, onConversationUpdated }: ChatWindowPr
             onChange={(e) => setNewMessage(e.target.value)}
             placeholder="Escribe un mensaje..."
             className="flex-1 bg-muted border-0"
-            disabled={sending}
+            disabled={sending || isRecording}
           />
-          <Button
-            type="submit"
-            size="icon"
-            className="shrink-0 bg-gradient-hero hover:opacity-90"
-            disabled={(!newMessage.trim() && !attachedFile) || sending}
-          >
-            <Send className="w-4 h-4" />
-          </Button>
+          {newMessage.trim() || attachedFile ? (
+            <Button
+              type="submit"
+              size="icon"
+              className="shrink-0 bg-gradient-hero hover:opacity-90"
+              disabled={sending}
+            >
+              <Send className="w-4 h-4" />
+            </Button>
+          ) : audioSupported && !isRecording && !audioUrl ? (
+            <Button
+              type="button"
+              size="icon"
+              className="shrink-0 bg-gradient-hero hover:opacity-90"
+              onClick={startRecording}
+              disabled={sending}
+            >
+              <Mic className="w-4 h-4" />
+            </Button>
+          ) : (
+            <Button
+              type="submit"
+              size="icon"
+              className="shrink-0 bg-gradient-hero hover:opacity-90"
+              disabled
+            >
+              <Send className="w-4 h-4" />
+            </Button>
+          )}
         </div>
       </form>
     </div>
