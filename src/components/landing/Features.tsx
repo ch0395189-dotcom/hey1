@@ -55,26 +55,26 @@ const features = [
 
 const Features = () => {
   return (
-    <section id="features" className="py-24 bg-muted/30">
+    <section id="features" className="py-12 md:py-24 bg-muted/30">
       <div className="container mx-auto px-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}
-          className="text-center mb-16"
+          className="text-center mb-8 md:mb-16"
         >
-          <h2 className="font-display text-3xl md:text-4xl font-bold mb-4">
+          <h2 className="font-display text-2xl sm:text-3xl md:text-4xl font-bold mb-3 md:mb-4">
             Todo lo que necesitas para{" "}
             <span className="text-gradient">vender más</span>
           </h2>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-base md:text-lg text-muted-foreground max-w-2xl mx-auto px-4">
             Herramientas profesionales para gestionar tus conversaciones de WhatsApp 
             y convertir más clientes.
           </p>
         </motion.div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
           {features.map((feature, index) => (
             <motion.div
               key={index}
@@ -82,13 +82,13 @@ const Features = () => {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
-              className="group p-6 bg-card rounded-2xl border border-border hover:shadow-elevated transition-all duration-300 hover:-translate-y-1"
+              className="group p-4 md:p-6 bg-card rounded-xl md:rounded-2xl border border-border hover:shadow-elevated transition-all duration-300 hover:-translate-y-1"
             >
-              <div className="w-12 h-12 rounded-xl bg-gradient-hero flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                <feature.icon className="w-6 h-6 text-primary-foreground" />
+              <div className="w-10 h-10 md:w-12 md:h-12 rounded-lg md:rounded-xl bg-gradient-hero flex items-center justify-center mb-3 md:mb-4 group-hover:scale-110 transition-transform">
+                <feature.icon className="w-5 h-5 md:w-6 md:h-6 text-primary-foreground" />
               </div>
-              <h3 className="font-display font-semibold text-lg mb-2">{feature.title}</h3>
-              <p className="text-muted-foreground text-sm">{feature.description}</p>
+              <h3 className="font-display font-semibold text-sm md:text-lg mb-1 md:mb-2">{feature.title}</h3>
+              <p className="text-muted-foreground text-xs md:text-sm line-clamp-3">{feature.description}</p>
             </motion.div>
           ))}
         </div>

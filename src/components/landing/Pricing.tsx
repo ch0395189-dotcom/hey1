@@ -99,25 +99,25 @@ const Pricing = () => {
   };
 
   return (
-    <section id="pricing" className="py-24">
+    <section id="pricing" className="py-12 md:py-24">
       <div className="container mx-auto px-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}
-          className="text-center mb-16"
+          className="text-center mb-8 md:mb-16"
         >
-          <h2 className="font-display text-3xl md:text-4xl font-bold mb-4">
+          <h2 className="font-display text-2xl sm:text-3xl md:text-4xl font-bold mb-3 md:mb-4">
             Planes que se adaptan a{" "}
             <span className="text-gradient">tu negocio</span>
           </h2>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-base md:text-lg text-muted-foreground max-w-2xl mx-auto px-4">
             Elige el plan perfecto para tu equipo. Todos incluyen 5 días de prueba gratuita.
           </p>
         </motion.div>
 
-        <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 max-w-6xl mx-auto">
           {plans.map((plan, index) => (
             <motion.div
               key={index}
@@ -125,36 +125,36 @@ const Pricing = () => {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
-              className={`relative p-8 rounded-3xl border ${
+              className={`relative p-6 md:p-8 rounded-2xl md:rounded-3xl border ${
                 plan.popular 
-                  ? "bg-gradient-card border-primary shadow-elevated scale-105" 
+                  ? "bg-gradient-card border-primary shadow-elevated md:scale-105" 
                   : "bg-card border-border"
               }`}
             >
               {plan.popular && (
-                <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                  <span className="px-4 py-2 rounded-full bg-gradient-hero text-primary-foreground text-sm font-medium">
+                <div className="absolute -top-3 md:-top-4 left-1/2 -translate-x-1/2">
+                  <span className="px-3 md:px-4 py-1.5 md:py-2 rounded-full bg-gradient-hero text-primary-foreground text-xs md:text-sm font-medium whitespace-nowrap">
                     Más Popular
                   </span>
                 </div>
               )}
 
-              <div className="text-center mb-8">
-                <h3 className="font-display font-semibold text-xl mb-2">{plan.name}</h3>
-                <p className="text-muted-foreground text-sm mb-4">{plan.description}</p>
+              <div className="text-center mb-6 md:mb-8">
+                <h3 className="font-display font-semibold text-lg md:text-xl mb-1 md:mb-2">{plan.name}</h3>
+                <p className="text-muted-foreground text-xs md:text-sm mb-3 md:mb-4">{plan.description}</p>
                 <div className="flex items-baseline justify-center gap-1">
-                  <span className="text-4xl font-display font-bold">${plan.price}</span>
-                  <span className="text-muted-foreground">/{plan.currency}/mes</span>
+                  <span className="text-3xl md:text-4xl font-display font-bold">${plan.price}</span>
+                  <span className="text-muted-foreground text-xs md:text-sm">/{plan.currency}/mes</span>
                 </div>
               </div>
 
-              <ul className="space-y-4 mb-8">
+              <ul className="space-y-3 md:space-y-4 mb-6 md:mb-8">
                 {plan.features.map((feature, featureIndex) => (
-                  <li key={featureIndex} className="flex items-center gap-3">
-                    <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center">
-                      <Check className="w-3 h-3 text-primary" />
+                  <li key={featureIndex} className="flex items-center gap-2 md:gap-3">
+                    <div className="w-4 h-4 md:w-5 md:h-5 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <Check className="w-2.5 h-2.5 md:w-3 md:h-3 text-primary" />
                     </div>
-                    <span className="text-sm text-muted-foreground">{feature}</span>
+                    <span className="text-xs md:text-sm text-muted-foreground">{feature}</span>
                   </li>
                 ))}
               </ul>
@@ -162,7 +162,7 @@ const Pricing = () => {
               <Button 
                 onClick={() => handleSelectPlan(plan.key)}
                 disabled={isLoading}
-                className={`w-full ${
+                className={`w-full text-sm md:text-base ${
                   plan.popular 
                     ? "bg-gradient-hero hover:opacity-90" 
                     : "bg-secondary text-secondary-foreground hover:bg-secondary/80"

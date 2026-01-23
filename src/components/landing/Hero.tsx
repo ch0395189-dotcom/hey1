@@ -1,19 +1,19 @@
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, MessageCircle, Users, Zap, Shield, BadgeCheck } from "lucide-react";
+import { ArrowRight, MessageCircle, Zap, Shield, BadgeCheck } from "lucide-react";
 
 const Hero = () => {
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-24 pb-12">
+    <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20 md:pt-24 pb-8 md:pb-12">
       {/* Background Elements */}
       <div className="absolute inset-0 -z-10">
-        <div className="absolute top-20 left-10 w-72 h-72 bg-primary/10 rounded-full blur-3xl animate-pulse-soft" />
-        <div className="absolute bottom-20 right-10 w-96 h-96 bg-primary/5 rounded-full blur-3xl animate-pulse-soft" />
+        <div className="absolute top-20 left-4 md:left-10 w-48 md:w-72 h-48 md:h-72 bg-primary/10 rounded-full blur-3xl animate-pulse-soft" />
+        <div className="absolute bottom-20 right-4 md:right-10 w-64 md:w-96 h-64 md:h-96 bg-primary/5 rounded-full blur-3xl animate-pulse-soft" />
       </div>
 
-      <div className="container mx-auto px-4 py-20">
-        <div className="grid lg:grid-cols-2 gap-12 items-center">
+      <div className="container mx-auto px-4 py-8 md:py-20">
+        <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
           {/* Left Content */}
           <motion.div
             initial={{ opacity: 0, x: -30 }}
@@ -26,66 +26,66 @@ const Hero = () => {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.15 }}
-              className="inline-flex items-center gap-3 px-4 py-2 rounded-full bg-[#0668E1]/10 border border-[#0668E1]/20 text-sm font-medium mb-4"
+              className="inline-flex items-center gap-2 md:gap-3 px-3 md:px-4 py-1.5 md:py-2 rounded-full bg-[#0668E1]/10 border border-[#0668E1]/20 text-xs md:text-sm font-medium mb-3 md:mb-4"
             >
-              <div className="flex items-center gap-1.5">
-                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none">
+              <div className="flex items-center gap-1 md:gap-1.5">
+                <svg className="w-4 h-4 md:w-5 md:h-5" viewBox="0 0 24 24" fill="none">
                   <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="#0668E1"/>
                   <path d="M2 17L12 22L22 17" stroke="#0668E1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                   <path d="M2 12L12 17L22 12" stroke="#0668E1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
                 <span className="text-[#0668E1] font-semibold">Meta Business Partner</span>
               </div>
-              <BadgeCheck className="w-4 h-4 text-[#0668E1]" />
+              <BadgeCheck className="w-3.5 h-3.5 md:w-4 md:h-4 text-[#0668E1]" />
             </motion.div>
 
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.25 }}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-secondary text-secondary-foreground text-sm font-medium mb-6 ml-2"
+              className="inline-flex items-center gap-2 px-3 md:px-4 py-1.5 md:py-2 rounded-full bg-secondary text-secondary-foreground text-xs md:text-sm font-medium mb-4 md:mb-6 ml-2"
             >
-              <Zap className="w-4 h-4" />
+              <Zap className="w-3.5 h-3.5 md:w-4 md:h-4" />
               Proveedor verificado de tecnología
             </motion.div>
 
-            <h1 className="font-display text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-6">
+            <h1 className="font-display text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-4 md:mb-6">
               Tu{" "}
               <span className="text-gradient">bandeja de entrada</span>
               <br />
               de WhatsApp profesional
             </h1>
 
-            <p className="text-lg md:text-xl text-muted-foreground mb-8 max-w-xl mx-auto lg:mx-0">
+            <p className="text-base md:text-lg lg:text-xl text-muted-foreground mb-6 md:mb-8 max-w-xl mx-auto lg:mx-0">
               Gestiona todas las conversaciones de WhatsApp de tu negocio desde una única plataforma. 
               Conecta tu API y empieza a vender más hoy.
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start mb-12">
-              <Link to="/register">
-                <Button size="lg" className="bg-gradient-hero hover:opacity-90 transition-opacity text-lg px-8 h-14 w-full sm:w-auto">
+            <div className="flex flex-col sm:flex-row gap-3 md:gap-4 justify-center lg:justify-start mb-8 md:mb-12">
+              <Link to="/register" className="w-full sm:w-auto">
+                <Button size="lg" className="bg-gradient-hero hover:opacity-90 transition-opacity text-base md:text-lg px-6 md:px-8 h-12 md:h-14 w-full">
                   Comenzar Ahora
-                  <ArrowRight className="ml-2 w-5 h-5" />
+                  <ArrowRight className="ml-2 w-4 h-4 md:w-5 md:h-5" />
                 </Button>
               </Link>
-              <Button size="lg" variant="outline" className="h-14 text-lg px-8">
+              <Button size="lg" variant="outline" className="h-12 md:h-14 text-base md:text-lg px-6 md:px-8 w-full sm:w-auto">
                 Ver Demo
               </Button>
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-3 gap-8">
+            <div className="grid grid-cols-3 gap-4 md:gap-8">
               <div>
-                <div className="font-display text-3xl font-bold text-foreground">10K+</div>
-                <div className="text-muted-foreground text-sm">Mensajes/día</div>
+                <div className="font-display text-2xl md:text-3xl font-bold text-foreground">10K+</div>
+                <div className="text-muted-foreground text-xs md:text-sm">Mensajes/día</div>
               </div>
               <div>
-                <div className="font-display text-3xl font-bold text-foreground">500+</div>
-                <div className="text-muted-foreground text-sm">Empresas</div>
+                <div className="font-display text-2xl md:text-3xl font-bold text-foreground">500+</div>
+                <div className="text-muted-foreground text-xs md:text-sm">Empresas</div>
               </div>
               <div>
-                <div className="font-display text-3xl font-bold text-foreground">99.9%</div>
-                <div className="text-muted-foreground text-sm">Uptime</div>
+                <div className="font-display text-2xl md:text-3xl font-bold text-foreground">99.9%</div>
+                <div className="text-muted-foreground text-xs md:text-sm">Uptime</div>
               </div>
             </div>
           </motion.div>
@@ -95,18 +95,18 @@ const Hero = () => {
             initial={{ opacity: 0, x: 30 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.6, delay: 0.3 }}
-            className="relative"
+            className="relative hidden md:block"
           >
-            <div className="relative bg-card rounded-3xl shadow-elevated p-6 border border-border">
+            <div className="relative bg-card rounded-2xl md:rounded-3xl shadow-elevated p-4 md:p-6 border border-border">
               {/* Mock Inbox UI */}
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="font-display font-semibold text-lg">Bandeja de Entrada</h3>
-                <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium">
+              <div className="flex items-center justify-between mb-4 md:mb-6">
+                <h3 className="font-display font-semibold text-base md:text-lg">Bandeja de Entrada</h3>
+                <span className="px-2 md:px-3 py-1 rounded-full bg-primary/10 text-primary text-xs md:text-sm font-medium">
                   12 nuevos
                 </span>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-3 md:space-y-4">
                 {[
                   { name: "Carlos García", message: "Hola, ¿tienen disponibilidad?", time: "2m", unread: true },
                   { name: "María López", message: "Perfecto, hago el pedido", time: "15m", unread: true },
@@ -118,24 +118,24 @@ const Hero = () => {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.5 + index * 0.1 }}
-                    className={`flex items-center gap-4 p-4 rounded-xl transition-colors cursor-pointer ${
+                    className={`flex items-center gap-3 md:gap-4 p-3 md:p-4 rounded-xl transition-colors cursor-pointer ${
                       chat.unread ? "bg-secondary" : "hover:bg-muted"
                     }`}
                   >
-                    <div className="w-12 h-12 rounded-full bg-gradient-hero flex items-center justify-center text-primary-foreground font-semibold">
+                    <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-gradient-hero flex items-center justify-center text-primary-foreground font-semibold text-sm md:text-base">
                       {chat.name[0]}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
-                        <span className={`font-medium ${chat.unread ? "text-foreground" : "text-muted-foreground"}`}>
+                        <span className={`font-medium text-sm md:text-base ${chat.unread ? "text-foreground" : "text-muted-foreground"}`}>
                           {chat.name}
                         </span>
                         <span className="text-xs text-muted-foreground">{chat.time}</span>
                       </div>
-                      <p className="text-sm text-muted-foreground truncate">{chat.message}</p>
+                      <p className="text-xs md:text-sm text-muted-foreground truncate">{chat.message}</p>
                     </div>
                     {chat.unread && (
-                      <div className="w-3 h-3 rounded-full bg-primary" />
+                      <div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-primary" />
                     )}
                   </motion.div>
                 ))}
@@ -146,19 +146,19 @@ const Hero = () => {
             <motion.div
               animate={{ y: [0, -10, 0] }}
               transition={{ duration: 3, repeat: Infinity }}
-              className="absolute -top-6 -right-6 w-16 h-16 rounded-2xl bg-gradient-hero shadow-elevated flex items-center justify-center"
+              className="absolute -top-4 md:-top-6 -right-4 md:-right-6 w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl bg-gradient-hero shadow-elevated flex items-center justify-center"
             >
-              <MessageCircle className="w-8 h-8 text-primary-foreground" />
+              <MessageCircle className="w-6 h-6 md:w-8 md:h-8 text-primary-foreground" />
             </motion.div>
 
             <motion.div
               animate={{ y: [0, 10, 0] }}
               transition={{ duration: 3, repeat: Infinity, delay: 0.5 }}
-              className="absolute -bottom-4 -left-4 px-4 py-3 rounded-xl bg-card shadow-elevated border border-border"
+              className="absolute -bottom-3 md:-bottom-4 -left-3 md:-left-4 px-3 md:px-4 py-2 md:py-3 rounded-lg md:rounded-xl bg-card shadow-elevated border border-border"
             >
               <div className="flex items-center gap-2">
-                <Shield className="w-5 h-5 text-primary" />
-                <span className="text-sm font-medium">API Segura</span>
+                <Shield className="w-4 h-4 md:w-5 md:h-5 text-primary" />
+                <span className="text-xs md:text-sm font-medium">API Segura</span>
               </div>
             </motion.div>
           </motion.div>
