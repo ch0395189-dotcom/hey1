@@ -35,3 +35,6 @@ verify_jwt = false
 
 [functions.tiktok-send-message]
 verify_jwt = false
+
+[functions.platform-exchange-token]
+verify_jwt = false
