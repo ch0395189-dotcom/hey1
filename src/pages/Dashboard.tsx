@@ -23,6 +23,7 @@ import { ChatbotConfig } from "@/components/chatbot/ChatbotConfig";
 import { ContactsList } from "@/components/contacts/ContactsList";
 import { StatisticsPanel } from "@/components/statistics/StatisticsPanel";
 import { TrialBanner } from "@/components/dashboard/TrialBanner";
+import { PaymentAlertBanner } from "@/components/dashboard/PaymentAlertBanner";
 import { useAdminCheck } from "@/hooks/useAdminCheck";
 import {
   Dialog,
@@ -203,9 +204,10 @@ const Dashboard = () => {
 
   return (
     <div className="h-screen flex flex-col bg-background">
-      {/* Trial Banner */}
-      <div className="px-4 py-2">
+      {/* Banners */}
+      <div className="px-4 py-2 space-y-2">
         <TrialBanner />
+        <PaymentAlertBanner />
       </div>
       
       <div className="flex-1 flex overflow-hidden">

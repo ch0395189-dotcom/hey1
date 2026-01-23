@@ -2,9 +2,12 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAdminCheck } from '@/hooks/useAdminCheck';
 import { UsersTable } from '@/components/admin/UsersTable';
+import { ManualPayments } from '@/components/admin/ManualPayments';
+import { PaymentAlerts } from '@/components/admin/PaymentAlerts';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Shield, Users } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ArrowLeft, Shield, Users, CreditCard, Bell } from 'lucide-react';
 
 const Admin = () => {
   const navigate = useNavigate();
@@ -45,20 +48,47 @@ const Admin = () => {
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              <CardTitle>Gestión de Usuarios</CardTitle>
-            </div>
-            <CardDescription>
-              Administra usuarios, suscripciones y realiza activaciones manuales
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <UsersTable />
-          </CardContent>
-        </Card>
+        <Tabs defaultValue="users" className="space-y-6">
+          <TabsList className="grid w-full max-w-md grid-cols-3">
+            <TabsTrigger value="users" className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              <span className="hidden sm:inline">Usuarios</span>
+            </TabsTrigger>
+            <TabsTrigger value="payments" className="flex items-center gap-2">
+              <CreditCard className="h-4 w-4" />
+              <span className="hidden sm:inline">Pagos</span>
+            </TabsTrigger>
+            <TabsTrigger value="alerts" className="flex items-center gap-2">
+              <Bell className="h-4 w-4" />
+              <span className="hidden sm:inline">Alertas</span>
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="users">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  <CardTitle>Gestión de Usuarios</CardTitle>
+                </div>
+                <CardDescription>
+                  Administra usuarios, suscripciones y realiza activaciones manuales
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <UsersTable />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="payments">
+            <ManualPayments />
+          </TabsContent>
+
+          <TabsContent value="alerts">
+            <PaymentAlerts />
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );
