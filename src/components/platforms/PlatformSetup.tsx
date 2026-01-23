@@ -14,7 +14,9 @@ import {
   CheckCircle2, 
   ExternalLink,
   Trash2,
-  BadgeCheck
+  BadgeCheck,
+  Copy,
+  Settings
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -38,6 +40,7 @@ interface PlatformAccount {
   page_id: string | null;
   is_active: boolean;
   created_at: string;
+  webhook_verify_token: string | null;
 }
 
 interface PlatformSetupProps {
@@ -86,6 +89,7 @@ export const PlatformSetup = ({ onAccountConnected }: PlatformSetupProps) => {
   const [formData, setFormData] = useState<Record<string, string>>({});
   const [accountName, setAccountName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showWebhookInfo, setShowWebhookInfo] = useState<string | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -229,45 +233,118 @@ export const PlatformSetup = ({ onAccountConnected }: PlatformSetupProps) => {
                       key={account.id}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="flex items-center justify-between p-3 rounded-lg border bg-card"
+                      className="rounded-lg border bg-card overflow-hidden"
                     >
-                      <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-xl ${config.bgColor} flex items-center justify-center`}>
-                          <Icon className={`w-5 h-5 ${config.color}`} />
-                        </div>
-                        <div>
-                          <p className="font-medium">{account.account_name || 'Sin nombre'}</p>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <CheckCircle2 className="w-3 h-3 text-primary" />
-                            Conectado
+                      <div className="flex items-center justify-between p-3">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-10 h-10 rounded-xl ${config.bgColor} flex items-center justify-center`}>
+                            <Icon className={`w-5 h-5 ${config.color}`} />
+                          </div>
+                          <div>
+                            <p className="font-medium">{account.account_name || 'Sin nombre'}</p>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <CheckCircle2 className="w-3 h-3 text-primary" />
+                              Conectado
+                            </div>
                           </div>
                         </div>
-                      </div>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10">
-                            <Trash2 className="w-4 h-4" />
+                        <div className="flex items-center gap-1">
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            onClick={() => setShowWebhookInfo(showWebhookInfo === account.id ? null : account.id)}
+                            className="text-muted-foreground hover:text-foreground"
+                          >
+                            <Settings className="w-4 h-4" />
                           </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>¿Eliminar cuenta?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Esta acción eliminará la conexión con {account.account_name}. 
-                              Las conversaciones existentes se mantendrán.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => deleteMutation.mutate(account.id)}
-                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                            >
-                              Eliminar
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10">
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>¿Eliminar cuenta?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Esta acción eliminará la conexión con {account.account_name}. 
+                                  Las conversaciones existentes se mantendrán.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => deleteMutation.mutate(account.id)}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  Eliminar
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      </div>
+
+                      {/* Webhook Configuration Info */}
+                      {showWebhookInfo === account.id && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          className="px-3 pb-3 border-t bg-muted/50"
+                        >
+                          <div className="pt-3 space-y-3">
+                            <div>
+                              <Label className="text-xs text-muted-foreground">URL del Webhook</Label>
+                              <div className="flex items-center gap-2 mt-1">
+                                <code className="flex-1 p-2 text-xs bg-background rounded border font-mono break-all">
+                                  https://zzmwjidgejbacqcluwyh.supabase.co/functions/v1/messenger-webhook
+                                </code>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText('https://zzmwjidgejbacqcluwyh.supabase.co/functions/v1/messenger-webhook');
+                                    toast({ title: "URL copiada", description: "La URL del webhook ha sido copiada al portapapeles." });
+                                  }}
+                                >
+                                  <Copy className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </div>
+                            <div>
+                              <Label className="text-xs text-muted-foreground">Token de Verificación</Label>
+                              <div className="flex items-center gap-2 mt-1">
+                                <code className="flex-1 p-2 text-xs bg-background rounded border font-mono break-all">
+                                  {account.webhook_verify_token || 'No disponible'}
+                                </code>
+                                {account.webhook_verify_token && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(account.webhook_verify_token!);
+                                      toast({ title: "Token copiado", description: "El token de verificación ha sido copiado al portapapeles." });
+                                    }}
+                                  >
+                                    <Copy className="w-4 h-4" />
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                            <div className="p-2 rounded bg-primary/10 text-xs text-primary">
+                              <p className="font-medium mb-1">Configuración en Meta for Developers:</p>
+                              <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
+                                <li>Ve a tu aplicación en Meta for Developers</li>
+                                <li>Navega a Productos → Messenger → Configuración</li>
+                                <li>En "Webhooks", haz clic en "Agregar URL de callback"</li>
+                                <li>Pega la URL y el token de verificación</li>
+                                <li>Suscríbete a los campos: messages, messaging_postbacks</li>
+                              </ol>
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
                     </motion.div>
                   ))}
                 </div>
