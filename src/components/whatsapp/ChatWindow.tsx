@@ -524,11 +524,14 @@ export const ChatWindow = ({ conversation, onConversationUpdated }: ChatWindowPr
                               <span className="text-sm">Documento adjunto</span>
                             </a>
                           ) : msg.message_type === 'audio' ? (
-                            <audio 
-                              src={msg.media_url} 
-                              controls 
-                              className="max-w-full"
-                            />
+                            <div className="flex items-center gap-2 min-w-[200px]">
+                              <audio 
+                                src={msg.media_url!} 
+                                controls 
+                                className="w-full h-10"
+                                preload="metadata"
+                              />
+                            </div>
                           ) : null}
                         </div>
                       )}

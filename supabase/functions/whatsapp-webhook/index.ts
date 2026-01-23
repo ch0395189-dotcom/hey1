@@ -190,27 +190,122 @@ Deno.serve(async (req) => {
               // Determine message content and type
               let content = '';
               let messageType = message.type;
-              let mediaUrl = null;
+              let mediaUrl: string | null = null;
+
+              // Function to download media from WhatsApp
+              const downloadWhatsAppMedia = async (mediaId: string): Promise<string | null> => {
+                try {
+                  // Get WhatsApp account access token
+                  const { data: accountData } = await supabase
+                    .from('whatsapp_accounts')
+                    .select('access_token')
+                    .eq('id', whatsappAccount.id)
+                    .single();
+
+                  if (!accountData?.access_token) return null;
+
+                  // Get media URL from WhatsApp
+                  const mediaInfoResponse = await fetch(
+                    `https://graph.facebook.com/v21.0/${mediaId}`,
+                    {
+                      headers: {
+                        'Authorization': `Bearer ${accountData.access_token}`,
+                      },
+                    }
+                  );
+
+                  if (!mediaInfoResponse.ok) {
+                    console.error('Failed to get media info:', await mediaInfoResponse.text());
+                    return null;
+                  }
+
+                  const mediaInfo = await mediaInfoResponse.json();
+                  const mediaDownloadUrl = mediaInfo.url;
+
+                  // Download the media
+                  const mediaResponse = await fetch(mediaDownloadUrl, {
+                    headers: {
+                      'Authorization': `Bearer ${accountData.access_token}`,
+                    },
+                  });
+
+                  if (!mediaResponse.ok) {
+                    console.error('Failed to download media:', await mediaResponse.text());
+                    return null;
+                  }
+
+                  const mediaBlob = await mediaResponse.blob();
+                  const mimeType = mediaInfo.mime_type || 'application/octet-stream';
+                  
+                  // Determine file extension
+                  let extension = 'bin';
+                  if (mimeType.includes('ogg')) extension = 'ogg';
+                  else if (mimeType.includes('mp4') || mimeType.includes('m4a')) extension = 'm4a';
+                  else if (mimeType.includes('mpeg') || mimeType.includes('mp3')) extension = 'mp3';
+                  else if (mimeType.includes('aac')) extension = 'aac';
+                  else if (mimeType.includes('amr')) extension = 'amr';
+                  else if (mimeType.includes('jpeg') || mimeType.includes('jpg')) extension = 'jpg';
+                  else if (mimeType.includes('png')) extension = 'png';
+                  else if (mimeType.includes('webp')) extension = 'webp';
+                  else if (mimeType.includes('mp4') && message.type === 'video') extension = 'mp4';
+                  else if (mimeType.includes('pdf')) extension = 'pdf';
+
+                  const fileName = `${Date.now()}-${mediaId.substring(0, 8)}.${extension}`;
+                  const filePath = `whatsapp-media/${fileName}`;
+
+                  // Upload to Supabase Storage
+                  const arrayBuffer = await mediaBlob.arrayBuffer();
+                  const { error: uploadError } = await supabase.storage
+                    .from('media')
+                    .upload(filePath, arrayBuffer, {
+                      contentType: mimeType,
+                      upsert: false,
+                    });
+
+                  if (uploadError) {
+                    console.error('Failed to upload media to storage:', uploadError);
+                    return null;
+                  }
+
+                  // Get public URL
+                  const { data: urlData } = supabase.storage
+                    .from('media')
+                    .getPublicUrl(filePath);
+
+                  return urlData.publicUrl;
+                } catch (error) {
+                  console.error('Error downloading WhatsApp media:', error);
+                  return null;
+                }
+              };
 
               switch (message.type) {
                 case 'text':
                   content = message.text?.body || '';
                   break;
                 case 'image':
-                  content = message.image?.caption || '[Imagen]';
-                  mediaUrl = message.image?.id;
+                  content = message.image?.caption || '';
+                  if (message.image?.id) {
+                    mediaUrl = await downloadWhatsAppMedia(message.image.id);
+                  }
                   break;
                 case 'audio':
-                  content = '[Audio]';
-                  mediaUrl = message.audio?.id;
+                  content = '';
+                  if (message.audio?.id) {
+                    mediaUrl = await downloadWhatsAppMedia(message.audio.id);
+                  }
                   break;
                 case 'video':
-                  content = message.video?.caption || '[Video]';
-                  mediaUrl = message.video?.id;
+                  content = message.video?.caption || '';
+                  if (message.video?.id) {
+                    mediaUrl = await downloadWhatsAppMedia(message.video.id);
+                  }
                   break;
                 case 'document':
-                  content = message.document?.caption || `[Documento: ${message.document?.filename}]`;
-                  mediaUrl = message.document?.id;
+                  content = message.document?.caption || message.document?.filename || 'Documento';
+                  if (message.document?.id) {
+                    mediaUrl = await downloadWhatsAppMedia(message.document.id);
+                  }
                   break;
                 default:
                   content = `[${message.type}]`;
@@ -221,7 +316,7 @@ Deno.serve(async (req) => {
                 .from('messages')
                 .insert({
                   conversation_id: conversationId,
-                  content: content,
+                  content: content || null,
                   message_type: messageType,
                   direction: 'inbound',
                   whatsapp_message_id: message.id,
