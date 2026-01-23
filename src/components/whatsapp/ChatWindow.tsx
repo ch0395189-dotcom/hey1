@@ -274,10 +274,20 @@ export const ChatWindow = ({ conversation, onConversationUpdated }: ChatWindowPr
 
     setSending(true);
     try {
-      const audioFile = new File([audioBlob], `audio-${Date.now()}.webm`, { type: audioBlob.type });
+      // Determine file extension based on MIME type
+      let extension = 'ogg';
+      if (audioBlob.type.includes('webm')) {
+        extension = 'webm';
+      } else if (audioBlob.type.includes('mp4')) {
+        extension = 'm4a';
+      } else if (audioBlob.type.includes('ogg')) {
+        extension = 'ogg';
+      }
+      
+      const audioFile = new File([audioBlob], `audio-${Date.now()}.${extension}`, { type: audioBlob.type });
       const mediaUrl = await uploadMediaToStorage(audioFile);
 
-      const { error } = await supabase.functions.invoke('whatsapp-send-message', {
+      const { data, error } = await supabase.functions.invoke('whatsapp-send-message', {
         body: {
           conversation_id: conversation.id,
           media_url: mediaUrl,
@@ -286,6 +296,11 @@ export const ChatWindow = ({ conversation, onConversationUpdated }: ChatWindowPr
       });
 
       if (error) throw error;
+      
+      // Check for WhatsApp API error in response
+      if (data?.error) {
+        throw new Error(data.details || data.error);
+      }
 
       clearRecording();
       toast({
@@ -295,8 +310,8 @@ export const ChatWindow = ({ conversation, onConversationUpdated }: ChatWindowPr
     } catch (error: any) {
       console.error('Error sending audio:', error);
       toast({
-        title: "Error",
-        description: error.message || "No se pudo enviar el audio.",
+        title: "Error al enviar audio",
+        description: error.message || "No se pudo enviar el audio. WhatsApp puede no soportar este formato.",
         variant: "destructive",
       });
     } finally {
