@@ -22,6 +22,7 @@ import { WhatsAppSetup } from "@/components/whatsapp/WhatsAppSetup";
 import { ChatbotConfig } from "@/components/chatbot/ChatbotConfig";
 import { ContactsList } from "@/components/contacts/ContactsList";
 import { StatisticsPanel } from "@/components/statistics/StatisticsPanel";
+import { TrialBanner } from "@/components/dashboard/TrialBanner";
 import { useAdminCheck } from "@/hooks/useAdminCheck";
 import {
   Dialog,
@@ -201,7 +202,13 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="h-screen flex bg-background">
+    <div className="h-screen flex flex-col bg-background">
+      {/* Trial Banner */}
+      <div className="px-4 py-2">
+        <TrialBanner />
+      </div>
+      
+      <div className="flex-1 flex overflow-hidden">
       {/* Sidebar */}
       <motion.aside
         initial={{ x: -50, opacity: 0 }}
@@ -418,6 +425,7 @@ const Dashboard = () => {
           )}
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   );
 };
