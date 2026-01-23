@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { MessageCircle } from "lucide-react";
+import { MessageCircle, BadgeCheck } from "lucide-react";
 
 const Footer = () => {
   return (
@@ -13,9 +13,20 @@ const Footer = () => {
               </div>
               <span className="font-display font-bold text-xl">InboxWA</span>
             </Link>
-            <p className="text-muted-foreground text-sm">
+            <p className="text-muted-foreground text-sm mb-4">
               La plataforma líder para gestionar tu bandeja de entrada de WhatsApp Business.
             </p>
+            
+            {/* Meta Business Partner Badge */}
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#0668E1]/10 border border-[#0668E1]/20">
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none">
+                <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="#0668E1"/>
+                <path d="M2 17L12 22L22 17" stroke="#0668E1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M2 12L12 17L22 12" stroke="#0668E1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              <span className="text-xs font-medium text-[#0668E1]">Meta Business Partner</span>
+              <BadgeCheck className="w-3.5 h-3.5 text-[#0668E1]" />
+            </div>
           </div>
 
           <div>
