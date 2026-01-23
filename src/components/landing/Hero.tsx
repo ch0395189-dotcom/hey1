@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, MessageCircle, Users, Zap, Shield } from "lucide-react";
+import { ArrowRight, MessageCircle, Users, Zap, Shield, BadgeCheck } from "lucide-react";
 
 const Hero = () => {
   return (
@@ -21,14 +21,32 @@ const Hero = () => {
             transition={{ duration: 0.6 }}
             className="text-center lg:text-left"
           >
+            {/* Meta Business Partner Badge */}
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-secondary text-secondary-foreground text-sm font-medium mb-6"
+              transition={{ delay: 0.15 }}
+              className="inline-flex items-center gap-3 px-4 py-2 rounded-full bg-[#0668E1]/10 border border-[#0668E1]/20 text-sm font-medium mb-4"
+            >
+              <div className="flex items-center gap-1.5">
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="#0668E1"/>
+                  <path d="M2 17L12 22L22 17" stroke="#0668E1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M2 12L12 17L22 12" stroke="#0668E1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                <span className="text-[#0668E1] font-semibold">Meta Business Partner</span>
+              </div>
+              <BadgeCheck className="w-4 h-4 text-[#0668E1]" />
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.25 }}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-secondary text-secondary-foreground text-sm font-medium mb-6 ml-2"
             >
               <Zap className="w-4 h-4" />
-              Potenciado por WhatsApp Business API
+              Proveedor verificado de tecnología
             </motion.div>
 
             <h1 className="font-display text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-6">
