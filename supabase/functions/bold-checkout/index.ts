@@ -8,7 +8,8 @@ const corsHeaders = {
 
 const BOLD_API_KEY = Deno.env.get('BOLD_API_KEY')!;
 const BOLD_SECRET_KEY = Deno.env.get('BOLD_SECRET_KEY')!;
-const BOLD_API_URL = 'https://api.bold.co/v1';
+// Bold Colombia API - using the correct endpoint
+const BOLD_API_URL = 'https://integrations.bold.co/api/v2';
 
 interface CheckoutRequest {
   plan: 'starter' | 'professional' | 'enterprise';
@@ -90,29 +91,31 @@ serve(async (req) => {
     // Create Bold payment link
     const orderId = `order_${userId}_${Date.now()}`;
     
+    // Bold API v2 payload format
     const boldPayload = {
-      amount: {
-        currency: planDetails.currency,
-        total_amount: planDetails.amount,
-      },
-      payment_method: ['CARD', 'PSE', 'NEQUI'],
-      order_id: orderId,
+      amount_in_cents: planDetails.amount * 100, // Bold expects cents
+      currency: planDetails.currency,
       description: planDetails.description,
-      payer_email: userEmail,
+      order_id: orderId,
       redirect_url: successUrl,
-      expiration_date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours
+      expiration_minutes: 1440, // 24 hours
+      customer: {
+        email: userEmail,
+      },
       metadata: {
         user_id: userId,
         plan: plan,
       },
     };
 
+    console.log('Calling Bold API with payload:', JSON.stringify(boldPayload));
+
     const boldResponse = await fetch(`${BOLD_API_URL}/payment-links`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `x-api-key ${BOLD_API_KEY}`,
-        'x-api-secret': BOLD_SECRET_KEY,
+        'x-api-key': BOLD_API_KEY,
+        'x-secret-key': BOLD_SECRET_KEY,
       },
       body: JSON.stringify(boldPayload),
     });
