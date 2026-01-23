@@ -22,6 +22,7 @@ import {
   Square,
   Play,
   ArrowLeft,
+  ChevronDown,
   Pause,
   MessageCircle,
 } from "lucide-react";
@@ -87,7 +88,10 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
   const [loading, setLoading] = useState(false);
   const [attachedFile, setAttachedFile] = useState<AttachedFile | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [isAtBottom, setIsAtBottom] = useState(true);
+  const [unreadCount, setUnreadCount] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -146,6 +150,8 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
     if (conversation) {
       fetchMessages();
       markAsRead();
+      setUnreadCount(0);
+      setIsAtBottom(true);
 
       // Subscribe to new messages
       const channel = supabase
@@ -161,7 +167,23 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
           (payload) => {
             console.log('Message change:', payload);
             if (payload.eventType === 'INSERT') {
-              setMessages((prev) => [...prev, payload.new as Message]);
+              const newMsg = payload.new as Message;
+              setMessages((prev) => [...prev, newMsg]);
+              
+              // If user is not at bottom and it's an inbound message, increment unread count
+              if (newMsg.direction === 'inbound') {
+                setUnreadCount((prev) => {
+                  // Check if at bottom using current scroll position
+                  const container = messagesContainerRef.current;
+                  if (container) {
+                    const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
+                    if (!isNearBottom) {
+                      return prev + 1;
+                    }
+                  }
+                  return prev;
+                });
+              }
             } else if (payload.eventType === 'UPDATE') {
               setMessages((prev) =>
                 prev.map((msg) =>
@@ -179,19 +201,37 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
     }
   }, [conversation?.id]);
 
+  // Handle scroll detection
+  const handleScroll = () => {
+    const container = messagesContainerRef.current;
+    if (container) {
+      const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
+      setIsAtBottom(isNearBottom);
+      
+      // Clear unread count when scrolled to bottom
+      if (isNearBottom) {
+        setUnreadCount(0);
+      }
+    }
+  };
+
   useEffect(() => {
     // Small delay to ensure DOM is updated before scrolling
     const timeoutId = setTimeout(() => {
-      scrollToBottom();
+      if (isAtBottom) {
+        scrollToBottom();
+      }
     }, 100);
     return () => clearTimeout(timeoutId);
-  }, [messages]);
+  }, [messages, isAtBottom]);
 
   // Also scroll when conversation changes
   useEffect(() => {
     if (conversation) {
       const timeoutId = setTimeout(() => {
         scrollToBottom();
+        setIsAtBottom(true);
+        setUnreadCount(0);
       }, 200);
       return () => clearTimeout(timeoutId);
     }
@@ -201,6 +241,8 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
     }
+    setUnreadCount(0);
+    setIsAtBottom(true);
   };
 
   const fetchMessages = async () => {
@@ -581,7 +623,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-6 bg-muted/30">
+      <div className="flex-1 overflow-y-auto p-6 bg-muted/30 relative" ref={messagesContainerRef} onScroll={handleScroll}>
         <div className="max-w-3xl mx-auto space-y-4">
           {loading ? (
             <div className="flex items-center justify-center h-32">
@@ -625,7 +667,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                               alt="Imagen" 
                               className="rounded-lg max-w-full cursor-pointer hover:opacity-90"
                               onClick={() => window.open(msg.media_url!, '_blank')}
-                              onLoad={scrollToBottom}
+                              onLoad={() => { if (isAtBottom) scrollToBottom(); }}
                             />
                           ) : msg.message_type === 'video' ? (
                             <video 
@@ -678,6 +720,22 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
           )}
           <div ref={messagesEndRef} />
         </div>
+
+        {/* New messages indicator */}
+        {unreadCount > 0 && !isAtBottom && (
+          <motion.button
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            onClick={scrollToBottom}
+            className="sticky bottom-4 left-1/2 -translate-x-1/2 mx-auto flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-full shadow-lg hover:bg-primary/90 transition-colors z-10"
+          >
+            <ChevronDown className="w-4 h-4" />
+            <span className="text-sm font-medium">
+              {unreadCount} {unreadCount === 1 ? 'mensaje nuevo' : 'mensajes nuevos'}
+            </span>
+          </motion.button>
+        )}
       </div>
 
       {/* Attachment Preview */}
