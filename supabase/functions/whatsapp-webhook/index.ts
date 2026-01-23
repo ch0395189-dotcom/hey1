@@ -232,6 +232,51 @@ Deno.serve(async (req) => {
               if (msgError) {
                 console.error('Error saving message:', msgError);
               }
+
+              // Check if chatbot is enabled and should process this message
+              const { data: chatbotConfig } = await supabase
+                .from('chatbot_configs')
+                .select('is_enabled')
+                .eq('whatsapp_account_id', whatsappAccount.id)
+                .eq('is_enabled', true)
+                .single();
+
+              if (chatbotConfig) {
+                // Get WhatsApp account access token
+                const { data: accountData } = await supabase
+                  .from('whatsapp_accounts')
+                  .select('access_token')
+                  .eq('id', whatsappAccount.id)
+                  .single();
+
+                if (accountData) {
+                  // Call chatbot processor
+                  try {
+                    const chatbotResponse = await fetch(
+                      `${Deno.env.get('SUPABASE_URL')}/functions/v1/chatbot-process`,
+                      {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+                        },
+                        body: JSON.stringify({
+                          conversation_id: conversationId,
+                          message_content: content,
+                          whatsapp_account_id: whatsappAccount.id,
+                          phone_number_id: phoneNumberId,
+                          access_token: accountData.access_token,
+                          customer_phone: customerPhone,
+                        }),
+                      }
+                    );
+                    const chatbotResult = await chatbotResponse.json();
+                    console.log('Chatbot processed:', chatbotResult);
+                  } catch (chatbotError) {
+                    console.error('Error calling chatbot:', chatbotError);
+                  }
+                }
+              }
             }
           }
 
