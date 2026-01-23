@@ -180,11 +180,27 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
   }, [conversation?.id]);
 
   useEffect(() => {
-    scrollToBottom();
+    // Small delay to ensure DOM is updated before scrolling
+    const timeoutId = setTimeout(() => {
+      scrollToBottom();
+    }, 100);
+    return () => clearTimeout(timeoutId);
   }, [messages]);
 
+  // Also scroll when conversation changes
+  useEffect(() => {
+    if (conversation) {
+      const timeoutId = setTimeout(() => {
+        scrollToBottom();
+      }, 200);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [conversation?.id]);
+
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }
   };
 
   const fetchMessages = async () => {
@@ -609,6 +625,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                               alt="Imagen" 
                               className="rounded-lg max-w-full cursor-pointer hover:opacity-90"
                               onClick={() => window.open(msg.media_url!, '_blank')}
+                              onLoad={scrollToBottom}
                             />
                           ) : msg.message_type === 'video' ? (
                             <video 
