@@ -47,6 +47,22 @@ interface ConversationState {
   context: Record<string, any>;
 }
 
+// Platform-specific account data
+interface PlatformAccountData {
+  id: string;
+  platform: 'whatsapp' | 'messenger' | 'instagram' | 'tiktok';
+  // WhatsApp
+  phone_number_id?: string;
+  access_token?: string;
+  // Messenger/Instagram
+  page_id?: string;
+  page_access_token?: string;
+  instagram_account_id?: string;
+  // TikTok
+  tiktok_open_id?: string;
+  tiktok_access_token?: string;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -61,30 +77,72 @@ Deno.serve(async (req) => {
     const { 
       conversation_id, 
       message_content, 
+      // WhatsApp-specific (legacy support)
       whatsapp_account_id,
       phone_number_id,
       access_token,
-      customer_phone
+      customer_phone,
+      // Multi-platform support
+      platform,
+      platform_account_id,
+      recipient_id, // Customer's platform ID (PSID for Messenger, IG user ID, TikTok open_id)
     } = await req.json();
 
-    console.log('Processing chatbot for conversation:', conversation_id);
+    console.log('Processing chatbot for conversation:', conversation_id, 'platform:', platform || 'whatsapp');
 
-    // Get chatbot config
+    // Determine the account ID to use for chatbot config lookup
+    const accountId = platform_account_id || whatsapp_account_id;
+    const currentPlatform = platform || 'whatsapp';
+    const customerIdentifier = recipient_id || customer_phone;
+
+    // Get chatbot config - for now, chatbot configs are linked to whatsapp_account_id
+    // For other platforms, we use platform_account_id as whatsapp_account_id
     const { data: config, error: configError } = await supabase
       .from('chatbot_configs')
       .select('*')
-      .eq('whatsapp_account_id', whatsapp_account_id)
+      .eq('whatsapp_account_id', accountId)
       .eq('is_enabled', true)
       .single();
 
     if (configError || !config) {
-      console.log('No active chatbot config found');
+      console.log('No active chatbot config found for account:', accountId);
       return new Response(JSON.stringify({ processed: false, reason: 'no_config' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     const chatbotConfig = config as ChatbotConfig;
+
+    // Get platform account data for sending responses
+    let platformAccount: PlatformAccountData | null = null;
+    
+    if (currentPlatform === 'whatsapp') {
+      // Use legacy WhatsApp parameters
+      platformAccount = {
+        id: whatsapp_account_id,
+        platform: 'whatsapp',
+        phone_number_id,
+        access_token,
+      };
+    } else {
+      // Fetch platform account from database
+      const { data: accountData } = await supabase
+        .from('platform_accounts')
+        .select('id, platform, page_id, page_access_token, instagram_account_id, tiktok_open_id, tiktok_access_token')
+        .eq('id', platform_account_id)
+        .single();
+
+      if (accountData) {
+        platformAccount = accountData as PlatformAccountData;
+      }
+    }
+
+    if (!platformAccount) {
+      console.log('Platform account not found');
+      return new Response(JSON.stringify({ processed: false, reason: 'no_platform_account' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     // Get or create conversation state
     let { data: state } = await supabase
@@ -139,7 +197,7 @@ Deno.serve(async (req) => {
         .eq('id', conversationState.id);
 
       const escalationMessage = '👤 Entendido. Te comunicaré con un agente humano. Por favor espera un momento.';
-      await sendWhatsAppMessage(phone_number_id, access_token, customer_phone, escalationMessage);
+      await sendPlatformMessage(platformAccount, customerIdentifier, escalationMessage);
       await saveOutboundMessage(supabase, conversation_id, escalationMessage);
 
       return new Response(JSON.stringify({ processed: true, action: 'escalated' }), {
@@ -252,7 +310,7 @@ Deno.serve(async (req) => {
 
     // Send response
     if (responseMessage) {
-      await sendWhatsAppMessage(phone_number_id, access_token, customer_phone, responseMessage);
+      await sendPlatformMessage(platformAccount, customerIdentifier, responseMessage);
       await saveOutboundMessage(supabase, conversation_id, responseMessage);
     }
 
@@ -269,6 +327,32 @@ Deno.serve(async (req) => {
     });
   }
 });
+
+// Unified platform message sender
+async function sendPlatformMessage(
+  account: PlatformAccountData,
+  recipientId: string,
+  message: string
+): Promise<void> {
+  console.log(`Sending message via ${account.platform} to ${recipientId}`);
+
+  switch (account.platform) {
+    case 'whatsapp':
+      await sendWhatsAppMessage(account.phone_number_id!, account.access_token!, recipientId, message);
+      break;
+    case 'messenger':
+      await sendMessengerMessage(account.page_id!, account.page_access_token!, recipientId, message);
+      break;
+    case 'instagram':
+      await sendInstagramMessage(account.instagram_account_id!, account.page_access_token!, recipientId, message);
+      break;
+    case 'tiktok':
+      await sendTikTokMessage(account.tiktok_access_token!, recipientId, message);
+      break;
+    default:
+      console.error('Unknown platform:', account.platform);
+  }
+}
 
 async function sendWhatsAppMessage(
   phoneNumberId: string,
@@ -297,6 +381,88 @@ async function sendWhatsAppMessage(
     const error = await response.text();
     console.error('WhatsApp send error:', error);
     throw new Error(`Failed to send WhatsApp message: ${error}`);
+  }
+}
+
+async function sendMessengerMessage(
+  pageId: string,
+  pageAccessToken: string,
+  recipientId: string,
+  message: string
+): Promise<void> {
+  const response = await fetch(
+    `https://graph.facebook.com/v21.0/${pageId}/messages?access_token=${pageAccessToken}`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        recipient: { id: recipientId },
+        message: { text: message },
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.text();
+    console.error('Messenger send error:', error);
+    throw new Error(`Failed to send Messenger message: ${error}`);
+  }
+}
+
+async function sendInstagramMessage(
+  igAccountId: string,
+  pageAccessToken: string,
+  recipientId: string,
+  message: string
+): Promise<void> {
+  const response = await fetch(
+    `https://graph.facebook.com/v21.0/${igAccountId}/messages?access_token=${pageAccessToken}`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        recipient: { id: recipientId },
+        message: { text: message },
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.text();
+    console.error('Instagram send error:', error);
+    throw new Error(`Failed to send Instagram message: ${error}`);
+  }
+}
+
+async function sendTikTokMessage(
+  accessToken: string,
+  recipientOpenId: string,
+  message: string
+): Promise<void> {
+  const response = await fetch(
+    'https://open.tiktokapis.com/v2/dm/message/send/',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        open_id: recipientOpenId,
+        message_type: 'text',
+        text: message,
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.text();
+    console.error('TikTok send error:', error);
+    throw new Error(`Failed to send TikTok message: ${error}`);
   }
 }
 

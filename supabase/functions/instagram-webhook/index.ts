@@ -292,6 +292,41 @@ Deno.serve(async (req) => {
             console.error('Error saving message:', msgError);
           } else {
             console.log('Instagram message saved successfully for conversation:', conversationId);
+
+            // Check if chatbot is enabled and should process this message
+            const { data: chatbotConfig } = await supabase
+              .from('chatbot_configs')
+              .select('is_enabled')
+              .eq('whatsapp_account_id', platformAccount.id)
+              .eq('is_enabled', true)
+              .maybeSingle();
+
+            if (chatbotConfig && content) {
+              // Call chatbot processor
+              try {
+                const chatbotResponse = await fetch(
+                  `${Deno.env.get('SUPABASE_URL')}/functions/v1/chatbot-process`,
+                  {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+                    },
+                    body: JSON.stringify({
+                      conversation_id: conversationId,
+                      message_content: content,
+                      platform: 'instagram',
+                      platform_account_id: platformAccount.id,
+                      recipient_id: senderId,
+                    }),
+                  }
+                );
+                const chatbotResult = await chatbotResponse.json();
+                console.log('Chatbot processed for Instagram:', chatbotResult);
+              } catch (chatbotError) {
+                console.error('Error calling chatbot:', chatbotError);
+              }
+            }
           }
         }
       }
