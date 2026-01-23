@@ -8,10 +8,13 @@ import {
   LogOut, 
   Users,
   BarChart3,
-  Bot
+  Bot,
+  Bell,
+  BellOff
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useNotifications } from "@/hooks/useNotifications";
 import { ConversationsList } from "@/components/whatsapp/ConversationsList";
 import { ChatWindow } from "@/components/whatsapp/ChatWindow";
 import { WhatsAppSetup } from "@/components/whatsapp/WhatsAppSetup";
@@ -31,6 +34,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 type ActiveView = 'inbox' | 'contacts' | 'statistics';
 
@@ -60,6 +69,33 @@ const Dashboard = () => {
   const [activeView, setActiveView] = useState<ActiveView>('inbox');
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { permission, isSupported, requestPermission, showNotification } = useNotifications();
+
+  const handleEnableNotifications = async () => {
+    const result = await requestPermission();
+    if (result === 'granted') {
+      toast({
+        title: "Notificaciones activadas",
+        description: "Recibirás notificaciones de nuevos mensajes.",
+      });
+    } else if (result === 'denied') {
+      toast({
+        title: "Notificaciones bloqueadas",
+        description: "Por favor, habilita las notificaciones en la configuración de tu navegador.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleNewMessage = (customerName: string, content: string, conversationId: string) => {
+    showNotification({
+      title: customerName || 'Nuevo mensaje',
+      body: content || 'Mensaje multimedia recibido',
+      onClick: () => {
+        setActiveView('inbox');
+      },
+    });
+  };
 
   useEffect(() => {
     const checkUser = async () => {
@@ -194,6 +230,35 @@ const Dashboard = () => {
         </nav>
 
         <div className="flex flex-col items-center gap-4">
+          {isSupported && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className={`w-12 h-12 rounded-xl ${
+                      permission === 'granted' 
+                        ? 'text-primary bg-secondary' 
+                        : 'text-muted-foreground hover:bg-secondary'
+                    }`}
+                    onClick={handleEnableNotifications}
+                  >
+                    {permission === 'granted' ? (
+                      <Bell className="w-5 h-5" />
+                    ) : (
+                      <BellOff className="w-5 h-5" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  {permission === 'granted' 
+                    ? 'Notificaciones activadas' 
+                    : 'Activar notificaciones'}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
           <Button 
             variant="ghost" 
             size="icon" 
@@ -226,6 +291,7 @@ const Dashboard = () => {
             <ConversationsList
               selectedConversationId={selectedConversation?.id || null}
               onSelectConversation={setSelectedConversation}
+              onNewMessage={handleNewMessage}
             />
           </motion.div>
 

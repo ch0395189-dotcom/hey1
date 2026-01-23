@@ -27,12 +27,14 @@ interface ConversationsListProps {
   selectedConversationId: string | null;
   onSelectConversation: (conversation: Conversation) => void;
   whatsappAccountId?: string;
+  onNewMessage?: (customerName: string, content: string, conversationId: string) => void;
 }
 
 export const ConversationsList = ({
   selectedConversationId,
   onSelectConversation,
   whatsappAccountId,
+  onNewMessage,
 }: ConversationsListProps) => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -42,8 +44,8 @@ export const ConversationsList = ({
   useEffect(() => {
     fetchConversations();
     
-    // Subscribe to realtime changes
-    const channel = supabase
+    // Subscribe to realtime changes for conversations
+    const conversationsChannel = supabase
       .channel('conversations-changes')
       .on(
         'postgres_changes',
@@ -59,10 +61,49 @@ export const ConversationsList = ({
       )
       .subscribe();
 
+    // Subscribe to new inbound messages for notifications
+    const messagesChannel = supabase
+      .channel('messages-notifications')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+        },
+        async (payload) => {
+          const newMessage = payload.new as { 
+            direction: string; 
+            content: string | null; 
+            conversation_id: string;
+          };
+          
+          // Only notify for inbound messages
+          if (newMessage.direction === 'inbound' && onNewMessage) {
+            // Fetch conversation details
+            const { data: conv } = await supabase
+              .from('conversations')
+              .select('customer_name, customer_phone')
+              .eq('id', newMessage.conversation_id)
+              .single();
+            
+            if (conv) {
+              onNewMessage(
+                conv.customer_name || conv.customer_phone,
+                newMessage.content || 'Mensaje multimedia',
+                newMessage.conversation_id
+              );
+            }
+          }
+        }
+      )
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(conversationsChannel);
+      supabase.removeChannel(messagesChannel);
     };
-  }, [whatsappAccountId, showArchived]);
+  }, [whatsappAccountId, showArchived, onNewMessage]);
 
   const fetchConversations = async () => {
     try {
