@@ -44,6 +44,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { useNotificationSound } from "@/hooks/useNotificationSound";
 import { FaWhatsapp, FaFacebookMessenger, FaInstagram, FaTiktok } from "react-icons/fa";
+import { ImagePreviewDialog } from "@/components/whatsapp/ImagePreviewDialog";
 
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -91,6 +92,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -560,6 +562,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
 
   return (
     <div className="flex-1 flex flex-col">
+      <ImagePreviewDialog url={previewImageUrl} onClose={() => setPreviewImageUrl(null)} />
       {/* Chat Header */}
       <div className="h-16 px-4 md:px-6 border-b border-border flex items-center justify-between bg-card">
         <div className="flex items-center gap-2 md:gap-3">
@@ -670,7 +673,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                               src={msg.media_url} 
                               alt="Imagen" 
                               className="rounded-lg max-w-full cursor-pointer hover:opacity-90"
-                              onClick={() => window.open(msg.media_url!, '_blank')}
+                                onClick={() => setPreviewImageUrl(msg.media_url!)}
                               onLoad={() => { if (isAtBottom) scrollToBottom(); }}
                             />
                           ) : msg.message_type === 'video' ? (
