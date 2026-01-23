@@ -42,6 +42,7 @@ import EmojiPicker from "emoji-picker-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
+import { useNotificationSound } from "@/hooks/useNotificationSound";
 import { FaWhatsapp, FaFacebookMessenger, FaInstagram, FaTiktok } from "react-icons/fa";
 
 import { format } from "date-fns";
@@ -145,6 +146,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
     clearRecording,
   } = useAudioRecorder();
 
+  const { playNotificationSound } = useNotificationSound();
 
   useEffect(() => {
     if (conversation) {
@@ -170,8 +172,10 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
               const newMsg = payload.new as Message;
               setMessages((prev) => [...prev, newMsg]);
               
-              // If user is not at bottom and it's an inbound message, increment unread count
+              // If it's an inbound message, play notification sound
               if (newMsg.direction === 'inbound') {
+                playNotificationSound();
+                
                 setUnreadCount((prev) => {
                   // Check if at bottom using current scroll position
                   const container = messagesContainerRef.current;
