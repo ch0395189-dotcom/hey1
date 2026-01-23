@@ -274,23 +274,31 @@ export const ChatWindow = ({ conversation, onConversationUpdated }: ChatWindowPr
 
     setSending(true);
     try {
-      // Determine file extension based on MIME type
-      let extension = 'ogg';
-      if (audioBlob.type.includes('webm')) {
-        extension = 'webm';
-      } else if (audioBlob.type.includes('mp4')) {
-        extension = 'm4a';
-      } else if (audioBlob.type.includes('ogg')) {
-        extension = 'ogg';
+      // Convert audio to OGG format compatible with WhatsApp
+      const formData = new FormData();
+      formData.append('audio', audioBlob, 'audio.webm');
+
+      toast({
+        title: "Procesando audio...",
+        description: "Convirtiendo a formato compatible con WhatsApp.",
+      });
+
+      const { data: conversionResult, error: conversionError } = await supabase.functions.invoke('convert-audio', {
+        body: formData,
+      });
+
+      if (conversionError) {
+        throw new Error('Error al convertir el audio');
       }
-      
-      const audioFile = new File([audioBlob], `audio-${Date.now()}.${extension}`, { type: audioBlob.type });
-      const mediaUrl = await uploadMediaToStorage(audioFile);
+
+      if (!conversionResult?.url) {
+        throw new Error('No se pudo obtener la URL del audio convertido');
+      }
 
       const { data, error } = await supabase.functions.invoke('whatsapp-send-message', {
         body: {
           conversation_id: conversation.id,
-          media_url: mediaUrl,
+          media_url: conversionResult.url,
           media_type: 'audio',
         },
       });
