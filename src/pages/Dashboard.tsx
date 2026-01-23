@@ -16,6 +16,8 @@ import { ConversationsList } from "@/components/whatsapp/ConversationsList";
 import { ChatWindow } from "@/components/whatsapp/ChatWindow";
 import { WhatsAppSetup } from "@/components/whatsapp/WhatsAppSetup";
 import { ChatbotConfig } from "@/components/chatbot/ChatbotConfig";
+import { ContactsList } from "@/components/contacts/ContactsList";
+import { StatisticsPanel } from "@/components/statistics/StatisticsPanel";
 import {
   Dialog,
   DialogContent,
@@ -29,6 +31,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
+type ActiveView = 'inbox' | 'contacts' | 'statistics';
 
 interface Conversation {
   id: string;
@@ -53,6 +57,7 @@ const Dashboard = () => {
   const [hasWhatsAppAccount, setHasWhatsAppAccount] = useState<boolean | null>(null);
   const [whatsappAccounts, setWhatsappAccounts] = useState<WhatsAppAccount[]>([]);
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
+  const [activeView, setActiveView] = useState<ActiveView>('inbox');
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -150,13 +155,31 @@ const Dashboard = () => {
         </div>
 
         <nav className="flex-1 flex flex-col items-center gap-4">
-          <Button variant="ghost" size="icon" className="w-12 h-12 rounded-xl bg-secondary">
-            <MessageCircle className="w-5 h-5 text-primary" />
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className={`w-12 h-12 rounded-xl ${activeView === 'inbox' ? 'bg-secondary text-primary' : 'text-muted-foreground hover:bg-secondary'}`}
+            onClick={() => setActiveView('inbox')}
+            title="Bandeja de entrada"
+          >
+            <MessageCircle className="w-5 h-5" />
           </Button>
-          <Button variant="ghost" size="icon" className="w-12 h-12 rounded-xl text-muted-foreground hover:bg-secondary">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className={`w-12 h-12 rounded-xl ${activeView === 'contacts' ? 'bg-secondary text-primary' : 'text-muted-foreground hover:bg-secondary'}`}
+            onClick={() => setActiveView('contacts')}
+            title="Contactos"
+          >
             <Users className="w-5 h-5" />
           </Button>
-          <Button variant="ghost" size="icon" className="w-12 h-12 rounded-xl text-muted-foreground hover:bg-secondary">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className={`w-12 h-12 rounded-xl ${activeView === 'statistics' ? 'bg-secondary text-primary' : 'text-muted-foreground hover:bg-secondary'}`}
+            onClick={() => setActiveView('statistics')}
+            title="Estadísticas"
+          >
             <BarChart3 className="w-5 h-5" />
           </Button>
           <Button 
@@ -190,31 +213,56 @@ const Dashboard = () => {
         </div>
       </motion.aside>
 
-      {/* Conversations List */}
-      <motion.div
-        initial={{ x: -30, opacity: 0 }}
-        animate={{ x: 0, opacity: 1 }}
-        transition={{ delay: 0.1 }}
-        className="w-80 bg-card border-r border-border"
-      >
-        <ConversationsList
-          selectedConversationId={selectedConversation?.id || null}
-          onSelectConversation={setSelectedConversation}
-        />
-      </motion.div>
+      {/* Main Content Area */}
+      {activeView === 'inbox' && (
+        <>
+          {/* Conversations List */}
+          <motion.div
+            initial={{ x: -30, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            transition={{ delay: 0.1 }}
+            className="w-80 bg-card border-r border-border"
+          >
+            <ConversationsList
+              selectedConversationId={selectedConversation?.id || null}
+              onSelectConversation={setSelectedConversation}
+            />
+          </motion.div>
 
-      {/* Chat Area */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.2 }}
-        className="flex-1 flex flex-col"
-      >
-        <ChatWindow
-          conversation={selectedConversation}
-          onConversationUpdated={() => setSelectedConversation(null)}
-        />
-      </motion.div>
+          {/* Chat Area */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2 }}
+            className="flex-1 flex flex-col"
+          >
+            <ChatWindow
+              conversation={selectedConversation}
+              onConversationUpdated={() => setSelectedConversation(null)}
+            />
+          </motion.div>
+        </>
+      )}
+
+      {activeView === 'contacts' && (
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="flex-1 bg-card"
+        >
+          <ContactsList />
+        </motion.div>
+      )}
+
+      {activeView === 'statistics' && (
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="flex-1 bg-background"
+        >
+          <StatisticsPanel />
+        </motion.div>
+      )}
 
       {/* Settings Dialog */}
       <Dialog open={showSettings} onOpenChange={setShowSettings}>
