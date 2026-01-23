@@ -1,6 +1,6 @@
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { MessageCircle, Instagram, Video } from "lucide-react";
+import { MessageCircle, Instagram, Video, Inbox } from "lucide-react";
 
 // Custom Facebook Messenger icon
 const MessengerIcon = ({ className }: { className?: string }) => (
@@ -9,12 +9,13 @@ const MessengerIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-export type Platform = 'whatsapp' | 'messenger' | 'instagram' | 'tiktok';
+export type Platform = 'whatsapp' | 'messenger' | 'instagram' | 'tiktok' | 'all';
 
 interface PlatformTabsProps {
   activePlatform: Platform;
   onPlatformChange: (platform: Platform) => void;
   counts?: {
+    all: number;
     whatsapp: number;
     messenger: number;
     instagram: number;
@@ -24,25 +25,32 @@ interface PlatformTabsProps {
 
 const platforms = [
   { 
+    id: 'all' as Platform, 
+    name: 'Todos', 
+    icon: Inbox, 
+    color: 'text-primary',
+    activeColor: 'data-[state=active]:text-primary'
+  },
+  { 
     id: 'whatsapp' as Platform, 
     name: 'WhatsApp', 
     icon: MessageCircle, 
-    color: 'text-[#25D366]',
-    activeColor: 'data-[state=active]:text-[#25D366]'
+    color: 'text-green-500',
+    activeColor: 'data-[state=active]:text-green-500'
   },
   { 
     id: 'messenger' as Platform, 
     name: 'Messenger', 
     icon: MessengerIcon, 
-    color: 'text-[#0084FF]',
-    activeColor: 'data-[state=active]:text-[#0084FF]'
+    color: 'text-blue-500',
+    activeColor: 'data-[state=active]:text-blue-500'
   },
   { 
     id: 'instagram' as Platform, 
     name: 'Instagram', 
     icon: Instagram, 
-    color: 'text-[#E4405F]',
-    activeColor: 'data-[state=active]:text-[#E4405F]'
+    color: 'text-pink-500',
+    activeColor: 'data-[state=active]:text-pink-500'
   },
   { 
     id: 'tiktok' as Platform, 
@@ -56,12 +64,12 @@ const platforms = [
 export const PlatformTabs = ({ 
   activePlatform, 
   onPlatformChange,
-  counts = { whatsapp: 0, messenger: 0, instagram: 0, tiktok: 0 }
+  counts = { all: 0, whatsapp: 0, messenger: 0, instagram: 0, tiktok: 0 }
 }: PlatformTabsProps) => {
   return (
     <div className="px-4 py-3 border-b border-border bg-card">
       <Tabs value={activePlatform} onValueChange={(v) => onPlatformChange(v as Platform)}>
-        <TabsList className="w-full grid grid-cols-4 h-auto p-1">
+        <TabsList className="w-full grid grid-cols-5 h-auto p-1">
           {platforms.map((platform) => {
             const Icon = platform.icon;
             const count = counts[platform.id];

@@ -57,6 +57,8 @@ interface Conversation {
   customer_profile_pic: string | null;
   is_archived: boolean;
   whatsapp_account_id: string;
+  platform: string;
+  platform_account_id: string | null;
 }
 
 interface WhatsAppAccount {
@@ -75,7 +77,7 @@ const Dashboard = () => {
   const [whatsappAccounts, setWhatsappAccounts] = useState<WhatsAppAccount[]>([]);
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<ActiveView>('inbox');
-  const [activePlatform, setActivePlatform] = useState<Platform>('whatsapp');
+  const [activePlatform, setActivePlatform] = useState<Platform>('all');
   const navigate = useNavigate();
   const { toast } = useToast();
   const { permission, isSupported, requestPermission, showNotification } = useNotifications();
@@ -366,35 +368,12 @@ const Dashboard = () => {
               onPlatformChange={setActivePlatform}
             />
             <div className="flex-1 overflow-hidden">
-              {activePlatform === 'whatsapp' ? (
-                <ConversationsList
-                  selectedConversationId={selectedConversation?.id || null}
-                  onSelectConversation={setSelectedConversation}
-                  onNewMessage={handleNewMessage}
-                />
-              ) : (
-                <div className="flex flex-col items-center justify-center h-full p-6 text-center">
-                  <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-4">
-                    <Plug className="w-8 h-8 text-muted-foreground" />
-                  </div>
-                  <h3 className="font-medium mb-2">
-                    {activePlatform === 'messenger' && 'Messenger'}
-                    {activePlatform === 'instagram' && 'Instagram'}
-                    {activePlatform === 'tiktok' && 'TikTok'}
-                  </h3>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Conecta tu cuenta para empezar a recibir mensajes
-                  </p>
-                  <Button 
-                    size="sm" 
-                    variant="outline"
-                    onClick={() => setShowPlatformSetup(true)}
-                  >
-                    <Plug className="w-4 h-4 mr-2" />
-                    Conectar
-                  </Button>
-                </div>
-              )}
+              <ConversationsList
+                selectedConversationId={selectedConversation?.id || null}
+                onSelectConversation={setSelectedConversation}
+                platform={activePlatform}
+                onNewMessage={handleNewMessage}
+              />
             </div>
           </motion.div>
 
@@ -405,23 +384,10 @@ const Dashboard = () => {
             transition={{ delay: 0.2 }}
             className="flex-1 flex flex-col"
           >
-            {activePlatform === 'whatsapp' ? (
-              <ChatWindow
-                conversation={selectedConversation}
-                onConversationUpdated={() => setSelectedConversation(null)}
-              />
-            ) : (
-              <div className="flex-1 flex items-center justify-center bg-muted/30">
-                <div className="text-center p-8">
-                  <h2 className="text-xl font-semibold mb-2">
-                    Próximamente
-                  </h2>
-                  <p className="text-muted-foreground">
-                    La bandeja de {activePlatform === 'messenger' ? 'Messenger' : activePlatform === 'instagram' ? 'Instagram' : 'TikTok'} estará disponible pronto
-                  </p>
-                </div>
-              </div>
-            )}
+            <ChatWindow
+              conversation={selectedConversation}
+              onConversationUpdated={() => setSelectedConversation(null)}
+            />
           </motion.div>
         </>
       )}
