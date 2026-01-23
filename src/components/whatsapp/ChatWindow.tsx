@@ -18,10 +18,6 @@ import {
   FileText,
   Video,
   X,
-  Mic,
-  Square,
-  Play,
-  Pause,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -37,7 +33,7 @@ import {
 import EmojiPicker from "emoji-picker-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { useAudioRecorder } from "@/hooks/useAudioRecorder";
+
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 
@@ -82,19 +78,6 @@ export const ChatWindow = ({ conversation, onConversationUpdated }: ChatWindowPr
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   
-  const {
-    isRecording,
-    isPaused,
-    duration,
-    audioBlob,
-    audioUrl,
-    isSupported: audioSupported,
-    startRecording,
-    stopRecording,
-    pauseRecording,
-    resumeRecording,
-    clearRecording,
-  } = useAudioRecorder();
 
   useEffect(() => {
     if (conversation) {
@@ -267,70 +250,6 @@ export const ChatWindow = ({ conversation, onConversationUpdated }: ChatWindowPr
     } finally {
       setSending(false);
     }
-  };
-
-  const handleSendAudio = async () => {
-    if (!audioBlob || !conversation || sending) return;
-
-    setSending(true);
-    try {
-      // Convert audio to OGG format compatible with WhatsApp
-      const formData = new FormData();
-      formData.append('audio', audioBlob, 'audio.webm');
-
-      toast({
-        title: "Procesando audio...",
-        description: "Convirtiendo a formato compatible con WhatsApp.",
-      });
-
-      const { data: conversionResult, error: conversionError } = await supabase.functions.invoke('convert-audio', {
-        body: formData,
-      });
-
-      if (conversionError) {
-        throw new Error('Error al convertir el audio');
-      }
-
-      if (!conversionResult?.url) {
-        throw new Error('No se pudo obtener la URL del audio convertido');
-      }
-
-      const { data, error } = await supabase.functions.invoke('whatsapp-send-message', {
-        body: {
-          conversation_id: conversation.id,
-          media_url: conversionResult.url,
-          media_type: 'audio',
-        },
-      });
-
-      if (error) throw error;
-      
-      // Check for WhatsApp API error in response
-      if (data?.error) {
-        throw new Error(data.details || data.error);
-      }
-
-      clearRecording();
-      toast({
-        title: "Audio enviado",
-        description: "Tu mensaje de voz ha sido enviado.",
-      });
-    } catch (error: any) {
-      console.error('Error sending audio:', error);
-      toast({
-        title: "Error al enviar audio",
-        description: error.message || "No se pudo enviar el audio. WhatsApp puede no soportar este formato.",
-        variant: "destructive",
-      });
-    } finally {
-      setSending(false);
-    }
-  };
-
-  const formatDuration = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   const handleEmojiClick = (emojiData: { emoji: string }) => {
@@ -605,64 +524,6 @@ export const ChatWindow = ({ conversation, onConversationUpdated }: ChatWindowPr
         </div>
       )}
 
-      {/* Audio Recording Preview */}
-      {(isRecording || audioUrl) && (
-        <div className="px-4 py-3 border-t border-border bg-muted/50">
-          <div className="max-w-3xl mx-auto flex items-center gap-3">
-            {isRecording ? (
-              <>
-                <div className="flex items-center gap-2 flex-1">
-                  <div className="w-3 h-3 rounded-full bg-destructive animate-pulse" />
-                  <span className="text-sm font-medium">Grabando...</span>
-                  <span className="text-sm text-muted-foreground">{formatDuration(duration)}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={isPaused ? resumeRecording : pauseRecording}
-                  >
-                    {isPaused ? <Play className="w-4 h-4" /> : <Pause className="w-4 h-4" />}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => {
-                      stopRecording();
-                    }}
-                  >
-                    <Square className="w-4 h-4 text-destructive" />
-                  </Button>
-                </div>
-              </>
-            ) : audioUrl && (
-              <>
-                <audio src={audioUrl} controls className="flex-1 h-10" />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={clearRecording}
-                >
-                  <X className="w-4 h-4" />
-                </Button>
-                <Button
-                  type="button"
-                  size="icon"
-                  className="bg-gradient-hero hover:opacity-90"
-                  onClick={handleSendAudio}
-                  disabled={sending}
-                >
-                  <Send className="w-4 h-4" />
-                </Button>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* Message Input */}
       <form onSubmit={handleSendMessage} className="p-4 border-t border-border bg-card">
         <div className="max-w-3xl mx-auto flex items-center gap-3">
@@ -701,37 +562,16 @@ export const ChatWindow = ({ conversation, onConversationUpdated }: ChatWindowPr
             onChange={(e) => setNewMessage(e.target.value)}
             placeholder="Escribe un mensaje..."
             className="flex-1 bg-muted border-0"
-            disabled={sending || isRecording}
+            disabled={sending}
           />
-          {newMessage.trim() || attachedFile ? (
-            <Button
-              type="submit"
-              size="icon"
-              className="shrink-0 bg-gradient-hero hover:opacity-90"
-              disabled={sending}
-            >
-              <Send className="w-4 h-4" />
-            </Button>
-          ) : audioSupported && !isRecording && !audioUrl ? (
-            <Button
-              type="button"
-              size="icon"
-              className="shrink-0 bg-gradient-hero hover:opacity-90"
-              onClick={startRecording}
-              disabled={sending}
-            >
-              <Mic className="w-4 h-4" />
-            </Button>
-          ) : (
-            <Button
-              type="submit"
-              size="icon"
-              className="shrink-0 bg-gradient-hero hover:opacity-90"
-              disabled
-            >
-              <Send className="w-4 h-4" />
-            </Button>
-          )}
+          <Button
+            type="submit"
+            size="icon"
+            className="shrink-0 bg-gradient-hero hover:opacity-90"
+            disabled={sending || (!newMessage.trim() && !attachedFile)}
+          >
+            <Send className="w-4 h-4" />
+          </Button>
         </div>
       </form>
     </div>
