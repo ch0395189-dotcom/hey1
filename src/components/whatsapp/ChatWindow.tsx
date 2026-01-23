@@ -14,6 +14,10 @@ import {
   Trash2,
   Clock,
   AlertCircle,
+  Image,
+  FileText,
+  Video,
+  X,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -50,12 +54,20 @@ interface ChatWindowProps {
   onConversationUpdated?: () => void;
 }
 
+interface AttachedFile {
+  file: File;
+  preview: string;
+  type: 'image' | 'video' | 'document';
+}
+
 export const ChatWindow = ({ conversation, onConversationUpdated }: ChatWindowProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [attachedFile, setAttachedFile] = useState<AttachedFile | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -132,22 +144,89 @@ export const ChatWindow = ({ conversation, onConversationUpdated }: ChatWindowPr
       .eq('id', conversation.id);
   };
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file size (max 16MB for WhatsApp)
+    if (file.size > 16 * 1024 * 1024) {
+      toast({
+        title: "Archivo muy grande",
+        description: "El archivo debe ser menor a 16MB.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    let fileType: 'image' | 'video' | 'document' = 'document';
+    if (file.type.startsWith('image/')) {
+      fileType = 'image';
+    } else if (file.type.startsWith('video/')) {
+      fileType = 'video';
+    }
+
+    const preview = URL.createObjectURL(file);
+    setAttachedFile({ file, preview, type: fileType });
+
+    // Reset input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const removeAttachment = () => {
+    if (attachedFile) {
+      URL.revokeObjectURL(attachedFile.preview);
+      setAttachedFile(null);
+    }
+  };
+
+  const uploadMediaToStorage = async (file: File): Promise<string> => {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+    const filePath = `whatsapp-media/${fileName}`;
+
+    const { data, error } = await supabase.storage
+      .from('media')
+      .upload(filePath, file);
+
+    if (error) throw error;
+
+    const { data: urlData } = supabase.storage
+      .from('media')
+      .getPublicUrl(filePath);
+
+    return urlData.publicUrl;
+  };
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !conversation || sending) return;
+    if ((!newMessage.trim() && !attachedFile) || !conversation || sending) return;
 
     setSending(true);
     try {
+      let mediaUrl: string | undefined;
+      let mediaType: string | undefined;
+
+      // Upload file if attached
+      if (attachedFile) {
+        mediaUrl = await uploadMediaToStorage(attachedFile.file);
+        mediaType = attachedFile.type;
+      }
+
       const { data, error } = await supabase.functions.invoke('whatsapp-send-message', {
         body: {
           conversation_id: conversation.id,
-          message: newMessage.trim(),
+          message: newMessage.trim() || undefined,
+          media_url: mediaUrl,
+          media_type: mediaType,
         },
       });
 
       if (error) throw error;
 
       setNewMessage("");
+      removeAttachment();
       toast({
         title: "Mensaje enviado",
         description: "Tu mensaje ha sido enviado correctamente.",
@@ -331,7 +410,38 @@ export const ChatWindow = ({ conversation, onConversationUpdated }: ChatWindowPr
                           : 'bg-card border border-border rounded-bl-md'
                       }`}
                     >
-                      <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                      {/* Media content */}
+                      {msg.media_url && (
+                        <div className="mb-2">
+                          {msg.message_type === 'image' ? (
+                            <img 
+                              src={msg.media_url} 
+                              alt="Imagen" 
+                              className="rounded-lg max-w-full cursor-pointer hover:opacity-90"
+                              onClick={() => window.open(msg.media_url!, '_blank')}
+                            />
+                          ) : msg.message_type === 'video' ? (
+                            <video 
+                              src={msg.media_url} 
+                              controls 
+                              className="rounded-lg max-w-full"
+                            />
+                          ) : msg.message_type === 'document' ? (
+                            <a 
+                              href={msg.media_url} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-2 p-2 bg-muted/50 rounded-lg hover:bg-muted"
+                            >
+                              <FileText className="w-8 h-8" />
+                              <span className="text-sm">Documento adjunto</span>
+                            </a>
+                          ) : null}
+                        </div>
+                      )}
+                      {msg.content && (
+                        <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                      )}
                       <div
                         className={`flex items-center justify-end gap-1 mt-1 ${
                           msg.direction === 'outbound'
@@ -354,13 +464,63 @@ export const ChatWindow = ({ conversation, onConversationUpdated }: ChatWindowPr
         </div>
       </div>
 
+      {/* Attachment Preview */}
+      {attachedFile && (
+        <div className="px-4 py-2 border-t border-border bg-muted/50">
+          <div className="max-w-3xl mx-auto flex items-center gap-3">
+            <div className="relative">
+              {attachedFile.type === 'image' ? (
+                <img 
+                  src={attachedFile.preview} 
+                  alt="Preview" 
+                  className="w-16 h-16 object-cover rounded-lg"
+                />
+              ) : attachedFile.type === 'video' ? (
+                <div className="w-16 h-16 bg-muted rounded-lg flex items-center justify-center">
+                  <Video className="w-8 h-8 text-muted-foreground" />
+                </div>
+              ) : (
+                <div className="w-16 h-16 bg-muted rounded-lg flex items-center justify-center">
+                  <FileText className="w-8 h-8 text-muted-foreground" />
+                </div>
+              )}
+              <Button
+                type="button"
+                variant="destructive"
+                size="icon"
+                className="absolute -top-2 -right-2 w-6 h-6"
+                onClick={removeAttachment}
+              >
+                <X className="w-3 h-3" />
+              </Button>
+            </div>
+            <div className="flex-1 truncate text-sm text-muted-foreground">
+              {attachedFile.file.name}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Message Input */}
       <form onSubmit={handleSendMessage} className="p-4 border-t border-border bg-card">
         <div className="max-w-3xl mx-auto flex items-center gap-3">
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileSelect}
+            accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
+            className="hidden"
+          />
           <Button type="button" variant="ghost" size="icon" className="shrink-0">
             <Smile className="w-5 h-5 text-muted-foreground" />
           </Button>
-          <Button type="button" variant="ghost" size="icon" className="shrink-0">
+          <Button 
+            type="button" 
+            variant="ghost" 
+            size="icon" 
+            className="shrink-0"
+            onClick={() => fileInputRef.current?.click()}
+          >
             <Paperclip className="w-5 h-5 text-muted-foreground" />
           </Button>
           <Input
@@ -374,7 +534,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated }: ChatWindowPr
             type="submit"
             size="icon"
             className="shrink-0 bg-gradient-hero hover:opacity-90"
-            disabled={!newMessage.trim() || sending}
+            disabled={(!newMessage.trim() && !attachedFile) || sending}
           >
             <Send className="w-4 h-4" />
           </Button>
