@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { differenceInDays, differenceInHours, isPast } from "date-fns";
 import { Clock, AlertTriangle, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,6 +15,7 @@ interface Subscription {
 export const TrialBanner = () => {
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchSubscription = async () => {
@@ -34,6 +36,10 @@ export const TrialBanner = () => {
 
     fetchSubscription();
   }, []);
+
+  const handleUpgrade = () => {
+    navigate('/#pricing');
+  };
 
   if (loading || !subscription) return null;
 
@@ -62,7 +68,10 @@ export const TrialBanner = () => {
             Actualiza tu plan para seguir usando todas las funciones
           </p>
         </div>
-        <button className="px-3 py-1.5 text-xs font-medium bg-destructive text-destructive-foreground rounded-lg hover:bg-destructive/90 transition-colors">
+        <button 
+          onClick={handleUpgrade}
+          className="px-3 py-1.5 text-xs font-medium bg-destructive text-destructive-foreground rounded-lg hover:bg-destructive/90 transition-colors"
+        >
           Actualizar plan
         </button>
       </motion.div>
@@ -136,7 +145,10 @@ export const TrialBanner = () => {
             Te quedan <span className="font-semibold">{timeText}</span> de prueba gratuita
           </p>
         </div>
-        <button className="px-3 py-1.5 text-xs font-medium bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-1.5">
+        <button 
+          onClick={handleUpgrade}
+          className="px-3 py-1.5 text-xs font-medium bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-1.5"
+        >
           <Sparkles className="w-3 h-3" />
           Actualizar
         </button>

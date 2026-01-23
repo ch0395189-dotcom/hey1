@@ -21,6 +21,7 @@ import {
   Mic,
   Square,
   Play,
+  ArrowLeft,
   Pause,
   MessageCircle,
 } from "lucide-react";
@@ -70,6 +71,7 @@ interface Conversation {
 interface ChatWindowProps {
   conversation: Conversation | null;
   onConversationUpdated?: () => void;
+  onBack?: () => void;
 }
 
 interface AttachedFile {
@@ -78,7 +80,7 @@ interface AttachedFile {
   type: 'image' | 'video' | 'document' | 'audio';
 }
 
-export const ChatWindow = ({ conversation, onConversationUpdated }: ChatWindowProps) => {
+export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: ChatWindowProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [sending, setSending] = useState(false);
@@ -497,8 +499,18 @@ export const ChatWindow = ({ conversation, onConversationUpdated }: ChatWindowPr
   return (
     <div className="flex-1 flex flex-col">
       {/* Chat Header */}
-      <div className="h-16 px-6 border-b border-border flex items-center justify-between bg-card">
-        <div className="flex items-center gap-3">
+      <div className="h-16 px-4 md:px-6 border-b border-border flex items-center justify-between bg-card">
+        <div className="flex items-center gap-2 md:gap-3">
+          {onBack && (
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="md:hidden"
+              onClick={onBack}
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+          )}
           <div className="relative">
             <div className="w-10 h-10 rounded-full bg-gradient-hero flex items-center justify-center text-primary-foreground font-semibold">
               {conversation.customer_profile_pic ? (

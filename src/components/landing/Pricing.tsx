@@ -113,7 +113,7 @@ const Pricing = () => {
             <span className="text-gradient">tu negocio</span>
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Elige el plan perfecto para tu equipo. Todos incluyen 14 días de prueba gratuita.
+            Elige el plan perfecto para tu equipo. Todos incluyen 5 días de prueba gratuita.
           </p>
         </motion.div>
 

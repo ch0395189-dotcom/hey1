@@ -387,6 +387,7 @@ const Dashboard = () => {
             <ChatWindow
               conversation={selectedConversation}
               onConversationUpdated={() => setSelectedConversation(null)}
+              onBack={() => setSelectedConversation(null)}
             />
           </motion.div>
         </>
