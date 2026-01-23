@@ -263,6 +263,42 @@ export type Database = {
           },
         ]
       }
+      manual_payments: {
+        Row: {
+          admin_id: string
+          amount: number
+          created_at: string
+          currency: string
+          id: string
+          notes: string | null
+          payment_method: string | null
+          reference: string | null
+          user_id: string
+        }
+        Insert: {
+          admin_id: string
+          amount: number
+          created_at?: string
+          currency?: string
+          id?: string
+          notes?: string | null
+          payment_method?: string | null
+          reference?: string | null
+          user_id: string
+        }
+        Update: {
+          admin_id?: string
+          amount?: number
+          created_at?: string
+          currency?: string
+          id?: string
+          notes?: string | null
+          payment_method?: string | null
+          reference?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           content: string | null
@@ -306,6 +342,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      payment_alerts: {
+        Row: {
+          admin_id: string
+          amount: number
+          currency: string
+          id: string
+          message: string | null
+          paid_at: string | null
+          sent_at: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          admin_id: string
+          amount: number
+          currency?: string
+          id?: string
+          message?: string | null
+          paid_at?: string | null
+          sent_at?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          admin_id?: string
+          amount?: number
+          currency?: string
+          id?: string
+          message?: string | null
+          paid_at?: string | null
+          sent_at?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
