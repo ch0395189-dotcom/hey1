@@ -14,3 +14,6 @@ verify_jwt = false
 
 [functions.whatsapp-send-message]
 verify_jwt = false
+
+[functions.convert-audio]
+verify_jwt = false
