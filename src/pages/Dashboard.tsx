@@ -8,19 +8,27 @@ import {
   LogOut, 
   Users,
   BarChart3,
-  Zap
+  Bot
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ConversationsList } from "@/components/whatsapp/ConversationsList";
 import { ChatWindow } from "@/components/whatsapp/ChatWindow";
 import { WhatsAppSetup } from "@/components/whatsapp/WhatsAppSetup";
+import { ChatbotConfig } from "@/components/chatbot/ChatbotConfig";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface Conversation {
   id: string;
@@ -31,11 +39,20 @@ interface Conversation {
   whatsapp_account_id: string;
 }
 
+interface WhatsAppAccount {
+  id: string;
+  display_name: string | null;
+  phone_number: string;
+}
+
 const Dashboard = () => {
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [user, setUser] = useState<any>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [showChatbot, setShowChatbot] = useState(false);
   const [hasWhatsAppAccount, setHasWhatsAppAccount] = useState<boolean | null>(null);
+  const [whatsappAccounts, setWhatsappAccounts] = useState<WhatsAppAccount[]>([]);
+  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -65,10 +82,17 @@ const Dashboard = () => {
   const checkWhatsAppAccounts = async () => {
     const { data, error } = await supabase
       .from('whatsapp_accounts')
-      .select('id')
-      .limit(1);
+      .select('id, display_name, phone_number');
 
-    setHasWhatsAppAccount(data && data.length > 0);
+    if (data && data.length > 0) {
+      setHasWhatsAppAccount(true);
+      setWhatsappAccounts(data as WhatsAppAccount[]);
+      if (!selectedAccountId) {
+        setSelectedAccountId(data[0].id);
+      }
+    } else {
+      setHasWhatsAppAccount(false);
+    }
   };
 
   const handleLogout = async () => {
@@ -135,8 +159,14 @@ const Dashboard = () => {
           <Button variant="ghost" size="icon" className="w-12 h-12 rounded-xl text-muted-foreground hover:bg-secondary">
             <BarChart3 className="w-5 h-5" />
           </Button>
-          <Button variant="ghost" size="icon" className="w-12 h-12 rounded-xl text-muted-foreground hover:bg-secondary">
-            <Zap className="w-5 h-5" />
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="w-12 h-12 rounded-xl text-muted-foreground hover:bg-secondary"
+            onClick={() => setShowChatbot(true)}
+            title="Chatbot"
+          >
+            <Bot className="w-5 h-5" />
           </Button>
         </nav>
 
@@ -193,6 +223,44 @@ const Dashboard = () => {
             <DialogTitle>Configuración de WhatsApp</DialogTitle>
           </DialogHeader>
           <WhatsAppSetup onAccountConnected={checkWhatsAppAccounts} />
+        </DialogContent>
+      </Dialog>
+
+      {/* Chatbot Config Dialog */}
+      <Dialog open={showChatbot} onOpenChange={setShowChatbot}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Bot className="h-5 w-5" />
+              Configuración del Chatbot
+            </DialogTitle>
+          </DialogHeader>
+          {whatsappAccounts.length > 1 && (
+            <div className="mb-4">
+              <Select value={selectedAccountId || ''} onValueChange={setSelectedAccountId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona una cuenta" />
+                </SelectTrigger>
+                <SelectContent>
+                  {whatsappAccounts.map((account) => (
+                    <SelectItem key={account.id} value={account.id}>
+                      {account.display_name || account.phone_number}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          {selectedAccountId && (
+            <ChatbotConfig 
+              whatsappAccountId={selectedAccountId}
+              whatsappAccountName={
+                whatsappAccounts.find(a => a.id === selectedAccountId)?.display_name || 
+                whatsappAccounts.find(a => a.id === selectedAccountId)?.phone_number || 
+                'Cuenta'
+              }
+            />
+          )}
         </DialogContent>
       </Dialog>
     </div>

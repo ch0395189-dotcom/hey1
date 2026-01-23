@@ -14,6 +14,205 @@ export type Database = {
   }
   public: {
     Tables: {
+      chatbot_configs: {
+        Row: {
+          ai_greeting: string | null
+          ai_system_prompt: string | null
+          created_at: string
+          escalation_keywords: string[] | null
+          fallback_message: string | null
+          id: string
+          is_enabled: boolean
+          mode: string
+          name: string
+          updated_at: string
+          welcome_message: string | null
+          whatsapp_account_id: string
+        }
+        Insert: {
+          ai_greeting?: string | null
+          ai_system_prompt?: string | null
+          created_at?: string
+          escalation_keywords?: string[] | null
+          fallback_message?: string | null
+          id?: string
+          is_enabled?: boolean
+          mode?: string
+          name?: string
+          updated_at?: string
+          welcome_message?: string | null
+          whatsapp_account_id: string
+        }
+        Update: {
+          ai_greeting?: string | null
+          ai_system_prompt?: string | null
+          created_at?: string
+          escalation_keywords?: string[] | null
+          fallback_message?: string | null
+          id?: string
+          is_enabled?: boolean
+          mode?: string
+          name?: string
+          updated_at?: string
+          welcome_message?: string | null
+          whatsapp_account_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chatbot_configs_whatsapp_account_id_fkey"
+            columns: ["whatsapp_account_id"]
+            isOneToOne: true
+            referencedRelation: "whatsapp_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chatbot_conversation_state: {
+        Row: {
+          context: Json | null
+          conversation_id: string
+          created_at: string
+          current_node_id: string | null
+          escalated_at: string | null
+          id: string
+          is_bot_active: boolean
+          updated_at: string
+        }
+        Insert: {
+          context?: Json | null
+          conversation_id: string
+          created_at?: string
+          current_node_id?: string | null
+          escalated_at?: string | null
+          id?: string
+          is_bot_active?: boolean
+          updated_at?: string
+        }
+        Update: {
+          context?: Json | null
+          conversation_id?: string
+          created_at?: string
+          current_node_id?: string | null
+          escalated_at?: string | null
+          id?: string
+          is_bot_active?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chatbot_conversation_state_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: true
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chatbot_conversation_state_current_node_id_fkey"
+            columns: ["current_node_id"]
+            isOneToOne: false
+            referencedRelation: "chatbot_flow_nodes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chatbot_flow_nodes: {
+        Row: {
+          action_type: string | null
+          chatbot_config_id: string
+          content: string
+          created_at: string
+          id: string
+          node_type: string
+          parent_node_id: string | null
+          position: number
+          title: string
+          trigger_type: string
+          trigger_value: string | null
+          updated_at: string
+        }
+        Insert: {
+          action_type?: string | null
+          chatbot_config_id: string
+          content: string
+          created_at?: string
+          id?: string
+          node_type?: string
+          parent_node_id?: string | null
+          position?: number
+          title: string
+          trigger_type?: string
+          trigger_value?: string | null
+          updated_at?: string
+        }
+        Update: {
+          action_type?: string | null
+          chatbot_config_id?: string
+          content?: string
+          created_at?: string
+          id?: string
+          node_type?: string
+          parent_node_id?: string | null
+          position?: number
+          title?: string
+          trigger_type?: string
+          trigger_value?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chatbot_flow_nodes_chatbot_config_id_fkey"
+            columns: ["chatbot_config_id"]
+            isOneToOne: false
+            referencedRelation: "chatbot_configs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chatbot_flow_nodes_parent_node_id_fkey"
+            columns: ["parent_node_id"]
+            isOneToOne: false
+            referencedRelation: "chatbot_flow_nodes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chatbot_keywords: {
+        Row: {
+          chatbot_config_id: string
+          created_at: string
+          id: string
+          is_exact_match: boolean
+          keyword: string
+          priority: number
+          response: string
+        }
+        Insert: {
+          chatbot_config_id: string
+          created_at?: string
+          id?: string
+          is_exact_match?: boolean
+          keyword: string
+          priority?: number
+          response: string
+        }
+        Update: {
+          chatbot_config_id?: string
+          created_at?: string
+          id?: string
+          is_exact_match?: boolean
+          keyword?: string
+          priority?: number
+          response?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chatbot_keywords_chatbot_config_id_fkey"
+            columns: ["chatbot_config_id"]
+            isOneToOne: false
+            referencedRelation: "chatbot_configs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       conversations: {
         Row: {
           assigned_to: string | null
@@ -227,6 +426,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      user_owns_chatbot_config: {
+        Args: { config_id: string }
+        Returns: boolean
+      }
       user_owns_conversation: { Args: { conv_id: string }; Returns: boolean }
       user_owns_whatsapp_account: {
         Args: { account_id: string }
