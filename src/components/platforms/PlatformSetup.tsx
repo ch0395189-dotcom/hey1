@@ -133,7 +133,7 @@ export const PlatformSetup = ({ onAccountConnected }: PlatformSetupProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showWebhookInfo, setShowWebhookInfo] = useState<string | null>(null);
   const [fbLoaded, setFbLoaded] = useState(false);
-  const [metaConfig, setMetaConfig] = useState<{ appId: string }>({ appId: '' });
+  const [metaConfig, setMetaConfig] = useState<{ appId: string; configId?: string }>({ appId: '', configId: '' });
   const [connecting, setConnecting] = useState(false);
   const [showPageSelector, setShowPageSelector] = useState(false);
   const [availablePages, setAvailablePages] = useState<FacebookPage[]>([]);
@@ -148,7 +148,7 @@ export const PlatformSetup = ({ onAccountConnected }: PlatformSetupProps) => {
     try {
       const { data, error } = await supabase.functions.invoke('get-meta-config');
       if (error) throw error;
-      setMetaConfig({ appId: data.appId || '' });
+      setMetaConfig({ appId: data.appId || '', configId: data.configId || '' });
     } catch (error) {
       console.error('Error fetching meta config:', error);
     }
@@ -157,20 +157,33 @@ export const PlatformSetup = ({ onAccountConnected }: PlatformSetupProps) => {
   // Load Facebook SDK
   const loadFacebookSDK = useCallback(() => {
     if (!metaConfig.appId) return;
-    
-    if (window.FB) {
-      setFbLoaded(true);
+
+    const init = () => {
+      try {
+        if (!window.FB?.init) {
+          throw new Error("FB SDK no disponible");
+        }
+        window.FB.init({
+          appId: metaConfig.appId,
+          cookie: true,
+          xfbml: true,
+          version: 'v21.0',
+        });
+        setFbLoaded(true);
+      } catch (e) {
+        console.error('Facebook SDK init error:', e);
+        setFbLoaded(false);
+      }
+    };
+
+    // If FB is already present (e.g., script partially loaded earlier), still call init.
+    if (window.FB && typeof window.FB.init === 'function') {
+      init();
       return;
     }
 
     window.fbAsyncInit = function () {
-      window.FB.init({
-        appId: metaConfig.appId,
-        cookie: true,
-        xfbml: true,
-        version: 'v21.0',
-      });
-      setFbLoaded(true);
+      init();
     };
 
     if (!document.getElementById('facebook-jssdk')) {
@@ -179,6 +192,10 @@ export const PlatformSetup = ({ onAccountConnected }: PlatformSetupProps) => {
       script.src = 'https://connect.facebook.net/en_US/sdk.js';
       script.async = true;
       script.defer = true;
+      script.onerror = () => {
+        console.error('Facebook SDK script failed to load');
+        setFbLoaded(false);
+      };
       document.body.appendChild(script);
     }
   }, [metaConfig.appId]);
@@ -231,11 +248,11 @@ export const PlatformSetup = ({ onAccountConnected }: PlatformSetupProps) => {
   });
 
   const handleFacebookLogin = async (platform: string) => {
-    if (!window.FB) {
+    if (!window.FB || typeof window.FB.login !== 'function') {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Facebook SDK no está cargado. Recarga la página.",
+        description: "Facebook SDK no está listo. Recarga la página e intenta nuevamente.",
       });
       return;
     }
@@ -339,10 +356,20 @@ export const PlatformSetup = ({ onAccountConnected }: PlatformSetupProps) => {
       clearTimeout(timeoutId);
       console.error('FB.login error:', error);
       setConnecting(false);
+
+      const details =
+        error instanceof Error
+          ? error.message
+          : typeof error === 'string'
+            ? error
+            : JSON.stringify(error);
+
       toast({
         variant: "destructive",
         title: "Error",
-        description: "No se pudo iniciar la conexión con Facebook.",
+        description: details
+          ? `No se pudo iniciar la conexión con Facebook: ${details}`
+          : "No se pudo iniciar la conexión con Facebook.",
       });
     }
   };
