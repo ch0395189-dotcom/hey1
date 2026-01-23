@@ -11,7 +11,8 @@ import {
   Bot,
   Bell,
   BellOff,
-  Shield
+  Shield,
+  Plug
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -24,6 +25,8 @@ import { ContactsList } from "@/components/contacts/ContactsList";
 import { StatisticsPanel } from "@/components/statistics/StatisticsPanel";
 import { TrialBanner } from "@/components/dashboard/TrialBanner";
 import { PaymentAlertBanner } from "@/components/dashboard/PaymentAlertBanner";
+import { PlatformTabs, Platform } from "@/components/dashboard/PlatformTabs";
+import { PlatformSetup } from "@/components/platforms/PlatformSetup";
 import { useAdminCheck } from "@/hooks/useAdminCheck";
 import {
   Dialog,
@@ -67,10 +70,12 @@ const Dashboard = () => {
   const [user, setUser] = useState<any>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showChatbot, setShowChatbot] = useState(false);
+  const [showPlatformSetup, setShowPlatformSetup] = useState(false);
   const [hasWhatsAppAccount, setHasWhatsAppAccount] = useState<boolean | null>(null);
   const [whatsappAccounts, setWhatsappAccounts] = useState<WhatsAppAccount[]>([]);
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<ActiveView>('inbox');
+  const [activePlatform, setActivePlatform] = useState<Platform>('whatsapp');
   const navigate = useNavigate();
   const { toast } = useToast();
   const { permission, isSupported, requestPermission, showNotification } = useNotifications();
@@ -258,6 +263,24 @@ const Dashboard = () => {
           >
             <Bot className="w-5 h-5" />
           </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="w-12 h-12 rounded-xl text-muted-foreground hover:bg-secondary"
+                  onClick={() => setShowPlatformSetup(true)}
+                  title="Conectar plataformas"
+                >
+                  <Plug className="w-5 h-5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                Messenger, Instagram, TikTok
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </nav>
 
         <div className="flex flex-col items-center gap-4">
@@ -331,18 +354,48 @@ const Dashboard = () => {
       {/* Main Content Area */}
       {activeView === 'inbox' && (
         <>
-          {/* Conversations List */}
+          {/* Conversations List with Platform Tabs */}
           <motion.div
             initial={{ x: -30, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             transition={{ delay: 0.1 }}
-            className="w-80 bg-card border-r border-border"
+            className="w-80 bg-card border-r border-border flex flex-col"
           >
-            <ConversationsList
-              selectedConversationId={selectedConversation?.id || null}
-              onSelectConversation={setSelectedConversation}
-              onNewMessage={handleNewMessage}
+            <PlatformTabs 
+              activePlatform={activePlatform} 
+              onPlatformChange={setActivePlatform}
             />
+            <div className="flex-1 overflow-hidden">
+              {activePlatform === 'whatsapp' ? (
+                <ConversationsList
+                  selectedConversationId={selectedConversation?.id || null}
+                  onSelectConversation={setSelectedConversation}
+                  onNewMessage={handleNewMessage}
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full p-6 text-center">
+                  <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-4">
+                    <Plug className="w-8 h-8 text-muted-foreground" />
+                  </div>
+                  <h3 className="font-medium mb-2">
+                    {activePlatform === 'messenger' && 'Messenger'}
+                    {activePlatform === 'instagram' && 'Instagram'}
+                    {activePlatform === 'tiktok' && 'TikTok'}
+                  </h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Conecta tu cuenta para empezar a recibir mensajes
+                  </p>
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={() => setShowPlatformSetup(true)}
+                  >
+                    <Plug className="w-4 h-4 mr-2" />
+                    Conectar
+                  </Button>
+                </div>
+              )}
+            </div>
           </motion.div>
 
           {/* Chat Area */}
@@ -352,10 +405,23 @@ const Dashboard = () => {
             transition={{ delay: 0.2 }}
             className="flex-1 flex flex-col"
           >
-            <ChatWindow
-              conversation={selectedConversation}
-              onConversationUpdated={() => setSelectedConversation(null)}
-            />
+            {activePlatform === 'whatsapp' ? (
+              <ChatWindow
+                conversation={selectedConversation}
+                onConversationUpdated={() => setSelectedConversation(null)}
+              />
+            ) : (
+              <div className="flex-1 flex items-center justify-center bg-muted/30">
+                <div className="text-center p-8">
+                  <h2 className="text-xl font-semibold mb-2">
+                    Próximamente
+                  </h2>
+                  <p className="text-muted-foreground">
+                    La bandeja de {activePlatform === 'messenger' ? 'Messenger' : activePlatform === 'instagram' ? 'Instagram' : 'TikTok'} estará disponible pronto
+                  </p>
+                </div>
+              </div>
+            )}
           </motion.div>
         </>
       )}
@@ -425,6 +491,19 @@ const Dashboard = () => {
               }
             />
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Platform Setup Dialog */}
+      <Dialog open={showPlatformSetup} onOpenChange={setShowPlatformSetup}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Plug className="h-5 w-5" />
+              Conectar otras plataformas
+            </DialogTitle>
+          </DialogHeader>
+          <PlatformSetup onAccountConnected={() => setShowPlatformSetup(false)} />
         </DialogContent>
       </Dialog>
       </div>
