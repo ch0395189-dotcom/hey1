@@ -7,10 +7,12 @@ const corsHeaders = {
 
 interface SendMessageRequest {
   conversation_id: string;
-  message: string;
-  message_type?: 'text' | 'template';
+  message?: string;
+  message_type?: 'text' | 'template' | 'image' | 'video' | 'document';
   template_name?: string;
   template_language?: string;
+  media_url?: string;
+  media_type?: 'image' | 'video' | 'document';
 }
 
 Deno.serve(async (req) => {
@@ -42,11 +44,11 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { conversation_id, message, message_type = 'text' } = await req.json() as SendMessageRequest;
+    const { conversation_id, message, message_type, media_url, media_type } = await req.json() as SendMessageRequest;
 
-    if (!conversation_id || !message) {
+    if (!conversation_id || (!message && !media_url)) {
       return new Response(
-        JSON.stringify({ error: 'conversation_id and message are required' }),
+        JSON.stringify({ error: 'conversation_id and (message or media_url) are required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -88,18 +90,42 @@ Deno.serve(async (req) => {
     // Send message via WhatsApp Cloud API
     const whatsappUrl = `https://graph.facebook.com/v21.0/${whatsappAccount.phone_number_id}/messages`;
     
-    const whatsappPayload = {
+    // Determine the actual message type to send
+    let actualMessageType = message_type || 'text';
+    if (media_url && media_type) {
+      actualMessageType = media_type;
+    }
+
+    let whatsappPayload: Record<string, unknown> = {
       messaging_product: 'whatsapp',
       recipient_type: 'individual',
       to: recipientPhone,
-      type: message_type,
-      ...(message_type === 'text' ? {
-        text: {
-          preview_url: false,
-          body: message,
-        },
-      } : {}),
+      type: actualMessageType,
     };
+
+    // Add content based on message type
+    if (actualMessageType === 'text' && message) {
+      whatsappPayload.text = {
+        preview_url: false,
+        body: message,
+      };
+    } else if (actualMessageType === 'image' && media_url) {
+      whatsappPayload.image = {
+        link: media_url,
+        ...(message ? { caption: message } : {}),
+      };
+    } else if (actualMessageType === 'video' && media_url) {
+      whatsappPayload.video = {
+        link: media_url,
+        ...(message ? { caption: message } : {}),
+      };
+    } else if (actualMessageType === 'document' && media_url) {
+      whatsappPayload.document = {
+        link: media_url,
+        ...(message ? { caption: message } : {}),
+        filename: 'document',
+      };
+    }
 
     const whatsappResponse = await fetch(whatsappUrl, {
       method: 'POST',
@@ -132,11 +158,12 @@ Deno.serve(async (req) => {
       .from('messages')
       .insert({
         conversation_id: conversation_id,
-        content: message,
-        message_type: message_type,
+        content: message || null,
+        message_type: actualMessageType,
         direction: 'outbound',
         whatsapp_message_id: whatsappMessageId,
         status: 'sent',
+        media_url: media_url || null,
       })
       .select()
       .single();
