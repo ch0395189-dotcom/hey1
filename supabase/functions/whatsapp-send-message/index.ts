@@ -8,11 +8,11 @@ const corsHeaders = {
 interface SendMessageRequest {
   conversation_id: string;
   message?: string;
-  message_type?: 'text' | 'template' | 'image' | 'video' | 'document';
+  message_type?: 'text' | 'template' | 'image' | 'video' | 'document' | 'audio';
   template_name?: string;
   template_language?: string;
   media_url?: string;
-  media_type?: 'image' | 'video' | 'document';
+  media_type?: 'image' | 'video' | 'document' | 'audio';
 }
 
 Deno.serve(async (req) => {
@@ -124,6 +124,10 @@ Deno.serve(async (req) => {
         link: media_url,
         ...(message ? { caption: message } : {}),
         filename: 'document',
+      };
+    } else if (actualMessageType === 'audio' && media_url) {
+      whatsappPayload.audio = {
+        link: media_url,
       };
     }
 
