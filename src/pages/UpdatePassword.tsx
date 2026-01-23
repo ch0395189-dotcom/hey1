@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { MessageCircle, Lock, Eye, EyeOff, CheckCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { WhatsAppFloatingButton } from "@/components/ui/WhatsAppFloatingButton";
 
 const UpdatePassword = () => {
   const [password, setPassword] = useState("");
@@ -168,6 +169,8 @@ const UpdatePassword = () => {
           </>
         )}
       </motion.div>
+
+      <WhatsAppFloatingButton />
     </div>
   );
 };
