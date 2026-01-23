@@ -29,3 +29,9 @@ verify_jwt = false
 
 [functions.instagram-send-message]
 verify_jwt = false
+
+[functions.tiktok-webhook]
+verify_jwt = false
+
+[functions.tiktok-send-message]
+verify_jwt = false
