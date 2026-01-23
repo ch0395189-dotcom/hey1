@@ -298,13 +298,23 @@ export const PlatformSetup = ({ onAccountConnected }: PlatformSetupProps) => {
                               <Label className="text-xs text-muted-foreground">URL del Webhook</Label>
                               <div className="flex items-center gap-2 mt-1">
                                 <code className="flex-1 p-2 text-xs bg-background rounded border font-mono break-all">
-                                  https://zzmwjidgejbacqcluwyh.supabase.co/functions/v1/messenger-webhook
+                                  {platform === 'messenger' 
+                                    ? 'https://zzmwjidgejbacqcluwyh.supabase.co/functions/v1/messenger-webhook'
+                                    : platform === 'instagram'
+                                    ? 'https://zzmwjidgejbacqcluwyh.supabase.co/functions/v1/instagram-webhook'
+                                    : 'https://zzmwjidgejbacqcluwyh.supabase.co/functions/v1/tiktok-webhook'
+                                  }
                                 </code>
                                 <Button
                                   variant="ghost"
                                   size="icon"
                                   onClick={() => {
-                                    navigator.clipboard.writeText('https://zzmwjidgejbacqcluwyh.supabase.co/functions/v1/messenger-webhook');
+                                    const webhookUrl = platform === 'messenger' 
+                                      ? 'https://zzmwjidgejbacqcluwyh.supabase.co/functions/v1/messenger-webhook'
+                                      : platform === 'instagram'
+                                      ? 'https://zzmwjidgejbacqcluwyh.supabase.co/functions/v1/instagram-webhook'
+                                      : 'https://zzmwjidgejbacqcluwyh.supabase.co/functions/v1/tiktok-webhook';
+                                    navigator.clipboard.writeText(webhookUrl);
                                     toast({ title: "URL copiada", description: "La URL del webhook ha sido copiada al portapapeles." });
                                   }}
                                 >
@@ -336,10 +346,27 @@ export const PlatformSetup = ({ onAccountConnected }: PlatformSetupProps) => {
                               <p className="font-medium mb-1">Configuración en Meta for Developers:</p>
                               <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
                                 <li>Ve a tu aplicación en Meta for Developers</li>
-                                <li>Navega a Productos → Messenger → Configuración</li>
-                                <li>En "Webhooks", haz clic en "Agregar URL de callback"</li>
-                                <li>Pega la URL y el token de verificación</li>
-                                <li>Suscríbete a los campos: messages, messaging_postbacks</li>
+                                {platform === 'messenger' ? (
+                                  <>
+                                    <li>Navega a Productos → Messenger → Configuración</li>
+                                    <li>En "Webhooks", haz clic en "Agregar URL de callback"</li>
+                                    <li>Pega la URL y el token de verificación</li>
+                                    <li>Suscríbete a los campos: messages, messaging_postbacks</li>
+                                  </>
+                                ) : platform === 'instagram' ? (
+                                  <>
+                                    <li>Navega a Productos → Instagram → Configuración</li>
+                                    <li>En "Webhooks", configura la URL de callback</li>
+                                    <li>Pega la URL y el token de verificación</li>
+                                    <li>Suscríbete a: messages, messaging_seen, messaging_postbacks</li>
+                                  </>
+                                ) : (
+                                  <>
+                                    <li>Ve al portal de desarrolladores de TikTok</li>
+                                    <li>Configura el webhook en tu aplicación</li>
+                                    <li>Pega la URL y el token de verificación</li>
+                                  </>
+                                )}
                               </ol>
                             </div>
                           </div>
