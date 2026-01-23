@@ -160,7 +160,26 @@ const Dashboard = () => {
           <div className="w-12 h-12 rounded-xl bg-gradient-hero flex items-center justify-center mb-8">
             <MessageCircle className="w-6 h-6 text-primary-foreground" />
           </div>
-          <div className="mt-auto">
+          <div className="mt-auto flex flex-col items-center gap-4">
+            {isAdmin && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="w-12 h-12 rounded-xl text-primary hover:bg-primary/10"
+                      onClick={() => navigate('/admin')}
+                    >
+                      <Shield className="w-5 h-5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">
+                    Panel de administración
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
             <Button 
               variant="ghost" 
               size="icon" 
