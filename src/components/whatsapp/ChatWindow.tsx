@@ -38,6 +38,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import EmojiPicker from "emoji-picker-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -630,102 +631,104 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-6 bg-muted/30 relative" ref={messagesContainerRef} onScroll={handleScroll}>
-        <div className="max-w-3xl mx-auto space-y-4">
-          {loading ? (
-            <div className="flex items-center justify-center h-32">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
-            </div>
-          ) : messages.length === 0 ? (
-            <div className="text-center text-muted-foreground py-8">
-              No hay mensajes aún
-            </div>
-          ) : (
-            Object.entries(messageGroups).map(([date, msgs]) => (
-              <div key={date}>
-                {/* Date header */}
-                <div className="flex items-center justify-center my-4">
-                  <span className="px-3 py-1 bg-muted rounded-full text-xs text-muted-foreground">
-                    {formatDateHeader(date)}
-                  </span>
-                </div>
+      <ScrollArea type="always" className="flex-1 bg-muted/30 relative" ref={messagesContainerRef} onScrollCapture={handleScroll}>
+        <div className="p-6">
+          <div className="max-w-3xl mx-auto space-y-4">
+            {loading ? (
+              <div className="flex items-center justify-center h-32">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+              </div>
+            ) : messages.length === 0 ? (
+              <div className="text-center text-muted-foreground py-8">
+                No hay mensajes aún
+              </div>
+            ) : (
+              Object.entries(messageGroups).map(([date, msgs]) => (
+                <div key={date}>
+                  {/* Date header */}
+                  <div className="flex items-center justify-center my-4">
+                    <span className="px-3 py-1 bg-muted rounded-full text-xs text-muted-foreground">
+                      {formatDateHeader(date)}
+                    </span>
+                  </div>
 
-                {/* Messages for this date */}
-                {msgs.map((msg) => (
-                  <motion.div
-                    key={msg.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className={`flex ${msg.direction === 'outbound' ? 'justify-end' : 'justify-start'} mb-2`}
-                  >
-                    <div
-                      className={`max-w-md px-4 py-2 rounded-2xl ${
-                        msg.direction === 'outbound'
-                          ? 'bg-primary text-primary-foreground rounded-br-md'
-                          : 'bg-card border border-border rounded-bl-md'
-                      }`}
+                  {/* Messages for this date */}
+                  {msgs.map((msg) => (
+                    <motion.div
+                      key={msg.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className={`flex ${msg.direction === 'outbound' ? 'justify-end' : 'justify-start'} mb-2`}
                     >
-                      {/* Media content */}
-                      {msg.media_url && (
-                        <div className="mb-2">
-                          {msg.message_type === 'image' ? (
-                            <img 
-                              src={msg.media_url} 
-                              alt="Imagen" 
-                              className="rounded-lg max-w-full cursor-pointer hover:opacity-90"
-                                onClick={() => setPreviewImageUrl(msg.media_url!)}
-                              onLoad={() => { if (isAtBottom) scrollToBottom(); }}
-                            />
-                          ) : msg.message_type === 'video' ? (
-                            <video 
-                              src={msg.media_url} 
-                              controls 
-                              className="rounded-lg max-w-full"
-                            />
-                          ) : msg.message_type === 'document' ? (
-                            <a 
-                              href={msg.media_url} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="flex items-center gap-2 p-2 bg-muted/50 rounded-lg hover:bg-muted"
-                            >
-                              <FileText className="w-8 h-8" />
-                              <span className="text-sm">Documento adjunto</span>
-                            </a>
-                          ) : msg.message_type === 'audio' ? (
-                            <div className="flex items-center gap-2 min-w-[200px]">
-                              <audio 
-                                src={msg.media_url!} 
-                                controls 
-                                className="w-full h-10"
-                                preload="metadata"
-                              />
-                            </div>
-                          ) : null}
-                        </div>
-                      )}
-                      {msg.content && (
-                        <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-                      )}
                       <div
-                        className={`flex items-center justify-end gap-1 mt-1 ${
+                        className={`max-w-md px-4 py-2 rounded-2xl ${
                           msg.direction === 'outbound'
-                            ? 'text-primary-foreground/70'
-                            : 'text-muted-foreground'
+                            ? 'bg-primary text-primary-foreground rounded-br-md'
+                            : 'bg-card border border-border rounded-bl-md'
                         }`}
                       >
-                        <span className="text-xs">
-                          {format(new Date(msg.created_at), 'HH:mm')}
-                        </span>
-                        {msg.direction === 'outbound' && getStatusIcon(msg.status)}
+                        {/* Media content */}
+                        {msg.media_url && (
+                          <div className="mb-2">
+                            {msg.message_type === 'image' ? (
+                              <img 
+                                src={msg.media_url} 
+                                alt="Imagen" 
+                                className="rounded-lg max-w-full cursor-pointer hover:opacity-90"
+                                onClick={() => setPreviewImageUrl(msg.media_url!)}
+                                onLoad={() => { if (isAtBottom) scrollToBottom(); }}
+                              />
+                            ) : msg.message_type === 'video' ? (
+                              <video 
+                                src={msg.media_url} 
+                                controls 
+                                className="rounded-lg max-w-full"
+                              />
+                            ) : msg.message_type === 'document' ? (
+                              <a 
+                                href={msg.media_url} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-2 p-2 bg-muted/50 rounded-lg hover:bg-muted"
+                              >
+                                <FileText className="w-8 h-8" />
+                                <span className="text-sm">Documento adjunto</span>
+                              </a>
+                            ) : msg.message_type === 'audio' ? (
+                              <div className="flex items-center gap-2 min-w-[200px]">
+                                <audio 
+                                  src={msg.media_url!} 
+                                  controls 
+                                  className="w-full h-10"
+                                  preload="metadata"
+                                />
+                              </div>
+                            ) : null}
+                          </div>
+                        )}
+                        {msg.content && (
+                          <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                        )}
+                        <div
+                          className={`flex items-center justify-end gap-1 mt-1 ${
+                            msg.direction === 'outbound'
+                              ? 'text-primary-foreground/70'
+                              : 'text-muted-foreground'
+                          }`}
+                        >
+                          <span className="text-xs">
+                            {format(new Date(msg.created_at), 'HH:mm')}
+                          </span>
+                          {msg.direction === 'outbound' && getStatusIcon(msg.status)}
+                        </div>
                       </div>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-            ))
-          )}
-          <div ref={messagesEndRef} />
+                    </motion.div>
+                  ))}
+                </div>
+              ))
+            )}
+            <div ref={messagesEndRef} />
+          </div>
         </div>
 
         {/* New messages indicator */}
@@ -743,7 +746,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
             </span>
           </motion.button>
         )}
-      </div>
+      </ScrollArea>
 
       {/* Attachment Preview */}
       {attachedFile && (
