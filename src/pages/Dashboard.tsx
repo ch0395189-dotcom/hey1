@@ -356,12 +356,14 @@ const Dashboard = () => {
       {/* Main Content Area */}
       {activeView === 'inbox' && (
         <>
-          {/* Conversations List with Platform Tabs */}
+          {/* Conversations List with Platform Tabs - Hidden on mobile when conversation is selected */}
           <motion.div
             initial={{ x: -30, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             transition={{ delay: 0.1 }}
-            className="w-80 bg-card border-r border-border flex flex-col"
+            className={`w-full md:w-80 bg-card border-r border-border flex flex-col ${
+              selectedConversation ? 'hidden md:flex' : 'flex'
+            }`}
           >
             <PlatformTabs 
               activePlatform={activePlatform} 
@@ -377,12 +379,14 @@ const Dashboard = () => {
             </div>
           </motion.div>
 
-          {/* Chat Area */}
+          {/* Chat Area - Hidden on mobile when no conversation is selected */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.2 }}
-            className="flex-1 flex flex-col"
+            className={`flex-1 flex flex-col ${
+              selectedConversation ? 'flex' : 'hidden md:flex'
+            }`}
           >
             <ChatWindow
               conversation={selectedConversation}
