@@ -253,72 +253,98 @@ export const PlatformSetup = ({ onAccountConnected }: PlatformSetupProps) => {
     setConnecting(true);
     setPendingPlatform(platform);
 
-    window.FB.login(
-      async (response) => {
-        if (response.authResponse?.accessToken) {
-          const accessToken = response.authResponse.accessToken;
-          console.log('Facebook login successful, getting pages...');
+    // Set a timeout to reset connecting state if FB doesn't respond
+    const timeoutId = setTimeout(() => {
+      setConnecting(false);
+      toast({
+        variant: "destructive",
+        title: "Tiempo agotado",
+        description: "La ventana de Facebook no respondió. Intenta nuevamente o permite popups.",
+      });
+    }, 60000); // 60 second timeout
+
+    try {
+      window.FB.login(
+        async (response: FBLoginResponse) => {
+          clearTimeout(timeoutId);
           
-          try {
-            const { data, error } = await supabase.functions.invoke('platform-exchange-token', {
-              body: { 
-                access_token: accessToken, 
-                platform 
-              },
-            });
-
-            if (error) throw error;
-
-            if (data.action === 'select_page') {
-              // Filter pages for Instagram - only show pages with Instagram accounts
-              const pages = data.pages as FacebookPage[];
-              if (platform === 'instagram') {
-                const pagesWithInstagram = pages.filter(p => p.instagram_account_id);
-                if (pagesWithInstagram.length === 0) {
-                  toast({
-                    variant: "destructive",
-                    title: "Sin cuenta de Instagram",
-                    description: "Ninguna de tus páginas tiene una cuenta de Instagram Business vinculada.",
-                  });
-                  setConnecting(false);
-                  return;
-                }
-                setAvailablePages(pagesWithInstagram);
-              } else {
-                setAvailablePages(pages);
-              }
-              setPendingAccessToken(accessToken);
-              setShowPageSelector(true);
-            } else if (data.success) {
-              toast({
-                title: "¡Cuenta conectada!",
-                description: `${config.name} conectado exitosamente.`,
+          if (response.authResponse?.accessToken) {
+            const accessToken = response.authResponse.accessToken;
+            console.log('Facebook login successful, getting pages...');
+            
+            try {
+              const { data, error } = await supabase.functions.invoke('platform-exchange-token', {
+                body: { 
+                  access_token: accessToken, 
+                  platform 
+                },
               });
-              queryClient.invalidateQueries({ queryKey: ['platform-accounts'] });
-              onAccountConnected?.();
+
+              if (error) throw error;
+
+              if (data.action === 'select_page') {
+                // Filter pages for Instagram - only show pages with Instagram accounts
+                const pages = data.pages as FacebookPage[];
+                if (platform === 'instagram') {
+                  const pagesWithInstagram = pages.filter(p => p.instagram_account_id);
+                  if (pagesWithInstagram.length === 0) {
+                    toast({
+                      variant: "destructive",
+                      title: "Sin cuenta de Instagram",
+                      description: "Ninguna de tus páginas tiene una cuenta de Instagram Business vinculada.",
+                    });
+                    setConnecting(false);
+                    return;
+                  }
+                  setAvailablePages(pagesWithInstagram);
+                } else {
+                  setAvailablePages(pages);
+                }
+                setPendingAccessToken(accessToken);
+                setShowPageSelector(true);
+                setConnecting(false);
+              } else if (data.success) {
+                toast({
+                  title: "¡Cuenta conectada!",
+                  description: `${config.name} conectado exitosamente.`,
+                });
+                queryClient.invalidateQueries({ queryKey: ['platform-accounts'] });
+                onAccountConnected?.();
+                setConnecting(false);
+              }
+            } catch (error: any) {
+              console.error('Error exchanging token:', error);
+              toast({
+                variant: "destructive",
+                title: "Error",
+                description: error.message || "No se pudo conectar la cuenta.",
+              });
+              setConnecting(false);
             }
-          } catch (error: any) {
-            console.error('Error exchanging token:', error);
+          } else {
             toast({
               variant: "destructive",
-              title: "Error",
-              description: error.message || "No se pudo conectar la cuenta.",
+              title: "Conexión cancelada",
+              description: "El proceso de conexión fue cancelado.",
             });
+            setConnecting(false);
           }
-        } else {
-          toast({
-            variant: "destructive",
-            title: "Conexión cancelada",
-            description: "El proceso de conexión fue cancelado.",
-          });
-        }
-        setConnecting(false);
-      },
-      { 
-        scope: config.scopes,
-        return_scopes: true 
-      } as any
-    );
+        },
+        { 
+          scope: config.scopes,
+          return_scopes: true 
+        } as any
+      );
+    } catch (error) {
+      clearTimeout(timeoutId);
+      console.error('FB.login error:', error);
+      setConnecting(false);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No se pudo iniciar la conexión con Facebook.",
+      });
+    }
   };
 
   const handlePageSelect = async (pageId: string) => {
