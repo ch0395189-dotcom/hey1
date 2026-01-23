@@ -15,12 +15,25 @@ import {
   ChevronDown,
   ChevronUp,
   Settings2,
-  Zap
+  Zap,
+  Pencil,
+  Trash2
 } from "lucide-react";
 import { TestMessageSender } from "./TestMessageSender";
 import { ManualWhatsAppSetup } from "./ManualWhatsAppSetup";
+import { EditAccountDialog } from "./EditAccountDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 declare global {
   interface Window {
@@ -53,6 +66,9 @@ declare global {
 interface WhatsAppAccount {
   id: string;
   phone_number: string;
+  phone_number_id: string;
+  business_account_id: string;
+  access_token: string;
   display_name: string | null;
   is_active: boolean;
   webhook_verify_token: string | null;
@@ -71,6 +87,10 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
   const [metaConfig, setMetaConfig] = useState<{ appId: string; configId: string }>({ appId: '', configId: '' });
   const [configLoading, setConfigLoading] = useState(true);
   const [expandedAccount, setExpandedAccount] = useState<string | null>(null);
+  const [editingAccount, setEditingAccount] = useState<WhatsAppAccount | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [accountToDelete, setAccountToDelete] = useState<WhatsAppAccount | null>(null);
   const { toast } = useToast();
 
   const FB_LOGIN_TIMEOUT_MS = 20000;
@@ -369,6 +389,40 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
     });
   };
 
+  const handleEditAccount = (account: WhatsAppAccount) => {
+    setEditingAccount(account);
+    setEditDialogOpen(true);
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!accountToDelete) return;
+
+    try {
+      const { error } = await supabase
+        .from('whatsapp_accounts')
+        .delete()
+        .eq('id', accountToDelete.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Cuenta eliminada",
+        description: "La cuenta de WhatsApp ha sido eliminada.",
+      });
+
+      setDeleteDialogOpen(false);
+      setAccountToDelete(null);
+      fetchAccounts();
+    } catch (error: any) {
+      console.error('Error deleting account:', error);
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo eliminar la cuenta.",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (loading || configLoading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -426,6 +480,26 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
                           Token
                         </Button>
                       )}
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => handleEditAccount(account)}
+                        title="Editar cuenta"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => {
+                          setAccountToDelete(account);
+                          setDeleteDialogOpen(true);
+                        }}
+                        title="Eliminar cuenta"
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
                       <Button
                         variant="ghost"
                         size="sm"
@@ -577,6 +651,36 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
           }} />
         </TabsContent>
       </Tabs>
+
+      {/* Edit Account Dialog */}
+      <EditAccountDialog
+        account={editingAccount}
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        onAccountUpdated={fetchAccounts}
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar cuenta de WhatsApp?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción eliminará la cuenta "{accountToDelete?.display_name || accountToDelete?.phone_number}" 
+              y todas sus conversaciones asociadas. Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteAccount}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
