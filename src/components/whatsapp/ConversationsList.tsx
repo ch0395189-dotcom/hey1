@@ -3,12 +3,13 @@ import { motion } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Search, Plus, Archive, Inbox } from "lucide-react";
+import { Search, Plus, Archive, Inbox, MessageCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
+import { FaWhatsapp, FaFacebookMessenger, FaInstagram, FaTiktok } from "react-icons/fa";
 
-interface Conversation {
+export interface Conversation {
   id: string;
   customer_name: string | null;
   customer_phone: string;
@@ -17,16 +18,21 @@ interface Conversation {
   unread_count: number;
   is_archived: boolean;
   whatsapp_account_id: string;
+  platform: string;
+  platform_account_id: string | null;
   last_message?: {
     content: string | null;
     direction: string;
   };
 }
 
+export type Platform = 'whatsapp' | 'messenger' | 'instagram' | 'tiktok' | 'all';
+
 interface ConversationsListProps {
   selectedConversationId: string | null;
   onSelectConversation: (conversation: Conversation) => void;
   whatsappAccountId?: string;
+  platform?: Platform;
   onNewMessage?: (customerName: string, content: string, conversationId: string) => void;
 }
 
@@ -34,12 +40,28 @@ export const ConversationsList = ({
   selectedConversationId,
   onSelectConversation,
   whatsappAccountId,
+  platform = 'all',
   onNewMessage,
 }: ConversationsListProps) => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  const getPlatformIcon = (platf: string) => {
+    switch (platf) {
+      case 'whatsapp':
+        return <FaWhatsapp className="w-3.5 h-3.5 text-green-500" />;
+      case 'messenger':
+        return <FaFacebookMessenger className="w-3.5 h-3.5 text-blue-500" />;
+      case 'instagram':
+        return <FaInstagram className="w-3.5 h-3.5 text-pink-500" />;
+      case 'tiktok':
+        return <FaTiktok className="w-3.5 h-3.5" />;
+      default:
+        return <MessageCircle className="w-3.5 h-3.5 text-muted-foreground" />;
+    }
+  };
 
   useEffect(() => {
     fetchConversations();
@@ -112,6 +134,11 @@ export const ConversationsList = ({
         .select('*')
         .eq('is_archived', showArchived)
         .order('last_message_at', { ascending: false });
+
+      // Filter by platform if not 'all'
+      if (platform && platform !== 'all') {
+        query = query.eq('platform', platform);
+      }
 
       if (whatsappAccountId) {
         query = query.eq('whatsapp_account_id', whatsappAccountId);
@@ -226,25 +253,33 @@ export const ConversationsList = ({
                   : "hover:bg-muted"
               }`}
             >
-              {/* Avatar */}
-              <div className="w-12 h-12 rounded-full bg-gradient-hero flex items-center justify-center text-primary-foreground font-semibold shrink-0">
-                {conversation.customer_profile_pic ? (
-                  <img
-                    src={conversation.customer_profile_pic}
-                    alt={conversation.customer_name || ''}
-                    className="w-full h-full rounded-full object-cover"
-                  />
-                ) : (
-                  getInitials(conversation.customer_name, conversation.customer_phone)
-                )}
+              {/* Avatar with platform indicator */}
+              <div className="relative shrink-0">
+                <div className="w-12 h-12 rounded-full bg-gradient-hero flex items-center justify-center text-primary-foreground font-semibold">
+                  {conversation.customer_profile_pic ? (
+                    <img
+                      src={conversation.customer_profile_pic}
+                      alt={conversation.customer_name || ''}
+                      className="w-full h-full rounded-full object-cover"
+                    />
+                  ) : (
+                    getInitials(conversation.customer_name, conversation.customer_phone)
+                  )}
+                </div>
+                {/* Platform badge */}
+                <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-background border border-border flex items-center justify-center">
+                  {getPlatformIcon(conversation.platform)}
+                </div>
               </div>
 
               {/* Content */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between">
-                  <span className="font-medium truncate">
-                    {conversation.customer_name || conversation.customer_phone}
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-medium truncate">
+                      {conversation.customer_name || conversation.customer_phone}
+                    </span>
+                  </div>
                   <span className="text-xs text-muted-foreground">
                     {formatTime(conversation.last_message_at)}
                   </span>

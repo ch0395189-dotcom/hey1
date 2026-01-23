@@ -22,6 +22,7 @@ import {
   Square,
   Play,
   Pause,
+  MessageCircle,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -34,10 +35,12 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Badge } from "@/components/ui/badge";
 import EmojiPicker from "emoji-picker-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
+import { FaWhatsapp, FaFacebookMessenger, FaInstagram, FaTiktok } from "react-icons/fa";
 
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -59,6 +62,9 @@ interface Conversation {
   customer_phone: string;
   customer_profile_pic: string | null;
   is_archived: boolean;
+  platform: string;
+  platform_account_id: string | null;
+  whatsapp_account_id: string;
 }
 
 interface ChatWindowProps {
@@ -82,6 +88,42 @@ export const ChatWindow = ({ conversation, onConversationUpdated }: ChatWindowPr
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+
+  // Helper to get platform icon
+  const getPlatformIcon = (platform: string) => {
+    switch (platform) {
+      case 'whatsapp':
+        return <FaWhatsapp className="w-4 h-4" />;
+      case 'messenger':
+        return <FaFacebookMessenger className="w-4 h-4" />;
+      case 'instagram':
+        return <FaInstagram className="w-4 h-4" />;
+      case 'tiktok':
+        return <FaTiktok className="w-4 h-4" />;
+      default:
+        return <MessageCircle className="w-4 h-4" />;
+    }
+  };
+
+  const getPlatformLabel = (platform: string) => {
+    switch (platform) {
+      case 'whatsapp': return 'WhatsApp';
+      case 'messenger': return 'Messenger';
+      case 'instagram': return 'Instagram';
+      case 'tiktok': return 'TikTok';
+      default: return 'Chat';
+    }
+  };
+
+  const getPlatformColor = (platform: string) => {
+    switch (platform) {
+      case 'whatsapp': return 'bg-green-500/10 text-green-600';
+      case 'messenger': return 'bg-blue-500/10 text-blue-600';
+      case 'instagram': return 'bg-pink-500/10 text-pink-500';
+      case 'tiktok': return 'bg-foreground/10 text-foreground';
+      default: return 'bg-muted text-muted-foreground';
+    }
+  };
   
   const {
     isRecording,
@@ -242,16 +284,49 @@ export const ChatWindow = ({ conversation, onConversationUpdated }: ChatWindowPr
         mediaType = attachedFile.type;
       }
 
-      const { data, error } = await supabase.functions.invoke('whatsapp-send-message', {
-        body: {
+      const platform = conversation.platform || 'whatsapp';
+      
+      // Choose the correct edge function based on platform
+      if (platform === 'whatsapp') {
+        const { data, error } = await supabase.functions.invoke('whatsapp-send-message', {
+          body: {
+            conversation_id: conversation.id,
+            message: newMessage.trim() || undefined,
+            media_url: mediaUrl,
+            media_type: mediaType,
+          },
+        });
+        if (error) throw error;
+      } else {
+        // For Messenger, Instagram, TikTok - use platform-specific send functions
+        const functionName = `${platform}-send-message`;
+        const { data, error } = await supabase.functions.invoke(functionName, {
+          body: {
+            platform_account_id: conversation.platform_account_id,
+            recipient_id: conversation.customer_phone,
+            message_text: newMessage.trim() || undefined,
+            attachment_url: mediaUrl,
+            attachment_type: mediaType,
+          },
+        });
+        
+        if (error) throw error;
+        
+        // For non-WhatsApp platforms, we need to insert the outbound message manually
+        await supabase.from('messages').insert({
           conversation_id: conversation.id,
-          message: newMessage.trim() || undefined,
-          media_url: mediaUrl,
-          media_type: mediaType,
-        },
-      });
-
-      if (error) throw error;
+          content: newMessage.trim() || null,
+          message_type: mediaType || 'text',
+          direction: 'outbound',
+          status: 'sent',
+          media_url: mediaUrl || null,
+        });
+        
+        // Update conversation timestamp
+        await supabase.from('conversations').update({
+          last_message_at: new Date().toISOString(),
+        }).eq('id', conversation.id);
+      }
 
       setNewMessage("");
       removeAttachment();
@@ -424,21 +499,32 @@ export const ChatWindow = ({ conversation, onConversationUpdated }: ChatWindowPr
       {/* Chat Header */}
       <div className="h-16 px-6 border-b border-border flex items-center justify-between bg-card">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-gradient-hero flex items-center justify-center text-primary-foreground font-semibold">
-            {conversation.customer_profile_pic ? (
-              <img
-                src={conversation.customer_profile_pic}
-                alt={conversation.customer_name || ''}
-                className="w-full h-full rounded-full object-cover"
-              />
-            ) : (
-              getInitials(conversation.customer_name, conversation.customer_phone)
-            )}
+          <div className="relative">
+            <div className="w-10 h-10 rounded-full bg-gradient-hero flex items-center justify-center text-primary-foreground font-semibold">
+              {conversation.customer_profile_pic ? (
+                <img
+                  src={conversation.customer_profile_pic}
+                  alt={conversation.customer_name || ''}
+                  className="w-full h-full rounded-full object-cover"
+                />
+              ) : (
+                getInitials(conversation.customer_name, conversation.customer_phone)
+              )}
+            </div>
+            {/* Platform indicator */}
+            <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-background border border-border flex items-center justify-center">
+              {getPlatformIcon(conversation.platform || 'whatsapp')}
+            </div>
           </div>
           <div>
-            <h3 className="font-medium">
-              {conversation.customer_name || conversation.customer_phone}
-            </h3>
+            <div className="flex items-center gap-2">
+              <h3 className="font-medium">
+                {conversation.customer_name || conversation.customer_phone}
+              </h3>
+              <Badge variant="secondary" className={`text-xs ${getPlatformColor(conversation.platform || 'whatsapp')}`}>
+                {getPlatformLabel(conversation.platform || 'whatsapp')}
+              </Badge>
+            </div>
             <p className="text-sm text-muted-foreground">{conversation.customer_phone}</p>
           </div>
         </div>
