@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,6 +13,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { WebhookSetupWizard } from "./WebhookSetupWizard";
 
 interface ManualWhatsAppSetupProps {
   onAccountConnected?: () => void;
@@ -21,6 +21,12 @@ interface ManualWhatsAppSetupProps {
 
 export const ManualWhatsAppSetup = ({ onAccountConnected }: ManualWhatsAppSetupProps) => {
   const [saving, setSaving] = useState(false);
+  const [showWizard, setShowWizard] = useState(false);
+  const [savedAccountData, setSavedAccountData] = useState<{
+    name: string;
+    webhookUrl: string;
+    verifyToken: string;
+  } | null>(null);
   const [formData, setFormData] = useState({
     displayName: '',
     phoneNumberId: '',
@@ -92,9 +98,17 @@ export const ManualWhatsAppSetup = ({ onAccountConnected }: ManualWhatsAppSetupP
       if (error) throw error;
 
       toast({
-        title: "¡Cuenta conectada!",
-        description: `WhatsApp ${formData.displayName} conectado exitosamente.`,
+        title: "¡Cuenta guardada!",
+        description: `Ahora configura el webhook para ${formData.displayName}.`,
       });
+
+      // Store data for wizard and show it
+      setSavedAccountData({
+        name: formData.displayName,
+        webhookUrl: webhookUrl,
+        verifyToken: webhookToken,
+      });
+      setShowWizard(true);
 
       // Reset form
       setFormData({
@@ -105,8 +119,6 @@ export const ManualWhatsAppSetup = ({ onAccountConnected }: ManualWhatsAppSetupP
         accessToken: '',
       });
       setWebhookToken(`verify_${Math.random().toString(36).substring(2, 15)}`);
-
-      onAccountConnected?.();
     } catch (error: any) {
       console.error('Error saving WhatsApp account:', error);
       toast({
@@ -118,6 +130,34 @@ export const ManualWhatsAppSetup = ({ onAccountConnected }: ManualWhatsAppSetupP
       setSaving(false);
     }
   };
+
+  const handleWizardComplete = () => {
+    setShowWizard(false);
+    setSavedAccountData(null);
+    onAccountConnected?.();
+    toast({
+      title: "¡Configuración completa!",
+      description: "Tu cuenta de WhatsApp está lista para recibir mensajes.",
+    });
+  };
+
+  const handleWizardBack = () => {
+    setShowWizard(false);
+    setSavedAccountData(null);
+  };
+
+  // Show wizard if account was just saved
+  if (showWizard && savedAccountData) {
+    return (
+      <WebhookSetupWizard
+        webhookUrl={savedAccountData.webhookUrl}
+        verifyToken={savedAccountData.verifyToken}
+        accountName={savedAccountData.name}
+        onComplete={handleWizardComplete}
+        onBack={handleWizardBack}
+      />
+    );
+  }
 
   return (
     <Card className="border-dashed">
