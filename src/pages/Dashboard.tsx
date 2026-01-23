@@ -10,7 +10,8 @@ import {
   BarChart3,
   Bot,
   Bell,
-  BellOff
+  BellOff,
+  Shield
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -21,6 +22,7 @@ import { WhatsAppSetup } from "@/components/whatsapp/WhatsAppSetup";
 import { ChatbotConfig } from "@/components/chatbot/ChatbotConfig";
 import { ContactsList } from "@/components/contacts/ContactsList";
 import { StatisticsPanel } from "@/components/statistics/StatisticsPanel";
+import { useAdminCheck } from "@/hooks/useAdminCheck";
 import {
   Dialog,
   DialogContent,
@@ -70,6 +72,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { permission, isSupported, requestPermission, showNotification } = useNotifications();
+  const { isAdmin } = useAdminCheck();
 
   const handleEnableNotifications = async () => {
     const result = await requestPermission();
@@ -255,6 +258,25 @@ const Dashboard = () => {
                   {permission === 'granted' 
                     ? 'Notificaciones activadas' 
                     : 'Activar notificaciones'}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+          {isAdmin && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="w-12 h-12 rounded-xl text-amber-500 hover:bg-amber-500/10"
+                    onClick={() => navigate('/admin')}
+                  >
+                    <Shield className="w-5 h-5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  Panel de administración
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
