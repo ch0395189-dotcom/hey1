@@ -562,7 +562,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
   const messageGroups = groupMessagesByDate(messages);
 
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="flex-1 min-h-0 flex flex-col">
       <ImagePreviewDialog url={previewImageUrl} onClose={() => setPreviewImageUrl(null)} />
       {/* Chat Header */}
       <div className="h-16 px-4 md:px-6 border-b border-border flex items-center justify-between bg-card">
@@ -631,7 +631,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
       </div>
 
       {/* Messages */}
-      <ScrollArea type="always" className="flex-1 bg-muted/30 relative" ref={messagesContainerRef} onScrollCapture={handleScroll}>
+      <ScrollArea type="always" className="flex-1 min-h-0 bg-muted/30 relative" ref={messagesContainerRef} onScrollCapture={handleScroll}>
         <div className="p-6">
           <div className="max-w-3xl mx-auto space-y-4">
             {loading ? (

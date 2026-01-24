@@ -132,6 +132,13 @@ const Dashboard = () => {
     return () => subscription.unsubscribe();
   }, [navigate]);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('platformSetup') === '1') {
+      setShowPlatformSetup(true);
+    }
+  }, []);
+
   const checkWhatsAppAccounts = async () => {
     const { data, error } = await supabase
       .from('whatsapp_accounts')
@@ -217,7 +224,7 @@ const Dashboard = () => {
         <PaymentAlertBanner />
       </div>
       
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 min-h-0 flex overflow-hidden">
       {/* Sidebar */}
       <motion.aside
         initial={{ x: -50, opacity: 0 }}
@@ -361,7 +368,7 @@ const Dashboard = () => {
             initial={{ x: -30, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             transition={{ delay: 0.1 }}
-            className={`w-full md:w-80 bg-card border-r border-border flex flex-col ${
+            className={`w-full md:w-80 bg-card border-r border-border flex flex-col min-h-0 ${
               selectedConversation ? 'hidden md:flex' : 'flex'
             }`}
           >
@@ -369,7 +376,7 @@ const Dashboard = () => {
               activePlatform={activePlatform} 
               onPlatformChange={setActivePlatform}
             />
-            <div className="flex-1 overflow-hidden">
+            <div className="flex-1 min-h-0 overflow-hidden">
               <ConversationsList
                 selectedConversationId={selectedConversation?.id || null}
                 onSelectConversation={setSelectedConversation}
@@ -384,7 +391,7 @@ const Dashboard = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.2 }}
-            className={`flex-1 flex flex-col ${
+            className={`flex-1 flex flex-col min-h-0 ${
               selectedConversation ? 'flex' : 'hidden md:flex'
             }`}
           >
