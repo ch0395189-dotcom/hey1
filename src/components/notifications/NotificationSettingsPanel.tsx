@@ -9,20 +9,30 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Volume2, Bell, Play } from "lucide-react";
-import { NotificationTone } from "@/hooks/useNotificationSettings";
+import { Volume2, Bell, Play, MessageCircle } from "lucide-react";
+import { NotificationTone, Platform } from "@/hooks/useNotificationSettings";
 import { useNotificationSound } from "@/hooks/useNotificationSound";
+import { FaWhatsapp, FaFacebookMessenger, FaInstagram, FaTiktok } from "react-icons/fa";
+
+interface PlatformTones {
+  whatsapp: NotificationTone;
+  messenger: NotificationTone;
+  instagram: NotificationTone;
+  tiktok: NotificationTone;
+}
 
 interface NotificationSettingsPanelProps {
   soundEnabled: boolean;
   desktopEnabled: boolean;
   volume: number;
   tone: NotificationTone;
+  platformTones: PlatformTones;
   desktopPermission: NotificationPermission | 'default';
   onToggleSound: () => void;
   onToggleDesktop: () => void;
   onVolumeChange: (volume: number) => void;
   onToneChange: (tone: NotificationTone) => void;
+  onPlatformToneChange: (platform: Platform, tone: NotificationTone) => void;
   onRequestDesktopPermission: () => void;
 }
 
@@ -35,22 +45,31 @@ const toneLabels: Record<NotificationTone, string> = {
   alarm: '🚨 Alarma',
 };
 
+const platformConfig: { platform: Platform; label: string; icon: React.ReactNode; color: string }[] = [
+  { platform: 'whatsapp', label: 'WhatsApp', icon: <FaWhatsapp className="w-4 h-4" />, color: 'text-green-500' },
+  { platform: 'messenger', label: 'Messenger', icon: <FaFacebookMessenger className="w-4 h-4" />, color: 'text-blue-500' },
+  { platform: 'instagram', label: 'Instagram', icon: <FaInstagram className="w-4 h-4" />, color: 'text-pink-500' },
+  { platform: 'tiktok', label: 'TikTok', icon: <FaTiktok className="w-4 h-4" />, color: 'text-foreground' },
+];
+
 export const NotificationSettingsPanel = ({
   soundEnabled,
   desktopEnabled,
   volume,
   tone,
+  platformTones,
   desktopPermission,
   onToggleSound,
   onToggleDesktop,
   onVolumeChange,
   onToneChange,
+  onPlatformToneChange,
   onRequestDesktopPermission,
 }: NotificationSettingsPanelProps) => {
   const { playPreview } = useNotificationSound();
 
-  const handlePreview = () => {
-    playPreview(volume, tone);
+  const handlePreview = (selectedTone: NotificationTone) => {
+    playPreview(volume, selectedTone);
   };
 
   return (
@@ -76,32 +95,6 @@ export const NotificationSettingsPanel = ({
         {soundEnabled && (
           <>
             <div className="space-y-2">
-              <Label className="text-sm text-muted-foreground">Tono</Label>
-              <div className="flex gap-2">
-                <Select value={tone} onValueChange={(v) => onToneChange(v as NotificationTone)}>
-                  <SelectTrigger className="flex-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(Object.keys(toneLabels) as NotificationTone[]).map((t) => (
-                      <SelectItem key={t} value={t}>
-                        {toneLabels[t]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={handlePreview}
-                  title="Escuchar tono"
-                >
-                  <Play className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-
-            <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label className="text-sm text-muted-foreground">Volumen</Label>
                 <span className="text-xs text-muted-foreground">
@@ -116,6 +109,47 @@ export const NotificationSettingsPanel = ({
                 step={0.1}
                 className="w-full"
               />
+            </div>
+
+            {/* Platform-specific tones */}
+            <div className="space-y-3 pt-2">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <MessageCircle className="w-4 h-4" />
+                Tonos por plataforma
+              </div>
+              
+              {platformConfig.map(({ platform, label, icon, color }) => (
+                <div key={platform} className="flex items-center gap-2">
+                  <div className={`flex items-center gap-2 min-w-[100px] ${color}`}>
+                    {icon}
+                    <span className="text-sm">{label}</span>
+                  </div>
+                  <Select 
+                    value={platformTones[platform]} 
+                    onValueChange={(v) => onPlatformToneChange(platform, v as NotificationTone)}
+                  >
+                    <SelectTrigger className="flex-1 h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(Object.keys(toneLabels) as NotificationTone[]).map((t) => (
+                        <SelectItem key={t} value={t} className="text-xs">
+                          {toneLabels[t]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => handlePreview(platformTones[platform])}
+                    title="Escuchar tono"
+                  >
+                    <Play className="w-3 h-3" />
+                  </Button>
+                </div>
+              ))}
             </div>
           </>
         )}
