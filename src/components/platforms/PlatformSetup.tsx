@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { 
   MessageCircle, 
   Instagram, 
@@ -18,7 +19,9 @@ import {
   Copy,
   Settings,
   Loader2,
-  Facebook
+  Facebook,
+  Bug,
+  ChevronDown
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -41,6 +44,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { FacebookDiagnostics } from "./FacebookDiagnostics";
 
 // Extending Window interface for FB SDK (different login modes)
 interface FBLoginResponse {
@@ -139,6 +143,7 @@ export const PlatformSetup = ({ onAccountConnected }: PlatformSetupProps) => {
   const [availablePages, setAvailablePages] = useState<FacebookPage[]>([]);
   const [pendingAccessToken, setPendingAccessToken] = useState<string | null>(null);
   const [pendingPlatform, setPendingPlatform] = useState<string | null>(null);
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [showManualEntry, setShowManualEntry] = useState(false);
   const [isEmbedded, setIsEmbedded] = useState(false);
   const { toast } = useToast();
@@ -503,6 +508,22 @@ export const PlatformSetup = ({ onAccountConnected }: PlatformSetupProps) => {
         <span className="text-sm font-medium text-[#0668E1]">Meta Business Partner Verificado</span>
         <BadgeCheck className="w-4 h-4 text-[#0668E1]" />
       </div>
+
+      {/* Facebook Diagnostics Panel */}
+      <Collapsible open={showDiagnostics} onOpenChange={setShowDiagnostics}>
+        <CollapsibleTrigger asChild>
+          <Button variant="outline" size="sm" className="w-full flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Bug className="h-4 w-4" />
+              <span>Diagnóstico de Facebook</span>
+            </div>
+            <ChevronDown className={`h-4 w-4 transition-transform ${showDiagnostics ? 'rotate-180' : ''}`} />
+          </Button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="mt-3">
+          <FacebookDiagnostics />
+        </CollapsibleContent>
+      </Collapsible>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid w-full grid-cols-3">
