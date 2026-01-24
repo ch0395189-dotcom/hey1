@@ -14,7 +14,7 @@ const STORAGE_KEY = 'notification-settings';
 const defaultSettings: NotificationSettings = {
   soundEnabled: true,
   desktopEnabled: true,
-  volume: 0.85,
+  volume: 1.0,
   tone: 'chime',
 };
 
