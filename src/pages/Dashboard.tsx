@@ -17,6 +17,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useNotifications } from "@/hooks/useNotifications";
+import { useNotificationSound } from "@/hooks/useNotificationSound";
 import { ConversationsList } from "@/components/whatsapp/ConversationsList";
 import { ChatWindow } from "@/components/whatsapp/ChatWindow";
 import { WhatsAppSetup } from "@/components/whatsapp/WhatsAppSetup";
@@ -81,6 +82,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { permission, isSupported, requestPermission, showNotification } = useNotifications();
+  const { playNotificationSound } = useNotificationSound();
   const { isAdmin } = useAdminCheck();
 
   const handleEnableNotifications = async () => {
@@ -100,6 +102,10 @@ const Dashboard = () => {
   };
 
   const handleNewMessage = (customerName: string, content: string, conversationId: string) => {
+    // Play notification sound
+    playNotificationSound();
+    
+    // Show desktop notification (only if tab is not focused)
     showNotification({
       title: customerName || 'Nuevo mensaje',
       body: content || 'Mensaje multimedia recibido',
