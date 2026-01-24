@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 
-export type NotificationTone = 'chime' | 'ping' | 'bubble' | 'bell' | 'soft';
+export type NotificationTone = 'chime' | 'ping' | 'bubble' | 'bell' | 'soft' | 'alarm';
 
 interface NotificationSettings {
   soundEnabled: boolean;

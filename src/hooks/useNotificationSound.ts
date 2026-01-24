@@ -33,6 +33,11 @@ const toneConfigs: Record<NotificationTone, ToneConfig> = {
     durations: [0.2, 0.3],
     type: 'sine',
   },
+  alarm: {
+    frequencies: [1400, 1000, 1400, 1000, 1600],
+    durations: [0.12, 0.12, 0.12, 0.12, 0.2],
+    type: 'square',
+  },
 };
 
 export const useNotificationSound = () => {
@@ -47,6 +52,7 @@ export const useNotificationSound = () => {
     bubble: [60, 30, 60, 30, 60],
     bell: [150, 75, 200],
     soft: [100, 100, 150],
+    alarm: [200, 100, 200, 100, 200, 100, 300],
   };
 
   const triggerVibration = useCallback((tone: NotificationTone) => {

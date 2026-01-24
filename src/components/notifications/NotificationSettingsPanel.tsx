@@ -32,6 +32,7 @@ const toneLabels: Record<NotificationTone, string> = {
   bubble: '💧 Burbuja',
   bell: '🔔 Campana',
   soft: '🌙 Suave',
+  alarm: '🚨 Alarma',
 };
 
 export const NotificationSettingsPanel = ({
