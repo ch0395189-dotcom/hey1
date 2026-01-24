@@ -59,7 +59,7 @@ export const useNotificationSound = () => {
     }
   }, []);
 
-  const playNotificationSound = useCallback((volume: number = 1.0, tone: NotificationTone = 'chime', enableVibration: boolean = true) => {
+  const playNotificationSound = useCallback((volume: number = 1.0, tone: NotificationTone = 'bell', enableVibration: boolean = true) => {
     const now = Date.now();
     
     if (now - lastPlayedRef.current < minInterval) {
