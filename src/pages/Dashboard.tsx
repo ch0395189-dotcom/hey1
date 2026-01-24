@@ -92,7 +92,7 @@ const Dashboard = () => {
   const { toast } = useToast();
   const { permission, isSupported, requestPermission, showNotification } = useNotifications();
   const { playNotificationSound } = useNotificationSound();
-  const { soundEnabled, desktopEnabled, volume, tone, toggleSound, toggleDesktop, setVolume, setTone } = useNotificationSettings();
+  const { soundEnabled, desktopEnabled, volume, tone, platformTones, toggleSound, toggleDesktop, setVolume, setTone, setPlatformTone, getToneForPlatform } = useNotificationSettings();
   const { isAdmin } = useAdminCheck();
 
   const handleEnableNotifications = async () => {
@@ -111,16 +111,23 @@ const Dashboard = () => {
     }
   };
 
-  const handleNewMessage = (customerName: string, content: string, conversationId: string) => {
-    // Play notification sound if enabled
+  const handleNewMessage = (customerName: string, content: string, conversationId: string, platform: string = 'whatsapp') => {
+    // Play notification sound if enabled with platform-specific tone
     if (soundEnabled) {
-      playNotificationSound(volume, tone);
+      const platformTone = getToneForPlatform(platform);
+      playNotificationSound(volume, platformTone);
     }
     
     // Show desktop notification (only if enabled and tab is not focused)
     if (desktopEnabled) {
+      const platformLabel = platform === 'whatsapp' ? 'WhatsApp' 
+        : platform === 'messenger' ? 'Messenger' 
+        : platform === 'instagram' ? 'Instagram' 
+        : platform === 'tiktok' ? 'TikTok' 
+        : 'Mensaje';
+      
       showNotification({
-        title: customerName || 'Nuevo mensaje',
+        title: `${platformLabel}: ${customerName || 'Nuevo mensaje'}`,
         body: content || 'Mensaje multimedia recibido',
         onClick: () => {
           setActiveView('inbox');
@@ -338,11 +345,13 @@ const Dashboard = () => {
                 desktopEnabled={desktopEnabled}
                 volume={volume}
                 tone={tone}
+                platformTones={platformTones}
                 desktopPermission={permission}
                 onToggleSound={toggleSound}
                 onToggleDesktop={toggleDesktop}
                 onVolumeChange={setVolume}
                 onToneChange={setTone}
+                onPlatformToneChange={setPlatformTone}
                 onRequestDesktopPermission={handleEnableNotifications}
               />
             </PopoverContent>

@@ -33,7 +33,7 @@ interface ConversationsListProps {
   onSelectConversation: (conversation: Conversation) => void;
   whatsappAccountId?: string;
   platform?: Platform;
-  onNewMessage?: (customerName: string, content: string, conversationId: string) => void;
+  onNewMessage?: (customerName: string, content: string, conversationId: string, platform: string) => void;
 }
 
 export const ConversationsList = ({
@@ -102,10 +102,10 @@ export const ConversationsList = ({
           
           // Only notify for inbound messages
           if (newMessage.direction === 'inbound' && onNewMessage) {
-            // Fetch conversation details
+            // Fetch conversation details including platform
             const { data: conv } = await supabase
               .from('conversations')
-              .select('customer_name, customer_phone')
+              .select('customer_name, customer_phone, platform')
               .eq('id', newMessage.conversation_id)
               .single();
             
@@ -113,7 +113,8 @@ export const ConversationsList = ({
               onNewMessage(
                 conv.customer_name || conv.customer_phone,
                 newMessage.content || 'Mensaje multimedia',
-                newMessage.conversation_id
+                newMessage.conversation_id,
+                conv.platform || 'whatsapp'
               );
             }
           }

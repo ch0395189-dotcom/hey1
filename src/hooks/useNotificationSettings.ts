@@ -2,11 +2,21 @@ import { useState, useEffect, useCallback } from 'react';
 
 export type NotificationTone = 'chime' | 'ping' | 'bubble' | 'bell' | 'soft' | 'alarm';
 
+export type Platform = 'whatsapp' | 'messenger' | 'instagram' | 'tiktok';
+
+interface PlatformTones {
+  whatsapp: NotificationTone;
+  messenger: NotificationTone;
+  instagram: NotificationTone;
+  tiktok: NotificationTone;
+}
+
 interface NotificationSettings {
   soundEnabled: boolean;
   desktopEnabled: boolean;
   volume: number; // 0 to 1
-  tone: NotificationTone;
+  tone: NotificationTone; // Default/fallback tone
+  platformTones: PlatformTones;
 }
 
 const STORAGE_KEY = 'notification-settings';
@@ -16,6 +26,12 @@ const defaultSettings: NotificationSettings = {
   desktopEnabled: true,
   volume: 1.0,
   tone: 'bell',
+  platformTones: {
+    whatsapp: 'bell',
+    messenger: 'chime',
+    instagram: 'bubble',
+    tiktok: 'ping',
+  },
 };
 
 export const useNotificationSettings = () => {
@@ -25,7 +41,12 @@ export const useNotificationSettings = () => {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       try {
-        setSettings({ ...defaultSettings, ...JSON.parse(stored) });
+        const parsed = JSON.parse(stored);
+        setSettings({ 
+          ...defaultSettings, 
+          ...parsed,
+          platformTones: { ...defaultSettings.platformTones, ...parsed.platformTones }
+        });
       } catch {
         setSettings(defaultSettings);
       }
@@ -56,15 +77,29 @@ export const useNotificationSettings = () => {
     updateSettings({ tone });
   }, [updateSettings]);
 
+  const setPlatformTone = useCallback((platform: Platform, tone: NotificationTone) => {
+    updateSettings({ 
+      platformTones: { ...settings.platformTones, [platform]: tone } 
+    });
+  }, [settings.platformTones, updateSettings]);
+
+  const getToneForPlatform = useCallback((platform: string): NotificationTone => {
+    const normalizedPlatform = platform.toLowerCase() as Platform;
+    return settings.platformTones[normalizedPlatform] || settings.tone;
+  }, [settings.platformTones, settings.tone]);
+
   return {
     soundEnabled: settings.soundEnabled,
     desktopEnabled: settings.desktopEnabled,
     volume: settings.volume,
     tone: settings.tone,
+    platformTones: settings.platformTones,
     toggleSound,
     toggleDesktop,
     setVolume,
     setTone,
+    setPlatformTone,
+    getToneForPlatform,
     updateSettings,
   };
 };
