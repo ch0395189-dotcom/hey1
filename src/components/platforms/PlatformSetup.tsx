@@ -140,8 +140,24 @@ export const PlatformSetup = ({ onAccountConnected }: PlatformSetupProps) => {
   const [pendingAccessToken, setPendingAccessToken] = useState<string | null>(null);
   const [pendingPlatform, setPendingPlatform] = useState<string | null>(null);
   const [showManualEntry, setShowManualEntry] = useState(false);
+  const [isEmbedded, setIsEmbedded] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    try {
+      setIsEmbedded(window.self !== window.top);
+    } catch {
+      setIsEmbedded(true);
+    }
+  }, []);
+
+  const openPlatformSetupInNewTab = () => {
+    const url = new URL(window.location.href);
+    url.pathname = '/dashboard';
+    url.searchParams.set('platformSetup', '1');
+    window.open(url.toString(), '_blank', 'noopener,noreferrer');
+  };
 
   // Fetch Meta configuration
   const fetchMetaConfig = useCallback(async () => {
@@ -339,10 +355,14 @@ export const PlatformSetup = ({ onAccountConnected }: PlatformSetupProps) => {
               setConnecting(false);
             }
           } else {
+            const status = response.status || 'unknown';
             toast({
               variant: "destructive",
-              title: "Conexión cancelada",
-              description: "El proceso de conexión fue cancelado.",
+              title: status === 'not_authorized' ? "Permisos no autorizados" : "Conexión cancelada",
+              description:
+                status === 'not_authorized'
+                  ? "Facebook no autorizó los permisos solicitados. Intenta nuevamente y acepta los permisos."
+                  : "El proceso de conexión fue cancelado o la ventana se cerró.",
             });
             setConnecting(false);
           }
@@ -692,6 +712,23 @@ export const PlatformSetup = ({ onAccountConnected }: PlatformSetupProps) => {
                           </>
                         )}
                       </Button>
+
+                      {isEmbedded && (
+                        <div className="rounded-lg border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
+                          <p className="mb-2">
+                            Si ves error o la ventana emergente se bloquea, abre este flujo en una nueva pestaña.
+                          </p>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="w-full"
+                            onClick={openPlatformSetupInNewTab}
+                          >
+                            <ExternalLink className="w-4 h-4 mr-2" />
+                            Abrir en nueva pestaña
+                          </Button>
+                        </div>
+                      )}
 
                       <div className="relative">
                         <div className="absolute inset-0 flex items-center">
