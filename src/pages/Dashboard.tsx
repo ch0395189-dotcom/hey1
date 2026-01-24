@@ -12,12 +12,15 @@ import {
   Bell,
   BellOff,
   Shield,
-  Plug
+  Plug,
+  Volume2,
+  VolumeX
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useNotificationSound } from "@/hooks/useNotificationSound";
+import { useNotificationSettings } from "@/hooks/useNotificationSettings";
 import { ConversationsList } from "@/components/whatsapp/ConversationsList";
 import { ChatWindow } from "@/components/whatsapp/ChatWindow";
 import { WhatsAppSetup } from "@/components/whatsapp/WhatsAppSetup";
@@ -83,6 +86,7 @@ const Dashboard = () => {
   const { toast } = useToast();
   const { permission, isSupported, requestPermission, showNotification } = useNotifications();
   const { playNotificationSound } = useNotificationSound();
+  const { soundEnabled, desktopEnabled, toggleSound, toggleDesktop } = useNotificationSettings();
   const { isAdmin } = useAdminCheck();
 
   const handleEnableNotifications = async () => {
@@ -102,17 +106,21 @@ const Dashboard = () => {
   };
 
   const handleNewMessage = (customerName: string, content: string, conversationId: string) => {
-    // Play notification sound
-    playNotificationSound();
+    // Play notification sound if enabled
+    if (soundEnabled) {
+      playNotificationSound();
+    }
     
-    // Show desktop notification (only if tab is not focused)
-    showNotification({
-      title: customerName || 'Nuevo mensaje',
-      body: content || 'Mensaje multimedia recibido',
-      onClick: () => {
-        setActiveView('inbox');
-      },
-    });
+    // Show desktop notification (only if enabled and tab is not focused)
+    if (desktopEnabled) {
+      showNotification({
+        title: customerName || 'Nuevo mensaje',
+        body: content || 'Mensaje multimedia recibido',
+        onClick: () => {
+          setActiveView('inbox');
+        },
+      });
+    }
   };
 
   useEffect(() => {
@@ -299,6 +307,34 @@ const Dashboard = () => {
         </nav>
 
         <div className="flex flex-col items-center gap-4">
+          {/* Sound toggle */}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className={`w-12 h-12 rounded-xl ${
+                    soundEnabled 
+                      ? 'text-primary bg-secondary' 
+                      : 'text-muted-foreground hover:bg-secondary'
+                  }`}
+                  onClick={toggleSound}
+                >
+                  {soundEnabled ? (
+                    <Volume2 className="w-5 h-5" />
+                  ) : (
+                    <VolumeX className="w-5 h-5" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                {soundEnabled ? 'Sonido activado' : 'Sonido desactivado'}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          {/* Desktop notifications toggle */}
           {isSupported && (
             <TooltipProvider>
               <Tooltip>
@@ -307,13 +343,19 @@ const Dashboard = () => {
                     variant="ghost" 
                     size="icon" 
                     className={`w-12 h-12 rounded-xl ${
-                      permission === 'granted' 
+                      permission === 'granted' && desktopEnabled
                         ? 'text-primary bg-secondary' 
                         : 'text-muted-foreground hover:bg-secondary'
                     }`}
-                    onClick={handleEnableNotifications}
+                    onClick={() => {
+                      if (permission !== 'granted') {
+                        handleEnableNotifications();
+                      } else {
+                        toggleDesktop();
+                      }
+                    }}
                   >
-                    {permission === 'granted' ? (
+                    {permission === 'granted' && desktopEnabled ? (
                       <Bell className="w-5 h-5" />
                     ) : (
                       <BellOff className="w-5 h-5" />
@@ -321,9 +363,11 @@ const Dashboard = () => {
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="right">
-                  {permission === 'granted' 
-                    ? 'Notificaciones activadas' 
-                    : 'Activar notificaciones'}
+                  {permission !== 'granted' 
+                    ? 'Activar notificaciones de escritorio'
+                    : desktopEnabled 
+                      ? 'Notificaciones de escritorio activadas' 
+                      : 'Notificaciones de escritorio desactivadas'}
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -335,7 +379,7 @@ const Dashboard = () => {
                   <Button 
                     variant="ghost" 
                     size="icon" 
-                    className="w-12 h-12 rounded-xl text-amber-500 hover:bg-amber-500/10"
+                    className="w-12 h-12 rounded-xl text-warning hover:bg-warning/10"
                     onClick={() => navigate('/admin')}
                   >
                     <Shield className="w-5 h-5" />
