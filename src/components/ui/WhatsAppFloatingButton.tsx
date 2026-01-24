@@ -49,14 +49,14 @@ export const WhatsAppFloatingButton = ({
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
         transition={{ type: "spring", stiffness: 400, damping: 17 }}
-        className="relative flex items-center gap-2 bg-[#25D366] text-white shadow-xl hover:shadow-2xl rounded-full cursor-pointer px-5 py-3"
+        className="relative flex items-center gap-3 bg-[#25D366] text-white shadow-xl hover:shadow-2xl rounded-full cursor-pointer px-6 py-4"
         aria-label="Contactar por WhatsApp"
       >
         {/* Pulse animation ring */}
         <span className="absolute inset-0 rounded-full bg-[#25D366] animate-ping opacity-25" />
         
-        <MessageCircle className="w-6 h-6 fill-white relative z-10" />
-        <span className="font-medium text-sm relative z-10 hidden sm:inline">Asesor</span>
+        <MessageCircle className="w-8 h-8 fill-white relative z-10" />
+        <span className="font-semibold text-base relative z-10 hidden sm:inline">Asesor</span>
       </motion.button>
     </div>
   );
