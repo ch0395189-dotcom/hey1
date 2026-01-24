@@ -44,6 +44,8 @@
     --whatsapp: 153 60% 38%;
     --whatsapp-light: 153 55% 95%;
     --whatsapp-dark: 153 60% 25%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
     --surface: 0 0% 100%;
     --surface-elevated: 0 0% 100%;
     --gradient-hero: linear-gradient(135deg, hsl(153 60% 38%) 0%, hsl(165 50% 45%) 50%, hsl(180 45% 50%) 100%);
@@ -85,6 +87,9 @@
 
     --destructive: 0 70% 50%;
     --destructive-foreground: 0 0% 100%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
 
     --border: 160 15% 20%;
     --input: 160 15% 20%;
