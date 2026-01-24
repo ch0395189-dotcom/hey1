@@ -15,7 +15,7 @@ const defaultSettings: NotificationSettings = {
   soundEnabled: true,
   desktopEnabled: true,
   volume: 1.0,
-  tone: 'chime',
+  tone: 'bell',
 };
 
 export const useNotificationSettings = () => {
