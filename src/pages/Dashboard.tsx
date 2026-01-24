@@ -32,6 +32,7 @@ import { PaymentAlertBanner } from "@/components/dashboard/PaymentAlertBanner";
 import { PlatformTabs, Platform } from "@/components/dashboard/PlatformTabs";
 import { PlatformSetup } from "@/components/platforms/PlatformSetup";
 import { useAdminCheck } from "@/hooks/useAdminCheck";
+import { NotificationSettingsPanel } from "@/components/notifications/NotificationSettingsPanel";
 import {
   Dialog,
   DialogContent,
@@ -51,6 +52,11 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 type ActiveView = 'inbox' | 'contacts' | 'statistics';
 
@@ -86,7 +92,7 @@ const Dashboard = () => {
   const { toast } = useToast();
   const { permission, isSupported, requestPermission, showNotification } = useNotifications();
   const { playNotificationSound } = useNotificationSound();
-  const { soundEnabled, desktopEnabled, toggleSound, toggleDesktop } = useNotificationSettings();
+  const { soundEnabled, desktopEnabled, volume, tone, toggleSound, toggleDesktop, setVolume, setTone } = useNotificationSettings();
   const { isAdmin } = useAdminCheck();
 
   const handleEnableNotifications = async () => {
@@ -108,7 +114,7 @@ const Dashboard = () => {
   const handleNewMessage = (customerName: string, content: string, conversationId: string) => {
     // Play notification sound if enabled
     if (soundEnabled) {
-      playNotificationSound();
+      playNotificationSound(volume, tone);
     }
     
     // Show desktop notification (only if enabled and tab is not focused)
@@ -307,71 +313,40 @@ const Dashboard = () => {
         </nav>
 
         <div className="flex flex-col items-center gap-4">
-          {/* Sound toggle */}
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className={`w-12 h-12 rounded-xl ${
-                    soundEnabled 
-                      ? 'text-primary bg-secondary' 
-                      : 'text-muted-foreground hover:bg-secondary'
-                  }`}
-                  onClick={toggleSound}
-                >
-                  {soundEnabled ? (
-                    <Volume2 className="w-5 h-5" />
-                  ) : (
-                    <VolumeX className="w-5 h-5" />
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="right">
-                {soundEnabled ? 'Sonido activado' : 'Sonido desactivado'}
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-
-          {/* Desktop notifications toggle */}
-          {isSupported && (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className={`w-12 h-12 rounded-xl ${
-                      permission === 'granted' && desktopEnabled
-                        ? 'text-primary bg-secondary' 
-                        : 'text-muted-foreground hover:bg-secondary'
-                    }`}
-                    onClick={() => {
-                      if (permission !== 'granted') {
-                        handleEnableNotifications();
-                      } else {
-                        toggleDesktop();
-                      }
-                    }}
-                  >
-                    {permission === 'granted' && desktopEnabled ? (
-                      <Bell className="w-5 h-5" />
-                    ) : (
-                      <BellOff className="w-5 h-5" />
-                    )}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="right">
-                  {permission !== 'granted' 
-                    ? 'Activar notificaciones de escritorio'
-                    : desktopEnabled 
-                      ? 'Notificaciones de escritorio activadas' 
-                      : 'Notificaciones de escritorio desactivadas'}
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          )}
+          {/* Notification Settings Popover */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className={`w-12 h-12 rounded-xl ${
+                  soundEnabled || (permission === 'granted' && desktopEnabled)
+                    ? 'text-primary bg-secondary' 
+                    : 'text-muted-foreground hover:bg-secondary'
+                }`}
+              >
+                {soundEnabled ? (
+                  <Volume2 className="w-5 h-5" />
+                ) : (
+                  <VolumeX className="w-5 h-5" />
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent side="right" align="end" className="w-72">
+              <NotificationSettingsPanel
+                soundEnabled={soundEnabled}
+                desktopEnabled={desktopEnabled}
+                volume={volume}
+                tone={tone}
+                desktopPermission={permission}
+                onToggleSound={toggleSound}
+                onToggleDesktop={toggleDesktop}
+                onVolumeChange={setVolume}
+                onToneChange={setTone}
+                onRequestDesktopPermission={handleEnableNotifications}
+              />
+            </PopoverContent>
+          </Popover>
           {isAdmin && (
             <TooltipProvider>
               <Tooltip>

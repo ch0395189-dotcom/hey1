@@ -1,8 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 
+export type NotificationTone = 'chime' | 'ping' | 'bubble' | 'bell' | 'soft';
+
 interface NotificationSettings {
   soundEnabled: boolean;
   desktopEnabled: boolean;
+  volume: number; // 0 to 1
+  tone: NotificationTone;
 }
 
 const STORAGE_KEY = 'notification-settings';
@@ -10,6 +14,8 @@ const STORAGE_KEY = 'notification-settings';
 const defaultSettings: NotificationSettings = {
   soundEnabled: true,
   desktopEnabled: true,
+  volume: 0.5,
+  tone: 'chime',
 };
 
 export const useNotificationSettings = () => {
@@ -42,11 +48,23 @@ export const useNotificationSettings = () => {
     updateSettings({ desktopEnabled: !settings.desktopEnabled });
   }, [settings.desktopEnabled, updateSettings]);
 
+  const setVolume = useCallback((volume: number) => {
+    updateSettings({ volume: Math.max(0, Math.min(1, volume)) });
+  }, [updateSettings]);
+
+  const setTone = useCallback((tone: NotificationTone) => {
+    updateSettings({ tone });
+  }, [updateSettings]);
+
   return {
     soundEnabled: settings.soundEnabled,
     desktopEnabled: settings.desktopEnabled,
+    volume: settings.volume,
+    tone: settings.tone,
     toggleSound,
     toggleDesktop,
+    setVolume,
+    setTone,
     updateSettings,
   };
 };
