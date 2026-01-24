@@ -22,7 +22,7 @@ export const WhatsAppFloatingButton = ({
   };
 
   return (
-    <div className="fixed bottom-24 right-6 z-50 flex items-center gap-3">
+    <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3">
       {/* Tooltip/Label */}
       <AnimatePresence>
         {isHovered && (
@@ -33,8 +33,8 @@ export const WhatsAppFloatingButton = ({
             transition={{ duration: 0.2 }}
             className="bg-card border border-border shadow-lg rounded-xl px-4 py-2 whitespace-nowrap"
           >
-            <p className="text-sm font-medium text-foreground">Habla con un asesor</p>
-            <p className="text-xs text-muted-foreground">Respuesta inmediata</p>
+            <p className="text-sm font-medium text-foreground">¿Necesitas ayuda?</p>
+            <p className="text-xs text-muted-foreground">Te ayudamos a configurar tu número</p>
           </motion.div>
         )}
       </AnimatePresence>
