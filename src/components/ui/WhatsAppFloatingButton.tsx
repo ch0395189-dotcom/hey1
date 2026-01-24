@@ -22,7 +22,7 @@ export const WhatsAppFloatingButton = ({
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3">
+    <div className="fixed bottom-24 right-6 z-50 flex items-center gap-3">
       {/* Tooltip/Label */}
       <AnimatePresence>
         {isHovered && (
@@ -49,14 +49,14 @@ export const WhatsAppFloatingButton = ({
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
         transition={{ type: "spring", stiffness: 400, damping: 17 }}
-        className="relative flex items-center gap-3 bg-[#25D366] text-white shadow-xl hover:shadow-2xl rounded-full cursor-pointer px-6 py-4"
+        className="relative flex items-center gap-4 bg-[#25D366] text-white shadow-2xl hover:shadow-3xl rounded-full cursor-pointer px-8 py-5"
         aria-label="Contactar por WhatsApp"
       >
         {/* Pulse animation ring */}
         <span className="absolute inset-0 rounded-full bg-[#25D366] animate-ping opacity-25" />
         
-        <MessageCircle className="w-8 h-8 fill-white relative z-10" />
-        <span className="font-semibold text-base relative z-10 hidden sm:inline">Asesor</span>
+        <MessageCircle className="w-10 h-10 fill-white relative z-10" />
+        <span className="font-bold text-lg relative z-10 hidden sm:inline">Asesor</span>
       </motion.button>
     </div>
   );
