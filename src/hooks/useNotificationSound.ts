@@ -40,13 +40,37 @@ export const useNotificationSound = () => {
   const lastPlayedRef = useRef<number>(0);
   const minInterval = 1000;
 
-  const playNotificationSound = useCallback((volume: number = 1.0, tone: NotificationTone = 'chime') => {
+  // Vibration patterns for different tones (in milliseconds)
+  const vibrationPatterns: Record<NotificationTone, number[]> = {
+    chime: [100, 50, 100],
+    ping: [80, 40, 80],
+    bubble: [60, 30, 60, 30, 60],
+    bell: [150, 75, 200],
+    soft: [100, 100, 150],
+  };
+
+  const triggerVibration = useCallback((tone: NotificationTone) => {
+    try {
+      if ('vibrate' in navigator) {
+        navigator.vibrate(vibrationPatterns[tone]);
+      }
+    } catch (error) {
+      console.warn('Vibration not supported:', error);
+    }
+  }, []);
+
+  const playNotificationSound = useCallback((volume: number = 1.0, tone: NotificationTone = 'chime', enableVibration: boolean = true) => {
     const now = Date.now();
     
     if (now - lastPlayedRef.current < minInterval) {
       return;
     }
     lastPlayedRef.current = now;
+
+    // Trigger vibration
+    if (enableVibration) {
+      triggerVibration(tone);
+    }
 
     try {
       if (!audioContextRef.current) {
@@ -94,13 +118,13 @@ export const useNotificationSound = () => {
     } catch (error) {
       console.error('Error playing notification sound:', error);
     }
-  }, []);
+  }, [triggerVibration]);
 
   const playPreview = useCallback((volume: number, tone: NotificationTone) => {
     // Reset last played to allow immediate preview
     lastPlayedRef.current = 0;
-    playNotificationSound(volume, tone);
+    playNotificationSound(volume, tone, true);
   }, [playNotificationSound]);
 
-  return { playNotificationSound, playPreview };
+  return { playNotificationSound, playPreview, triggerVibration };
 };
