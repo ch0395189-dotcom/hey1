@@ -596,14 +596,39 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="font-medium">
+              <a 
+                href={
+                  conversation.platform === 'messenger' 
+                    ? `https://www.facebook.com/messages/t/${conversation.customer_phone}`
+                    : conversation.platform === 'instagram'
+                    ? `https://www.instagram.com/direct/t/${conversation.customer_phone}`
+                    : `https://wa.me/${conversation.customer_phone.replace(/[^0-9]/g, '')}`
+                }
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium hover:text-primary hover:underline transition-colors cursor-pointer"
+                title={`Abrir en ${getPlatformLabel(conversation.platform || 'whatsapp')}`}
+              >
                 {conversation.customer_name || conversation.customer_phone}
-              </h3>
+              </a>
               <Badge variant="secondary" className={`text-xs ${getPlatformColor(conversation.platform || 'whatsapp')}`}>
                 {getPlatformLabel(conversation.platform || 'whatsapp')}
               </Badge>
             </div>
-            <p className="text-sm text-muted-foreground">{conversation.customer_phone}</p>
+            <a 
+              href={
+                conversation.platform === 'messenger' 
+                  ? `https://www.facebook.com/messages/t/${conversation.customer_phone}`
+                  : conversation.platform === 'instagram'
+                  ? `https://www.instagram.com/direct/t/${conversation.customer_phone}`
+                  : `https://wa.me/${conversation.customer_phone.replace(/[^0-9]/g, '')}`
+              }
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-muted-foreground hover:text-primary hover:underline transition-colors"
+            >
+              {conversation.customer_phone}
+            </a>
           </div>
         </div>
         <div className="flex items-center gap-2">
