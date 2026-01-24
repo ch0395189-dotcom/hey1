@@ -625,7 +625,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
               }
               target="_blank"
               rel="noopener noreferrer"
-              className="text-sm text-muted-foreground hover:text-primary hover:underline transition-colors"
+              className="text-base font-medium text-muted-foreground hover:text-primary hover:underline transition-colors"
             >
               {conversation.customer_phone}
             </a>
