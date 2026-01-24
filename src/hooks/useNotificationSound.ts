@@ -40,7 +40,7 @@ export const useNotificationSound = () => {
   const lastPlayedRef = useRef<number>(0);
   const minInterval = 1000;
 
-  const playNotificationSound = useCallback((volume: number = 0.5, tone: NotificationTone = 'chime') => {
+  const playNotificationSound = useCallback((volume: number = 0.85, tone: NotificationTone = 'chime') => {
     const now = Date.now();
     
     if (now - lastPlayedRef.current < minInterval) {
@@ -62,7 +62,7 @@ export const useNotificationSound = () => {
       const config = toneConfigs[tone];
       const masterGain = audioContext.createGain();
       masterGain.connect(audioContext.destination);
-      masterGain.gain.setValueAtTime(volume * 0.4, audioContext.currentTime);
+      masterGain.gain.setValueAtTime(volume * 0.7, audioContext.currentTime);
 
       let timeOffset = 0;
       
