@@ -8,6 +8,55 @@ const corsHeaders = {
 
 const BOLD_SECRET_KEY = Deno.env.get('BOLD_SECRET_KEY')!;
 
+// Helper function to convert ArrayBuffer to hex string
+function arrayBufferToHex(buffer: ArrayBuffer): string {
+  return Array.from(new Uint8Array(buffer))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+// Verify webhook signature using HMAC-SHA256
+async function verifySignature(body: string, signature: string | null): Promise<boolean> {
+  if (!signature || !BOLD_SECRET_KEY) {
+    console.error('Missing signature or secret key');
+    return false;
+  }
+
+  try {
+    const encoder = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+      'raw',
+      encoder.encode(BOLD_SECRET_KEY),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign']
+    );
+
+    const signatureBuffer = await crypto.subtle.sign(
+      'HMAC',
+      key,
+      encoder.encode(body)
+    );
+
+    const computedSignature = arrayBufferToHex(signatureBuffer);
+    
+    // Compare signatures in constant time to prevent timing attacks
+    if (computedSignature.length !== signature.length) {
+      return false;
+    }
+    
+    let result = 0;
+    for (let i = 0; i < computedSignature.length; i++) {
+      result |= computedSignature.charCodeAt(i) ^ signature.charCodeAt(i);
+    }
+    
+    return result === 0;
+  } catch (error) {
+    console.error('Error verifying signature:', error);
+    return false;
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -15,13 +64,21 @@ serve(async (req) => {
 
   try {
     const body = await req.text();
-    const payload = JSON.parse(body);
-
-    console.log('Bold webhook received:', payload);
-
-    // Verify webhook signature (Bold sends signature in header)
+    
+    // Get and verify webhook signature
     const signature = req.headers.get('x-bold-signature');
-    // Note: Implement proper signature verification based on Bold's documentation
+    const isValidSignature = await verifySignature(body, signature);
+
+    if (!isValidSignature) {
+      console.error('Invalid webhook signature - request rejected');
+      return new Response(
+        JSON.stringify({ error: 'Invalid signature' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const payload = JSON.parse(body);
+    console.log('Bold webhook received (verified):', payload);
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
@@ -37,6 +94,26 @@ serve(async (req) => {
       const plan = metadata.plan;
 
       if (userId && plan) {
+        // Validate userId is a valid UUID format
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+        if (!uuidRegex.test(userId)) {
+          console.error('Invalid user_id format:', userId);
+          return new Response(
+            JSON.stringify({ error: 'Invalid user_id format' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        // Validate plan is one of the allowed values
+        const validPlans = ['starter', 'professional', 'enterprise'];
+        if (!validPlans.includes(plan)) {
+          console.error('Invalid plan:', plan);
+          return new Response(
+            JSON.stringify({ error: 'Invalid plan' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
         // Update subscription
         const { error: updateError } = await supabase
           .from('subscriptions')
