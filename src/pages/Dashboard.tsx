@@ -137,22 +137,24 @@ const Dashboard = () => {
   };
 
   useEffect(() => {
-    const checkUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+    // IMPORTANT: Set up auth listener BEFORE checking session to prevent race conditions
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT' || !session) {
+        setUser(null);
+        navigate("/login");
+      } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
+        setUser(session.user);
+        checkWhatsAppAccounts();
+      }
+    });
+
+    // Then check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) {
         navigate("/login");
       } else {
         setUser(session.user);
         checkWhatsAppAccounts();
-      }
-    };
-    checkUser();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!session) {
-        navigate("/login");
-      } else {
-        setUser(session.user);
       }
     });
 
