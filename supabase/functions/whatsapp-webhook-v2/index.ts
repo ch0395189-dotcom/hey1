@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+// WhatsApp Business API Webhook Handler
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -186,12 +187,18 @@ Deno.serve(async (req) => {
                 conversationId = newConversation.id;
               } else {
                 conversationId = existingConversation.id;
-                // Update conversation
+                // Update conversation - increment unread count
+                const { data: currentConv } = await supabase
+                  .from('conversations')
+                  .select('unread_count')
+                  .eq('id', conversationId)
+                  .single();
+                
                 await supabase
                   .from('conversations')
                   .update({
                     last_message_at: new Date().toISOString(),
-                    unread_count: supabase.rpc('increment', { x: 1 }) as any,
+                    unread_count: (currentConv?.unread_count || 0) + 1,
                     customer_name: customerName,
                   })
                   .eq('id', conversationId);
