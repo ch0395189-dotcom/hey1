@@ -91,15 +91,25 @@ Deno.serve(async (req) => {
     console.log('Webhook verification request:', { mode, token, challenge });
 
     if (mode === 'subscribe' && token) {
-      // Find the WhatsApp account with this verify token
+      // First, check if token matches any account in database
       const { data: account } = await supabase
         .from('whatsapp_accounts')
         .select('id')
         .eq('webhook_verify_token', token)
-        .single();
+        .maybeSingle();
 
       if (account) {
         console.log('Webhook verified for account:', account.id);
+        return new Response(challenge, {
+          status: 200,
+          headers: { 'Content-Type': 'text/plain' },
+        });
+      }
+
+      // Fallback: Accept known verification tokens for initial setup
+      const knownTokens = ['heyhey_webhook_2024'];
+      if (knownTokens.includes(token)) {
+        console.log('Webhook verified with known token');
         return new Response(challenge, {
           status: 200,
           headers: { 'Content-Type': 'text/plain' },
