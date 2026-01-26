@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Search, User, Phone, MessageCircle, MoreVertical, UserPlus, Trash2, CheckSquare, X, Send } from "lucide-react";
+import { Search, User, Phone, MessageCircle, MoreVertical, UserPlus, Trash2, CheckSquare, X, Send, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { BulkMessageDialog } from "./BulkMessageDialog";
@@ -41,6 +41,7 @@ interface Contact {
 export const ContactsList = () => {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [deleteContact, setDeleteContact] = useState<Contact | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -76,6 +77,12 @@ export const ContactsList = () => {
       setContacts(uniqueContacts);
     }
     setLoading(false);
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchContacts();
+    setRefreshing(false);
   };
 
   const handleDeleteContact = async () => {
@@ -257,6 +264,16 @@ export const ContactsList = () => {
               <h2 className="font-display font-semibold text-lg">Contactos</h2>
               <div className="flex items-center gap-2">
                 <Badge variant="secondary">{contacts.length}</Badge>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="w-8 h-8"
+                  onClick={handleRefresh}
+                  disabled={refreshing}
+                  title="Actualizar"
+                >
+                  <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+                </Button>
                 {contacts.length > 0 && (
                   <Button 
                     variant="ghost" 

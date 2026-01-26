@@ -25,6 +25,7 @@ import {
   ChevronDown,
   Pause,
   MessageCircle,
+  RefreshCw,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -89,6 +90,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
   const [newMessage, setNewMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [attachedFile, setAttachedFile] = useState<AttachedFile | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isAtBottom, setIsAtBottom] = useState(true);
@@ -273,6 +275,12 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchMessages();
+    setRefreshing(false);
   };
 
   const markAsRead = async () => {
@@ -634,8 +642,17 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
             </a>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon">
+        <div className="flex items-center gap-1 md:gap-2">
+          <Button 
+            variant="ghost" 
+            size="icon"
+            onClick={handleRefresh}
+            disabled={refreshing}
+            title="Actualizar mensajes"
+          >
+            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+          </Button>
+          <Button variant="ghost" size="icon" className="hidden md:flex">
             <Phone className="w-4 h-4" />
           </Button>
           <DropdownMenu>
