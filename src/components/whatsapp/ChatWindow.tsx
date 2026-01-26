@@ -170,13 +170,14 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
             filter: `conversation_id=eq.${conversation.id}`,
           },
           (payload) => {
-            console.log('Message change:', payload);
+            console.log('🔔 Realtime message event:', payload.eventType, payload);
             if (payload.eventType === 'INSERT') {
               const newMsg = payload.new as Message;
               setMessages((prev) => [...prev, newMsg]);
               
               // If it's an inbound message, play notification sound
               if (newMsg.direction === 'inbound') {
+                console.log('🔊 Playing notification sound for inbound message');
                 playNotificationSound();
                 
                 setUnreadCount((prev) => {
@@ -200,7 +201,9 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
             }
           }
         )
-        .subscribe();
+        .subscribe((status) => {
+          console.log('📡 Realtime subscription status:', status);
+        });
 
       return () => {
         supabase.removeChannel(channel);
