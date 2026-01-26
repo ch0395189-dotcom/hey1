@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,7 @@ import { Search, User, Phone, MessageCircle, MoreVertical, UserPlus, Trash2, Che
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { BulkMessageDialog } from "./BulkMessageDialog";
+import { useAutoRefresh, useAutoRefreshSettings } from "@/hooks/useAutoRefresh";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -55,7 +56,7 @@ export const ContactsList = () => {
     fetchContacts();
   }, []);
 
-  const fetchContacts = async () => {
+  const fetchContacts = useCallback(async () => {
     setLoading(true);
     const { data, error } = await supabase
       .from('conversations')
@@ -77,7 +78,11 @@ export const ContactsList = () => {
       setContacts(uniqueContacts);
     }
     setLoading(false);
-  };
+  }, []);
+
+  // Auto-refresh integration
+  const { enabled: autoRefreshEnabled, interval: autoRefreshInterval } = useAutoRefreshSettings();
+  useAutoRefresh(fetchContacts, autoRefreshInterval, autoRefreshEnabled);
 
   const handleRefresh = async () => {
     setRefreshing(true);

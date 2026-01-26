@@ -9,10 +9,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Volume2, Bell, Play, MessageCircle } from "lucide-react";
+import { Volume2, Bell, Play, MessageCircle, RefreshCw } from "lucide-react";
 import { NotificationTone, Platform } from "@/hooks/useNotificationSettings";
 import { useNotificationSound } from "@/hooks/useNotificationSound";
 import { FaWhatsapp, FaFacebookMessenger, FaInstagram, FaTiktok } from "react-icons/fa";
+import { useAutoRefreshSettings, intervalOptions, RefreshInterval } from "@/hooks/useAutoRefresh";
 
 interface PlatformTones {
   whatsapp: NotificationTone;
@@ -67,6 +68,12 @@ export const NotificationSettingsPanel = ({
   onRequestDesktopPermission,
 }: NotificationSettingsPanelProps) => {
   const { playPreview } = useNotificationSound();
+  const { 
+    enabled: autoRefreshEnabled, 
+    interval: autoRefreshInterval, 
+    toggleEnabled: toggleAutoRefresh, 
+    setInterval: setAutoRefreshInterval 
+  } = useAutoRefreshSettings();
 
   const handlePreview = (selectedTone: NotificationTone) => {
     playPreview(volume, selectedTone);
@@ -186,6 +193,49 @@ export const NotificationSettingsPanel = ({
               checked={desktopEnabled}
               onCheckedChange={onToggleDesktop}
             />
+          </div>
+        )}
+      </div>
+
+      {/* Auto-refresh Settings */}
+      <div className="space-y-4 pt-4 border-t">
+        <div className="flex items-center gap-2 text-sm font-medium">
+          <RefreshCw className="w-4 h-4" />
+          Actualización automática
+        </div>
+
+        <div className="flex items-center justify-between">
+          <Label htmlFor="auto-refresh-toggle" className="text-sm text-muted-foreground">
+            Actualización automática
+          </Label>
+          <Switch
+            id="auto-refresh-toggle"
+            checked={autoRefreshEnabled}
+            onCheckedChange={toggleAutoRefresh}
+          />
+        </div>
+
+        {autoRefreshEnabled && (
+          <div className="space-y-2">
+            <Label className="text-sm text-muted-foreground">Intervalo</Label>
+            <Select
+              value={String(autoRefreshInterval)}
+              onValueChange={(value) => setAutoRefreshInterval(Number(value) as RefreshInterval)}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Seleccionar intervalo" />
+              </SelectTrigger>
+              <SelectContent className="bg-popover border border-border z-50">
+                {intervalOptions.filter(opt => opt.value !== 0).map((option) => (
+                  <SelectItem key={option.value} value={String(option.value)}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Las conversaciones y contactos se actualizarán automáticamente.
+            </p>
           </div>
         )}
       </div>
