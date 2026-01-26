@@ -39,6 +39,7 @@ export const ManualWhatsAppSetup = ({ onAccountConnected }: ManualWhatsAppSetupP
   );
   const { toast } = useToast();
 
+  // IMPORTANTE: Esta URL debe usar whatsapp-webhook-v2 (no whatsapp-webhook)
   const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-webhook-v2`;
 
   const handleInputChange = (field: string, value: string) => {
