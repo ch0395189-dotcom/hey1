@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import { FaWhatsapp, FaFacebookMessenger, FaInstagram, FaTiktok } from "react-icons/fa";
+import { useAutoRefresh, useAutoRefreshSettings } from "@/hooks/useAutoRefresh";
 
 export interface Conversation {
   id: string;
@@ -129,7 +130,7 @@ export const ConversationsList = ({
     };
   }, [whatsappAccountId, showArchived, onNewMessage]);
 
-  const fetchConversations = async () => {
+  const fetchConversations = useCallback(async () => {
     try {
       let query = supabase
         .from('conversations')
@@ -173,7 +174,11 @@ export const ConversationsList = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [showArchived, platform, whatsappAccountId]);
+
+  // Auto-refresh integration
+  const { enabled: autoRefreshEnabled, interval: autoRefreshInterval } = useAutoRefreshSettings();
+  useAutoRefresh(fetchConversations, autoRefreshInterval, autoRefreshEnabled);
 
   const filteredConversations = conversations.filter((conv) => {
     const name = conv.customer_name || conv.customer_phone;
