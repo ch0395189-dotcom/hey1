@@ -4,15 +4,27 @@ import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Search, User, Phone, MessageCircle, MoreVertical, UserPlus } from "lucide-react";
+import { Search, User, Phone, MessageCircle, MoreVertical, UserPlus, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/hooks/use-toast";
 
 interface Contact {
   id: string;
@@ -28,6 +40,9 @@ export const ContactsList = () => {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [deleteContact, setDeleteContact] = useState<Contact | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     fetchContacts();
@@ -55,6 +70,47 @@ export const ContactsList = () => {
       setContacts(uniqueContacts);
     }
     setLoading(false);
+  };
+
+  const handleDeleteContact = async () => {
+    if (!deleteContact) return;
+    
+    setDeleting(true);
+    try {
+      // First delete all messages for this conversation
+      const { error: messagesError } = await supabase
+        .from('messages')
+        .delete()
+        .eq('conversation_id', deleteContact.id);
+
+      if (messagesError) throw messagesError;
+
+      // Then delete the conversation
+      const { error: convError } = await supabase
+        .from('conversations')
+        .delete()
+        .eq('id', deleteContact.id);
+
+      if (convError) throw convError;
+
+      // Update local state
+      setContacts(prev => prev.filter(c => c.id !== deleteContact.id));
+      
+      toast({
+        title: "Contacto eliminado",
+        description: `${deleteContact.customer_name || deleteContact.customer_phone} ha sido eliminado.`,
+      });
+    } catch (error: any) {
+      console.error('Error deleting contact:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar el contacto.",
+        variant: "destructive",
+      });
+    } finally {
+      setDeleting(false);
+      setDeleteContact(null);
+    }
   };
 
   const filteredContacts = contacts.filter(contact => {
@@ -171,6 +227,14 @@ export const ContactsList = () => {
                         <User className="w-4 h-4" />
                         Ver perfil
                       </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem 
+                        className="gap-2 text-destructive focus:text-destructive"
+                        onClick={() => setDeleteContact(contact)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        Eliminar contacto
+                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
@@ -179,6 +243,28 @@ export const ContactsList = () => {
           </div>
         )}
       </div>
+
+      {/* Delete confirmation dialog */}
+      <AlertDialog open={!!deleteContact} onOpenChange={(open) => !open && setDeleteContact(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar contacto?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción eliminará a <strong>{deleteContact?.customer_name || deleteContact?.customer_phone}</strong> y todo el historial de mensajes. Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDeleteContact}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? "Eliminando..." : "Eliminar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
