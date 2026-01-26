@@ -39,7 +39,7 @@ export const ManualWhatsAppSetup = ({ onAccountConnected }: ManualWhatsAppSetupP
   );
   const { toast } = useToast();
 
-  const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-webhook`;
+  const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-webhook-v2`;
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
