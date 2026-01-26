@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Search, User, Phone, MessageCircle, MoreVertical, UserPlus, Trash2 } from "lucide-react";
+import { Search, User, Phone, MessageCircle, MoreVertical, UserPlus, Trash2, CheckSquare, Square, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -42,6 +43,9 @@ export const ContactsList = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [deleteContact, setDeleteContact] = useState<Contact | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -113,6 +117,78 @@ export const ContactsList = () => {
     }
   };
 
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    
+    setDeleting(true);
+    try {
+      const idsToDelete = Array.from(selectedIds);
+      
+      // Delete messages for all selected conversations
+      for (const id of idsToDelete) {
+        await supabase
+          .from('messages')
+          .delete()
+          .eq('conversation_id', id);
+      }
+      
+      // Delete all selected conversations
+      const { error } = await supabase
+        .from('conversations')
+        .delete()
+        .in('id', idsToDelete);
+
+      if (error) throw error;
+
+      // Update local state
+      setContacts(prev => prev.filter(c => !selectedIds.has(c.id)));
+      
+      toast({
+        title: "Contactos eliminados",
+        description: `${selectedIds.size} contacto(s) eliminado(s) correctamente.`,
+      });
+      
+      // Reset selection
+      setSelectedIds(new Set());
+      setSelectionMode(false);
+    } catch (error: any) {
+      console.error('Error deleting contacts:', error);
+      toast({
+        title: "Error",
+        description: "No se pudieron eliminar algunos contactos.",
+        variant: "destructive",
+      });
+    } finally {
+      setDeleting(false);
+      setShowBulkDeleteDialog(false);
+    }
+  };
+
+  const toggleSelection = (id: string) => {
+    setSelectedIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredContacts.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredContacts.map(c => c.id)));
+    }
+  };
+
+  const exitSelectionMode = () => {
+    setSelectionMode(false);
+    setSelectedIds(new Set());
+  };
+
   const filteredContacts = contacts.filter(contact => {
     const name = contact.customer_name?.toLowerCase() || '';
     const phone = contact.customer_phone.toLowerCase();
@@ -150,11 +226,45 @@ export const ContactsList = () => {
   }
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col relative">
       <div className="p-4 border-b border-border">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="font-display font-semibold text-lg">Contactos</h2>
-          <Badge variant="secondary">{contacts.length}</Badge>
+          {selectionMode ? (
+            <>
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="icon" onClick={exitSelectionMode}>
+                  <X className="w-4 h-4" />
+                </Button>
+                <span className="font-medium">{selectedIds.size} seleccionado(s)</span>
+              </div>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={toggleSelectAll}
+                className="text-sm"
+              >
+                {selectedIds.size === filteredContacts.length ? "Deseleccionar todo" : "Seleccionar todo"}
+              </Button>
+            </>
+          ) : (
+            <>
+              <h2 className="font-display font-semibold text-lg">Contactos</h2>
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary">{contacts.length}</Badge>
+                {contacts.length > 0 && (
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="w-8 h-8"
+                    onClick={() => setSelectionMode(true)}
+                    title="Seleccionar múltiples"
+                  >
+                    <CheckSquare className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
+            </>
+          )}
         </div>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -188,9 +298,20 @@ export const ContactsList = () => {
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.03 }}
-                className="p-4 hover:bg-secondary/50 transition-colors cursor-pointer group"
+                className={`p-4 hover:bg-secondary/50 transition-colors cursor-pointer group ${
+                  selectedIds.has(contact.id) ? 'bg-primary/10' : ''
+                }`}
+                onClick={() => selectionMode && toggleSelection(contact.id)}
               >
                 <div className="flex items-center gap-3">
+                  {selectionMode ? (
+                    <Checkbox
+                      checked={selectedIds.has(contact.id)}
+                      onCheckedChange={() => toggleSelection(contact.id)}
+                      className="w-5 h-5"
+                    />
+                  ) : null}
+                  
                   <Avatar className="w-12 h-12">
                     <AvatarImage src={contact.customer_profile_pic || undefined} />
                     <AvatarFallback className="bg-primary/10 text-primary font-medium">
@@ -208,35 +329,37 @@ export const ContactsList = () => {
                     </div>
                   </div>
 
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="w-8 h-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <MoreVertical className="w-4 h-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem className="gap-2">
-                        <MessageCircle className="w-4 h-4" />
-                        Ir a conversación
-                      </DropdownMenuItem>
-                      <DropdownMenuItem className="gap-2">
-                        <User className="w-4 h-4" />
-                        Ver perfil
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem 
-                        className="gap-2 text-destructive focus:text-destructive"
-                        onClick={() => setDeleteContact(contact)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        Eliminar contacto
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  {!selectionMode && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="w-8 h-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <MoreVertical className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem className="gap-2">
+                          <MessageCircle className="w-4 h-4" />
+                          Ir a conversación
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="gap-2">
+                          <User className="w-4 h-4" />
+                          Ver perfil
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem 
+                          className="gap-2 text-destructive focus:text-destructive"
+                          onClick={() => setDeleteContact(contact)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          Eliminar contacto
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
                 </div>
               </motion.div>
             ))}
@@ -244,7 +367,32 @@ export const ContactsList = () => {
         )}
       </div>
 
-      {/* Delete confirmation dialog */}
+      {/* Floating action bar for bulk actions */}
+      <AnimatePresence>
+        {selectionMode && selectedIds.size > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            className="absolute bottom-4 left-4 right-4 bg-destructive text-destructive-foreground rounded-lg shadow-lg p-3 flex items-center justify-between"
+          >
+            <span className="text-sm font-medium">
+              {selectedIds.size} contacto(s) seleccionado(s)
+            </span>
+            <Button 
+              variant="secondary" 
+              size="sm"
+              onClick={() => setShowBulkDeleteDialog(true)}
+              className="gap-2"
+            >
+              <Trash2 className="w-4 h-4" />
+              Eliminar
+            </Button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Single delete confirmation dialog */}
       <AlertDialog open={!!deleteContact} onOpenChange={(open) => !open && setDeleteContact(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -261,6 +409,28 @@ export const ContactsList = () => {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleting ? "Eliminando..." : "Eliminar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk delete confirmation dialog */}
+      <AlertDialog open={showBulkDeleteDialog} onOpenChange={setShowBulkDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar {selectedIds.size} contacto(s)?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción eliminará los contactos seleccionados y todo su historial de mensajes. Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleBulkDelete}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? "Eliminando..." : `Eliminar ${selectedIds.size} contacto(s)`}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
