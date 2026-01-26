@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { BulkMessageDialog } from "./BulkMessageDialog";
 import { useAutoRefresh, useAutoRefreshSettings } from "@/hooks/useAutoRefresh";
+import { PullToRefreshContainer } from "@/components/ui/PullToRefreshContainer";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -305,7 +306,10 @@ export const ContactsList = () => {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      <PullToRefreshContainer 
+        onRefresh={handleRefresh}
+        className="flex-1 min-h-0"
+      >
         {filteredContacts.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center p-8">
             <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center mb-4">
@@ -393,7 +397,7 @@ export const ContactsList = () => {
             ))}
           </div>
         )}
-      </div>
+      </PullToRefreshContainer>
 
       {/* Floating action bar for bulk actions */}
       <AnimatePresence>

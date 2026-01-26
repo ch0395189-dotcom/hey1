@@ -9,6 +9,7 @@ import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import { FaWhatsapp, FaFacebookMessenger, FaInstagram, FaTiktok } from "react-icons/fa";
 import { useAutoRefresh, useAutoRefreshSettings } from "@/hooks/useAutoRefresh";
+import { PullToRefreshContainer } from "@/components/ui/PullToRefreshContainer";
 
 export interface Conversation {
   id: string;
@@ -252,8 +253,11 @@ export const ConversationsList = ({
         </div>
       )}
 
-      {/* Conversations list */}
-      <div className="flex-1 overflow-y-auto">
+      {/* Conversations list with pull-to-refresh */}
+      <PullToRefreshContainer 
+        onRefresh={handleRefresh}
+        className="flex-1 min-h-0"
+      >
         {loading ? (
           <div className="flex items-center justify-center h-32">
             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
@@ -324,7 +328,7 @@ export const ConversationsList = ({
             </motion.div>
           ))
         )}
-      </div>
+      </PullToRefreshContainer>
     </div>
   );
 };
