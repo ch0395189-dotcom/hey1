@@ -1,12 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Search, User, Phone, MessageCircle, MoreVertical, UserPlus, Trash2, CheckSquare, Square, X } from "lucide-react";
+import { Search, User, Phone, MessageCircle, MoreVertical, UserPlus, Trash2, CheckSquare, X, Send } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { BulkMessageDialog } from "./BulkMessageDialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -46,6 +47,7 @@ export const ContactsList = () => {
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
+  const [showBulkMessageDialog, setShowBulkMessageDialog] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -195,6 +197,10 @@ export const ContactsList = () => {
     const search = searchTerm.toLowerCase();
     return name.includes(search) || phone.includes(search);
   });
+
+  const selectedContacts = useMemo(() => {
+    return contacts.filter(c => selectedIds.has(c.id));
+  }, [contacts, selectedIds]);
 
   const getInitials = (name: string | null, phone: string) => {
     if (name) {
@@ -374,20 +380,31 @@ export const ContactsList = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
-            className="absolute bottom-4 left-4 right-4 bg-destructive text-destructive-foreground rounded-lg shadow-lg p-3 flex items-center justify-between"
+            className="absolute bottom-4 left-4 right-4 bg-primary text-primary-foreground rounded-lg shadow-lg p-3 flex items-center justify-between"
           >
             <span className="text-sm font-medium">
               {selectedIds.size} contacto(s) seleccionado(s)
             </span>
-            <Button 
-              variant="secondary" 
-              size="sm"
-              onClick={() => setShowBulkDeleteDialog(true)}
-              className="gap-2"
-            >
-              <Trash2 className="w-4 h-4" />
-              Eliminar
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="secondary" 
+                size="sm"
+                onClick={() => setShowBulkMessageDialog(true)}
+                className="gap-2"
+              >
+                <Send className="w-4 h-4" />
+                Enviar mensaje
+              </Button>
+              <Button 
+                variant="destructive" 
+                size="sm"
+                onClick={() => setShowBulkDeleteDialog(true)}
+                className="gap-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                Eliminar
+              </Button>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -435,6 +452,14 @@ export const ContactsList = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Bulk message dialog */}
+      <BulkMessageDialog
+        open={showBulkMessageDialog}
+        onOpenChange={setShowBulkMessageDialog}
+        selectedContacts={selectedContacts}
+        onComplete={exitSelectionMode}
+      />
     </div>
   );
 };
