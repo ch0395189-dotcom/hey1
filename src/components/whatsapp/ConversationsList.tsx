@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Search, Plus, Archive, Inbox, MessageCircle } from "lucide-react";
+import { Search, Plus, Archive, Inbox, MessageCircle, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
@@ -47,6 +47,7 @@ export const ConversationsList = ({
   const [searchQuery, setSearchQuery] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   const getPlatformIcon = (platf: string) => {
     switch (platf) {
@@ -190,6 +191,12 @@ export const ConversationsList = ({
     return formatDistanceToNow(new Date(dateString), { addSuffix: true, locale: es });
   };
 
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchConversations();
+    setRefreshing(false);
+  };
+
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
@@ -197,6 +204,16 @@ export const ConversationsList = ({
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-display font-semibold text-lg">Conversaciones</h2>
           <div className="flex items-center gap-2">
+            <Button
+              size="icon"
+              variant="ghost"
+              className="w-8 h-8"
+              onClick={handleRefresh}
+              disabled={refreshing}
+              title="Actualizar"
+            >
+              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+            </Button>
             <Button
               size="icon"
               variant={showArchived ? "secondary" : "ghost"}
