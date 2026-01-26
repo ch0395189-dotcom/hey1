@@ -17,11 +17,13 @@ import {
   Settings2,
   Zap,
   Pencil,
-  Trash2
+  Trash2,
+  Bug
 } from "lucide-react";
 import { TestMessageSender } from "./TestMessageSender";
 import { ManualWhatsAppSetup } from "./ManualWhatsAppSetup";
 import { EditAccountDialog } from "./EditAccountDialog";
+import { WhatsAppDiagnostics } from "./WhatsAppDiagnostics";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -373,7 +375,7 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
   };
 
   const copyWebhookUrl = (token: string) => {
-    const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-webhook`;
+    const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-webhook-v2`;
     navigator.clipboard.writeText(webhookUrl);
     toast({
       title: "URL copiada",
@@ -539,14 +541,18 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
 
       {/* Connect New Account with Tabs */}
       <Tabs defaultValue="automatic" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="automatic" className="flex items-center gap-2">
             <Zap className="w-4 h-4" />
-            Conexión Automática
+            Automática
           </TabsTrigger>
           <TabsTrigger value="manual" className="flex items-center gap-2">
             <Settings2 className="w-4 h-4" />
-            Conexión Manual
+            Manual
+          </TabsTrigger>
+          <TabsTrigger value="diagnostics" className="flex items-center gap-2">
+            <Bug className="w-4 h-4" />
+            Diagnóstico
           </TabsTrigger>
         </TabsList>
         
@@ -649,6 +655,12 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
             fetchAccounts();
             onAccountConnected?.();
           }} />
+        </TabsContent>
+
+        <TabsContent value="diagnostics" className="mt-4">
+          <WhatsAppDiagnostics 
+            accountId={accounts.length > 0 ? accounts[0].id : undefined} 
+          />
         </TabsContent>
       </Tabs>
 
