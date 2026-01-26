@@ -166,6 +166,7 @@ Deno.serve(async (req) => {
                 .single();
 
               let conversationId: string;
+              let isNewConversation = false;
 
               if (!existingConversation) {
                 const { data: newConversation, error: convError } = await supabase
@@ -185,6 +186,7 @@ Deno.serve(async (req) => {
                   continue;
                 }
                 conversationId = newConversation.id;
+                isNewConversation = true;
               } else {
                 conversationId = existingConversation.id;
                 // Update conversation - increment unread count
@@ -202,6 +204,67 @@ Deno.serve(async (req) => {
                     customer_name: customerName,
                   })
                   .eq('id', conversationId);
+              }
+
+              // Send welcome message for NEW conversations if chatbot is enabled
+              if (isNewConversation) {
+                const { data: chatbotConfigForWelcome } = await supabase
+                  .from('chatbot_configs')
+                  .select('is_enabled, welcome_message')
+                  .eq('whatsapp_account_id', whatsappAccount.id)
+                  .single();
+
+                if (chatbotConfigForWelcome?.is_enabled && chatbotConfigForWelcome?.welcome_message) {
+                  // Get access token for sending
+                  const { data: accountData } = await supabase
+                    .from('whatsapp_accounts')
+                    .select('access_token')
+                    .eq('id', whatsappAccount.id)
+                    .single();
+
+                  if (accountData?.access_token) {
+                    try {
+                      // Send welcome message via WhatsApp API
+                      const welcomeResponse = await fetch(
+                        `https://graph.facebook.com/v21.0/${phoneNumberId}/messages`,
+                        {
+                          method: 'POST',
+                          headers: {
+                            'Authorization': `Bearer ${accountData.access_token}`,
+                            'Content-Type': 'application/json',
+                          },
+                          body: JSON.stringify({
+                            messaging_product: 'whatsapp',
+                            to: customerPhone,
+                            type: 'text',
+                            text: { body: chatbotConfigForWelcome.welcome_message },
+                          }),
+                        }
+                      );
+
+                      if (welcomeResponse.ok) {
+                        const welcomeResult = await welcomeResponse.json();
+                        console.log('Welcome message sent:', welcomeResult);
+
+                        // Save welcome message to database
+                        await supabase
+                          .from('messages')
+                          .insert({
+                            conversation_id: conversationId,
+                            content: chatbotConfigForWelcome.welcome_message,
+                            message_type: 'text',
+                            direction: 'outbound',
+                            whatsapp_message_id: welcomeResult.messages?.[0]?.id || null,
+                            status: 'sent',
+                          });
+                      } else {
+                        console.error('Failed to send welcome message:', await welcomeResponse.text());
+                      }
+                    } catch (welcomeError) {
+                      console.error('Error sending welcome message:', welcomeError);
+                    }
+                  }
+                }
               }
 
               // Determine message content and type
