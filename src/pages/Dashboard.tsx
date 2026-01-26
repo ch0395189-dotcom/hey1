@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -9,8 +9,6 @@ import {
   Users,
   BarChart3,
   Bot,
-  Bell,
-  BellOff,
   Shield,
   Plug,
   Volume2,
@@ -21,6 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useNotificationSound } from "@/hooks/useNotificationSound";
 import { useNotificationSettings } from "@/hooks/useNotificationSettings";
+import { useSessionPersistence } from "@/hooks/useSessionPersistence";
 import { ConversationsList } from "@/components/whatsapp/ConversationsList";
 import { ChatWindow } from "@/components/whatsapp/ChatWindow";
 import { WhatsAppSetup } from "@/components/whatsapp/WhatsAppSetup";
@@ -136,30 +135,21 @@ const Dashboard = () => {
     }
   };
 
-  useEffect(() => {
-    // IMPORTANT: Set up auth listener BEFORE checking session to prevent race conditions
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_OUT' || !session) {
-        setUser(null);
-        navigate("/login");
-      } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
-        setUser(session.user);
-        checkWhatsAppAccounts();
-      }
-    });
+  // Use session persistence hook for mobile app stability
+  const handleSessionRestored = useCallback((restoredUser: any) => {
+    setUser(restoredUser);
+    checkWhatsAppAccounts();
+  }, []);
 
-    // Then check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
-        navigate("/login");
-      } else {
-        setUser(session.user);
-        checkWhatsAppAccounts();
-      }
-    });
+  const handleSessionLost = useCallback(() => {
+    setUser(null);
+  }, []);
 
-    return () => subscription.unsubscribe();
-  }, [navigate]);
+  useSessionPersistence({
+    onSessionRestored: handleSessionRestored,
+    onSessionLost: handleSessionLost,
+    redirectOnLost: '/login',
+  });
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
