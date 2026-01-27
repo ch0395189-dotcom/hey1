@@ -12,7 +12,8 @@ import {
   Shield,
   Plug,
   Volume2,
-  VolumeX
+  VolumeX,
+  ArrowLeft
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -529,43 +530,61 @@ const Dashboard = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Chatbot Config Dialog */}
-      <Dialog open={showChatbot} onOpenChange={setShowChatbot}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Bot className="h-5 w-5" />
-              Configuración del Chatbot
-            </DialogTitle>
-          </DialogHeader>
-          {whatsappAccounts.length > 1 && (
-            <div className="mb-4">
-              <Select value={selectedAccountId || ''} onValueChange={setSelectedAccountId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecciona una cuenta" />
-                </SelectTrigger>
-                <SelectContent>
-                  {whatsappAccounts.map((account) => (
-                    <SelectItem key={account.id} value={account.id}>
-                      {account.display_name || account.phone_number}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+      {/* Chatbot Config Full Screen */}
+      {showChatbot && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 bg-background flex flex-col"
+        >
+          {/* Header */}
+          <div className="h-14 px-4 bg-primary flex items-center gap-3 shrink-0">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-primary-foreground hover:bg-primary-foreground/10"
+              onClick={() => setShowChatbot(false)}
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <Bot className="w-5 h-5 text-primary-foreground" />
+            <h1 className="text-primary-foreground font-semibold text-lg">Configuración del Chatbot</h1>
+          </div>
+          
+          {/* Content */}
+          <div className="flex-1 overflow-auto p-4 md:p-6">
+            <div className="max-w-5xl mx-auto">
+              {whatsappAccounts.length > 1 && (
+                <div className="mb-4">
+                  <Select value={selectedAccountId || ''} onValueChange={setSelectedAccountId}>
+                    <SelectTrigger className="max-w-xs">
+                      <SelectValue placeholder="Selecciona una cuenta" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {whatsappAccounts.map((account) => (
+                        <SelectItem key={account.id} value={account.id}>
+                          {account.display_name || account.phone_number}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              {selectedAccountId && (
+                <ChatbotConfig 
+                  whatsappAccountId={selectedAccountId}
+                  whatsappAccountName={
+                    whatsappAccounts.find(a => a.id === selectedAccountId)?.display_name || 
+                    whatsappAccounts.find(a => a.id === selectedAccountId)?.phone_number || 
+                    'Cuenta'
+                  }
+                />
+              )}
             </div>
-          )}
-          {selectedAccountId && (
-            <ChatbotConfig 
-              whatsappAccountId={selectedAccountId}
-              whatsappAccountName={
-                whatsappAccounts.find(a => a.id === selectedAccountId)?.display_name || 
-                whatsappAccounts.find(a => a.id === selectedAccountId)?.phone_number || 
-                'Cuenta'
-              }
-            />
-          )}
-        </DialogContent>
-      </Dialog>
+          </div>
+        </motion.div>
+      )}
 
       {/* Platform Setup Dialog */}
       <Dialog open={showPlatformSetup} onOpenChange={setShowPlatformSetup}>
