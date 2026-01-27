@@ -297,6 +297,8 @@ Deno.serve(async (req) => {
     // If hybrid or AI mode and no manual response found
     if (!responseMessage && (chatbotConfig.mode === 'ai' || chatbotConfig.mode === 'hybrid')) {
       responseMessage = await getAIResponse(
+        supabase,
+        conversation_id,
         chatbotConfig.ai_system_prompt,
         message_content,
         conversationState.context
@@ -487,6 +489,8 @@ async function saveOutboundMessage(
 }
 
 async function getAIResponse(
+  supabase: any,
+  conversationId: string,
   systemPrompt: string,
   userMessage: string,
   context: Record<string, any>
@@ -499,6 +503,34 @@ async function getAIResponse(
   }
 
   try {
+    // Fetch recent conversation history for context (last 10 messages)
+    const { data: recentMessages } = await supabase
+      .from('messages')
+      .select('content, direction, message_type')
+      .eq('conversation_id', conversationId)
+      .eq('message_type', 'text')
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    // Build conversation history for AI context
+    const conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }> = [];
+    
+    if (recentMessages && recentMessages.length > 0) {
+      // Reverse to get chronological order and map to AI message format
+      const orderedMessages = [...recentMessages].reverse();
+      for (const msg of orderedMessages) {
+        if (msg.content) {
+          conversationHistory.push({
+            role: msg.direction === 'inbound' ? 'user' : 'assistant',
+            content: msg.content,
+          });
+        }
+      }
+    }
+
+    // Add the current user message
+    conversationHistory.push({ role: 'user', content: userMessage });
+
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -510,28 +542,49 @@ async function getAIResponse(
         messages: [
           { 
             role: 'system', 
-            content: `${systemPrompt}\n\nContexto de la conversación: ${JSON.stringify(context)}\n\nResponde siempre en español y de manera concisa (máximo 2-3 oraciones).` 
+            content: `${systemPrompt}
+
+INSTRUCCIONES IMPORTANTES:
+- Responde siempre en español
+- Sé conciso y útil (máximo 3-4 oraciones)
+- Mantén un tono amigable y profesional
+- Si no puedes ayudar con algo, sugiere hablar con un agente humano
+- No inventes información que no tengas
+
+Contexto adicional: ${JSON.stringify(context)}` 
           },
-          { role: 'user', content: userMessage },
+          ...conversationHistory,
         ],
-        max_tokens: 200,
+        max_tokens: 300,
+        temperature: 0.7,
       }),
     });
 
     if (!response.ok) {
       if (response.status === 429) {
+        console.error('AI rate limited');
         return 'Estamos recibiendo muchas consultas. Por favor intenta de nuevo en unos momentos.';
       }
       if (response.status === 402) {
+        console.error('AI payment required');
         return 'El servicio de IA no está disponible temporalmente.';
       }
+      const errorText = await response.text();
+      console.error('AI gateway error:', response.status, errorText);
       throw new Error(`AI gateway error: ${response.status}`);
     }
 
     const data = await response.json();
-    return data.choices?.[0]?.message?.content || 'No pude procesar tu mensaje.';
+    const aiResponse = data.choices?.[0]?.message?.content;
+    
+    if (!aiResponse) {
+      console.error('Empty AI response');
+      return 'No pude procesar tu mensaje. ¿Podrías reformularlo?';
+    }
+
+    return aiResponse.trim();
   } catch (error) {
     console.error('AI response error:', error);
-    return 'Lo siento, hubo un error procesando tu mensaje.';
+    return 'Lo siento, hubo un error procesando tu mensaje. Por favor intenta de nuevo.';
   }
 }
