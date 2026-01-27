@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
+import { getBestAudioMimeType } from '@/utils/audioConverter';
 
 interface UseAudioRecorderReturn {
   isRecording: boolean;
@@ -7,6 +8,7 @@ interface UseAudioRecorderReturn {
   audioBlob: Blob | null;
   audioUrl: string | null;
   isSupported: boolean;
+  mimeType: string;
   startRecording: () => Promise<void>;
   stopRecording: () => void;
   pauseRecording: () => void;
@@ -20,6 +22,7 @@ export const useAudioRecorder = (): UseAudioRecorderReturn => {
   const [duration, setDuration] = useState(0);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [mimeType, setMimeType] = useState<string>('audio/webm');
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -54,15 +57,11 @@ export const useAudioRecorder = (): UseAudioRecorderReturn => {
       chunksRef.current = [];
       pausedDurationRef.current = 0;
 
-      // Try to use a format supported by WhatsApp (prefer audio/ogg or audio/mp4)
-      let mimeType = 'audio/webm';
-      if (MediaRecorder.isTypeSupported('audio/ogg; codecs=opus')) {
-        mimeType = 'audio/ogg; codecs=opus';
-      } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
-        mimeType = 'audio/mp4';
-      }
+      // Use the best format for WhatsApp compatibility
+      const selectedMimeType = getBestAudioMimeType();
+      setMimeType(selectedMimeType);
 
-      const mediaRecorder = new MediaRecorder(stream, { mimeType });
+      const mediaRecorder = new MediaRecorder(stream, { mimeType: selectedMimeType });
       mediaRecorderRef.current = mediaRecorder;
 
       mediaRecorder.ondataavailable = (event) => {
@@ -72,7 +71,7 @@ export const useAudioRecorder = (): UseAudioRecorderReturn => {
       };
 
       mediaRecorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: mimeType });
+        const blob = new Blob(chunksRef.current, { type: selectedMimeType });
         setAudioBlob(blob);
         const url = URL.createObjectURL(blob);
         setAudioUrl(url);
@@ -137,6 +136,7 @@ export const useAudioRecorder = (): UseAudioRecorderReturn => {
     audioBlob,
     audioUrl,
     isSupported,
+    mimeType,
     startRecording,
     stopRecording,
     pauseRecording,
