@@ -198,11 +198,19 @@
     .chat-input-mobile {
       padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px)) !important;
     }
+    
+    .dashboard-content-mobile {
+      padding-bottom: calc(4rem + env(safe-area-inset-bottom, 0px));
+    }
   }
   
   @media (min-width: 768px) {
     .chat-input-mobile {
       padding-bottom: 1rem !important;
+    }
+    
+    .dashboard-content-mobile {
+      padding-bottom: 0;
     }
   }
 }

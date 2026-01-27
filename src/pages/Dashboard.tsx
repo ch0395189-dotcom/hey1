@@ -244,7 +244,7 @@ const Dashboard = () => {
         <PaymentAlertBanner />
       </div>
       
-      <div className="flex-1 min-h-0 flex overflow-hidden">
+      <div className="flex-1 min-h-0 flex overflow-hidden dashboard-content-mobile">
       {/* Desktop Sidebar - WhatsApp Green Style */}
       <motion.aside
         initial={{ x: -50, opacity: 0 }}
