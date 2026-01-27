@@ -213,6 +213,50 @@ export type Database = {
           },
         ]
       }
+      chatbot_knowledge_base: {
+        Row: {
+          category: string | null
+          chatbot_config_id: string
+          content: string
+          created_at: string
+          id: string
+          is_active: boolean
+          title: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          chatbot_config_id: string
+          content: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          title: string
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          chatbot_config_id?: string
+          content?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          title?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chatbot_knowledge_base_chatbot_config_id_fkey"
+            columns: ["chatbot_config_id"]
+            isOneToOne: false
+            referencedRelation: "chatbot_configs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contact_tags: {
         Row: {
           color: string

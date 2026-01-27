@@ -299,6 +299,7 @@ Deno.serve(async (req) => {
       responseMessage = await getAIResponse(
         supabase,
         conversation_id,
+        chatbotConfig.id,
         chatbotConfig.ai_system_prompt,
         message_content,
         conversationState.context
@@ -491,6 +492,7 @@ async function saveOutboundMessage(
 async function getAIResponse(
   supabase: any,
   conversationId: string,
+  chatbotConfigId: string,
   systemPrompt: string,
   userMessage: string,
   context: Record<string, any>
@@ -503,6 +505,46 @@ async function getAIResponse(
   }
 
   try {
+    // Fetch knowledge base entries for context
+    const { data: knowledgeEntries } = await supabase
+      .from('chatbot_knowledge_base')
+      .select('title, content, type, category')
+      .eq('chatbot_config_id', chatbotConfigId)
+      .eq('is_active', true)
+      .limit(50);
+
+    // Build knowledge base context
+    let knowledgeContext = '';
+    if (knowledgeEntries && knowledgeEntries.length > 0) {
+      knowledgeContext = '\n\n=== BASE DE CONOCIMIENTOS ===\n';
+      
+      const groupedByType: Record<string, any[]> = {};
+      for (const entry of knowledgeEntries) {
+        if (!groupedByType[entry.type]) {
+          groupedByType[entry.type] = [];
+        }
+        groupedByType[entry.type].push(entry);
+      }
+
+      const typeLabels: Record<string, string> = {
+        faq: 'PREGUNTAS FRECUENTES',
+        document: 'INFORMACIÓN GENERAL',
+        product: 'PRODUCTOS Y SERVICIOS',
+        policy: 'POLÍTICAS Y REGLAS',
+      };
+
+      for (const [type, entries] of Object.entries(groupedByType)) {
+        knowledgeContext += `\n## ${typeLabels[type] || type.toUpperCase()}\n`;
+        for (const entry of entries) {
+          if (entry.type === 'faq') {
+            knowledgeContext += `P: ${entry.title}\nR: ${entry.content}\n\n`;
+          } else {
+            knowledgeContext += `### ${entry.title}\n${entry.content}\n\n`;
+          }
+        }
+      }
+    }
+
     // Fetch recent conversation history for context (last 10 messages)
     const { data: recentMessages } = await supabase
       .from('messages')
@@ -543,12 +585,14 @@ async function getAIResponse(
           { 
             role: 'system', 
             content: `${systemPrompt}
-
+${knowledgeContext}
 INSTRUCCIONES IMPORTANTES:
 - Responde siempre en español
+- Usa la BASE DE CONOCIMIENTOS como fuente principal de información
 - Sé conciso y útil (máximo 3-4 oraciones)
 - Mantén un tono amigable y profesional
-- Si no puedes ayudar con algo, sugiere hablar con un agente humano
+- Si la pregunta está relacionada con algo en la base de conocimientos, usa esa información
+- Si no puedes ayudar con algo o no tienes la información, sugiere hablar con un agente humano
 - No inventes información que no tengas
 
 Contexto adicional: ${JSON.stringify(context)}` 
