@@ -10,11 +10,27 @@ export async function convertToMp3(audioBlob: Blob): Promise<Blob> {
     return audioBlob;
   }
 
+  // Check if AudioContext is available (may not work on older iOS Safari)
+  if (typeof AudioContext === 'undefined' && typeof (window as any).webkitAudioContext === 'undefined') {
+    console.warn('AudioContext not supported, returning original blob');
+    return audioBlob;
+  }
+
   try {
-    // Decode the audio using Web Audio API
-    const audioContext = new AudioContext();
+    // Decode the audio using Web Audio API (with webkit fallback for Safari)
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    const audioContext = new AudioContextClass();
     const arrayBuffer = await audioBlob.arrayBuffer();
-    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+    
+    // Try to decode, but handle cases where the format is not supported
+    let audioBuffer: AudioBuffer;
+    try {
+      audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+    } catch (decodeError) {
+      console.warn('Failed to decode audio data, returning original blob:', decodeError);
+      await audioContext.close();
+      return audioBlob;
+    }
 
     // Get audio data
     const numberOfChannels = audioBuffer.numberOfChannels;
