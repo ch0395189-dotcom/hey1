@@ -43,6 +43,16 @@ interface Contact {
   blocked_at: string | null;
 }
 
+interface Tag {
+  id: string;
+  name: string;
+  color: string;
+}
+
+interface ConversationTagMap {
+  [conversationId: string]: string[];
+}
+
 export const ContactsList = () => {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,14 +66,46 @@ export const ContactsList = () => {
   const [showBulkMessageDialog, setShowBulkMessageDialog] = useState(false);
   const [blockingContact, setBlockingContact] = useState<Contact | null>(null);
   const [tagsRefreshKey, setTagsRefreshKey] = useState(0);
+  const [availableTags, setAvailableTags] = useState<Tag[]>([]);
+  const [selectedTagFilters, setSelectedTagFilters] = useState<Set<string>>(new Set());
+  const [conversationTagMap, setConversationTagMap] = useState<ConversationTagMap>({});
+  const [showTagFilter, setShowTagFilter] = useState(false);
   const { toast } = useToast();
 
   const handleTagsChange = useCallback(() => {
     setTagsRefreshKey(prev => prev + 1);
+    fetchTagsData();
+  }, []);
+
+  const fetchTagsData = useCallback(async () => {
+    // Fetch all available tags
+    const { data: tags } = await supabase
+      .from('contact_tags')
+      .select('*')
+      .order('name');
+    
+    if (tags) setAvailableTags(tags);
+
+    // Fetch all conversation-tag mappings
+    const { data: convTags } = await supabase
+      .from('conversation_tags')
+      .select('conversation_id, tag_id');
+
+    if (convTags) {
+      const tagMap: ConversationTagMap = {};
+      convTags.forEach(ct => {
+        if (!tagMap[ct.conversation_id]) {
+          tagMap[ct.conversation_id] = [];
+        }
+        tagMap[ct.conversation_id].push(ct.tag_id);
+      });
+      setConversationTagMap(tagMap);
+    }
   }, []);
 
   useEffect(() => {
     fetchContacts();
+    fetchTagsData();
   }, []);
 
   const fetchContacts = useCallback(async () => {
@@ -247,16 +289,47 @@ export const ContactsList = () => {
     setSelectedIds(new Set());
   };
 
-  const filteredContacts = contacts.filter(contact => {
-    const name = contact.customer_name?.toLowerCase() || '';
-    const phone = contact.customer_phone.toLowerCase();
-    const search = searchTerm.toLowerCase();
-    return name.includes(search) || phone.includes(search);
-  });
+  const filteredContacts = useMemo(() => {
+    return contacts.filter(contact => {
+      // Text search filter
+      const name = contact.customer_name?.toLowerCase() || '';
+      const phone = contact.customer_phone.toLowerCase();
+      const search = searchTerm.toLowerCase();
+      const matchesSearch = name.includes(search) || phone.includes(search);
+
+      // Tag filter
+      if (selectedTagFilters.size === 0) {
+        return matchesSearch;
+      }
+      
+      const contactTags = conversationTagMap[contact.id] || [];
+      const matchesTags = Array.from(selectedTagFilters).some(tagId => 
+        contactTags.includes(tagId)
+      );
+      
+      return matchesSearch && matchesTags;
+    });
+  }, [contacts, searchTerm, selectedTagFilters, conversationTagMap]);
 
   const selectedContacts = useMemo(() => {
     return contacts.filter(c => selectedIds.has(c.id));
   }, [contacts, selectedIds]);
+
+  const toggleTagFilter = (tagId: string) => {
+    setSelectedTagFilters(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(tagId)) {
+        newSet.delete(tagId);
+      } else {
+        newSet.add(tagId);
+      }
+      return newSet;
+    });
+  };
+
+  const clearTagFilters = () => {
+    setSelectedTagFilters(new Set());
+  };
 
   const getInitials = (name: string | null, phone: string) => {
     if (name) {
@@ -324,15 +397,26 @@ export const ContactsList = () => {
                   <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
                 </Button>
                 {contacts.length > 0 && (
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="w-8 h-8"
-                    onClick={() => setSelectionMode(true)}
-                    title="Seleccionar múltiples"
-                  >
-                    <CheckSquare className="w-4 h-4" />
-                  </Button>
+                  <>
+                    <Button 
+                      variant={showTagFilter ? "secondary" : "ghost"}
+                      size="icon" 
+                      className="w-8 h-8"
+                      onClick={() => setShowTagFilter(!showTagFilter)}
+                      title="Filtrar por etiquetas"
+                    >
+                      <Tag className="w-4 h-4" />
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="w-8 h-8"
+                      onClick={() => setSelectionMode(true)}
+                      title="Seleccionar múltiples"
+                    >
+                      <CheckSquare className="w-4 h-4" />
+                    </Button>
+                  </>
                 )}
               </div>
             </>
@@ -347,6 +431,54 @@ export const ContactsList = () => {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
+
+        {/* Tag filter section */}
+        <AnimatePresence>
+          {showTagFilter && availableTags.length > 0 && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="overflow-hidden"
+            >
+              <div className="pt-3 flex flex-wrap gap-1.5">
+                {availableTags.map(tag => (
+                  <Badge
+                    key={tag.id}
+                    variant={selectedTagFilters.has(tag.id) ? "default" : "outline"}
+                    className="cursor-pointer text-xs transition-all"
+                    style={selectedTagFilters.has(tag.id) ? {
+                      backgroundColor: tag.color,
+                      borderColor: tag.color,
+                    } : {
+                      borderColor: `${tag.color}60`,
+                      color: tag.color,
+                    }}
+                    onClick={() => toggleTagFilter(tag.id)}
+                  >
+                    {tag.name}
+                  </Badge>
+                ))}
+                {selectedTagFilters.size > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-5 px-2 text-xs text-muted-foreground"
+                    onClick={clearTagFilters}
+                  >
+                    Limpiar
+                  </Button>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {showTagFilter && availableTags.length === 0 && (
+          <p className="text-xs text-muted-foreground pt-2">
+            No hay etiquetas. Crea una desde el menú de un contacto.
+          </p>
+        )}
       </div>
 
       <PullToRefreshContainer 
@@ -359,10 +491,14 @@ export const ContactsList = () => {
               <UserPlus className="w-8 h-8 text-muted-foreground" />
             </div>
             <p className="text-muted-foreground">
-              {searchTerm ? "No se encontraron contactos" : "Aún no tienes contactos"}
+              {searchTerm || selectedTagFilters.size > 0 
+                ? "No se encontraron contactos" 
+                : "Aún no tienes contactos"}
             </p>
             <p className="text-sm text-muted-foreground mt-1">
-              Los contactos aparecerán cuando recibas mensajes
+              {selectedTagFilters.size > 0 
+                ? "Prueba con otros filtros o etiquetas"
+                : "Los contactos aparecerán cuando recibas mensajes"}
             </p>
           </div>
         ) : (
