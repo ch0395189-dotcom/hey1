@@ -4,10 +4,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Search, User, Phone, MessageCircle, MoreVertical, UserPlus, Trash2, CheckSquare, X, Send, RefreshCw, Ban, UserCheck } from "lucide-react";
+import { Search, User, Phone, MessageCircle, MoreVertical, UserPlus, Trash2, CheckSquare, X, Send, RefreshCw, Ban, UserCheck, Tag } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { BulkMessageDialog } from "./BulkMessageDialog";
+import { TagManager } from "./TagManager";
+import { ContactTags } from "./ContactTags";
 import { useAutoRefresh, useAutoRefreshSettings } from "@/hooks/useAutoRefresh";
 import { PullToRefreshContainer } from "@/components/ui/PullToRefreshContainer";
 import {
@@ -53,7 +55,12 @@ export const ContactsList = () => {
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
   const [showBulkMessageDialog, setShowBulkMessageDialog] = useState(false);
   const [blockingContact, setBlockingContact] = useState<Contact | null>(null);
+  const [tagsRefreshKey, setTagsRefreshKey] = useState(0);
   const { toast } = useToast();
+
+  const handleTagsChange = useCallback(() => {
+    setTagsRefreshKey(prev => prev + 1);
+  }, []);
 
   useEffect(() => {
     fetchContacts();
@@ -403,6 +410,7 @@ export const ContactsList = () => {
                       <Phone className="w-3 h-3" />
                       <span className="truncate">{contact.customer_phone}</span>
                     </div>
+                    <ContactTags key={tagsRefreshKey} conversationId={contact.id} />
                   </div>
 
                   {!selectionMode && (
@@ -416,7 +424,7 @@ export const ContactsList = () => {
                           <MoreVertical className="w-4 h-4" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
+                      <DropdownMenuContent align="end" className="bg-popover">
                         <DropdownMenuItem className="gap-2">
                           <MessageCircle className="w-4 h-4" />
                           Ir a conversación
@@ -425,6 +433,13 @@ export const ContactsList = () => {
                           <User className="w-4 h-4" />
                           Ver perfil
                         </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <div className="px-2 py-1.5">
+                          <TagManager 
+                            conversationId={contact.id} 
+                            onTagsChange={handleTagsChange}
+                          />
+                        </div>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem 
                           className="gap-2"
