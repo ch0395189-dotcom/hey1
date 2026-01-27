@@ -244,21 +244,21 @@ const Dashboard = () => {
       </div>
       
       <div className="flex-1 min-h-0 flex overflow-hidden">
-      {/* Sidebar */}
+      {/* Desktop Sidebar - WhatsApp Green Style */}
       <motion.aside
         initial={{ x: -50, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
-        className="w-20 bg-card border-r border-border flex flex-col items-center py-6"
+        className="hidden md:flex w-16 bg-primary flex-col items-center py-4"
       >
-        <div className="w-12 h-12 rounded-xl bg-gradient-hero flex items-center justify-center mb-8">
-          <MessageCircle className="w-6 h-6 text-primary-foreground" />
+        <div className="w-10 h-10 rounded-full bg-primary-foreground/20 flex items-center justify-center mb-6">
+          <MessageCircle className="w-5 h-5 text-primary-foreground" />
         </div>
 
-        <nav className="flex-1 flex flex-col items-center gap-4">
+        <nav className="flex-1 flex flex-col items-center gap-2">
           <Button 
             variant="ghost" 
             size="icon" 
-            className={`w-12 h-12 rounded-xl ${activeView === 'inbox' ? 'bg-secondary text-primary' : 'text-muted-foreground hover:bg-secondary'}`}
+            className={`w-10 h-10 rounded-xl ${activeView === 'inbox' ? 'bg-primary-foreground/20 text-primary-foreground' : 'text-primary-foreground/70 hover:bg-primary-foreground/10 hover:text-primary-foreground'}`}
             onClick={() => setActiveView('inbox')}
             title="Bandeja de entrada"
           >
@@ -267,7 +267,7 @@ const Dashboard = () => {
           <Button 
             variant="ghost" 
             size="icon" 
-            className={`w-12 h-12 rounded-xl ${activeView === 'contacts' ? 'bg-secondary text-primary' : 'text-muted-foreground hover:bg-secondary'}`}
+            className={`w-10 h-10 rounded-xl ${activeView === 'contacts' ? 'bg-primary-foreground/20 text-primary-foreground' : 'text-primary-foreground/70 hover:bg-primary-foreground/10 hover:text-primary-foreground'}`}
             onClick={() => setActiveView('contacts')}
             title="Contactos"
           >
@@ -276,7 +276,7 @@ const Dashboard = () => {
           <Button 
             variant="ghost" 
             size="icon" 
-            className={`w-12 h-12 rounded-xl ${activeView === 'statistics' ? 'bg-secondary text-primary' : 'text-muted-foreground hover:bg-secondary'}`}
+            className={`w-10 h-10 rounded-xl ${activeView === 'statistics' ? 'bg-primary-foreground/20 text-primary-foreground' : 'text-primary-foreground/70 hover:bg-primary-foreground/10 hover:text-primary-foreground'}`}
             onClick={() => setActiveView('statistics')}
             title="Estadísticas"
           >
@@ -285,7 +285,7 @@ const Dashboard = () => {
           <Button 
             variant="ghost" 
             size="icon" 
-            className="w-12 h-12 rounded-xl text-muted-foreground hover:bg-secondary"
+            className="w-10 h-10 rounded-xl text-primary-foreground/70 hover:bg-primary-foreground/10 hover:text-primary-foreground"
             onClick={() => setShowChatbot(true)}
             title="Chatbot"
           >
@@ -297,7 +297,7 @@ const Dashboard = () => {
                 <Button 
                   variant="ghost" 
                   size="icon" 
-                  className="w-12 h-12 rounded-xl text-muted-foreground hover:bg-secondary"
+                  className="w-10 h-10 rounded-xl text-primary-foreground/70 hover:bg-primary-foreground/10 hover:text-primary-foreground"
                   onClick={() => setShowPlatformSetup(true)}
                   title="Conectar plataformas"
                 >
@@ -311,17 +311,17 @@ const Dashboard = () => {
           </TooltipProvider>
         </nav>
 
-        <div className="flex flex-col items-center gap-4">
+        <div className="flex flex-col items-center gap-2">
           {/* Notification Settings Popover */}
           <Popover>
             <PopoverTrigger asChild>
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className={`w-12 h-12 rounded-xl ${
+                className={`w-10 h-10 rounded-xl ${
                   soundEnabled || (permission === 'granted' && desktopEnabled)
-                    ? 'text-primary bg-secondary' 
-                    : 'text-muted-foreground hover:bg-secondary'
+                    ? 'bg-primary-foreground/20 text-primary-foreground' 
+                    : 'text-primary-foreground/70 hover:bg-primary-foreground/10 hover:text-primary-foreground'
                 }`}
               >
                 {soundEnabled ? (
@@ -355,7 +355,7 @@ const Dashboard = () => {
                   <Button 
                     variant="ghost" 
                     size="icon" 
-                    className="w-12 h-12 rounded-xl text-warning hover:bg-warning/10"
+                    className="w-10 h-10 rounded-xl text-yellow-300 hover:bg-primary-foreground/10"
                     onClick={() => navigate('/admin')}
                   >
                     <Shield className="w-5 h-5" />
@@ -370,7 +370,7 @@ const Dashboard = () => {
           <Button 
             variant="ghost" 
             size="icon" 
-            className="w-12 h-12 rounded-xl text-muted-foreground hover:bg-secondary"
+            className="w-10 h-10 rounded-xl text-primary-foreground/70 hover:bg-primary-foreground/10 hover:text-primary-foreground"
             onClick={() => setShowSettings(true)}
           >
             <Settings className="w-5 h-5" />
@@ -378,7 +378,7 @@ const Dashboard = () => {
           <Button 
             variant="ghost" 
             size="icon" 
-            className="w-12 h-12 rounded-xl text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+            className="w-10 h-10 rounded-xl text-primary-foreground/70 hover:bg-red-500/20 hover:text-red-300"
             onClick={handleLogout}
           >
             <LogOut className="w-5 h-5" />
@@ -398,6 +398,10 @@ const Dashboard = () => {
               selectedConversation ? 'hidden md:flex' : 'flex'
             }`}
           >
+            {/* Header with WhatsApp style */}
+            <div className="h-14 px-4 bg-primary flex items-center justify-between">
+              <h1 className="text-primary-foreground font-semibold text-lg">Chats</h1>
+            </div>
             <PlatformTabs 
               activePlatform={activePlatform} 
               onPlatformChange={setActivePlatform}
@@ -434,9 +438,15 @@ const Dashboard = () => {
         <motion.div
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
-          className="flex-1 bg-card"
+          className="flex-1 flex flex-col bg-card"
         >
-          <ContactsList />
+          {/* Header with WhatsApp style */}
+          <div className="h-14 px-4 bg-primary flex items-center">
+            <h1 className="text-primary-foreground font-semibold text-lg">Contactos</h1>
+          </div>
+          <div className="flex-1 min-h-0">
+            <ContactsList />
+          </div>
         </motion.div>
       )}
 
@@ -444,11 +454,56 @@ const Dashboard = () => {
         <motion.div
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
-          className="flex-1 bg-background"
+          className="flex-1 flex flex-col bg-background"
         >
-          <StatisticsPanel />
+          {/* Header with WhatsApp style */}
+          <div className="h-14 px-4 bg-primary flex items-center">
+            <h1 className="text-primary-foreground font-semibold text-lg">Estadísticas</h1>
+          </div>
+          <div className="flex-1 min-h-0 overflow-auto">
+            <StatisticsPanel />
+          </div>
         </motion.div>
       )}
+      </div>
+
+      {/* Mobile Bottom Navigation - WhatsApp Style */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-card border-t border-border flex items-center justify-around px-4 safe-area-bottom z-50">
+        <button
+          onClick={() => setActiveView('inbox')}
+          className={`flex flex-col items-center gap-1 py-2 px-4 rounded-lg transition-colors ${
+            activeView === 'inbox' ? 'text-primary' : 'text-muted-foreground'
+          }`}
+        >
+          <MessageCircle className="w-5 h-5" />
+          <span className="text-xs font-medium">Chats</span>
+        </button>
+        <button
+          onClick={() => setActiveView('contacts')}
+          className={`flex flex-col items-center gap-1 py-2 px-4 rounded-lg transition-colors ${
+            activeView === 'contacts' ? 'text-primary' : 'text-muted-foreground'
+          }`}
+        >
+          <Users className="w-5 h-5" />
+          <span className="text-xs font-medium">Contactos</span>
+        </button>
+        <button
+          onClick={() => setActiveView('statistics')}
+          className={`flex flex-col items-center gap-1 py-2 px-4 rounded-lg transition-colors ${
+            activeView === 'statistics' ? 'text-primary' : 'text-muted-foreground'
+          }`}
+        >
+          <BarChart3 className="w-5 h-5" />
+          <span className="text-xs font-medium">Stats</span>
+        </button>
+        <button
+          onClick={() => setShowSettings(true)}
+          className="flex flex-col items-center gap-1 py-2 px-4 rounded-lg transition-colors text-muted-foreground"
+        >
+          <Settings className="w-5 h-5" />
+          <span className="text-xs font-medium">Config</span>
+        </button>
+      </nav>
 
       {/* Settings Dialog */}
       <Dialog open={showSettings} onOpenChange={setShowSettings}>
@@ -510,7 +565,6 @@ const Dashboard = () => {
           <PlatformSetup onAccountConnected={() => setShowPlatformSetup(false)} />
         </DialogContent>
       </Dialog>
-      </div>
     </div>
   );
 };
