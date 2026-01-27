@@ -31,6 +31,7 @@ interface ChatbotConfigData {
   escalation_keywords: string[];
   welcome_message: string;
   fallback_message: string;
+  auto_end_on_leaf: boolean;
 }
 
 export const ChatbotConfig = ({ whatsappAccountId, whatsappAccountName }: ChatbotConfigProps) => {
@@ -46,6 +47,7 @@ export const ChatbotConfig = ({ whatsappAccountId, whatsappAccountName }: Chatbo
     escalation_keywords: ['agente', 'humano', 'persona', 'hablar con alguien'],
     welcome_message: '¡Hola! Bienvenido. ¿En qué puedo ayudarte?',
     fallback_message: 'No entendí tu mensaje. ¿Podrías reformularlo?',
+    auto_end_on_leaf: false,
   });
   const [newKeyword, setNewKeyword] = useState('');
 
@@ -82,6 +84,7 @@ export const ChatbotConfig = ({ whatsappAccountId, whatsappAccountName }: Chatbo
             escalation_keywords: config.escalation_keywords,
             welcome_message: config.welcome_message,
             fallback_message: config.fallback_message,
+            auto_end_on_leaf: config.auto_end_on_leaf,
           })
           .eq('id', config.id);
 
@@ -99,6 +102,7 @@ export const ChatbotConfig = ({ whatsappAccountId, whatsappAccountName }: Chatbo
             escalation_keywords: config.escalation_keywords,
             welcome_message: config.welcome_message,
             fallback_message: config.fallback_message,
+            auto_end_on_leaf: config.auto_end_on_leaf,
           })
           .select()
           .single();
@@ -274,6 +278,22 @@ export const ChatbotConfig = ({ whatsappAccountId, whatsappAccountName }: Chatbo
                 <p className="text-sm text-muted-foreground">
                   Se envía cuando el bot no puede procesar el mensaje
                 </p>
+              </div>
+
+              <div className="flex items-center justify-between p-4 border rounded-lg bg-muted/30">
+                <div className="space-y-0.5">
+                  <Label htmlFor="auto-end-leaf" className="font-medium">
+                    Finalizar bot en último nodo
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Cuando el flujo llegue al final (nodo sin hijos), el bot se desactiva y continúa atención manual
+                  </p>
+                </div>
+                <Switch
+                  id="auto-end-leaf"
+                  checked={config.auto_end_on_leaf}
+                  onCheckedChange={(checked) => setConfig({ ...config, auto_end_on_leaf: checked })}
+                />
               </div>
 
               <div className="space-y-2">

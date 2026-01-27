@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Plus, Trash2, ChevronRight, MessageSquare, ArrowRight, User, CircleStop, MousePointer, List } from 'lucide-react';
+import { Plus, Trash2, ChevronRight, MessageSquare, ArrowRight, User, CircleStop, MousePointer, List, Pencil } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface FlowBuilderProps {
@@ -120,7 +120,7 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
     });
   };
 
-  const addNode = async () => {
+  const saveNode = async () => {
     if (!newNode.title.trim() || !newNode.content.trim()) {
       toast.error('El título y contenido son requeridos');
       return;
@@ -146,33 +146,62 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
       description: opt.description?.trim().substring(0, 72) || undefined, // WhatsApp limit
     }));
 
-    const { data, error } = await supabase
-      .from('chatbot_flow_nodes')
-      .insert({
-        chatbot_config_id: chatbotConfigId,
-        parent_node_id: newNode.parent_node_id,
-        node_type: newNode.node_type,
-        trigger_type: newNode.trigger_type,
-        trigger_value: newNode.trigger_value || null,
-        title: newNode.title.trim(),
-        content: newNode.content.trim(),
-        action_type: newNode.action_type,
-        position: nodes.length,
-        interactive_type: newNode.interactive_type,
-        button_options: cleanedOptions,
-      })
-      .select()
-      .single();
+    if (editingNode) {
+      // Update existing node
+      const { error } = await supabase
+        .from('chatbot_flow_nodes')
+        .update({
+          parent_node_id: newNode.parent_node_id,
+          node_type: newNode.node_type,
+          trigger_type: newNode.trigger_type,
+          trigger_value: newNode.trigger_value || null,
+          title: newNode.title.trim(),
+          content: newNode.content.trim(),
+          action_type: newNode.action_type,
+          interactive_type: newNode.interactive_type,
+          button_options: cleanedOptions,
+        })
+        .eq('id', editingNode.id);
 
-    if (error) {
-      console.error('Error adding node:', error);
-      toast.error('Error al agregar el nodo');
-      return;
+      if (error) {
+        console.error('Error updating node:', error);
+        toast.error('Error al actualizar el nodo');
+        return;
+      }
+
+      await fetchNodes();
+      resetForm();
+      toast.success('Nodo actualizado correctamente');
+    } else {
+      // Insert new node
+      const { data, error } = await supabase
+        .from('chatbot_flow_nodes')
+        .insert({
+          chatbot_config_id: chatbotConfigId,
+          parent_node_id: newNode.parent_node_id,
+          node_type: newNode.node_type,
+          trigger_type: newNode.trigger_type,
+          trigger_value: newNode.trigger_value || null,
+          title: newNode.title.trim(),
+          content: newNode.content.trim(),
+          action_type: newNode.action_type,
+          position: nodes.length,
+          interactive_type: newNode.interactive_type,
+          button_options: cleanedOptions,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error adding node:', error);
+        toast.error('Error al agregar el nodo');
+        return;
+      }
+
+      await fetchNodes();
+      resetForm();
+      toast.success('Nodo agregado correctamente');
     }
-
-    await fetchNodes();
-    resetForm();
-    toast.success('Nodo agregado correctamente');
   };
 
   const resetForm = () => {
@@ -188,6 +217,23 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
       button_options: [],
     });
     setShowAddForm(false);
+    setEditingNode(null);
+  };
+
+  const startEditNode = (node: FlowNode) => {
+    setEditingNode(node);
+    setNewNode({
+      parent_node_id: node.parent_node_id,
+      node_type: node.node_type,
+      trigger_type: node.trigger_type,
+      trigger_value: node.trigger_value || '',
+      title: node.title,
+      content: node.content,
+      action_type: node.action_type,
+      interactive_type: node.interactive_type || 'none',
+      button_options: node.button_options || [],
+    });
+    setShowAddForm(true);
   };
 
   const deleteNode = async (id: string) => {
@@ -295,6 +341,14 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
             <Button
               variant="ghost"
               size="icon"
+              onClick={() => startEditNode(node)}
+              title="Editar nodo"
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={() => {
                 setNewNode({
                   ...newNode,
@@ -335,6 +389,10 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
   }
 
   const flatNodes = getAllFlatNodes(nodes);
+  // Exclude editing node and its children from parent selection
+  const availableParentNodes = editingNode 
+    ? flatNodes.filter(n => n.id !== editingNode.id)
+    : flatNodes;
 
   return (
     <Card>
@@ -347,6 +405,7 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
             </CardDescription>
           </div>
           <Button onClick={() => {
+            setEditingNode(null);
             setNewNode({
               parent_node_id: null,
               node_type: 'menu',
@@ -374,6 +433,12 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
               exit={{ opacity: 0, height: 0 }}
               className="border rounded-lg p-4 space-y-4 bg-muted/50"
             >
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-semibold text-lg">
+                  {editingNode ? '✏️ Editar Nodo' : '➕ Nuevo Nodo'}
+                </h3>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Título</Label>
@@ -434,7 +499,7 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
                 )}
               </div>
 
-              {newNode.parent_node_id === null && flatNodes.length > 0 && (
+              {availableParentNodes.length > 0 && (
                 <div className="space-y-2">
                   <Label>Nodo Padre (opcional)</Label>
                   <Select
@@ -448,7 +513,7 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">Ninguno (nodo raíz)</SelectItem>
-                      {flatNodes.map(node => (
+                      {availableParentNodes.map(node => (
                         <SelectItem key={node.id} value={node.id}>
                           {node.title}
                         </SelectItem>
@@ -575,8 +640,8 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
                 <Button variant="outline" onClick={resetForm}>
                   Cancelar
                 </Button>
-                <Button onClick={addNode}>
-                  Guardar Nodo
+                <Button onClick={saveNode}>
+                  {editingNode ? 'Actualizar Nodo' : 'Guardar Nodo'}
                 </Button>
               </div>
             </motion.div>

@@ -16,6 +16,7 @@ interface ChatbotConfig {
   escalation_keywords: string[];
   welcome_message: string;
   fallback_message: string;
+  auto_end_on_leaf: boolean;
 }
 
 interface ButtonOption {
@@ -327,6 +328,26 @@ Deno.serve(async (req) => {
                     .from('chatbot_conversation_state')
                     .update({ current_node_id: child.id })
                     .eq('id', conversationState.id);
+
+                  // Check if this is a leaf node (no children) and auto_end_on_leaf is enabled
+                  if (chatbotConfig.auto_end_on_leaf) {
+                    const { data: childNodes } = await supabase
+                      .from('chatbot_flow_nodes')
+                      .select('id')
+                      .eq('parent_node_id', child.id)
+                      .limit(1);
+
+                    if (!childNodes || childNodes.length === 0) {
+                      // This is a leaf node, deactivate bot for manual attention
+                      await supabase
+                        .from('chatbot_conversation_state')
+                        .update({
+                          is_bot_active: false,
+                          escalated_at: new Date().toISOString(),
+                        })
+                        .eq('id', conversationState.id);
+                    }
+                  }
                 }
                 break;
               }
