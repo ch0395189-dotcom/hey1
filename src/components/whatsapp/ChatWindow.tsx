@@ -943,26 +943,33 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                 </div>
               </>
             ) : audioUrl && (
-              <>
-                <audio src={audioUrl} controls className="flex-1 h-10" />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={clearRecording}
-                >
-                  <X className="w-4 h-4" />
-                </Button>
-                <Button
-                  type="button"
-                  size="icon"
-                  className="bg-gradient-hero hover:opacity-90"
-                  onClick={handleSendAudio}
-                  disabled={sending}
-                >
-                  <Send className="w-4 h-4" />
-                </Button>
-              </>
+              <div className="flex-1 min-w-0">
+                {/*
+                  Android renders native <audio controls> quite wide, which can push action buttons off-screen.
+                  Keep the player full-width, and place actions on a second row so "Enviar" is always visible.
+                */}
+                <audio src={audioUrl} controls className="w-full h-10" />
+
+                <div className="mt-2 flex items-center justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={clearRecording}
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    size="icon"
+                    className="bg-gradient-hero hover:opacity-90"
+                    onClick={handleSendAudio}
+                    disabled={sending}
+                  >
+                    <Send className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
             )}
           </div>
         </div>
