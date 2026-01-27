@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           ai_greeting: string | null
           ai_system_prompt: string | null
+          auto_end_on_leaf: boolean
           created_at: string
           escalation_keywords: string[] | null
           fallback_message: string | null
@@ -32,6 +33,7 @@ export type Database = {
         Insert: {
           ai_greeting?: string | null
           ai_system_prompt?: string | null
+          auto_end_on_leaf?: boolean
           created_at?: string
           escalation_keywords?: string[] | null
           fallback_message?: string | null
@@ -46,6 +48,7 @@ export type Database = {
         Update: {
           ai_greeting?: string | null
           ai_system_prompt?: string | null
+          auto_end_on_leaf?: boolean
           created_at?: string
           escalation_keywords?: string[] | null
           fallback_message?: string | null
