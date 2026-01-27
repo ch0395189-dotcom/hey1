@@ -28,6 +28,7 @@ import {
   Pause,
   MessageCircle,
   RefreshCw,
+  ListOrdered,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -49,6 +50,7 @@ import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { useNotificationSound } from "@/hooks/useNotificationSound";
 import { FaWhatsapp, FaFacebookMessenger, FaInstagram, FaTiktok } from "react-icons/fa";
 import { ImagePreviewDialog } from "@/components/whatsapp/ImagePreviewDialog";
+import { InteractiveMessageDialog, InteractiveMessageData } from "@/components/whatsapp/InteractiveMessageDialog";
 
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -98,6 +100,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+  const [showInteractiveDialog, setShowInteractiveDialog] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -510,6 +513,51 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
         description: error.message || "No se pudo enviar el audio.",
         variant: "destructive",
       });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleSendInteractiveMessage = async (data: InteractiveMessageData) => {
+    if (!conversation || sending) return;
+    
+    // Only WhatsApp supports interactive messages
+    if (conversation.platform !== 'whatsapp') {
+      toast({
+        title: "No soportado",
+        description: "Los mensajes interactivos solo están disponibles para WhatsApp.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSending(true);
+    try {
+      const { data: result, error } = await supabase.functions.invoke('whatsapp-send-message', {
+        body: {
+          conversation_id: conversation.id,
+          interactive: data,
+        },
+      });
+
+      if (error) throw error;
+      
+      if (result?.error) {
+        throw new Error(result.details || result.error);
+      }
+
+      toast({
+        title: "Mensaje enviado",
+        description: "Tu mensaje interactivo ha sido enviado.",
+      });
+    } catch (error: any) {
+      console.error('Error sending interactive message:', error);
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo enviar el mensaje interactivo.",
+        variant: "destructive",
+      });
+      throw error;
     } finally {
       setSending(false);
     }
@@ -953,6 +1001,18 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
           >
             <Paperclip className="w-5 h-5 text-muted-foreground" />
           </Button>
+          {conversation?.platform === 'whatsapp' && (
+            <Button 
+              type="button" 
+              variant="ghost" 
+              size="icon" 
+              className="shrink-0"
+              onClick={() => setShowInteractiveDialog(true)}
+              title="Mensaje con botones"
+            >
+              <ListOrdered className="w-5 h-5 text-muted-foreground" />
+            </Button>
+          )}
           <Input
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
@@ -991,6 +1051,13 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
           )}
         </div>
       </form>
+
+      {/* Interactive Message Dialog */}
+      <InteractiveMessageDialog
+        open={showInteractiveDialog}
+        onOpenChange={setShowInteractiveDialog}
+        onSend={handleSendInteractiveMessage}
+      />
     </div>
   );
 };
