@@ -127,6 +127,11 @@
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Space Grotesk', sans-serif;
   }
+
+  /* Safe area support for mobile devices */
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
 }
 
 @layer utilities {
@@ -186,5 +191,18 @@
 
   .scrollbar-whatsapp::-webkit-scrollbar-thumb:hover {
     background: hsl(var(--muted-foreground) / 0.5);
+  }
+
+  /* Mobile chat input spacing for bottom navigation */
+  @media (max-width: 767px) {
+    .chat-input-mobile {
+      padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px)) !important;
+    }
+  }
+  
+  @media (min-width: 768px) {
+    .chat-input-mobile {
+      padding-bottom: 1rem !important;
+    }
   }
 }
