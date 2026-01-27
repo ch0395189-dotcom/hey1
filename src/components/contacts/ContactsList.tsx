@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Search, User, Phone, MessageCircle, MoreVertical, UserPlus, Trash2, CheckSquare, X, Send, RefreshCw } from "lucide-react";
+import { Search, User, Phone, MessageCircle, MoreVertical, UserPlus, Trash2, CheckSquare, X, Send, RefreshCw, Ban, UserCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { BulkMessageDialog } from "./BulkMessageDialog";
@@ -38,6 +38,7 @@ interface Contact {
   last_message_at: string;
   unread_count: number;
   whatsapp_account_id: string;
+  blocked_at: string | null;
 }
 
 export const ContactsList = () => {
@@ -51,6 +52,7 @@ export const ContactsList = () => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
   const [showBulkMessageDialog, setShowBulkMessageDialog] = useState(false);
+  const [blockingContact, setBlockingContact] = useState<Contact | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -61,7 +63,7 @@ export const ContactsList = () => {
     setLoading(true);
     const { data, error } = await supabase
       .from('conversations')
-      .select('id, customer_name, customer_phone, customer_profile_pic, last_message_at, unread_count, whatsapp_account_id')
+      .select('id, customer_name, customer_phone, customer_profile_pic, last_message_at, unread_count, whatsapp_account_id, blocked_at')
       .order('customer_name', { ascending: true });
 
     if (!error && data) {
@@ -130,6 +132,40 @@ export const ContactsList = () => {
       setDeleting(false);
       setDeleteContact(null);
     }
+  };
+
+  const handleBlockContact = async (contact: Contact) => {
+    const isBlocked = !!contact.blocked_at;
+    const newBlockedAt = isBlocked ? null : new Date().toISOString();
+    
+    try {
+      const { error } = await supabase
+        .from('conversations')
+        .update({ blocked_at: newBlockedAt })
+        .eq('id', contact.id);
+
+      if (error) throw error;
+
+      // Update local state
+      setContacts(prev => prev.map(c => 
+        c.id === contact.id ? { ...c, blocked_at: newBlockedAt } : c
+      ));
+      
+      toast({
+        title: isBlocked ? "Contacto desbloqueado" : "Contacto bloqueado",
+        description: isBlocked 
+          ? `${contact.customer_name || contact.customer_phone} puede enviarte mensajes nuevamente.`
+          : `${contact.customer_name || contact.customer_phone} ya no podrá enviarte mensajes.`,
+      });
+    } catch (error: any) {
+      console.error('Error blocking contact:', error);
+      toast({
+        title: "Error",
+        description: isBlocked ? "No se pudo desbloquear el contacto." : "No se pudo bloquear el contacto.",
+        variant: "destructive",
+      });
+    }
+    setBlockingContact(null);
   };
 
   const handleBulkDelete = async () => {
@@ -352,9 +388,17 @@ export const ContactsList = () => {
                   </Avatar>
                   
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate">
-                      {contact.customer_name || contact.customer_phone}
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium truncate">
+                        {contact.customer_name || contact.customer_phone}
+                      </p>
+                      {contact.blocked_at && (
+                        <Badge variant="destructive" className="text-xs px-1.5 py-0.5">
+                          <Ban className="w-3 h-3 mr-1" />
+                          Bloqueado
+                        </Badge>
+                      )}
+                    </div>
                     <div className="flex items-center gap-1 text-sm text-muted-foreground">
                       <Phone className="w-3 h-3" />
                       <span className="truncate">{contact.customer_phone}</span>
@@ -382,6 +426,22 @@ export const ContactsList = () => {
                           Ver perfil
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
+                        <DropdownMenuItem 
+                          className="gap-2"
+                          onClick={() => setBlockingContact(contact)}
+                        >
+                          {contact.blocked_at ? (
+                            <>
+                              <UserCheck className="w-4 h-4" />
+                              Desbloquear contacto
+                            </>
+                          ) : (
+                            <>
+                              <Ban className="w-4 h-4" />
+                              Bloquear contacto
+                            </>
+                          )}
+                        </DropdownMenuItem>
                         <DropdownMenuItem 
                           className="gap-2 text-destructive focus:text-destructive"
                           onClick={() => setDeleteContact(contact)}
@@ -474,6 +534,32 @@ export const ContactsList = () => {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleting ? "Eliminando..." : `Eliminar ${selectedIds.size} contacto(s)`}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Block/Unblock confirmation dialog */}
+      <AlertDialog open={!!blockingContact} onOpenChange={(open) => !open && setBlockingContact(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {blockingContact?.blocked_at ? "¿Desbloquear contacto?" : "¿Bloquear contacto?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {blockingContact?.blocked_at 
+                ? `${blockingContact?.customer_name || blockingContact?.customer_phone} podrá enviarte mensajes nuevamente.`
+                : `${blockingContact?.customer_name || blockingContact?.customer_phone} ya no podrá enviarte mensajes. Los mensajes existentes no se eliminarán.`
+              }
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => blockingContact && handleBlockContact(blockingContact)}
+              className={blockingContact?.blocked_at ? "" : "bg-destructive text-destructive-foreground hover:bg-destructive/90"}
+            >
+              {blockingContact?.blocked_at ? "Desbloquear" : "Bloquear"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -216,6 +216,7 @@ export type Database = {
       conversations: {
         Row: {
           assigned_to: string | null
+          blocked_at: string | null
           created_at: string
           customer_name: string | null
           customer_phone: string
@@ -231,6 +232,7 @@ export type Database = {
         }
         Insert: {
           assigned_to?: string | null
+          blocked_at?: string | null
           created_at?: string
           customer_name?: string | null
           customer_phone: string
@@ -246,6 +248,7 @@ export type Database = {
         }
         Update: {
           assigned_to?: string | null
+          blocked_at?: string | null
           created_at?: string
           customer_name?: string | null
           customer_phone?: string
@@ -587,6 +590,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_conversation_blocked: { Args: { conv_id: string }; Returns: boolean }
       user_owns_chatbot_config: {
         Args: { config_id: string }
         Returns: boolean

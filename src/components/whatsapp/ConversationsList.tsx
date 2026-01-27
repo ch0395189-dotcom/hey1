@@ -22,6 +22,7 @@ export interface Conversation {
   whatsapp_account_id: string;
   platform: string;
   platform_account_id: string | null;
+  blocked_at: string | null;
   last_message?: {
     content: string | null;
     direction: string;
