@@ -842,9 +842,9 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
         </div>
       )}
 
-      {/* Audio Recording Preview */}
+      {/* Audio Recording Preview - Added padding for mobile nav */}
       {(isRecording || audioUrl) && (
-        <div className="px-4 py-3 border-t border-border bg-muted/50">
+        <div className="px-4 py-3 pb-20 md:pb-3 border-t border-border bg-muted/50">
           <div className="max-w-3xl mx-auto flex items-center gap-3">
             {isRecording ? (
               <>
@@ -900,8 +900,8 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
         </div>
       )}
 
-      {/* Message Input */}
-      <form onSubmit={handleSendMessage} className="p-4 border-t border-border bg-card">
+      {/* Message Input - Added padding for mobile nav */}
+      <form onSubmit={handleSendMessage} className="p-4 pb-20 md:pb-4 border-t border-border bg-card">
         <div className="max-w-3xl mx-auto flex items-center gap-3">
           <input
             type="file"
