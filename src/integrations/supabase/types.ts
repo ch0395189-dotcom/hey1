@@ -118,10 +118,12 @@ export type Database = {
       chatbot_flow_nodes: {
         Row: {
           action_type: string | null
+          button_options: Json | null
           chatbot_config_id: string
           content: string
           created_at: string
           id: string
+          interactive_type: string
           node_type: string
           parent_node_id: string | null
           position: number
@@ -132,10 +134,12 @@ export type Database = {
         }
         Insert: {
           action_type?: string | null
+          button_options?: Json | null
           chatbot_config_id: string
           content: string
           created_at?: string
           id?: string
+          interactive_type?: string
           node_type?: string
           parent_node_id?: string | null
           position?: number
@@ -146,10 +150,12 @@ export type Database = {
         }
         Update: {
           action_type?: string | null
+          button_options?: Json | null
           chatbot_config_id?: string
           content?: string
           created_at?: string
           id?: string
+          interactive_type?: string
           node_type?: string
           parent_node_id?: string | null
           position?: number

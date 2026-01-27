@@ -7,11 +7,17 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Plus, Trash2, ChevronRight, MessageSquare, ArrowRight, User, CircleStop } from 'lucide-react';
+import { Plus, Trash2, ChevronRight, MessageSquare, ArrowRight, User, CircleStop, MousePointer, List } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface FlowBuilderProps {
   chatbotConfigId: string;
+}
+
+interface ButtonOption {
+  id: string;
+  title: string;
+  description?: string;
 }
 
 interface FlowNode {
@@ -25,6 +31,8 @@ interface FlowNode {
   content: string;
   action_type: string | null;
   position: number;
+  interactive_type: 'none' | 'buttons' | 'list';
+  button_options: ButtonOption[];
   children?: FlowNode[];
 }
 
@@ -41,6 +49,8 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
     title: '',
     content: '',
     action_type: null as string | null,
+    interactive_type: 'none' as 'none' | 'buttons' | 'list',
+    button_options: [] as ButtonOption[],
   });
 
   useEffect(() => {
@@ -58,12 +68,18 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
     if (data) {
       // Build tree structure
       const nodeMap = new Map<string | null, FlowNode[]>();
-      (data as FlowNode[]).forEach(node => {
+      (data as any[]).forEach(node => {
         const parentId = node.parent_node_id;
+        const flowNode: FlowNode = {
+          ...node,
+          interactive_type: node.interactive_type || 'none',
+          button_options: Array.isArray(node.button_options) ? node.button_options : [],
+          children: [],
+        };
         if (!nodeMap.has(parentId)) {
           nodeMap.set(parentId, []);
         }
-        nodeMap.get(parentId)!.push({ ...node, children: [] });
+        nodeMap.get(parentId)!.push(flowNode);
       });
 
       const rootNodes = nodeMap.get(null) || [];
@@ -79,11 +95,56 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
     setLoading(false);
   };
 
+  const addButtonOption = () => {
+    if (newNode.button_options.length >= (newNode.interactive_type === 'buttons' ? 3 : 10)) {
+      toast.error(`Máximo ${newNode.interactive_type === 'buttons' ? 3 : 10} opciones permitidas`);
+      return;
+    }
+    const newId = `opt_${Date.now()}`;
+    setNewNode({
+      ...newNode,
+      button_options: [...newNode.button_options, { id: newId, title: '', description: '' }],
+    });
+  };
+
+  const updateButtonOption = (index: number, field: 'title' | 'description', value: string) => {
+    const updated = [...newNode.button_options];
+    updated[index] = { ...updated[index], [field]: value };
+    setNewNode({ ...newNode, button_options: updated });
+  };
+
+  const removeButtonOption = (index: number) => {
+    setNewNode({
+      ...newNode,
+      button_options: newNode.button_options.filter((_, i) => i !== index),
+    });
+  };
+
   const addNode = async () => {
     if (!newNode.title.trim() || !newNode.content.trim()) {
       toast.error('El título y contenido son requeridos');
       return;
     }
+
+    // Validate button options
+    if (newNode.interactive_type !== 'none') {
+      if (newNode.button_options.length === 0) {
+        toast.error('Agrega al menos una opción');
+        return;
+      }
+      const invalidOptions = newNode.button_options.filter(opt => !opt.title.trim());
+      if (invalidOptions.length > 0) {
+        toast.error('Todas las opciones deben tener un título');
+        return;
+      }
+    }
+
+    // Clean up button options - ensure valid IDs
+    const cleanedOptions = newNode.button_options.map((opt, idx) => ({
+      id: opt.id || `opt_${idx + 1}`,
+      title: opt.title.trim().substring(0, 20), // WhatsApp limit
+      description: opt.description?.trim().substring(0, 72) || undefined, // WhatsApp limit
+    }));
 
     const { data, error } = await supabase
       .from('chatbot_flow_nodes')
@@ -97,16 +158,24 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
         content: newNode.content.trim(),
         action_type: newNode.action_type,
         position: nodes.length,
+        interactive_type: newNode.interactive_type,
+        button_options: cleanedOptions,
       })
       .select()
       .single();
 
     if (error) {
+      console.error('Error adding node:', error);
       toast.error('Error al agregar el nodo');
       return;
     }
 
     await fetchNodes();
+    resetForm();
+    toast.success('Nodo agregado correctamente');
+  };
+
+  const resetForm = () => {
     setNewNode({
       parent_node_id: null,
       node_type: 'menu',
@@ -115,9 +184,10 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
       title: '',
       content: '',
       action_type: null,
+      interactive_type: 'none',
+      button_options: [],
     });
     setShowAddForm(false);
-    toast.success('Nodo agregado correctamente');
   };
 
   const deleteNode = async (id: string) => {
@@ -164,6 +234,26 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
       return null;
     };
 
+    const getInteractiveBadge = () => {
+      if (node.interactive_type === 'buttons') {
+        return (
+          <span className="text-xs px-2 py-0.5 bg-blue-500/10 text-blue-600 rounded-full flex items-center gap-1">
+            <MousePointer className="h-3 w-3" />
+            {node.button_options?.length || 0} botones
+          </span>
+        );
+      }
+      if (node.interactive_type === 'list') {
+        return (
+          <span className="text-xs px-2 py-0.5 bg-purple-500/10 text-purple-600 rounded-full flex items-center gap-1">
+            <List className="h-3 w-3" />
+            Lista ({node.button_options?.length || 0})
+          </span>
+        );
+      }
+      return null;
+    };
+
     return (
       <motion.div
         key={node.id}
@@ -178,11 +268,12 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
             {getNodeIcon()}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="font-medium">{node.title}</span>
               <span className="text-xs px-2 py-0.5 bg-primary/10 text-primary rounded-full">
                 {getTriggerBadge()}
               </span>
+              {getInteractiveBadge()}
               {node.action_type && (
                 <span className="text-xs px-2 py-0.5 bg-destructive/10 text-destructive rounded-full">
                   {node.action_type === 'escalate' ? 'Escalar' : 'Finalizar'}
@@ -190,6 +281,15 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
               )}
             </div>
             <p className="text-sm text-muted-foreground truncate">{node.content}</p>
+            {node.button_options && node.button_options.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-1">
+                {node.button_options.map((opt, idx) => (
+                  <span key={idx} className="text-xs px-2 py-0.5 bg-muted rounded border">
+                    {opt.title}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-1">
             <Button
@@ -243,7 +343,7 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
           <div>
             <CardTitle>Constructor de Flujo</CardTitle>
             <CardDescription>
-              Crea un árbol de decisiones para guiar las conversaciones
+              Crea flujos con botones interactivos y listas para WhatsApp
             </CardDescription>
           </div>
           <Button onClick={() => {
@@ -255,6 +355,8 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
               title: '',
               content: '',
               action_type: null,
+              interactive_type: 'none',
+              button_options: [],
             });
             setShowAddForm(true);
           }}>
@@ -362,18 +464,94 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
                   value={newNode.content}
                   onChange={(e) => setNewNode({ ...newNode, content: e.target.value })}
                   placeholder="El mensaje que el bot enviará..."
-                  rows={4}
+                  rows={3}
                 />
-                <p className="text-sm text-muted-foreground">
-                  Tip: Para menús, usa formato numerado como:
-                  <br />
-                  1️⃣ Información
-                  <br />
-                  2️⃣ Precios
-                  <br />
-                  3️⃣ Hablar con agente
-                </p>
               </div>
+
+              {/* Interactive Type Selection */}
+              <div className="space-y-2">
+                <Label>Tipo de Interacción</Label>
+                <Select
+                  value={newNode.interactive_type}
+                  onValueChange={(value: 'none' | 'buttons' | 'list') => {
+                    setNewNode({ 
+                      ...newNode, 
+                      interactive_type: value,
+                      button_options: value === 'none' ? [] : newNode.button_options,
+                    });
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Texto simple</SelectItem>
+                    <SelectItem value="buttons">Botones de respuesta rápida (máx. 3)</SelectItem>
+                    <SelectItem value="list">Lista de opciones (máx. 10)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Button/List Options */}
+              {newNode.interactive_type !== 'none' && (
+                <div className="space-y-3 p-3 border rounded-lg bg-background">
+                  <div className="flex items-center justify-between">
+                    <Label className="flex items-center gap-2">
+                      {newNode.interactive_type === 'buttons' ? (
+                        <><MousePointer className="h-4 w-4" /> Botones</>
+                      ) : (
+                        <><List className="h-4 w-4" /> Opciones de Lista</>
+                      )}
+                    </Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={addButtonOption}
+                      disabled={newNode.button_options.length >= (newNode.interactive_type === 'buttons' ? 3 : 10)}
+                    >
+                      <Plus className="h-3 w-3 mr-1" />
+                      Agregar
+                    </Button>
+                  </div>
+                  
+                  {newNode.button_options.length === 0 && (
+                    <p className="text-sm text-muted-foreground text-center py-2">
+                      Agrega opciones que el usuario podrá seleccionar
+                    </p>
+                  )}
+
+                  {newNode.button_options.map((option, index) => (
+                    <div key={index} className="flex gap-2 items-start">
+                      <div className="flex-1 space-y-2">
+                        <Input
+                          value={option.title}
+                          onChange={(e) => updateButtonOption(index, 'title', e.target.value)}
+                          placeholder="Título del botón (máx. 20 caracteres)"
+                          maxLength={20}
+                        />
+                        {newNode.interactive_type === 'list' && (
+                          <Input
+                            value={option.description || ''}
+                            onChange={(e) => updateButtonOption(index, 'description', e.target.value)}
+                            placeholder="Descripción (opcional, máx. 72 caracteres)"
+                            maxLength={72}
+                          />
+                        )}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeButtonOption(index)}
+                        className="text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {newNode.node_type === 'action' && (
                 <div className="space-y-2">
@@ -394,7 +572,7 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
               )}
 
               <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setShowAddForm(false)}>
+                <Button variant="outline" onClick={resetForm}>
                   Cancelar
                 </Button>
                 <Button onClick={addNode}>
