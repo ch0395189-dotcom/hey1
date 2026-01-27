@@ -171,26 +171,29 @@ export const ChatbotConfig = ({ whatsappAccountId, whatsappAccountName }: Chatbo
       </div>
 
       <Tabs defaultValue="general" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="general" className="flex items-center gap-2">
-            <MessageSquare className="h-4 w-4" />
-            General
+        <TabsList className="flex w-full overflow-x-auto gap-1 p-1">
+          <TabsTrigger value="general" className="flex items-center gap-1.5 px-3 py-2 whitespace-nowrap text-xs sm:text-sm">
+            <MessageSquare className="h-4 w-4 shrink-0" />
+            <span className="hidden sm:inline">General</span>
+            <span className="sm:hidden">Gral</span>
           </TabsTrigger>
-          <TabsTrigger value="flow" className="flex items-center gap-2">
-            <Workflow className="h-4 w-4" />
-            Flujo
+          <TabsTrigger value="flow" className="flex items-center gap-1.5 px-3 py-2 whitespace-nowrap text-xs sm:text-sm">
+            <Workflow className="h-4 w-4 shrink-0" />
+            <span>Flujo</span>
           </TabsTrigger>
-          <TabsTrigger value="keywords" className="flex items-center gap-2">
-            <Bot className="h-4 w-4" />
-            Keywords
+          <TabsTrigger value="keywords" className="flex items-center gap-1.5 px-3 py-2 whitespace-nowrap text-xs sm:text-sm">
+            <Bot className="h-4 w-4 shrink-0" />
+            <span className="hidden sm:inline">Keywords</span>
+            <span className="sm:hidden">Keys</span>
           </TabsTrigger>
-          <TabsTrigger value="knowledge" className="flex items-center gap-2">
-            <BookOpen className="h-4 w-4" />
-            Conocimiento
+          <TabsTrigger value="knowledge" className="flex items-center gap-1.5 px-3 py-2 whitespace-nowrap text-xs sm:text-sm">
+            <BookOpen className="h-4 w-4 shrink-0" />
+            <span className="hidden sm:inline">Conocimiento</span>
+            <span className="sm:hidden">Info</span>
           </TabsTrigger>
-          <TabsTrigger value="ai" className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4" />
-            IA
+          <TabsTrigger value="ai" className="flex items-center gap-1.5 px-3 py-2 whitespace-nowrap text-xs sm:text-sm">
+            <Sparkles className="h-4 w-4 shrink-0" />
+            <span>IA</span>
           </TabsTrigger>
         </TabsList>
 
