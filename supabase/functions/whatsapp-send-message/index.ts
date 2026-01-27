@@ -5,14 +5,112 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+interface ButtonOption {
+  id: string;
+  title: string;
+}
+
+interface ListOption {
+  id: string;
+  title: string;
+  description?: string;
+}
+
+interface InteractiveMessage {
+  type: 'buttons' | 'list';
+  headerText?: string;
+  bodyText: string;
+  footerText?: string;
+  buttons?: ButtonOption[];
+  listTitle?: string;
+  listOptions?: ListOption[];
+}
+
 interface SendMessageRequest {
   conversation_id: string;
   message?: string;
-  message_type?: 'text' | 'template' | 'image' | 'video' | 'document' | 'audio';
+  message_type?: 'text' | 'template' | 'image' | 'video' | 'document' | 'audio' | 'interactive';
   template_name?: string;
   template_language?: string;
   media_url?: string;
   media_type?: 'image' | 'video' | 'document' | 'audio';
+  interactive?: InteractiveMessage;
+}
+
+function buildInteractivePayload(interactive: InteractiveMessage, recipientPhone: string): Record<string, unknown> {
+  const basePayload = {
+    messaging_product: 'whatsapp',
+    recipient_type: 'individual',
+    to: recipientPhone,
+    type: 'interactive',
+  };
+
+  if (interactive.type === 'buttons') {
+    return {
+      ...basePayload,
+      interactive: {
+        type: 'button',
+        ...(interactive.headerText ? {
+          header: {
+            type: 'text',
+            text: interactive.headerText,
+          }
+        } : {}),
+        body: {
+          text: interactive.bodyText,
+        },
+        ...(interactive.footerText ? {
+          footer: {
+            text: interactive.footerText,
+          }
+        } : {}),
+        action: {
+          buttons: interactive.buttons!.map((btn) => ({
+            type: 'reply',
+            reply: {
+              id: btn.id,
+              title: btn.title,
+            },
+          })),
+        },
+      },
+    };
+  } else {
+    // List message
+    return {
+      ...basePayload,
+      interactive: {
+        type: 'list',
+        ...(interactive.headerText ? {
+          header: {
+            type: 'text',
+            text: interactive.headerText,
+          }
+        } : {}),
+        body: {
+          text: interactive.bodyText,
+        },
+        ...(interactive.footerText ? {
+          footer: {
+            text: interactive.footerText,
+          }
+        } : {}),
+        action: {
+          button: interactive.listTitle || 'Opciones',
+          sections: [
+            {
+              title: 'Opciones',
+              rows: interactive.listOptions!.map((opt) => ({
+                id: opt.id,
+                title: opt.title,
+                ...(opt.description ? { description: opt.description } : {}),
+              })),
+            },
+          ],
+        },
+      },
+    };
+  }
 }
 
 Deno.serve(async (req) => {
@@ -44,11 +142,11 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { conversation_id, message, message_type, media_url, media_type } = await req.json() as SendMessageRequest;
+    const { conversation_id, message, message_type, media_url, media_type, interactive } = await req.json() as SendMessageRequest;
 
-    if (!conversation_id || (!message && !media_url)) {
+    if (!conversation_id || (!message && !media_url && !interactive)) {
       return new Response(
-        JSON.stringify({ error: 'conversation_id and (message or media_url) are required' }),
+        JSON.stringify({ error: 'conversation_id and (message, media_url, or interactive) are required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -90,46 +188,68 @@ Deno.serve(async (req) => {
     // Send message via WhatsApp Cloud API
     const whatsappUrl = `https://graph.facebook.com/v21.0/${whatsappAccount.phone_number_id}/messages`;
     
-    // Determine the actual message type to send
-    let actualMessageType = message_type || 'text';
-    if (media_url && media_type) {
-      actualMessageType = media_type;
+    let whatsappPayload: Record<string, unknown>;
+    let actualMessageType: string;
+    let contentToSave: string | null = null;
+
+    // Build payload based on message type
+    if (interactive) {
+      // Interactive message (buttons or list)
+      whatsappPayload = buildInteractivePayload(interactive, recipientPhone);
+      actualMessageType = 'interactive';
+      
+      // Format content for database storage
+      const buttonLabels = interactive.buttons?.map(b => b.title).join(', ') || 
+                          interactive.listOptions?.map(o => o.title).join(', ') || '';
+      contentToSave = `${interactive.bodyText}\n\n[${interactive.type === 'buttons' ? 'Botones' : 'Lista'}: ${buttonLabels}]`;
+    } else {
+      // Regular message
+      actualMessageType = message_type || 'text';
+      if (media_url && media_type) {
+        actualMessageType = media_type;
+      }
+
+      whatsappPayload = {
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to: recipientPhone,
+        type: actualMessageType,
+      };
+
+      // Add content based on message type
+      if (actualMessageType === 'text' && message) {
+        whatsappPayload.text = {
+          preview_url: false,
+          body: message,
+        };
+        contentToSave = message;
+      } else if (actualMessageType === 'image' && media_url) {
+        whatsappPayload.image = {
+          link: media_url,
+          ...(message ? { caption: message } : {}),
+        };
+        contentToSave = message || null;
+      } else if (actualMessageType === 'video' && media_url) {
+        whatsappPayload.video = {
+          link: media_url,
+          ...(message ? { caption: message } : {}),
+        };
+        contentToSave = message || null;
+      } else if (actualMessageType === 'document' && media_url) {
+        whatsappPayload.document = {
+          link: media_url,
+          ...(message ? { caption: message } : {}),
+          filename: 'document',
+        };
+        contentToSave = message || null;
+      } else if (actualMessageType === 'audio' && media_url) {
+        whatsappPayload.audio = {
+          link: media_url,
+        };
+      }
     }
 
-    let whatsappPayload: Record<string, unknown> = {
-      messaging_product: 'whatsapp',
-      recipient_type: 'individual',
-      to: recipientPhone,
-      type: actualMessageType,
-    };
-
-    // Add content based on message type
-    if (actualMessageType === 'text' && message) {
-      whatsappPayload.text = {
-        preview_url: false,
-        body: message,
-      };
-    } else if (actualMessageType === 'image' && media_url) {
-      whatsappPayload.image = {
-        link: media_url,
-        ...(message ? { caption: message } : {}),
-      };
-    } else if (actualMessageType === 'video' && media_url) {
-      whatsappPayload.video = {
-        link: media_url,
-        ...(message ? { caption: message } : {}),
-      };
-    } else if (actualMessageType === 'document' && media_url) {
-      whatsappPayload.document = {
-        link: media_url,
-        ...(message ? { caption: message } : {}),
-        filename: 'document',
-      };
-    } else if (actualMessageType === 'audio' && media_url) {
-      whatsappPayload.audio = {
-        link: media_url,
-      };
-    }
+    console.log('Sending WhatsApp payload:', JSON.stringify(whatsappPayload));
 
     const whatsappResponse = await fetch(whatsappUrl, {
       method: 'POST',
@@ -162,7 +282,7 @@ Deno.serve(async (req) => {
       .from('messages')
       .insert({
         conversation_id: conversation_id,
-        content: message || null,
+        content: contentToSave,
         message_type: actualMessageType,
         direction: 'outbound',
         whatsapp_message_id: whatsappMessageId,
