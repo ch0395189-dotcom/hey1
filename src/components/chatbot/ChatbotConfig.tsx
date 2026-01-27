@@ -9,10 +9,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Bot, Workflow, Sparkles, MessageSquare, Plus, Trash2, Save } from 'lucide-react';
+import { Bot, Workflow, Sparkles, MessageSquare, Plus, Trash2, Save, BookOpen } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { KeywordManager } from './KeywordManager';
 import { FlowBuilder } from './FlowBuilder';
+import { KnowledgeBase } from './KnowledgeBase';
 
 interface ChatbotConfigProps {
   whatsappAccountId: string;
@@ -170,22 +171,26 @@ export const ChatbotConfig = ({ whatsappAccountId, whatsappAccountName }: Chatbo
       </div>
 
       <Tabs defaultValue="general" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="general" className="flex items-center gap-2">
             <MessageSquare className="h-4 w-4" />
             General
           </TabsTrigger>
           <TabsTrigger value="flow" className="flex items-center gap-2">
             <Workflow className="h-4 w-4" />
-            Flujo Manual
+            Flujo
           </TabsTrigger>
           <TabsTrigger value="keywords" className="flex items-center gap-2">
             <Bot className="h-4 w-4" />
             Keywords
           </TabsTrigger>
+          <TabsTrigger value="knowledge" className="flex items-center gap-2">
+            <BookOpen className="h-4 w-4" />
+            Conocimiento
+          </TabsTrigger>
           <TabsTrigger value="ai" className="flex items-center gap-2">
             <Sparkles className="h-4 w-4" />
-            Inteligencia Artificial
+            IA
           </TabsTrigger>
         </TabsList>
 
@@ -332,6 +337,20 @@ export const ChatbotConfig = ({ whatsappAccountId, whatsappAccountName }: Chatbo
               <CardContent className="p-8 text-center">
                 <p className="text-muted-foreground">
                   Guarda la configuración primero para agregar palabras clave
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="knowledge">
+          {config.id ? (
+            <KnowledgeBase chatbotConfigId={config.id} />
+          ) : (
+            <Card>
+              <CardContent className="p-8 text-center">
+                <p className="text-muted-foreground">
+                  Guarda la configuración primero para agregar conocimiento
                 </p>
               </CardContent>
             </Card>
