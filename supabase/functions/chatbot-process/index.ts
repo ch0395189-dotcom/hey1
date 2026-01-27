@@ -23,6 +23,8 @@ interface ButtonOption {
   id: string;
   title: string;
   description?: string;
+  response_type?: 'text' | 'media' | 'flow';
+  response_content?: string;
 }
 
 interface FlowNode {
@@ -281,75 +283,128 @@ Deno.serve(async (req) => {
             // Find matching child node based on user input
             const childNodes = nodes.filter(n => n.parent_node_id === conversationState.current_node_id);
             
-            // Also check if user clicked a button by matching button IDs
+            // Check if user clicked a button by matching button IDs
             const parentNode = nodes.find(n => n.id === conversationState.current_node_id);
             
-            for (const child of childNodes) {
-              let matches = false;
+            // First, check if user clicked a button with direct response
+            let buttonDirectResponse: ButtonOption | null = null;
+            if (parentNode?.button_options && parentNode.button_options.length > 0) {
+              buttonDirectResponse = parentNode.button_options.find(
+                btn => btn.id.toLowerCase() === lowerMessage.trim() || 
+                       btn.title.toLowerCase() === lowerMessage.trim()
+              ) || null;
+            }
+
+            // If button has direct response (text or media), use it
+            if (buttonDirectResponse && buttonDirectResponse.response_type && 
+                buttonDirectResponse.response_type !== 'flow' && 
+                buttonDirectResponse.response_content) {
+              console.log('Button has direct response:', buttonDirectResponse);
               
-              if (child.trigger_type === 'option' && child.trigger_value) {
-                // Match by number OR by button ID
-                matches = lowerMessage.trim() === child.trigger_value.toLowerCase();
+              if (buttonDirectResponse.response_type === 'text') {
+                responseMessage = buttonDirectResponse.response_content;
+              } else if (buttonDirectResponse.response_type === 'media') {
+                // For media, send the URL directly
+                const mediaUrl = buttonDirectResponse.response_content;
+                await sendWhatsAppMediaMessage(
+                  platformAccount.phone_number_id!,
+                  platformAccount.access_token!,
+                  customerIdentifier,
+                  mediaUrl
+                );
+                await saveOutboundMessage(supabase, conversation_id, `[Media] ${mediaUrl}`);
                 
-                // Also check if parent has buttons and user selected by ID
-                if (!matches && parentNode?.button_options) {
-                  const buttonMatch = parentNode.button_options.find(
-                    btn => btn.id.toLowerCase() === lowerMessage.trim() || 
-                           btn.title.toLowerCase() === lowerMessage.trim()
+                // Check if we should end the bot after this response
+                if (chatbotConfig.auto_end_on_leaf && parentNode) {
+                  const buttonIndex = parentNode.button_options.indexOf(buttonDirectResponse);
+                  const childForThisButton = childNodes.find(c => 
+                    c.trigger_type === 'option' && c.trigger_value === String(buttonIndex + 1)
                   );
-                  if (buttonMatch) {
-                    // Find child that corresponds to this button index
-                    const buttonIndex = parentNode.button_options.indexOf(buttonMatch);
-                    matches = child.trigger_value === String(buttonIndex + 1);
+                  
+                  if (!childForThisButton) {
+                    await supabase
+                      .from('chatbot_conversation_state')
+                      .update({
+                        is_bot_active: false,
+                        escalated_at: new Date().toISOString(),
+                      })
+                      .eq('id', conversationState.id);
                   }
                 }
-              } else if (child.trigger_type === 'keyword' && child.trigger_value) {
-                matches = lowerMessage.includes(child.trigger_value.toLowerCase());
-              }
-
-              if (matches) {
-                currentNode = child;
                 
-                if (child.action_type === 'escalate') {
-                  await supabase
-                    .from('chatbot_conversation_state')
-                    .update({
-                      is_bot_active: false,
-                      escalated_at: new Date().toISOString(),
-                    })
-                    .eq('id', conversationState.id);
-                } else if (child.action_type === 'end') {
-                  await supabase
-                    .from('chatbot_conversation_state')
-                    .update({ current_node_id: null })
-                    .eq('id', conversationState.id);
-                } else {
-                  await supabase
-                    .from('chatbot_conversation_state')
-                    .update({ current_node_id: child.id })
-                    .eq('id', conversationState.id);
-
-                  // Check if this is a leaf node (no children) and auto_end_on_leaf is enabled
-                  if (chatbotConfig.auto_end_on_leaf) {
-                    const { data: childNodes } = await supabase
-                      .from('chatbot_flow_nodes')
-                      .select('id')
-                      .eq('parent_node_id', child.id)
-                      .limit(1);
-
-                    if (!childNodes || childNodes.length === 0) {
-                      // This is a leaf node, deactivate bot for manual attention
-                      await supabase
-                        .from('chatbot_conversation_state')
-                        .update({
-                          is_bot_active: false,
-                          escalated_at: new Date().toISOString(),
-                        })
-                        .eq('id', conversationState.id);
+                return new Response(JSON.stringify({ processed: true, response: 'media_sent' }), {
+                  headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                });
+              }
+            } else {
+              // Try to find matching child node
+              for (const child of childNodes) {
+                let matches = false;
+                
+                if (child.trigger_type === 'option' && child.trigger_value) {
+                  // Match by number OR by button ID
+                  matches = lowerMessage.trim() === child.trigger_value.toLowerCase();
+                  
+                  // Also check if parent has buttons and user selected by ID
+                  if (!matches && parentNode?.button_options) {
+                    const buttonMatch = parentNode.button_options.find(
+                      btn => btn.id.toLowerCase() === lowerMessage.trim() || 
+                             btn.title.toLowerCase() === lowerMessage.trim()
+                    );
+                    if (buttonMatch) {
+                      // Find child that corresponds to this button index
+                      const buttonIndex = parentNode.button_options.indexOf(buttonMatch);
+                      matches = child.trigger_value === String(buttonIndex + 1);
                     }
                   }
+                } else if (child.trigger_type === 'keyword' && child.trigger_value) {
+                  matches = lowerMessage.includes(child.trigger_value.toLowerCase());
                 }
-                break;
+
+                if (matches) {
+                  currentNode = child;
+                  
+                  if (child.action_type === 'escalate') {
+                    await supabase
+                      .from('chatbot_conversation_state')
+                      .update({
+                        is_bot_active: false,
+                        escalated_at: new Date().toISOString(),
+                      })
+                      .eq('id', conversationState.id);
+                  } else if (child.action_type === 'end') {
+                    await supabase
+                      .from('chatbot_conversation_state')
+                      .update({ current_node_id: null })
+                      .eq('id', conversationState.id);
+                  } else {
+                    await supabase
+                      .from('chatbot_conversation_state')
+                      .update({ current_node_id: child.id })
+                      .eq('id', conversationState.id);
+
+                    // Check if this is a leaf node (no children) and auto_end_on_leaf is enabled
+                    if (chatbotConfig.auto_end_on_leaf) {
+                      const { data: leafChildNodes } = await supabase
+                        .from('chatbot_flow_nodes')
+                        .select('id')
+                        .eq('parent_node_id', child.id)
+                        .limit(1);
+
+                      if (!leafChildNodes || leafChildNodes.length === 0) {
+                        // This is a leaf node, deactivate bot for manual attention
+                        await supabase
+                          .from('chatbot_conversation_state')
+                          .update({
+                            is_bot_active: false,
+                            escalated_at: new Date().toISOString(),
+                          })
+                          .eq('id', conversationState.id);
+                      }
+                    }
+                  }
+                  break;
+                }
               }
             }
           }
@@ -513,6 +568,51 @@ async function sendWhatsAppMessage(
     const error = await response.text();
     console.error('WhatsApp send error:', error);
     throw new Error(`Failed to send WhatsApp message: ${error}`);
+  }
+}
+
+// Send media message via WhatsApp
+async function sendWhatsAppMediaMessage(
+  phoneNumberId: string,
+  accessToken: string,
+  to: string,
+  mediaUrl: string
+): Promise<void> {
+  // Detect media type from URL
+  const lowerUrl = mediaUrl.toLowerCase();
+  let mediaType: 'image' | 'video' | 'document' | 'audio' = 'image';
+  
+  if (lowerUrl.includes('.mp4') || lowerUrl.includes('.mov') || lowerUrl.includes('video')) {
+    mediaType = 'video';
+  } else if (lowerUrl.includes('.pdf') || lowerUrl.includes('.doc') || lowerUrl.includes('document')) {
+    mediaType = 'document';
+  } else if (lowerUrl.includes('.mp3') || lowerUrl.includes('.ogg') || lowerUrl.includes('audio')) {
+    mediaType = 'audio';
+  }
+
+  const payload: Record<string, any> = {
+    messaging_product: 'whatsapp',
+    to: to,
+    type: mediaType,
+    [mediaType]: { link: mediaUrl },
+  };
+
+  const response = await fetch(
+    `https://graph.facebook.com/v21.0/${phoneNumberId}/messages`,
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.text();
+    console.error('WhatsApp media send error:', error);
+    throw new Error(`Failed to send WhatsApp media: ${error}`);
   }
 }
 
