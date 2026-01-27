@@ -69,9 +69,12 @@ export const useNotificationSound = () => {
     const now = Date.now();
     
     if (now - lastPlayedRef.current < minInterval) {
+      console.log('[Sound] Throttled - too soon since last play');
       return;
     }
     lastPlayedRef.current = now;
+
+    console.log('[Sound] Playing notification:', { volume, tone, enableVibration });
 
     // Trigger vibration
     if (enableVibration) {
@@ -79,14 +82,14 @@ export const useNotificationSound = () => {
     }
 
     try {
-      if (!audioContextRef.current) {
-        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-      }
+      // Create new AudioContext each time to avoid suspension issues on mobile
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
       
-      const audioContext = audioContextRef.current;
-      
+      // Resume immediately for mobile compatibility
       if (audioContext.state === 'suspended') {
-        audioContext.resume();
+        audioContext.resume().then(() => {
+          console.log('[Sound] AudioContext resumed');
+        });
       }
 
       const config = toneConfigs[tone];
@@ -121,8 +124,14 @@ export const useNotificationSound = () => {
         timeOffset += duration * 0.7;
       });
 
+      // Close audio context after sound finishes to free resources
+      setTimeout(() => {
+        audioContext.close();
+      }, 2000);
+
+      console.log('[Sound] Sound played successfully');
     } catch (error) {
-      console.error('Error playing notification sound:', error);
+      console.error('[Sound] Error playing notification sound:', error);
     }
   }, [triggerVibration]);
 

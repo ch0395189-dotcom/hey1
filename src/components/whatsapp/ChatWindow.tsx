@@ -559,12 +559,13 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
 
   if (!conversation) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-muted/30">
+      <div className="flex-1 flex items-center justify-center bg-chat">
         <div className="text-center text-muted-foreground">
-          <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
-            <Phone className="w-8 h-8" />
+          <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+            <MessageCircle className="w-8 h-8 text-primary" />
           </div>
-          <p>Selecciona una conversación para comenzar</p>
+          <p className="font-medium">Selecciona una conversación</p>
+          <p className="text-sm mt-1">Elige un chat para comenzar a conversar</p>
         </div>
       </div>
     );
@@ -575,21 +576,21 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
   return (
     <div className="flex-1 min-h-0 flex flex-col">
       <ImagePreviewDialog url={previewImageUrl} onClose={() => setPreviewImageUrl(null)} />
-      {/* Chat Header */}
-      <div className="h-16 px-4 md:px-6 border-b border-border flex items-center justify-between bg-card">
+      {/* Chat Header - WhatsApp Style */}
+      <div className="h-14 px-3 md:px-4 border-b border-border flex items-center justify-between bg-primary text-primary-foreground">
         <div className="flex items-center gap-2 md:gap-3">
           {onBack && (
             <Button 
               variant="ghost" 
               size="icon" 
-              className="md:hidden"
+              className="md:hidden text-primary-foreground hover:bg-primary-foreground/10"
               onClick={onBack}
             >
               <ArrowLeft className="w-5 h-5" />
             </Button>
           )}
           <div className="relative">
-            <div className="w-10 h-10 rounded-full bg-gradient-hero flex items-center justify-center text-primary-foreground font-semibold">
+            <div className="w-10 h-10 rounded-full bg-primary-foreground/20 flex items-center justify-center text-primary-foreground font-semibold">
               {conversation.customer_profile_pic ? (
                 <img
                   src={conversation.customer_profile_pic}
@@ -601,7 +602,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
               )}
             </div>
             {/* Platform indicator */}
-            <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-background border border-border flex items-center justify-center">
+            <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-card border-2 border-primary flex items-center justify-center">
               {getPlatformIcon(conversation.platform || 'whatsapp')}
             </div>
           </div>
@@ -617,51 +618,35 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                 }
                 target="_blank"
                 rel="noopener noreferrer"
-                className="font-medium hover:text-primary hover:underline transition-colors cursor-pointer"
+                className="font-medium text-primary-foreground hover:underline transition-colors cursor-pointer"
                 title={`Abrir en ${getPlatformLabel(conversation.platform || 'whatsapp')}`}
               >
                 {conversation.customer_name || conversation.customer_phone}
               </a>
-              <Badge variant="secondary" className={`text-xs ${getPlatformColor(conversation.platform || 'whatsapp')}`}>
-                {getPlatformLabel(conversation.platform || 'whatsapp')}
-              </Badge>
             </div>
-            <a 
-              href={
-                conversation.platform === 'messenger' 
-                  ? `https://www.facebook.com/messages/t/${conversation.customer_phone}`
-                  : conversation.platform === 'instagram'
-                  ? `https://www.instagram.com/direct/t/${conversation.customer_phone}`
-                  : `https://wa.me/${conversation.customer_phone.replace(/[^0-9]/g, '')}`
-              }
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-base font-medium text-muted-foreground hover:text-primary hover:underline transition-colors"
-            >
+            <p className="text-xs text-primary-foreground/70">
               {conversation.customer_phone}
-            </a>
+            </p>
           </div>
         </div>
-        <div className="flex items-center gap-1 md:gap-2">
+        <div className="flex items-center gap-1">
           <Button 
             variant="ghost" 
             size="icon"
+            className="text-primary-foreground hover:bg-primary-foreground/10"
             onClick={handleRefresh}
             disabled={refreshing}
             title="Actualizar mensajes"
           >
             <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
           </Button>
-          <Button variant="ghost" size="icon" className="hidden md:flex">
-            <Phone className="w-4 h-4" />
-          </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon">
+              <Button variant="ghost" size="icon" className="text-primary-foreground hover:bg-primary-foreground/10">
                 <MoreVertical className="w-4 h-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent align="end" className="bg-card">
               <DropdownMenuItem onClick={handleArchive}>
                 <Archive className="w-4 h-4 mr-2" />
                 {conversation.is_archived ? 'Restaurar' : 'Archivar'}
@@ -675,51 +660,54 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
         </div>
       </div>
 
-      {/* Messages */}
-      <ScrollArea type="always" className="flex-1 min-h-0 bg-muted/30 relative" ref={messagesContainerRef} onScrollCapture={handleScroll}>
-        <div className="p-6">
-          <div className="max-w-3xl mx-auto space-y-4">
+      {/* Messages Area - WhatsApp Style Background */}
+      <ScrollArea type="always" className="flex-1 min-h-0 bg-chat relative scrollbar-whatsapp" ref={messagesContainerRef} onScrollCapture={handleScroll}>
+        <div className="p-4 md:p-6">
+          <div className="max-w-3xl mx-auto space-y-1">
             {loading ? (
               <div className="flex items-center justify-center h-32">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
               </div>
             ) : messages.length === 0 ? (
               <div className="text-center text-muted-foreground py-8">
-                No hay mensajes aún
+                <div className="inline-flex items-center gap-2 px-4 py-2 bg-card rounded-lg shadow-soft">
+                  <MessageCircle className="w-4 h-4" />
+                  <span className="text-sm">Sin mensajes aún</span>
+                </div>
               </div>
             ) : (
               Object.entries(messageGroups).map(([date, msgs]) => (
                 <div key={date}>
-                  {/* Date header */}
+                  {/* Date header - WhatsApp style */}
                   <div className="flex items-center justify-center my-4">
-                    <span className="px-3 py-1 bg-muted rounded-full text-xs text-muted-foreground">
+                    <span className="px-3 py-1 bg-card rounded-lg text-xs text-muted-foreground shadow-soft">
                       {formatDateHeader(date)}
                     </span>
                   </div>
 
-                  {/* Messages for this date */}
+                  {/* Messages for this date - WhatsApp bubble style */}
                   {msgs.map((msg) => (
                     <motion.div
                       key={msg.id}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className={`flex ${msg.direction === 'outbound' ? 'justify-end' : 'justify-start'} mb-2`}
+                      className={`flex ${msg.direction === 'outbound' ? 'justify-end' : 'justify-start'} mb-1`}
                     >
                       <div
-                        className={`max-w-md px-4 py-2 rounded-2xl ${
+                        className={`max-w-[85%] md:max-w-md px-3 py-2 shadow-soft ${
                           msg.direction === 'outbound'
-                            ? 'bg-primary text-primary-foreground rounded-br-md'
-                            : 'bg-card border border-border rounded-bl-md'
+                            ? 'chat-bubble-out'
+                            : 'chat-bubble-in'
                         }`}
                       >
                         {/* Media content */}
                         {msg.media_url && (
-                          <div className="mb-2">
+                          <div className="mb-1.5 -mx-1 -mt-1">
                             {msg.message_type === 'image' ? (
                               <img 
                                 src={msg.media_url} 
                                 alt="Imagen" 
-                                className="rounded-lg max-w-full cursor-pointer hover:opacity-90"
+                                className="rounded-lg max-w-full cursor-pointer hover:opacity-90 transition-opacity"
                                 onClick={() => setPreviewImageUrl(msg.media_url!)}
                                 onLoad={() => { if (isAtBottom) scrollToBottom(); }}
                               />
@@ -752,16 +740,16 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                           </div>
                         )}
                         {msg.content && (
-                          <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                          <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
                         )}
                         <div
-                          className={`flex items-center justify-end gap-1 mt-1 ${
+                          className={`flex items-center justify-end gap-1 mt-0.5 ${
                             msg.direction === 'outbound'
-                              ? 'text-primary-foreground/70'
+                              ? 'text-foreground/50'
                               : 'text-muted-foreground'
                           }`}
                         >
-                          <span className="text-xs">
+                          <span className="text-[11px]">
                             {format(new Date(msg.created_at), 'HH:mm')}
                           </span>
                           {msg.direction === 'outbound' && getStatusIcon(msg.status)}
