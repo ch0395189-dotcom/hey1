@@ -306,11 +306,13 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
       return;
     }
 
-    let fileType: 'image' | 'video' | 'document' = 'document';
+    let fileType: 'image' | 'video' | 'document' | 'audio' = 'document';
     if (file.type.startsWith('image/')) {
       fileType = 'image';
     } else if (file.type.startsWith('video/')) {
       fileType = 'video';
+    } else if (file.type.startsWith('audio/')) {
+      fileType = 'audio';
     }
 
     const preview = URL.createObjectURL(file);
@@ -793,8 +795,14 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                   className="w-16 h-16 object-cover rounded-lg"
                 />
               ) : attachedFile.type === 'video' ? (
+                <video 
+                  src={attachedFile.preview}
+                  className="w-16 h-16 object-cover rounded-lg"
+                  muted
+                />
+              ) : attachedFile.type === 'audio' ? (
                 <div className="w-16 h-16 bg-muted rounded-lg flex items-center justify-center">
-                  <Video className="w-8 h-8 text-muted-foreground" />
+                  <Mic className="w-8 h-8 text-muted-foreground" />
                 </div>
               ) : (
                 <div className="w-16 h-16 bg-muted rounded-lg flex items-center justify-center">
@@ -883,7 +891,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
             type="file"
             ref={fileInputRef}
             onChange={handleFileSelect}
-            accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
+            accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
             className="hidden"
           />
           <Popover open={showEmojiPicker} onOpenChange={setShowEmojiPicker}>
