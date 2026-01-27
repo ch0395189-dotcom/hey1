@@ -160,7 +160,7 @@ Deno.serve(async (req) => {
               // Find or create conversation
               let { data: existingConversation } = await supabase
                 .from('conversations')
-                .select('id')
+                .select('id, blocked_at')
                 .eq('whatsapp_account_id', whatsappAccount.id)
                 .eq('customer_phone', customerPhone)
                 .single();
@@ -188,6 +188,12 @@ Deno.serve(async (req) => {
                 conversationId = newConversation.id;
                 isNewConversation = true;
               } else {
+                // Check if this conversation is blocked
+                if (existingConversation.blocked_at) {
+                  console.log('Ignoring message from blocked contact:', customerPhone);
+                  continue; // Skip processing this message
+                }
+                
                 conversationId = existingConversation.id;
                 // Update conversation - increment unread count
                 const { data: currentConv } = await supabase
