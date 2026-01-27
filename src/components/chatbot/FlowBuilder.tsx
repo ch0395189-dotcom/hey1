@@ -18,6 +18,9 @@ interface ButtonOption {
   id: string;
   title: string;
   description?: string;
+  response_type?: 'text' | 'media' | 'flow'; // Tipo de respuesta cuando se clickea
+  response_content?: string; // Contenido de la respuesta (texto o URL de media)
+  child_node_id?: string; // ID del nodo hijo si es tipo 'flow'
 }
 
 interface FlowNode {
@@ -103,11 +106,21 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
     const newId = `opt_${Date.now()}`;
     setNewNode({
       ...newNode,
-      button_options: [...newNode.button_options, { id: newId, title: '', description: '' }],
+      button_options: [...newNode.button_options, { 
+        id: newId, 
+        title: '', 
+        description: '',
+        response_type: 'text',
+        response_content: '',
+      }],
     });
   };
 
-  const updateButtonOption = (index: number, field: 'title' | 'description', value: string) => {
+  const updateButtonOption = (
+    index: number, 
+    field: 'title' | 'description' | 'response_type' | 'response_content', 
+    value: string
+  ) => {
     const updated = [...newNode.button_options];
     updated[index] = { ...updated[index], [field]: value };
     setNewNode({ ...newNode, button_options: updated });
@@ -139,11 +152,13 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
       }
     }
 
-    // Clean up button options - ensure valid IDs
+    // Clean up button options - ensure valid IDs and include response data
     const cleanedOptions = newNode.button_options.map((opt, idx) => ({
       id: opt.id || `opt_${idx + 1}`,
       title: opt.title.trim().substring(0, 20), // WhatsApp limit
       description: opt.description?.trim().substring(0, 72) || undefined, // WhatsApp limit
+      response_type: opt.response_type || 'text',
+      response_content: opt.response_content?.trim() || undefined,
     }));
 
     if (editingNode) {
@@ -587,32 +602,80 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
                   )}
 
                   {newNode.button_options.map((option, index) => (
-                    <div key={index} className="flex gap-2 items-start">
-                      <div className="flex-1 space-y-2">
-                        <Input
-                          value={option.title}
-                          onChange={(e) => updateButtonOption(index, 'title', e.target.value)}
-                          placeholder="Título del botón (máx. 20 caracteres)"
-                          maxLength={20}
-                        />
-                        {newNode.interactive_type === 'list' && (
-                          <Input
-                            value={option.description || ''}
-                            onChange={(e) => updateButtonOption(index, 'description', e.target.value)}
-                            placeholder="Descripción (opcional, máx. 72 caracteres)"
-                            maxLength={72}
+                    <div key={index} className="p-3 border rounded-lg bg-muted/30 space-y-3">
+                      <div className="flex gap-2 items-start">
+                        <div className="flex-1 space-y-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-medium text-muted-foreground min-w-[60px]">
+                              Botón {index + 1}
+                            </span>
+                            <Input
+                              value={option.title}
+                              onChange={(e) => updateButtonOption(index, 'title', e.target.value)}
+                              placeholder="Título del botón (máx. 20)"
+                              maxLength={20}
+                              className="flex-1"
+                            />
+                          </div>
+                          {newNode.interactive_type === 'list' && (
+                            <Input
+                              value={option.description || ''}
+                              onChange={(e) => updateButtonOption(index, 'description', e.target.value)}
+                              placeholder="Descripción (opcional, máx. 72)"
+                              maxLength={72}
+                            />
+                          )}
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeButtonOption(index)}
+                          className="text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      
+                      {/* Respuesta al hacer click */}
+                      <div className="pl-[68px] space-y-2">
+                        <Label className="text-xs text-muted-foreground">
+                          Respuesta al seleccionar este botón:
+                        </Label>
+                        <Select
+                          value={option.response_type || 'text'}
+                          onValueChange={(value) => updateButtonOption(index, 'response_type', value)}
+                        >
+                          <SelectTrigger className="h-8 text-sm">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="text">Mensaje de texto</SelectItem>
+                            <SelectItem value="media">Archivo multimedia (URL)</SelectItem>
+                            <SelectItem value="flow">Continuar con otro nodo</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        
+                        {option.response_type !== 'flow' && (
+                          <Textarea
+                            value={option.response_content || ''}
+                            onChange={(e) => updateButtonOption(index, 'response_content', e.target.value)}
+                            placeholder={
+                              option.response_type === 'media' 
+                                ? "URL del archivo (imagen, video, documento)..." 
+                                : "Mensaje de respuesta..."
+                            }
+                            rows={2}
+                            className="text-sm"
                           />
                         )}
+                        
+                        {option.response_type === 'flow' && (
+                          <p className="text-xs text-muted-foreground italic">
+                            💡 Crea un nodo hijo con este nodo como padre para continuar el flujo
+                          </p>
+                        )}
                       </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeButtonOption(index)}
-                        className="text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
                     </div>
                   ))}
                 </div>
