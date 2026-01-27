@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { prepareAudioForUpload } from "@/utils/audioConverter";
+import { compressMediaIfNeeded, formatFileSize, exceedsWhatsAppLimit } from "@/utils/mediaCompressor";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -333,13 +334,35 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
   };
 
   const uploadMediaToStorage = async (file: File): Promise<string> => {
-    const fileExt = file.name.split('.').pop();
+    // Compress media if it exceeds WhatsApp limits
+    let fileToUpload = file;
+    
+    if (exceedsWhatsAppLimit(file)) {
+      toast({
+        title: "Comprimiendo archivo...",
+        description: `El archivo excede el límite de WhatsApp. Comprimiendo de ${formatFileSize(file.size)}...`,
+      });
+      
+      const { file: compressed, wasCompressed } = await compressMediaIfNeeded(file);
+      fileToUpload = compressed;
+      
+      if (wasCompressed) {
+        toast({
+          title: "Archivo comprimido",
+          description: `Tamaño reducido a ${formatFileSize(compressed.size)}`,
+        });
+      } else if (exceedsWhatsAppLimit(compressed)) {
+        throw new Error(`El archivo es demasiado grande (${formatFileSize(compressed.size)}). Máximo permitido: 16MB para videos, 5MB para imágenes.`);
+      }
+    }
+    
+    const fileExt = fileToUpload.name.split('.').pop();
     const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
     const filePath = `whatsapp-media/${fileName}`;
 
     const { data, error } = await supabase.storage
       .from('media')
-      .upload(filePath, file);
+      .upload(filePath, fileToUpload);
 
     if (error) throw error;
 

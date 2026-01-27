@@ -18,6 +18,12 @@ interface ChatbotConfig {
   fallback_message: string;
 }
 
+interface ButtonOption {
+  id: string;
+  title: string;
+  description?: string;
+}
+
 interface FlowNode {
   id: string;
   parent_node_id: string | null;
@@ -28,6 +34,25 @@ interface FlowNode {
   content: string;
   action_type: string | null;
   position: number;
+  interactive_type: 'none' | 'buttons' | 'list';
+  button_options: ButtonOption[];
+}
+
+// Response can be text or interactive
+interface ChatResponse {
+  type: 'text' | 'interactive';
+  text?: string;
+  interactive?: {
+    type: 'button' | 'list';
+    header?: { type: 'text'; text: string };
+    body: { text: string };
+    footer?: { text: string };
+    action: {
+      button?: string; // For list type
+      buttons?: Array<{ type: 'reply'; reply: { id: string; title: string } }>; // For button type
+      sections?: Array<{ title: string; rows: Array<{ id: string; title: string; description?: string }> }>; // For list type
+    };
+  };
 }
 
 interface Keyword {
@@ -206,8 +231,8 @@ Deno.serve(async (req) => {
     }
 
     let responseMessage: string | null = null;
-
-    // Process based on mode
+    let currentNode: FlowNode | null = null;
+    let interactiveResponse: ChatResponse['interactive'] | null = null;
     if (chatbotConfig.mode === 'manual' || chatbotConfig.mode === 'hybrid') {
       // Try keyword matching first
       const { data: keywords } = await supabase
@@ -230,7 +255,7 @@ Deno.serve(async (req) => {
       }
 
       // If no keyword match, try flow navigation
-      if (!responseMessage) {
+      if (!responseMessage && !currentNode) {
         const { data: flowNodes } = await supabase
           .from('chatbot_flow_nodes')
           .select('*')
@@ -245,7 +270,7 @@ Deno.serve(async (req) => {
             // Find start node
             const startNode = nodes.find(n => n.trigger_type === 'start');
             if (startNode) {
-              responseMessage = startNode.content;
+              currentNode = startNode;
               await supabase
                 .from('chatbot_conversation_state')
                 .update({ current_node_id: startNode.id })
@@ -255,17 +280,34 @@ Deno.serve(async (req) => {
             // Find matching child node based on user input
             const childNodes = nodes.filter(n => n.parent_node_id === conversationState.current_node_id);
             
+            // Also check if user clicked a button by matching button IDs
+            const parentNode = nodes.find(n => n.id === conversationState.current_node_id);
+            
             for (const child of childNodes) {
               let matches = false;
               
               if (child.trigger_type === 'option' && child.trigger_value) {
+                // Match by number OR by button ID
                 matches = lowerMessage.trim() === child.trigger_value.toLowerCase();
+                
+                // Also check if parent has buttons and user selected by ID
+                if (!matches && parentNode?.button_options) {
+                  const buttonMatch = parentNode.button_options.find(
+                    btn => btn.id.toLowerCase() === lowerMessage.trim() || 
+                           btn.title.toLowerCase() === lowerMessage.trim()
+                  );
+                  if (buttonMatch) {
+                    // Find child that corresponds to this button index
+                    const buttonIndex = parentNode.button_options.indexOf(buttonMatch);
+                    matches = child.trigger_value === String(buttonIndex + 1);
+                  }
+                }
               } else if (child.trigger_type === 'keyword' && child.trigger_value) {
                 matches = lowerMessage.includes(child.trigger_value.toLowerCase());
               }
 
               if (matches) {
-                responseMessage = child.content;
+                currentNode = child;
                 
                 if (child.action_type === 'escalate') {
                   await supabase
@@ -292,6 +334,19 @@ Deno.serve(async (req) => {
           }
         }
       }
+      
+      // Generate response from current node
+      if (currentNode) {
+        responseMessage = currentNode.content;
+        
+        // Check if node has interactive elements
+        if (currentNode.interactive_type !== 'none' && 
+            currentNode.button_options && 
+            currentNode.button_options.length > 0 &&
+            currentPlatform === 'whatsapp') {
+          interactiveResponse = buildInteractiveResponse(currentNode);
+        }
+      }
     }
 
     // If hybrid or AI mode and no manual response found
@@ -313,7 +368,17 @@ Deno.serve(async (req) => {
 
     // Send response
     if (responseMessage) {
-      await sendPlatformMessage(platformAccount, customerIdentifier, responseMessage);
+      if (interactiveResponse && currentPlatform === 'whatsapp') {
+        // Send interactive message for WhatsApp
+        await sendWhatsAppInteractiveMessage(
+          platformAccount.phone_number_id!,
+          platformAccount.access_token!,
+          customerIdentifier,
+          interactiveResponse
+        );
+      } else {
+        await sendPlatformMessage(platformAccount, customerIdentifier, responseMessage);
+      }
       await saveOutboundMessage(supabase, conversation_id, responseMessage);
     }
 
@@ -330,6 +395,49 @@ Deno.serve(async (req) => {
     });
   }
 });
+
+// Build interactive response from flow node
+function buildInteractiveResponse(node: FlowNode): ChatResponse['interactive'] | null {
+  if (!node.button_options || node.button_options.length === 0) {
+    return null;
+  }
+
+  if (node.interactive_type === 'buttons') {
+    // Reply buttons (max 3)
+    return {
+      type: 'button',
+      body: { text: node.content },
+      action: {
+        buttons: node.button_options.slice(0, 3).map((opt, idx) => ({
+          type: 'reply' as const,
+          reply: {
+            id: opt.id || `btn_${idx + 1}`,
+            title: opt.title.substring(0, 20), // WhatsApp limit
+          },
+        })),
+      },
+    };
+  } else if (node.interactive_type === 'list') {
+    // List message (max 10 options)
+    return {
+      type: 'list',
+      body: { text: node.content },
+      action: {
+        button: 'Ver opciones',
+        sections: [{
+          title: node.title || 'Opciones',
+          rows: node.button_options.slice(0, 10).map((opt, idx) => ({
+            id: opt.id || `row_${idx + 1}`,
+            title: opt.title.substring(0, 24), // WhatsApp limit
+            description: opt.description?.substring(0, 72), // WhatsApp limit
+          })),
+        }],
+      },
+    };
+  }
+
+  return null;
+}
 
 // Unified platform message sender
 async function sendPlatformMessage(
@@ -384,6 +492,44 @@ async function sendWhatsAppMessage(
     const error = await response.text();
     console.error('WhatsApp send error:', error);
     throw new Error(`Failed to send WhatsApp message: ${error}`);
+  }
+}
+
+// Send interactive WhatsApp message (buttons or list)
+async function sendWhatsAppInteractiveMessage(
+  phoneNumberId: string,
+  accessToken: string,
+  to: string,
+  interactive: ChatResponse['interactive']
+): Promise<void> {
+  const payload = {
+    messaging_product: 'whatsapp',
+    recipient_type: 'individual',
+    to: to,
+    type: 'interactive',
+    interactive: interactive,
+  };
+
+  console.log('Sending interactive message:', JSON.stringify(payload, null, 2));
+
+  const response = await fetch(
+    `https://graph.facebook.com/v21.0/${phoneNumberId}/messages`,
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.text();
+    console.error('WhatsApp interactive send error:', error);
+    // Fallback to text message if interactive fails
+    console.log('Falling back to text message');
+    await sendWhatsAppMessage(phoneNumberId, accessToken, to, interactive?.body?.text || 'Error sending interactive message');
   }
 }
 
