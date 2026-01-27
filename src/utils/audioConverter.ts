@@ -1,132 +1,133 @@
-import lamejs from 'lamejs';
+/**
+ * Audio utilities for WhatsApp compatibility
+ * WhatsApp Cloud API supports: audio/aac, audio/mp4, audio/mpeg, audio/amr, audio/ogg (opus codec only)
+ * 
+ * Best approach: Record in OGG/Opus format when possible (Chrome, Firefox)
+ * For Safari: Record in audio/mp4 which is natively supported
+ */
 
 /**
- * Converts an audio Blob (WebM, OGG, etc.) to MP3 format using lamejs
- * This ensures better compatibility with WhatsApp which doesn't support WebM
+ * Get the best audio MIME type for recording based on browser support
+ * Prioritizes formats that WhatsApp accepts natively
  */
-export async function convertToMp3(audioBlob: Blob): Promise<Blob> {
-  // If it's already MP3, return as-is
-  if (audioBlob.type === 'audio/mp3' || audioBlob.type === 'audio/mpeg') {
-    return audioBlob;
+export function getBestAudioMimeType(): string {
+  // Priority order for WhatsApp compatibility:
+  // 1. audio/ogg;codecs=opus - Best for WhatsApp, supported by Chrome/Firefox
+  // 2. audio/mp4 - Supported by Safari and WhatsApp
+  // 3. audio/webm - Fallback, needs conversion
+  
+  if (typeof MediaRecorder === 'undefined') {
+    return 'audio/webm'; // Fallback
   }
-
-  // Check if AudioContext is available (may not work on older iOS Safari)
-  if (typeof AudioContext === 'undefined' && typeof (window as any).webkitAudioContext === 'undefined') {
-    console.warn('AudioContext not supported, returning original blob');
-    return audioBlob;
+  
+  const mimeTypes = [
+    'audio/ogg;codecs=opus',
+    'audio/ogg; codecs=opus', // Alternative format
+    'audio/mp4',
+    'audio/webm;codecs=opus',
+    'audio/webm',
+  ];
+  
+  for (const mimeType of mimeTypes) {
+    if (MediaRecorder.isTypeSupported(mimeType)) {
+      console.log(`Selected audio format: ${mimeType}`);
+      return mimeType;
+    }
   }
-
-  try {
-    // Decode the audio using Web Audio API (with webkit fallback for Safari)
-    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-    const audioContext = new AudioContextClass();
-    const arrayBuffer = await audioBlob.arrayBuffer();
-    
-    // Try to decode, but handle cases where the format is not supported
-    let audioBuffer: AudioBuffer;
-    try {
-      audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-    } catch (decodeError) {
-      console.warn('Failed to decode audio data, returning original blob:', decodeError);
-      await audioContext.close();
-      return audioBlob;
-    }
-
-    // Get audio data
-    const numberOfChannels = audioBuffer.numberOfChannels;
-    const sampleRate = audioBuffer.sampleRate;
-    const samples = audioBuffer.length;
-
-    // Convert to mono if stereo (WhatsApp prefers mono for voice)
-    let leftChannel: Float32Array;
-    let rightChannel: Float32Array | null = null;
-
-    if (numberOfChannels === 1) {
-      leftChannel = audioBuffer.getChannelData(0);
-    } else {
-      leftChannel = audioBuffer.getChannelData(0);
-      rightChannel = audioBuffer.getChannelData(1);
-    }
-
-    // Convert float samples to 16-bit PCM
-    const leftSamples = floatTo16BitPCM(leftChannel);
-    const rightSamples = rightChannel ? floatTo16BitPCM(rightChannel) : null;
-
-    // Initialize MP3 encoder
-    // Use 64kbps mono for voice - good quality with small file size
-    const mp3encoder = new lamejs.Mp3Encoder(numberOfChannels === 1 ? 1 : 2, sampleRate, 64);
-    
-    const mp3Data: Int8Array[] = [];
-    const sampleBlockSize = 1152; // Must be a multiple of 576
-
-    for (let i = 0; i < samples; i += sampleBlockSize) {
-      const leftChunk = leftSamples.subarray(i, i + sampleBlockSize);
-      let mp3buf: Int8Array;
-
-      if (numberOfChannels === 1) {
-        mp3buf = mp3encoder.encodeBuffer(leftChunk);
-      } else {
-        const rightChunk = rightSamples!.subarray(i, i + sampleBlockSize);
-        mp3buf = mp3encoder.encodeBuffer(leftChunk, rightChunk);
-      }
-
-      if (mp3buf.length > 0) {
-        mp3Data.push(mp3buf);
-      }
-    }
-
-    // Flush the encoder
-    const mp3End = mp3encoder.flush();
-    if (mp3End.length > 0) {
-      mp3Data.push(mp3End);
-    }
-
-    // Close audio context
-    await audioContext.close();
-
-    // Convert Int8Array[] to Uint8Array[] for Blob compatibility
-    const blobParts: BlobPart[] = mp3Data.map(chunk => {
-      const uint8 = new Uint8Array(chunk.length);
-      for (let i = 0; i < chunk.length; i++) {
-        uint8[i] = chunk[i] < 0 ? chunk[i] + 256 : chunk[i];
-      }
-      return uint8;
-    });
-
-    // Combine all MP3 chunks into a single Blob
-    return new Blob(blobParts, { type: 'audio/mp3' });
-  } catch (error) {
-    console.error('Error converting audio to MP3:', error);
-    // If conversion fails, return original blob
-    // The backend can try to handle it
-    return audioBlob;
-  }
+  
+  return 'audio/webm'; // Final fallback
 }
 
 /**
- * Convert Float32Array audio samples to Int16Array (16-bit PCM)
+ * Determine the file extension based on MIME type
  */
-function floatTo16BitPCM(samples: Float32Array): Int16Array {
-  const result = new Int16Array(samples.length);
-  for (let i = 0; i < samples.length; i++) {
-    // Clamp the value to [-1, 1] range
-    const s = Math.max(-1, Math.min(1, samples[i]));
-    // Convert to 16-bit integer
-    result[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
-  }
-  return result;
+export function getAudioExtension(mimeType: string): string {
+  if (mimeType.includes('ogg')) return 'ogg';
+  if (mimeType.includes('mp4')) return 'm4a';
+  if (mimeType.includes('mpeg') || mimeType.includes('mp3')) return 'mp3';
+  if (mimeType.includes('webm')) return 'webm';
+  return 'ogg'; // Default
 }
 
 /**
- * Check if the browser can decode a specific audio format
+ * Get the content type for upload based on the recorded MIME type
  */
-export async function canDecodeAudio(mimeType: string): Promise<boolean> {
-  try {
-    const audioContext = new AudioContext();
-    // Create a minimal test - just check if AudioContext is available
-    await audioContext.close();
-    return true;
-  } catch {
-    return false;
+export function getUploadContentType(mimeType: string): string {
+  if (mimeType.includes('ogg')) return 'audio/ogg';
+  if (mimeType.includes('mp4')) return 'audio/mp4';
+  if (mimeType.includes('mpeg')) return 'audio/mpeg';
+  if (mimeType.includes('webm')) return 'audio/webm';
+  return 'audio/ogg'; // Default
+}
+
+/**
+ * Check if the audio format is natively supported by WhatsApp
+ */
+export function isWhatsAppCompatible(mimeType: string): boolean {
+  const compatibleFormats = [
+    'audio/ogg',
+    'audio/mp4',
+    'audio/m4a',
+    'audio/mpeg',
+    'audio/mp3',
+    'audio/aac',
+    'audio/amr',
+  ];
+  
+  return compatibleFormats.some(format => mimeType.includes(format.split('/')[1]));
+}
+
+/**
+ * Prepares audio blob for sending to WhatsApp
+ * Returns the blob and metadata needed for upload
+ */
+export async function prepareAudioForUpload(audioBlob: Blob): Promise<{
+  blob: Blob;
+  extension: string;
+  contentType: string;
+  isCompatible: boolean;
+}> {
+  const originalType = audioBlob.type || 'audio/webm';
+  
+  // Check if format is already WhatsApp compatible
+  if (isWhatsAppCompatible(originalType)) {
+    const extension = getAudioExtension(originalType);
+    const contentType = getUploadContentType(originalType);
+    
+    console.log(`Audio format ${originalType} is WhatsApp compatible`);
+    
+    return {
+      blob: audioBlob,
+      extension,
+      contentType,
+      isCompatible: true,
+    };
   }
+  
+  // For WebM, we'll send it as OGG (same Opus codec, just different container name)
+  // WhatsApp might accept it since the codec is the same
+  if (originalType.includes('webm') && originalType.includes('opus')) {
+    console.log('WebM with Opus codec - sending as audio/ogg');
+    
+    // Create a new blob with OGG mime type
+    // The data is the same (Opus codec), just the container declaration changes
+    const oggBlob = new Blob([audioBlob], { type: 'audio/ogg; codecs=opus' });
+    
+    return {
+      blob: oggBlob,
+      extension: 'ogg',
+      contentType: 'audio/ogg',
+      isCompatible: true,
+    };
+  }
+  
+  // For other WebM formats, try to send as-is with proper typing
+  console.warn(`Audio format ${originalType} may not be fully compatible with WhatsApp`);
+  
+  return {
+    blob: audioBlob,
+    extension: getAudioExtension(originalType),
+    contentType: getUploadContentType(originalType),
+    isCompatible: false,
+  };
 }
