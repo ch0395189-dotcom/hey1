@@ -29,6 +29,7 @@ import {
   MessageCircle,
   RefreshCw,
   ListOrdered,
+  Tag,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -51,6 +52,17 @@ import { useNotificationSound } from "@/hooks/useNotificationSound";
 import { FaWhatsapp, FaFacebookMessenger, FaInstagram, FaTiktok } from "react-icons/fa";
 import { ImagePreviewDialog } from "@/components/whatsapp/ImagePreviewDialog";
 import { InteractiveMessageDialog, InteractiveMessageData } from "@/components/whatsapp/InteractiveMessageDialog";
+import { TagManager } from "@/components/contacts/TagManager";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -101,6 +113,8 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
   const [unreadCount, setUnreadCount] = useState(0);
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const [showInteractiveDialog, setShowInteractiveDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -592,6 +606,59 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
     }
   };
 
+  const handleDelete = async () => {
+    if (!conversation) return;
+
+    setDeleting(true);
+    try {
+      // First delete all messages in the conversation
+      const { error: messagesError } = await supabase
+        .from('messages')
+        .delete()
+        .eq('conversation_id', conversation.id);
+
+      if (messagesError) throw messagesError;
+
+      // Delete conversation tags
+      await supabase
+        .from('conversation_tags')
+        .delete()
+        .eq('conversation_id', conversation.id);
+
+      // Delete chatbot conversation state
+      await supabase
+        .from('chatbot_conversation_state')
+        .delete()
+        .eq('conversation_id', conversation.id);
+
+      // Finally delete the conversation
+      const { error: convError } = await supabase
+        .from('conversations')
+        .delete()
+        .eq('id', conversation.id);
+
+      if (convError) throw convError;
+
+      toast({
+        title: "Conversación eliminada",
+        description: "La conversación y su historial han sido eliminados.",
+      });
+      
+      setShowDeleteDialog(false);
+      onBack?.();
+      onConversationUpdated?.();
+    } catch (error) {
+      console.error('Error deleting conversation:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar la conversación.",
+        variant: "destructive",
+      });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const getStatusIcon = (status: string | null) => {
     switch (status) {
       case 'sent':
@@ -737,14 +804,39 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                 <Archive className="w-4 h-4 mr-2" />
                 {conversation.is_archived ? 'Restaurar' : 'Archivar'}
               </DropdownMenuItem>
-              <DropdownMenuItem className="text-destructive">
+              <DropdownMenuItem onClick={() => setShowDeleteDialog(true)} className="text-destructive focus:text-destructive">
                 <Trash2 className="w-4 h-4 mr-2" />
                 Eliminar
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          <TagManager conversationId={conversation.id} onTagsChange={onConversationUpdated} />
         </div>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar conversación?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Se eliminará la conversación con{' '}
+              <strong>{conversation.customer_name || conversation.customer_phone}</strong>{' '}
+              y todo su historial de mensajes.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDelete} 
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? 'Eliminando...' : 'Eliminar'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Messages Area - WhatsApp Style Background */}
       <ScrollArea type="always" className="flex-1 min-h-0 bg-chat relative scrollbar-whatsapp" ref={messagesContainerRef} onScrollCapture={handleScroll}>
