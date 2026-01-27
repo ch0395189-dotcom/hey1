@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { convertToMp3 } from "@/utils/audioConverter";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -431,14 +432,29 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
 
     setSending(true);
     try {
+      // Show converting toast for WebM files
+      const isWebm = audioBlob.type.includes('webm');
+      if (isWebm) {
+        toast({
+          title: "Convirtiendo audio...",
+          description: "Preparando el audio para WhatsApp.",
+        });
+      }
+
+      // Convert WebM to MP3 for better WhatsApp compatibility
+      const convertedBlob = await convertToMp3(audioBlob);
+      const isMp3 = convertedBlob.type === 'audio/mp3' || convertedBlob.type === 'audio/mpeg';
+      
       // Upload audio to storage
-      const fileName = `audio_${Date.now()}.webm`;
+      const extension = isMp3 ? 'mp3' : 'webm';
+      const contentType = isMp3 ? 'audio/mpeg' : 'audio/webm';
+      const fileName = `audio_${Date.now()}.${extension}`;
       const filePath = `${conversation.id}/${fileName}`;
       
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('media')
-        .upload(filePath, audioBlob, {
-          contentType: 'audio/webm',
+        .upload(filePath, convertedBlob, {
+          contentType,
           upsert: false,
         });
 
@@ -465,7 +481,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
       clearRecording();
       toast({
         title: "Audio enviado",
-        description: "Tu mensaje de voz ha sido enviado.",
+        description: isMp3 ? "Audio convertido y enviado exitosamente." : "Tu mensaje de voz ha sido enviado.",
       });
     } catch (error: any) {
       console.error('Error sending audio:', error);
