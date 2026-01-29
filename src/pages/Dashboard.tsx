@@ -28,6 +28,7 @@ import { ChatbotConfig } from "@/components/chatbot/ChatbotConfig";
 import { ContactsList } from "@/components/contacts/ContactsList";
 import { StatisticsPanel } from "@/components/statistics/StatisticsPanel";
 import { TrialBanner } from "@/components/dashboard/TrialBanner";
+import { RenewalBanner } from "@/components/dashboard/RenewalBanner";
 import { PaymentAlertBanner } from "@/components/dashboard/PaymentAlertBanner";
 import { PlatformTabs, Platform } from "@/components/dashboard/PlatformTabs";
 import { PlatformSetup } from "@/components/platforms/PlatformSetup";
@@ -241,6 +242,7 @@ const Dashboard = () => {
       {/* Banners */}
       <div className="px-4 py-2 space-y-2">
         <TrialBanner />
+        <RenewalBanner />
         <PaymentAlertBanner />
       </div>
       
