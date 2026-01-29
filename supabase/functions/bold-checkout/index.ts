@@ -11,7 +11,7 @@ const BOLD_API_KEY = Deno.env.get('BOLD_API_KEY')!;
 const BOLD_API_URL = 'https://integrations.api.bold.co';
 
 interface CheckoutRequest {
-  plan: 'starter' | 'professional' | 'enterprise';
+  plan: 'starter' | 'professional' | 'enterprise' | 'esoterico_pro';
   successUrl: string;
   cancelUrl: string;
 }
@@ -34,6 +34,12 @@ const PLAN_PRICES = {
     currency: 'COP',
     name: 'Plan Enterprise',
     description: 'Plan empresarial con todas las funciones',
+  },
+  esoterico_pro: {
+    amount: 30000, // 30,000 COP semanal
+    currency: 'COP',
+    name: 'Plan Esoterico Pro',
+    description: 'Numero blindado contra bloqueos - pago semanal',
   },
 };
 

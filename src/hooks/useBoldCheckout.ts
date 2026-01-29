@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
-type Plan = 'starter' | 'professional' | 'enterprise';
+type Plan = 'starter' | 'professional' | 'enterprise' | 'esoterico_pro';
 
 export const useBoldCheckout = () => {
   const [isLoading, setIsLoading] = useState(false);
