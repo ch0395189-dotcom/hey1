@@ -6,22 +6,25 @@ import { useBoldCheckout } from "@/hooks/useBoldCheckout";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
-type PlanKey = 'starter' | 'professional' | 'enterprise';
+type PlanKey = 'starter' | 'professional' | 'enterprise' | 'esoterico_pro';
 
 const plans: Array<{
   name: string;
   key: PlanKey;
   price: string;
   currency: string;
+  period: string;
   description: string;
   features: string[];
   popular: boolean;
+  noTrial?: boolean;
 }> = [
   {
     name: "Starter",
     key: "starter",
     price: "49.000",
     currency: "COP",
+    period: "mes",
     description: "Perfecto para pequeños negocios",
     features: [
       "1 número de WhatsApp",
@@ -37,6 +40,7 @@ const plans: Array<{
     key: "professional",
     price: "149.000",
     currency: "COP",
+    period: "mes",
     description: "Para negocios en crecimiento",
     features: [
       "3 números de WhatsApp",
@@ -54,6 +58,7 @@ const plans: Array<{
     key: "enterprise",
     price: "399.000",
     currency: "COP",
+    period: "mes",
     description: "Para grandes empresas",
     features: [
       "Números ilimitados",
@@ -66,6 +71,23 @@ const plans: Array<{
       "SLA garantizado"
     ],
     popular: false
+  },
+  {
+    name: "Esotérico Pro",
+    key: "esoterico_pro",
+    price: "30.000",
+    currency: "COP",
+    period: "semana",
+    description: "Número blindado contra bloqueos",
+    features: [
+      "Número blindado anti-bloqueo",
+      "Protección avanzada",
+      "Soporte 24/7",
+      "Sin límite de mensajes",
+      "Configuración especial"
+    ],
+    popular: false,
+    noTrial: true
   }
 ];
 
@@ -144,8 +166,11 @@ const Pricing = () => {
                 <p className="text-muted-foreground text-xs md:text-sm mb-3 md:mb-4">{plan.description}</p>
                 <div className="flex items-baseline justify-center gap-1">
                   <span className="text-3xl md:text-4xl font-display font-bold">${plan.price}</span>
-                  <span className="text-muted-foreground text-xs md:text-sm">/{plan.currency}/mes</span>
+                  <span className="text-muted-foreground text-xs md:text-sm">/{plan.currency}/{plan.period}</span>
                 </div>
+                {plan.noTrial && (
+                  <p className="text-xs text-destructive font-medium mt-2">Sin prueba gratis</p>
+                )}
               </div>
 
               <ul className="space-y-3 md:space-y-4 mb-6 md:mb-8">
@@ -174,6 +199,8 @@ const Pricing = () => {
                     Procesando...
                   </>
                 ) : isAuthenticated ? (
+                  "Suscribirse Ahora"
+                ) : plan.noTrial ? (
                   "Suscribirse Ahora"
                 ) : (
                   "Empezar Prueba Gratis"

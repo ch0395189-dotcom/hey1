@@ -721,7 +721,11 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
-      subscription_plan: "starter" | "professional" | "enterprise"
+      subscription_plan:
+        | "starter"
+        | "professional"
+        | "enterprise"
+        | "esoterico_pro"
       subscription_status: "active" | "canceled" | "past_due" | "trialing"
     }
     CompositeTypes: {
@@ -851,7 +855,12 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "moderator", "user"],
-      subscription_plan: ["starter", "professional", "enterprise"],
+      subscription_plan: [
+        "starter",
+        "professional",
+        "enterprise",
+        "esoterico_pro",
+      ],
       subscription_status: ["active", "canceled", "past_due", "trialing"],
     },
   },
