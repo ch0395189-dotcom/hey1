@@ -7,9 +7,8 @@ const corsHeaders = {
 };
 
 const BOLD_API_KEY = Deno.env.get('BOLD_API_KEY')!;
-const BOLD_SECRET_KEY = Deno.env.get('BOLD_SECRET_KEY')!;
-// Bold Colombia API - using the correct endpoint
-const BOLD_API_URL = 'https://integrations.bold.co/api/v2';
+// Bold Colombia API - correct endpoint
+const BOLD_API_URL = 'https://integrations.api.bold.co';
 
 interface CheckoutRequest {
   plan: 'starter' | 'professional' | 'enterprise';
@@ -22,7 +21,7 @@ const PLAN_PRICES = {
     amount: 49000, // 49,000 COP
     currency: 'COP',
     name: 'Plan Starter',
-    description: 'Plan básico para empezar con WhatsApp Business',
+    description: 'Plan basico para empezar con WhatsApp Business',
   },
   professional: {
     amount: 149000, // 149,000 COP
@@ -60,17 +59,17 @@ serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } }
     );
 
-    const token = authHeader.replace('Bearer ', '');
-    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
     
-    if (claimsError || !claimsData?.claims) {
+    if (userError || !user) {
+      console.error('Auth error:', userError);
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const userId = claimsData.claims.sub;
+    const userId = user.id;
 
     // Parse request body
     const { plan, successUrl, cancelUrl }: CheckoutRequest = await req.json();
@@ -85,56 +84,56 @@ serve(async (req) => {
     const planDetails = PLAN_PRICES[plan];
 
     // Get user email for Bold
-    const { data: userData } = await supabase.auth.getUser(token);
-    const userEmail = userData?.user?.email || '';
+    const userEmail = user.email || '';
 
-    // Create Bold payment link
-    const orderId = `order_${userId}_${Date.now()}`;
+    // Create Bold payment link using API Link de Pagos v1
+    const reference = `order_${userId}_${Date.now()}`;
     
-    // Bold API v2 payload format
+    // Calculate expiration (24 hours from now in nanoseconds)
+    const expirationNanoseconds = (Date.now() + 24 * 60 * 60 * 1000) * 1e6;
+    
+    // Bold API v1 payload format (as per documentation)
     const boldPayload = {
-      amount_in_cents: planDetails.amount * 100, // Bold expects cents
-      currency: planDetails.currency,
+      amount_type: 'CLOSE',
+      amount: {
+        currency: planDetails.currency,
+        total_amount: planDetails.amount,
+        tip_amount: 0,
+      },
+      reference: reference,
       description: planDetails.description,
-      order_id: orderId,
-      redirect_url: successUrl,
-      expiration_minutes: 1440, // 24 hours
-      customer: {
-        email: userEmail,
-      },
-      metadata: {
-        user_id: userId,
-        plan: plan,
-      },
+      expiration_date: expirationNanoseconds,
+      callback_url: successUrl,
+      payer_email: userEmail,
     };
 
     console.log('Calling Bold API with payload:', JSON.stringify(boldPayload));
 
-    const boldResponse = await fetch(`${BOLD_API_URL}/payment-links`, {
+    const boldResponse = await fetch(`${BOLD_API_URL}/online/link/v1`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': BOLD_API_KEY,
-        'x-secret-key': BOLD_SECRET_KEY,
+        'Authorization': `x-api-key ${BOLD_API_KEY}`,
       },
       body: JSON.stringify(boldPayload),
     });
 
-    if (!boldResponse.ok) {
-      const errorText = await boldResponse.text();
-      console.error('Bold API error:', errorText);
+    const boldData = await boldResponse.json();
+    console.log('Bold API response:', JSON.stringify(boldData));
+
+    if (!boldResponse.ok || boldData.errors?.length > 0) {
+      console.error('Bold API error:', boldData);
       return new Response(
-        JSON.stringify({ error: 'Failed to create payment link', details: errorText }),
+        JSON.stringify({ error: 'Failed to create payment link', details: boldData.errors || boldData }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const boldData = await boldResponse.json();
-
     return new Response(
       JSON.stringify({ 
-        paymentUrl: boldData.payment_url || boldData.url,
-        orderId: orderId,
+        paymentUrl: boldData.payload?.url,
+        orderId: reference,
+        paymentLink: boldData.payload?.payment_link,
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
