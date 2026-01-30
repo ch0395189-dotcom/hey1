@@ -112,11 +112,16 @@ const Dashboard = () => {
     }
   };
 
-  const handleNewMessage = (customerName: string, content: string, conversationId: string, platform: string = 'whatsapp') => {
+  const handleNewMessage = useCallback((customerName: string, content: string, conversationId: string, platform: string = 'whatsapp') => {
+    console.log('[Dashboard] handleNewMessage called:', { customerName, content, platform, soundEnabled, volume });
+    
     // Play notification sound if enabled with platform-specific tone
     if (soundEnabled) {
       const platformTone = getToneForPlatform(platform);
+      console.log('[Dashboard] Playing sound with tone:', platformTone, 'volume:', volume);
       playNotificationSound(volume, platformTone);
+    } else {
+      console.log('[Dashboard] Sound disabled, skipping');
     }
     
     // Show desktop notification (only if enabled and tab is not focused)
@@ -135,7 +140,7 @@ const Dashboard = () => {
         },
       });
     }
-  };
+  }, [soundEnabled, volume, desktopEnabled, getToneForPlatform, playNotificationSound, showNotification]);
 
   // Use session persistence hook for mobile app stability
   const handleSessionRestored = useCallback((restoredUser: any) => {
