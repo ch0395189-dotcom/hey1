@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -51,6 +51,12 @@ export const ConversationsList = ({
   const [showArchived, setShowArchived] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  
+  // Use ref to store onNewMessage to avoid recreating subscription on every render
+  const onNewMessageRef = useRef(onNewMessage);
+  useEffect(() => {
+    onNewMessageRef.current = onNewMessage;
+  }, [onNewMessage]);
 
   const getPlatformIcon = (platf: string) => {
     switch (platf) {
@@ -104,8 +110,11 @@ export const ConversationsList = ({
             conversation_id: string;
           };
           
+          console.log('[Realtime] New message received:', newMessage);
+          
           // Only notify for inbound messages
-          if (newMessage.direction === 'inbound' && onNewMessage) {
+          if (newMessage.direction === 'inbound' && onNewMessageRef.current) {
+            console.log('[Realtime] Inbound message - triggering notification');
             // Fetch conversation details including platform
             const { data: conv } = await supabase
               .from('conversations')
@@ -114,7 +123,12 @@ export const ConversationsList = ({
               .single();
             
             if (conv) {
-              onNewMessage(
+              console.log('[Realtime] Calling onNewMessage with:', {
+                name: conv.customer_name || conv.customer_phone,
+                content: newMessage.content,
+                platform: conv.platform
+              });
+              onNewMessageRef.current(
                 conv.customer_name || conv.customer_phone,
                 newMessage.content || 'Mensaje multimedia',
                 newMessage.conversation_id,
@@ -124,13 +138,15 @@ export const ConversationsList = ({
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('[Realtime] Messages channel status:', status);
+      });
 
     return () => {
       supabase.removeChannel(conversationsChannel);
       supabase.removeChannel(messagesChannel);
     };
-  }, [whatsappAccountId, showArchived, onNewMessage]);
+  }, [whatsappAccountId, showArchived]);
 
   const fetchConversations = useCallback(async () => {
     try {
