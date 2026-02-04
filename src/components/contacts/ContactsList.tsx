@@ -267,6 +267,43 @@ export const ContactsList = () => {
     }
   };
 
+  const handleBulkArchive = async () => {
+    if (selectedIds.size === 0) return;
+    
+    setArchiving(true);
+    try {
+      const idsToArchive = Array.from(selectedIds);
+      
+      const { error } = await supabase
+        .from('conversations')
+        .update({ is_archived: true })
+        .in('id', idsToArchive);
+
+      if (error) throw error;
+
+      // Update local state - remove archived contacts from view
+      setContacts(prev => prev.filter(c => !selectedIds.has(c.id)));
+      
+      toast({
+        title: "Contactos archivados",
+        description: `${selectedIds.size} contacto(s) archivado(s) correctamente.`,
+      });
+      
+      // Reset selection
+      setSelectedIds(new Set());
+      setSelectionMode(false);
+    } catch (error: any) {
+      console.error('Error archiving contacts:', error);
+      toast({
+        title: "Error",
+        description: "No se pudieron archivar algunos contactos.",
+        variant: "destructive",
+      });
+    } finally {
+      setArchiving(false);
+    }
+  };
+
   const toggleSelection = (id: string) => {
     setSelectedIds(prev => {
       const newSet = new Set(prev);
