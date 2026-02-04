@@ -670,7 +670,17 @@ export const ContactsList = () => {
                 className="gap-2"
               >
                 <Send className="w-4 h-4" />
-                Enviar mensaje
+                <span className="hidden sm:inline">Enviar</span>
+              </Button>
+              <Button 
+                variant="secondary" 
+                size="sm"
+                onClick={handleBulkArchive}
+                disabled={archiving}
+                className="gap-2"
+              >
+                <Archive className="w-4 h-4" />
+                <span className="hidden sm:inline">{archiving ? "Archivando..." : "Archivar"}</span>
               </Button>
               <Button 
                 variant="destructive" 
@@ -679,7 +689,7 @@ export const ContactsList = () => {
                 className="gap-2"
               >
                 <Trash2 className="w-4 h-4" />
-                Eliminar
+                <span className="hidden sm:inline">Eliminar</span>
               </Button>
             </div>
           </motion.div>
