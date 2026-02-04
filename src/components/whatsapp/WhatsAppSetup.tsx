@@ -18,7 +18,8 @@ import {
   Zap,
   Pencil,
   Trash2,
-  Bug
+  Bug,
+  QrCode
 } from "lucide-react";
 import { TestMessageSender } from "./TestMessageSender";
 import { ManualWhatsAppSetup } from "./ManualWhatsAppSetup";
