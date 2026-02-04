@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Search, User, Phone, MessageCircle, MoreVertical, UserPlus, Trash2, CheckSquare, X, Send, RefreshCw, Ban, UserCheck, Tag } from "lucide-react";
+import { Search, User, Phone, MessageCircle, MoreVertical, UserPlus, Trash2, CheckSquare, X, Send, RefreshCw, Ban, UserCheck, Tag, Archive, ArchiveRestore } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { BulkMessageDialog } from "./BulkMessageDialog";
