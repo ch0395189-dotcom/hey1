@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { TestMessageSender } from "./TestMessageSender";
 import { ManualWhatsAppSetup } from "./ManualWhatsAppSetup";
+import { ExternalWhatsAppSetup } from "./ExternalWhatsAppSetup";
 import { EditAccountDialog } from "./EditAccountDialog";
 import { WhatsAppDiagnostics } from "./WhatsAppDiagnostics";
 import { supabase } from "@/integrations/supabase/client";
