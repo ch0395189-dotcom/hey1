@@ -258,7 +258,10 @@ const Dashboard = () => {
         animate={{ x: 0, opacity: 1 }}
         className="hidden md:flex w-16 bg-primary flex-col items-center py-4"
       >
-        <div className="w-10 h-10 rounded-full bg-primary-foreground/20 flex items-center justify-center mb-6">
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="w-10 h-10 rounded-full bg-primary-foreground/20 flex items-center justify-center mb-6 cursor-pointer">
           <MessageCircle className="w-5 h-5 text-primary-foreground" />
         </div>
 
