@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useRef } from 'react';
+import { useEffect, useCallback, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -14,6 +14,8 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
   const refreshInProgressRef = useRef(false);
   const lastRefreshRef = useRef(0);
   const sessionValidRef = useRef(true);
+  const initialCheckDoneRef = useRef(false);
+  const [isInitializing, setIsInitializing] = useState(true);
   const minRefreshInterval = 30000; // 30 seconds minimum between refreshes
 
   // Store callbacks in refs to prevent unnecessary re-subscriptions
@@ -45,7 +47,7 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
         console.warn('[Session] Refresh error:', error.message);
         // Don't immediately sign out - token might still be valid
         // Check if it's a network error vs auth error
-        if (error.message.includes('network') || error.message.includes('fetch')) {
+        if (error.message.includes('network') || error.message.includes('fetch') || error.message.includes('Failed')) {
           console.log('[Session] Network error during refresh, keeping session');
           return null;
         }
@@ -70,7 +72,11 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
   // Check session validity without refreshing
   const checkSession = useCallback(async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error) {
+        console.warn('[Session] getSession error:', error.message);
+        return null;
+      }
       return session;
     } catch (err) {
       console.error('[Session] Check error:', err);
@@ -80,7 +86,7 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
 
   // Refresh session when app becomes visible (mobile background/foreground)
   const handleVisibilityChange = useCallback(async () => {
-    if (document.visibilityState === 'visible') {
+    if (document.visibilityState === 'visible' && initialCheckDoneRef.current) {
       console.log('[Session] App became visible, checking session...');
       
       try {
@@ -136,9 +142,10 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
 
   // Handle before unload - persist session state
   const handleBeforeUnload = useCallback(() => {
-    // Mark that we're leaving intentionally
+    // Mark that we're leaving intentionally - session should persist
     try {
       sessionStorage.setItem('heyhey-intentional-leave', 'true');
+      sessionStorage.setItem('heyhey-last-active', Date.now().toString());
     } catch {
       // Ignore storage errors
     }
@@ -158,28 +165,54 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
 
   useEffect(() => {
     let mounted = true;
+    let initTimeout: NodeJS.Timeout;
 
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (!mounted) return;
         
-        console.log('[Session] Auth state changed:', event);
+        console.log('[Session] Auth state changed:', event, session?.user?.email);
         
         switch (event) {
           case 'SIGNED_IN':
           case 'TOKEN_REFRESHED':
-          case 'INITIAL_SESSION':
             if (session?.user) {
               console.log('[Session] User authenticated:', session.user.email);
               sessionValidRef.current = true;
+              initialCheckDoneRef.current = true;
+              setIsInitializing(false);
               onSessionRestoredRef.current?.(session.user);
+            }
+            break;
+            
+          case 'INITIAL_SESSION':
+            // Handle initial session - this fires when the page loads
+            if (session?.user) {
+              console.log('[Session] Initial session found:', session.user.email);
+              sessionValidRef.current = true;
+              initialCheckDoneRef.current = true;
+              setIsInitializing(false);
+              onSessionRestoredRef.current?.(session.user);
+            } else {
+              console.log('[Session] No initial session');
+              // Wait a bit before redirecting - the session might be loading
+              initTimeout = setTimeout(() => {
+                if (mounted && !sessionValidRef.current) {
+                  console.log('[Session] No session after timeout, redirecting');
+                  initialCheckDoneRef.current = true;
+                  setIsInitializing(false);
+                  sessionValidRef.current = false;
+                  onSessionLostRef.current?.();
+                  navigate(redirectOnLost);
+                }
+              }, 1500); // Wait 1.5 seconds before redirecting
             }
             break;
             
           case 'SIGNED_OUT':
             // Only redirect if session was valid before (prevents double redirect)
-            if (sessionValidRef.current) {
+            if (sessionValidRef.current && initialCheckDoneRef.current) {
               console.log('[Session] User signed out');
               sessionValidRef.current = false;
               onSessionLostRef.current?.();
@@ -190,26 +223,6 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
       }
     );
 
-    // Then check for existing session
-    const initSession = async () => {
-      const session = await checkSession();
-      
-      if (!mounted) return;
-      
-      if (!session) {
-        console.log('[Session] No initial session found');
-        sessionValidRef.current = false;
-        onSessionLostRef.current?.();
-        navigate(redirectOnLost);
-      } else {
-        console.log('[Session] Initial session found for:', session.user.email);
-        sessionValidRef.current = true;
-        onSessionRestoredRef.current?.(session.user);
-      }
-    };
-
-    initSession();
-
     // Add event listeners for mobile app lifecycle
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('online', handleOnline);
@@ -218,13 +231,14 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
 
     // Set up periodic session check every 5 minutes (only when visible)
     const intervalId = setInterval(() => {
-      if (document.visibilityState === 'visible' && sessionValidRef.current) {
+      if (document.visibilityState === 'visible' && sessionValidRef.current && initialCheckDoneRef.current) {
         safeRefreshSession();
       }
     }, 5 * 60 * 1000);
 
     return () => {
       mounted = false;
+      clearTimeout(initTimeout);
       subscription.unsubscribe();
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('online', handleOnline);
@@ -232,7 +246,7 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
       window.removeEventListener('pageshow', handlePageShow);
       clearInterval(intervalId);
     };
-  }, [navigate, redirectOnLost, handleVisibilityChange, handleOnline, handleBeforeUnload, handlePageShow, checkSession, safeRefreshSession]);
+  }, [navigate, redirectOnLost, handleVisibilityChange, handleOnline, handleBeforeUnload, handlePageShow, safeRefreshSession]);
 
-  return { refreshSession: safeRefreshSession, checkSession };
+  return { refreshSession: safeRefreshSession, checkSession, isInitializing };
 };
