@@ -80,16 +80,36 @@ export const ManualWhatsAppSetup = ({ onAccountConnected }: ManualWhatsAppSetupP
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('No authenticated user');
 
-      // Insert the WhatsApp account directly
+      // Fetch the actual phone number from Meta API
+      let phoneNumber = formData.displayName; // Fallback to display name
+      let verifiedName = formData.displayName;
+      
+      try {
+        const phoneDetailUrl = `https://graph.facebook.com/${formData.apiVersion}/${formData.phoneNumberId}?fields=display_phone_number,verified_name&access_token=${formData.accessToken}`;
+        const phoneDetailResponse = await fetch(phoneDetailUrl);
+        const phoneDetailData = await phoneDetailResponse.json();
+        
+        if (phoneDetailData.display_phone_number) {
+          phoneNumber = phoneDetailData.display_phone_number;
+          console.log('Phone number fetched from API:', phoneNumber);
+        }
+        if (phoneDetailData.verified_name) {
+          verifiedName = phoneDetailData.verified_name;
+        }
+      } catch (apiError) {
+        console.warn('Could not fetch phone number from API, using display name:', apiError);
+      }
+
+      // Insert the WhatsApp account with real phone number
       const { data, error } = await supabase
         .from('whatsapp_accounts')
         .insert({
           user_id: user.id,
-          phone_number: formData.displayName, // Using display name as phone for manual setup
+          phone_number: phoneNumber,
           phone_number_id: formData.phoneNumberId,
           business_account_id: formData.businessAccountId,
           access_token: formData.accessToken,
-          display_name: formData.displayName,
+          display_name: verifiedName || formData.displayName,
           webhook_verify_token: webhookToken,
           is_active: true,
         })
@@ -100,12 +120,12 @@ export const ManualWhatsAppSetup = ({ onAccountConnected }: ManualWhatsAppSetupP
 
       toast({
         title: "¡Cuenta guardada!",
-        description: `Ahora configura el webhook para ${formData.displayName}.`,
+        description: `Número detectado: ${phoneNumber}. Ahora configura el webhook.`,
       });
 
       // Store data for wizard and show it
       setSavedAccountData({
-        name: formData.displayName,
+        name: verifiedName || formData.displayName,
         webhookUrl: webhookUrl,
         verifyToken: webhookToken,
       });
