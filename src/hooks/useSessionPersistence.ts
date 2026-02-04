@@ -165,7 +165,7 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
 
   useEffect(() => {
     let mounted = true;
-    let initTimeout: NodeJS.Timeout;
+    let bootstrapCancelled = false;
 
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -196,17 +196,35 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
               onSessionRestoredRef.current?.(session.user);
             } else {
               console.log('[Session] No initial session');
-              // Wait a bit before redirecting - the session might be loading
-              initTimeout = setTimeout(() => {
-                if (mounted && !sessionValidRef.current) {
-                  console.log('[Session] No session after timeout, redirecting');
-                  initialCheckDoneRef.current = true;
-                  setIsInitializing(false);
-                  sessionValidRef.current = false;
-                  onSessionLostRef.current?.();
-                  navigate(redirectOnLost);
+              // Some older phones take longer to hydrate storage for PWAs.
+              // Retry getSession a few times before declaring the user logged out.
+              (async () => {
+                const delays = [0, 250, 750, 1500, 2500, 4000];
+
+                for (const delay of delays) {
+                  if (!mounted || bootstrapCancelled) return;
+                  if (delay) await new Promise((r) => setTimeout(r, delay));
+
+                  const s = await checkSession();
+                  if (s?.user) {
+                    console.log('[Session] Session hydrated after delay:', delay);
+                    sessionValidRef.current = true;
+                    initialCheckDoneRef.current = true;
+                    setIsInitializing(false);
+                    onSessionRestoredRef.current?.(s.user);
+                    return;
+                  }
                 }
-              }, 1500); // Wait 1.5 seconds before redirecting
+
+                if (!mounted || bootstrapCancelled) return;
+
+                console.log('[Session] No session after retries, redirecting');
+                initialCheckDoneRef.current = true;
+                setIsInitializing(false);
+                sessionValidRef.current = false;
+                onSessionLostRef.current?.();
+                navigate(redirectOnLost);
+              })();
             }
             break;
             
@@ -238,7 +256,7 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
 
     return () => {
       mounted = false;
-      clearTimeout(initTimeout);
+      bootstrapCancelled = true;
       subscription.unsubscribe();
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('online', handleOnline);
@@ -246,7 +264,7 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
       window.removeEventListener('pageshow', handlePageShow);
       clearInterval(intervalId);
     };
-  }, [navigate, redirectOnLost, handleVisibilityChange, handleOnline, handleBeforeUnload, handlePageShow, safeRefreshSession]);
+  }, [navigate, redirectOnLost, handleVisibilityChange, handleOnline, handleBeforeUnload, handlePageShow, safeRefreshSession, checkSession]);
 
   return { refreshSession: safeRefreshSession, checkSession, isInitializing };
 };
