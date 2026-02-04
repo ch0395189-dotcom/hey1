@@ -656,6 +656,13 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
           </Card>
         </TabsContent>
         
+        <TabsContent value="qr" className="mt-4">
+          <ExternalWhatsAppSetup onAccountConnected={() => {
+            fetchAccounts();
+            onAccountConnected?.();
+          }} />
+        </TabsContent>
+
         <TabsContent value="manual" className="mt-4">
           <ManualWhatsAppSetup onAccountConnected={() => {
             fetchAccounts();
