@@ -258,25 +258,9 @@ const Dashboard = () => {
         animate={{ x: 0, opacity: 1 }}
         className="hidden md:flex w-16 bg-primary flex-col items-center py-4"
       >
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div className="w-10 h-10 rounded-full bg-primary-foreground/20 flex items-center justify-center mb-6 cursor-pointer">
-                <MessageCircle className="w-5 h-5 text-primary-foreground" />
-              </div>
-            </TooltipTrigger>
-            <TooltipContent side="right" className="max-w-xs">
-              <div className="text-sm">
-                <p className="font-medium">
-                  {whatsappAccounts.find(a => a.id === selectedAccountId)?.display_name || 'Mi cuenta'}
-                </p>
-                <p className="text-muted-foreground">
-                  {whatsappAccounts.find(a => a.id === selectedAccountId)?.phone_number || 'Sin número'}
-                </p>
-              </div>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <div className="w-10 h-10 rounded-full bg-primary-foreground/20 flex items-center justify-center mb-6">
+          <MessageCircle className="w-5 h-5 text-primary-foreground" />
+        </div>
 
         <nav className="flex-1 flex flex-col items-center gap-2">
           <Button 
@@ -549,6 +533,22 @@ const Dashboard = () => {
           <DialogHeader>
             <DialogTitle>Configuración de WhatsApp</DialogTitle>
           </DialogHeader>
+          
+          {/* Account Info */}
+          {whatsappAccounts.length > 0 && (
+            <div className="mb-4 p-4 rounded-lg bg-muted/50 border">
+              <h3 className="text-sm font-medium text-muted-foreground mb-2">Tu cuenta conectada</h3>
+              <div className="space-y-1">
+                <p className="font-semibold text-lg">
+                  {whatsappAccounts.find(a => a.id === selectedAccountId)?.display_name || 'Mi cuenta'}
+                </p>
+                <p className="text-muted-foreground font-mono">
+                  {whatsappAccounts.find(a => a.id === selectedAccountId)?.phone_number || 'Sin número'}
+                </p>
+              </div>
+            </div>
+          )}
+          
           <WhatsAppSetup onAccountConnected={checkWhatsAppAccounts} />
         </DialogContent>
       </Dialog>
