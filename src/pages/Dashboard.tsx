@@ -533,6 +533,22 @@ const Dashboard = () => {
           <DialogHeader>
             <DialogTitle>Configuración de WhatsApp</DialogTitle>
           </DialogHeader>
+          
+          {/* Account Info */}
+          {whatsappAccounts.length > 0 && (
+            <div className="mb-4 p-4 rounded-lg bg-muted/50 border">
+              <h3 className="text-sm font-medium text-muted-foreground mb-2">Tu cuenta conectada</h3>
+              <div className="space-y-1">
+                <p className="font-semibold text-lg">
+                  {whatsappAccounts.find(a => a.id === selectedAccountId)?.display_name || 'Mi cuenta'}
+                </p>
+                <p className="text-muted-foreground font-mono">
+                  {whatsappAccounts.find(a => a.id === selectedAccountId)?.phone_number || 'Sin número'}
+                </p>
+              </div>
+            </div>
+          )}
+          
           <WhatsAppSetup onAccountConnected={checkWhatsAppAccounts} />
         </DialogContent>
       </Dialog>
