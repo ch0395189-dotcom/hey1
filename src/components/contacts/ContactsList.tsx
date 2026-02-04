@@ -114,7 +114,8 @@ export const ContactsList = () => {
     setLoading(true);
     const { data, error } = await supabase
       .from('conversations')
-      .select('id, customer_name, customer_phone, customer_profile_pic, last_message_at, unread_count, whatsapp_account_id, blocked_at')
+      .select('id, customer_name, customer_phone, customer_profile_pic, last_message_at, unread_count, whatsapp_account_id, blocked_at, is_archived')
+      .eq('is_archived', false)
       .order('customer_name', { ascending: true });
 
     if (!error && data) {
