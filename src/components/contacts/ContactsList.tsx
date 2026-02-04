@@ -41,6 +41,7 @@ interface Contact {
   unread_count: number;
   whatsapp_account_id: string;
   blocked_at: string | null;
+  is_archived: boolean;
 }
 
 interface Tag {
