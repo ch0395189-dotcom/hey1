@@ -65,6 +65,7 @@ export const ContactsList = () => {
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
   const [showBulkMessageDialog, setShowBulkMessageDialog] = useState(false);
   const [blockingContact, setBlockingContact] = useState<Contact | null>(null);
+  const [archiving, setArchiving] = useState(false);
   const [tagsRefreshKey, setTagsRefreshKey] = useState(0);
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
   const [selectedTagFilters, setSelectedTagFilters] = useState<Set<string>>(new Set());
