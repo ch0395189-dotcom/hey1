@@ -54,11 +54,29 @@ export default defineConfig(({ mode }) => ({
         navigateFallback: "/index.html",
         navigateFallbackDenylist: [/^\/api/, /^\/sw\.js$/],
         runtimeCaching: [
+          // IMPORTANT: Never cache auth endpoints. Caching /auth/v1/token can break
+          // refresh token rotation and cause users to get logged out when reopening the PWA.
+          {
+            urlPattern: /^https:\/\/.*\.supabase\.co\/auth\/v1\/token.*/i,
+            handler: "NetworkOnly",
+            method: "POST",
+          },
+          {
+            urlPattern: /^https:\/\/.*\.supabase\.co\/auth\/v1\/user.*/i,
+            handler: "NetworkOnly",
+          },
+          {
+            urlPattern: /^https:\/\/.*\.supabase\.co\/auth\/v1\/logout.*/i,
+            handler: "NetworkOnly",
+            method: "POST",
+          },
           {
             urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
             handler: "NetworkFirst",
             options: {
-              cacheName: "supabase-cache",
+              // Bump cache name to avoid reusing any previously cached auth responses
+              // from older service worker versions.
+              cacheName: "supabase-cache-v2",
               expiration: {
                 maxEntries: 50,
                 maxAgeSeconds: 60 * 60, // 1 hour
