@@ -18,10 +18,12 @@ import {
   Zap,
   Pencil,
   Trash2,
-  Bug
+  Bug,
+  QrCode
 } from "lucide-react";
 import { TestMessageSender } from "./TestMessageSender";
 import { ManualWhatsAppSetup } from "./ManualWhatsAppSetup";
+import { ExternalWhatsAppSetup } from "./ExternalWhatsAppSetup";
 import { EditAccountDialog } from "./EditAccountDialog";
 import { WhatsAppDiagnostics } from "./WhatsAppDiagnostics";
 import { supabase } from "@/integrations/supabase/client";
@@ -541,10 +543,14 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
 
       {/* Connect New Account with Tabs */}
       <Tabs defaultValue="automatic" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="automatic" className="flex items-center gap-2">
             <Zap className="w-4 h-4" />
             Automática
+          </TabsTrigger>
+          <TabsTrigger value="qr" className="flex items-center gap-2">
+            <QrCode className="w-4 h-4" />
+            Por QR
           </TabsTrigger>
           <TabsTrigger value="manual" className="flex items-center gap-2">
             <Settings2 className="w-4 h-4" />
@@ -650,6 +656,13 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
           </Card>
         </TabsContent>
         
+        <TabsContent value="qr" className="mt-4">
+          <ExternalWhatsAppSetup onAccountConnected={() => {
+            fetchAccounts();
+            onAccountConnected?.();
+          }} />
+        </TabsContent>
+
         <TabsContent value="manual" className="mt-4">
           <ManualWhatsAppSetup onAccountConnected={() => {
             fetchAccounts();

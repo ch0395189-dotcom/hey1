@@ -653,8 +653,12 @@ export type Database = {
         Row: {
           access_token: string
           business_account_id: string
+          connection_type: string | null
           created_at: string
           display_name: string | null
+          external_api_key: string | null
+          external_instance_id: string | null
+          external_service_url: string | null
           id: string
           is_active: boolean
           phone_number: string
@@ -666,8 +670,12 @@ export type Database = {
         Insert: {
           access_token: string
           business_account_id: string
+          connection_type?: string | null
           created_at?: string
           display_name?: string | null
+          external_api_key?: string | null
+          external_instance_id?: string | null
+          external_service_url?: string | null
           id?: string
           is_active?: boolean
           phone_number: string
@@ -679,8 +687,12 @@ export type Database = {
         Update: {
           access_token?: string
           business_account_id?: string
+          connection_type?: string | null
           created_at?: string
           display_name?: string | null
+          external_api_key?: string | null
+          external_instance_id?: string | null
+          external_service_url?: string | null
           id?: string
           is_active?: boolean
           phone_number?: string
