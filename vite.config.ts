@@ -18,7 +18,7 @@ export default defineConfig(({ mode }) => ({
     mode === "development" && componentTagger(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["favicon.ico", "robots.txt"],
+      includeAssets: ["favicon.ico", "robots.txt", "sw.js"],
       manifest: {
         name: "Hey Hey - Inbox Multi-Plataforma",
         short_name: "Hey Hey",
@@ -27,7 +27,8 @@ export default defineConfig(({ mode }) => ({
         background_color: "#ffffff",
         display: "standalone",
         orientation: "portrait",
-        start_url: "/",
+        start_url: "/dashboard",
+        scope: "/",
         icons: [
           {
             src: "/pwa-192x192.png",
@@ -49,6 +50,9 @@ export default defineConfig(({ mode }) => ({
       },
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
+        // Don't precache sw.js as we manage it manually
+        navigateFallback: "/index.html",
+        navigateFallbackDenylist: [/^\/api/, /^\/sw\.js$/],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
@@ -59,9 +63,17 @@ export default defineConfig(({ mode }) => ({
                 maxEntries: 50,
                 maxAgeSeconds: 60 * 60, // 1 hour
               },
+              networkTimeoutSeconds: 10,
             },
           },
+          {
+            urlPattern: /^https:\/\/.*\.supabase\.co\/realtime\/.*/i,
+            handler: "NetworkOnly",
+          },
         ],
+      },
+      devOptions: {
+        enabled: false,
       },
     }),
   ].filter(Boolean),

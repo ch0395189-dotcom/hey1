@@ -21,6 +21,7 @@ import { useNotifications } from "@/hooks/useNotifications";
 import { useNotificationSound } from "@/hooks/useNotificationSound";
 import { useNotificationSettings } from "@/hooks/useNotificationSettings";
 import { useSessionPersistence } from "@/hooks/useSessionPersistence";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { ConversationsList } from "@/components/whatsapp/ConversationsList";
 import { ChatWindow } from "@/components/whatsapp/ChatWindow";
 import { WhatsAppSetup } from "@/components/whatsapp/WhatsAppSetup";
@@ -95,6 +96,14 @@ const Dashboard = () => {
   const { playNotificationSound } = useNotificationSound();
   const { soundEnabled, desktopEnabled, volume, tone, platformTones, toggleSound, toggleDesktop, setVolume, setTone, setPlatformTone, getToneForPlatform } = useNotificationSettings();
   const { isAdmin } = useAdminCheck();
+  const { isRegistered, registerServiceWorker, sendNotification: sendPushNotification } = usePushNotifications();
+
+  // Register service worker on mount for push notifications
+  useEffect(() => {
+    if (!isRegistered) {
+      registerServiceWorker();
+    }
+  }, [isRegistered, registerServiceWorker]);
 
   const handleEnableNotifications = async () => {
     const result = await requestPermission();
@@ -115,6 +124,12 @@ const Dashboard = () => {
   const handleNewMessage = useCallback((customerName: string, content: string, conversationId: string, platform: string = 'whatsapp') => {
     console.log('[Dashboard] handleNewMessage called:', { customerName, content, platform, soundEnabled, volume });
     
+    const platformLabel = platform === 'whatsapp' ? 'WhatsApp' 
+      : platform === 'messenger' ? 'Messenger' 
+      : platform === 'instagram' ? 'Instagram' 
+      : platform === 'tiktok' ? 'TikTok' 
+      : 'Mensaje';
+    
     // Play notification sound if enabled with platform-specific tone
     if (soundEnabled) {
       const platformTone = getToneForPlatform(platform);
@@ -126,12 +141,6 @@ const Dashboard = () => {
     
     // Show desktop notification (only if enabled and tab is not focused)
     if (desktopEnabled) {
-      const platformLabel = platform === 'whatsapp' ? 'WhatsApp' 
-        : platform === 'messenger' ? 'Messenger' 
-        : platform === 'instagram' ? 'Instagram' 
-        : platform === 'tiktok' ? 'TikTok' 
-        : 'Mensaje';
-      
       showNotification({
         title: `${platformLabel}: ${customerName || 'Nuevo mensaje'}`,
         body: content || 'Mensaje multimedia recibido',
@@ -140,7 +149,15 @@ const Dashboard = () => {
         },
       });
     }
-  }, [soundEnabled, volume, desktopEnabled, getToneForPlatform, playNotificationSound, showNotification]);
+    
+    // Send push notification via service worker (works when app is closed)
+    sendPushNotification({
+      title: `${platformLabel}: ${customerName || 'Nuevo mensaje'}`,
+      body: content || 'Mensaje multimedia recibido',
+      conversationId,
+      platform
+    });
+  }, [soundEnabled, volume, desktopEnabled, getToneForPlatform, playNotificationSound, showNotification, sendPushNotification]);
 
   // Use session persistence hook for mobile app stability
   const handleSessionRestored = useCallback((restoredUser: any) => {
