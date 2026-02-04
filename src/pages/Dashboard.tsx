@@ -96,6 +96,14 @@ const Dashboard = () => {
   const { playNotificationSound } = useNotificationSound();
   const { soundEnabled, desktopEnabled, volume, tone, platformTones, toggleSound, toggleDesktop, setVolume, setTone, setPlatformTone, getToneForPlatform } = useNotificationSettings();
   const { isAdmin } = useAdminCheck();
+  const { isRegistered, registerServiceWorker, sendNotification: sendPushNotification } = usePushNotifications();
+
+  // Register service worker on mount for push notifications
+  useEffect(() => {
+    if (!isRegistered) {
+      registerServiceWorker();
+    }
+  }, [isRegistered, registerServiceWorker]);
 
   const handleEnableNotifications = async () => {
     const result = await requestPermission();
