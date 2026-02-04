@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Search, User, Phone, MessageCircle, MoreVertical, UserPlus, Trash2, CheckSquare, X, Send, RefreshCw, Ban, UserCheck, Tag } from "lucide-react";
+import { Search, User, Phone, MessageCircle, MoreVertical, UserPlus, Trash2, CheckSquare, X, Send, RefreshCw, Ban, UserCheck, Tag, Archive, ArchiveRestore } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { BulkMessageDialog } from "./BulkMessageDialog";
@@ -41,6 +41,7 @@ interface Contact {
   unread_count: number;
   whatsapp_account_id: string;
   blocked_at: string | null;
+  is_archived: boolean;
 }
 
 interface Tag {
@@ -65,6 +66,7 @@ export const ContactsList = () => {
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
   const [showBulkMessageDialog, setShowBulkMessageDialog] = useState(false);
   const [blockingContact, setBlockingContact] = useState<Contact | null>(null);
+  const [archiving, setArchiving] = useState(false);
   const [tagsRefreshKey, setTagsRefreshKey] = useState(0);
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
   const [selectedTagFilters, setSelectedTagFilters] = useState<Set<string>>(new Set());
@@ -112,7 +114,8 @@ export const ContactsList = () => {
     setLoading(true);
     const { data, error } = await supabase
       .from('conversations')
-      .select('id, customer_name, customer_phone, customer_profile_pic, last_message_at, unread_count, whatsapp_account_id, blocked_at')
+      .select('id, customer_name, customer_phone, customer_profile_pic, last_message_at, unread_count, whatsapp_account_id, blocked_at, is_archived')
+      .eq('is_archived', false)
       .order('customer_name', { ascending: true });
 
     if (!error && data) {
@@ -261,6 +264,43 @@ export const ContactsList = () => {
     } finally {
       setDeleting(false);
       setShowBulkDeleteDialog(false);
+    }
+  };
+
+  const handleBulkArchive = async () => {
+    if (selectedIds.size === 0) return;
+    
+    setArchiving(true);
+    try {
+      const idsToArchive = Array.from(selectedIds);
+      
+      const { error } = await supabase
+        .from('conversations')
+        .update({ is_archived: true })
+        .in('id', idsToArchive);
+
+      if (error) throw error;
+
+      // Update local state - remove archived contacts from view
+      setContacts(prev => prev.filter(c => !selectedIds.has(c.id)));
+      
+      toast({
+        title: "Contactos archivados",
+        description: `${selectedIds.size} contacto(s) archivado(s) correctamente.`,
+      });
+      
+      // Reset selection
+      setSelectedIds(new Set());
+      setSelectionMode(false);
+    } catch (error: any) {
+      console.error('Error archiving contacts:', error);
+      toast({
+        title: "Error",
+        description: "No se pudieron archivar algunos contactos.",
+        variant: "destructive",
+      });
+    } finally {
+      setArchiving(false);
     }
   };
 
@@ -630,7 +670,17 @@ export const ContactsList = () => {
                 className="gap-2"
               >
                 <Send className="w-4 h-4" />
-                Enviar mensaje
+                <span className="hidden sm:inline">Enviar</span>
+              </Button>
+              <Button 
+                variant="secondary" 
+                size="sm"
+                onClick={handleBulkArchive}
+                disabled={archiving}
+                className="gap-2"
+              >
+                <Archive className="w-4 h-4" />
+                <span className="hidden sm:inline">{archiving ? "Archivando..." : "Archivar"}</span>
               </Button>
               <Button 
                 variant="destructive" 
@@ -639,7 +689,7 @@ export const ContactsList = () => {
                 className="gap-2"
               >
                 <Trash2 className="w-4 h-4" />
-                Eliminar
+                <span className="hidden sm:inline">Eliminar</span>
               </Button>
             </div>
           </motion.div>
