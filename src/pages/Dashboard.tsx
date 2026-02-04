@@ -262,8 +262,21 @@ const Dashboard = () => {
           <Tooltip>
             <TooltipTrigger asChild>
               <div className="w-10 h-10 rounded-full bg-primary-foreground/20 flex items-center justify-center mb-6 cursor-pointer">
-          <MessageCircle className="w-5 h-5 text-primary-foreground" />
-        </div>
+                <MessageCircle className="w-5 h-5 text-primary-foreground" />
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="right" className="max-w-xs">
+              <div className="text-sm">
+                <p className="font-medium">
+                  {whatsappAccounts.find(a => a.id === selectedAccountId)?.display_name || 'Mi cuenta'}
+                </p>
+                <p className="text-muted-foreground">
+                  {whatsappAccounts.find(a => a.id === selectedAccountId)?.phone_number || 'Sin número'}
+                </p>
+              </div>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
 
         <nav className="flex-1 flex flex-col items-center gap-2">
           <Button 
