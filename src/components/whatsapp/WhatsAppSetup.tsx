@@ -262,12 +262,25 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
 
     setConnecting(true);
 
+    // Store initial account count to detect new accounts
+    const initialAccountCount = accounts.length;
+
     // In some environments (iframes / strict popup blockers) FB.login may never call its callback.
     // Avoid leaving the UI stuck in "Conectando..." by enforcing a timeout.
     let finished = false;
+    let pollingInterval: ReturnType<typeof setInterval> | null = null;
+    
+    const cleanup = () => {
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+        pollingInterval = null;
+      }
+    };
+
     const timeoutId = window.setTimeout(() => {
       if (finished) return;
       finished = true;
+      cleanup();
       setConnecting(false);
       toast({
         title: "No se abrió el popup de Meta",
@@ -276,6 +289,42 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
         variant: "destructive",
       });
     }, FB_LOGIN_TIMEOUT_MS);
+
+    // Poll for new accounts in case callbacks don't fire
+    const checkForNewAccounts = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('whatsapp_accounts')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        
+        if (data && data.length > initialAccountCount) {
+          console.log('Detected new account via polling!');
+          if (!finished) {
+            finished = true;
+            window.clearTimeout(timeoutId);
+            cleanup();
+            
+            const newAccount = data[0];
+            toast({
+              title: "¡Cuenta conectada!",
+              description: `WhatsApp ${newAccount.phone_number || newAccount.display_name} conectado exitosamente.`,
+            });
+            
+            setAccounts(data);
+            setConnecting(false);
+            onAccountConnected?.();
+          }
+        }
+      } catch (error) {
+        console.error('Error polling for accounts:', error);
+      }
+    };
+
+    // Start polling every 2 seconds
+    pollingInterval = setInterval(checkForNewAccounts, 2000);
 
     // Session info listener for Embedded Signup v2 - captures data when user completes setup
     const sessionInfoListener = async (sessionInfo: {
@@ -292,6 +341,7 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
       }
       finished = true;
       window.clearTimeout(timeoutId);
+      cleanup();
 
       if (sessionInfo.accessToken || sessionInfo.code) {
         const success = await exchangeCredentials({
@@ -323,13 +373,15 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
             console.log('Already finished, ignoring callback');
             return;
           }
-          finished = true;
-          window.clearTimeout(timeoutId);
-
+          
           const code = response.authResponse?.code;
           const accessToken = response.authResponse?.accessToken;
 
           if (code || accessToken) {
+            finished = true;
+            window.clearTimeout(timeoutId);
+            cleanup();
+            
             console.log('Got auth credential from callback, exchanging/saving token...');
             (async () => {
               const success = await exchangeCredentials(
@@ -340,13 +392,32 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
               }
             })();
           } else {
-            console.log('No auth code in response:', response);
-            toast({
-              title: "Conexión incompleta",
-              description: "El proceso fue cancelado o el popup se cerró antes de completar.",
-              variant: "destructive",
-            });
-            setConnecting(false);
+            // No credentials in callback - might be normal if sessionInfoListener handles it
+            // Or popup was closed without completing - wait a bit and check for new accounts
+            console.log('No auth code in callback response, waiting for sessionInfoListener or polling...');
+            
+            // Give extra time for sessionInfoListener or polling to detect the account
+            setTimeout(() => {
+              if (!finished) {
+                finished = true;
+                window.clearTimeout(timeoutId);
+                cleanup();
+                
+                // Do one final check
+                checkForNewAccounts().then(() => {
+                  // If still no new account found after check
+                  setTimeout(() => {
+                    if (accounts.length === initialAccountCount) {
+                      toast({
+                        title: "Proceso completado",
+                        description: "Si conectaste tu cuenta, puede tardar unos segundos en aparecer. Refresca la página si no la ves.",
+                      });
+                    }
+                    setConnecting(false);
+                  }, 2000);
+                });
+              }
+            }, 3000);
           }
         },
         {
@@ -365,6 +436,7 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
       if (!finished) {
         finished = true;
         window.clearTimeout(timeoutId);
+        cleanup();
       }
       setConnecting(false);
       console.error('FB.login error:', error);
