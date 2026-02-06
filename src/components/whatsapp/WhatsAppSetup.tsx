@@ -99,7 +99,7 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
   const [verifyingAccount, setVerifyingAccount] = useState<WhatsAppAccount | null>(null);
   const { toast } = useToast();
 
-  const FB_LOGIN_TIMEOUT_MS = 20000;
+  const FB_LOGIN_TIMEOUT_MS = 30000; // 30 seconds - extended to avoid false positives
 
   // Fetch Meta configuration from Edge Function
   const fetchMetaConfig = useCallback(async () => {
@@ -287,6 +287,7 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
     // In some environments (iframes / strict popup blockers) FB.login may never call its callback.
     // Avoid leaving the UI stuck in "Conectando..." by enforcing a timeout.
     let finished = false;
+    let popupOpened = false;
     let pollingInterval: ReturnType<typeof setInterval> | null = null;
     
     const cleanup = () => {
@@ -296,18 +297,38 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
       }
     };
 
+    // Extended timeout - only show popup blocked error if popup never opened
     const timeoutId = window.setTimeout(() => {
       if (finished) return;
-      finished = true;
-      cleanup();
-      setConnecting(false);
-      toast({
-        title: "No se abrió el popup de Meta",
-        description:
-          "Parece que el navegador bloqueó la ventana emergente. Permite popups para este sitio o abre la app en una pestaña nueva y reintenta.",
-        variant: "destructive",
-      });
+      // Only show "popup blocked" if we never detected the popup opening
+      if (!popupOpened) {
+        finished = true;
+        cleanup();
+        setConnecting(false);
+        toast({
+          title: "No se abrió el popup de Meta",
+          description:
+            "Parece que el navegador bloqueó la ventana emergente. Permite popups para este sitio o usa 'Abrir en nueva pestaña'.",
+          variant: "destructive",
+        });
+      }
     }, FB_LOGIN_TIMEOUT_MS);
+    
+    // Check if popup opened by monitoring window focus changes
+    const checkPopupOpened = () => {
+      // If document loses focus, popup likely opened
+      if (document.hidden || !document.hasFocus()) {
+        popupOpened = true;
+      }
+    };
+    
+    // Listen for visibility/focus changes
+    document.addEventListener('visibilitychange', checkPopupOpened);
+    window.addEventListener('blur', () => { popupOpened = true; });
+
+    const cleanupListeners = () => {
+      document.removeEventListener('visibilitychange', checkPopupOpened);
+    };
 
     // Poll for new accounts in case callbacks don't fire
     const checkForNewAccounts = async () => {
@@ -325,6 +346,7 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
             finished = true;
             window.clearTimeout(timeoutId);
             cleanup();
+            cleanupListeners();
             
             const newAccount = data[0];
             console.log('New account detected, showing verification dialog:', newAccount);
@@ -365,6 +387,7 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
       finished = true;
       window.clearTimeout(timeoutId);
       cleanup();
+      cleanupListeners();
 
       if (sessionInfo.accessToken || sessionInfo.code) {
         const success = await exchangeCredentials({
@@ -404,6 +427,7 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
             finished = true;
             window.clearTimeout(timeoutId);
             cleanup();
+            cleanupListeners();
             
             console.log('Got auth credential from callback, exchanging/saving token...');
             (async () => {
@@ -425,6 +449,7 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
                 finished = true;
                 window.clearTimeout(timeoutId);
                 cleanup();
+                cleanupListeners();
                 
                 // Do one final check for new accounts
                 await checkForNewAccounts();
@@ -465,6 +490,7 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
         finished = true;
         window.clearTimeout(timeoutId);
         cleanup();
+        cleanupListeners();
       }
       setConnecting(false);
       console.error('FB.login error:', error);
