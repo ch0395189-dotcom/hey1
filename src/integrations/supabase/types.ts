@@ -472,6 +472,33 @@ export type Database = {
           },
         ]
       }
+      migrated_users: {
+        Row: {
+          email: string
+          id: string
+          linked_at: string | null
+          migrated_at: string | null
+          new_user_id: string | null
+          old_user_id: string
+        }
+        Insert: {
+          email: string
+          id?: string
+          linked_at?: string | null
+          migrated_at?: string | null
+          new_user_id?: string | null
+          old_user_id: string
+        }
+        Update: {
+          email?: string
+          id?: string
+          linked_at?: string | null
+          migrated_at?: string | null
+          new_user_id?: string | null
+          old_user_id?: string
+        }
+        Relationships: []
+      }
       payment_alerts: {
         Row: {
           admin_id: string
