@@ -239,11 +239,14 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
         setAccounts(updatedAccounts);
         // Find the newly created account and show verification
         const newAccount = updatedAccounts.find(a => a.id === data.account.id);
+        console.log('exchangeCredentials: newAccount found?', !!newAccount, newAccount?.id);
         if (newAccount) {
+          console.log('Setting verifyingAccount:', newAccount);
           setVerifyingAccount(newAccount);
         }
       }
       
+      setConnecting(false);
       onAccountConnected?.();
       return true;
     } catch (error: any) {
@@ -324,15 +327,17 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
             cleanup();
             
             const newAccount = data[0];
+            console.log('New account detected, showing verification dialog:', newAccount);
+            
             toast({
               title: "¡Cuenta conectada!",
               description: `WhatsApp ${newAccount.phone_number || newAccount.display_name} conectado exitosamente.`,
             });
             
             setAccounts(data);
-            setConnecting(false);
-            // Show verification dialog for the new account
+            // Show verification dialog BEFORE setting connecting to false
             setVerifyingAccount(newAccount);
+            setConnecting(false);
             onAccountConnected?.();
           }
         }
@@ -415,25 +420,30 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
             console.log('No auth code in callback response, waiting for sessionInfoListener or polling...');
             
             // Give extra time for sessionInfoListener or polling to detect the account
-            setTimeout(() => {
+            setTimeout(async () => {
               if (!finished) {
                 finished = true;
                 window.clearTimeout(timeoutId);
                 cleanup();
                 
-                // Do one final check
-                checkForNewAccounts().then(() => {
-                  // If still no new account found after check
-                  setTimeout(() => {
-                    if (accounts.length === initialAccountCount) {
-                      toast({
-                        title: "Proceso completado",
-                        description: "Si conectaste tu cuenta, puede tardar unos segundos en aparecer. Refresca la página si no la ves.",
-                      });
-                    }
-                    setConnecting(false);
-                  }, 2000);
-                });
+                // Do one final check for new accounts
+                await checkForNewAccounts();
+                
+                // Only show the "no account" message if we still haven't found one
+                // Note: checkForNewAccounts sets verifyingAccount and connecting=false if it finds one
+                // So we need to re-check the accounts count
+                const { data: finalCheck } = await supabase
+                  .from('whatsapp_accounts')
+                  .select('*')
+                  .order('created_at', { ascending: false });
+                  
+                if (!finalCheck || finalCheck.length === initialAccountCount) {
+                  toast({
+                    title: "Proceso completado",
+                    description: "Si conectaste tu cuenta, puede tardar unos segundos en aparecer. Refresca la página si no la ves.",
+                  });
+                  setConnecting(false);
+                }
               }
             }, 3000);
           }
