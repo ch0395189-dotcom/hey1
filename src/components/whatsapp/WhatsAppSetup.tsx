@@ -26,6 +26,7 @@ import { ManualWhatsAppSetup } from "./ManualWhatsAppSetup";
 import { ExternalWhatsAppSetup } from "./ExternalWhatsAppSetup";
 import { EditAccountDialog } from "./EditAccountDialog";
 import { WhatsAppDiagnostics } from "./WhatsAppDiagnostics";
+import { ConnectionVerification } from "./ConnectionVerification";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -95,6 +96,7 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [accountToDelete, setAccountToDelete] = useState<WhatsAppAccount | null>(null);
+  const [verifyingAccount, setVerifyingAccount] = useState<WhatsAppAccount | null>(null);
   const { toast } = useToast();
 
   const FB_LOGIN_TIMEOUT_MS = 20000;
@@ -227,7 +229,21 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
         description: `WhatsApp ${data.account.phone_number} conectado exitosamente.`,
       });
 
-      fetchAccounts();
+      // Fetch updated accounts and show verification dialog
+      const { data: updatedAccounts } = await supabase
+        .from('whatsapp_accounts')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (updatedAccounts) {
+        setAccounts(updatedAccounts);
+        // Find the newly created account and show verification
+        const newAccount = updatedAccounts.find(a => a.id === data.account.id);
+        if (newAccount) {
+          setVerifyingAccount(newAccount);
+        }
+      }
+      
       onAccountConnected?.();
       return true;
     } catch (error: any) {
@@ -509,6 +525,21 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
 
   return (
     <div className="space-y-6">
+      {/* Connection Verification Dialog */}
+      {verifyingAccount && (
+        <ConnectionVerification
+          accountId={verifyingAccount.id}
+          accountPhone={verifyingAccount.phone_number}
+          accountName={verifyingAccount.display_name || verifyingAccount.phone_number}
+          onVerificationComplete={() => {
+            setVerifyingAccount(null);
+            // Navigate to inbox or dashboard
+            window.location.href = '/dashboard';
+          }}
+          onSkip={() => setVerifyingAccount(null)}
+        />
+      )}
+
       {/* Connected Accounts */}
       {accounts.length > 0 && (
         <div className="space-y-4">
