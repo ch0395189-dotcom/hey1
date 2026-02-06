@@ -331,6 +331,8 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
             
             setAccounts(data);
             setConnecting(false);
+            // Show verification dialog for the new account
+            setVerifyingAccount(newAccount);
             onAccountConnected?.();
           }
         }
