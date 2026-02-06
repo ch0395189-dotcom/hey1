@@ -3,8 +3,14 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 // WhatsApp Business API Webhook Handler
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers':
+    'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
+
+const withCors = (headers: HeadersInit = {}) => ({
+  ...corsHeaders,
+  ...headers,
+});
 
 interface WhatsAppMessage {
   from: string;
@@ -74,7 +80,7 @@ interface WhatsAppWebhookPayload {
 Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response('ok', { headers: withCors() });
   }
 
   const supabase = createClient(
@@ -103,7 +109,7 @@ Deno.serve(async (req) => {
         console.log('Webhook verified for account:', account.id);
         return new Response(challenge, {
           status: 200,
-          headers: { 'Content-Type': 'text/plain' },
+          headers: withCors({ 'Content-Type': 'text/plain' }),
         });
       }
 
@@ -113,12 +119,15 @@ Deno.serve(async (req) => {
         console.log('Webhook verified with known token');
         return new Response(challenge, {
           status: 200,
-          headers: { 'Content-Type': 'text/plain' },
+          headers: withCors({ 'Content-Type': 'text/plain' }),
         });
       }
     }
 
-    return new Response('Forbidden', { status: 403 });
+    return new Response('Forbidden', {
+      status: 403,
+      headers: withCors({ 'Content-Type': 'text/plain' }),
+    });
   }
 
   // Handle incoming messages
@@ -128,7 +137,10 @@ Deno.serve(async (req) => {
       console.log('Webhook payload:', JSON.stringify(payload, null, 2));
 
       if (payload.object !== 'whatsapp_business_account') {
-        return new Response('OK', { status: 200 });
+        return new Response('OK', {
+          status: 200,
+          headers: withCors({ 'Content-Type': 'text/plain' }),
+        });
       }
 
       for (const entry of payload.entry) {
@@ -477,12 +489,21 @@ Deno.serve(async (req) => {
         }
       }
 
-      return new Response('OK', { status: 200 });
+      return new Response('OK', {
+        status: 200,
+        headers: withCors({ 'Content-Type': 'text/plain' }),
+      });
     } catch (error) {
       console.error('Webhook error:', error);
-      return new Response('Internal Server Error', { status: 500 });
+      return new Response('Internal Server Error', {
+        status: 500,
+        headers: withCors({ 'Content-Type': 'text/plain' }),
+      });
     }
   }
 
-  return new Response('Method Not Allowed', { status: 405 });
+  return new Response('Method Not Allowed', {
+    status: 405,
+    headers: withCors({ 'Content-Type': 'text/plain' }),
+  });
 });
