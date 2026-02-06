@@ -13,7 +13,8 @@ import {
   Shield,
   MessageCircle,
   ArrowRight,
-  RefreshCw
+  RefreshCw,
+  Check
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -28,6 +29,27 @@ interface ConnectionVerificationProps {
 
 type VerificationStatus = 'pending' | 'sending' | 'success' | 'error';
 
+const StepIndicator = ({ step, currentStep, label }: { step: number; currentStep: number; label: string }) => {
+  const isCompleted = currentStep > step;
+  const isCurrent = currentStep === step;
+  
+  return (
+    <div className="flex items-center gap-2">
+      <div className={`
+        w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-all
+        ${isCompleted ? 'bg-emerald-500 text-white' : ''}
+        ${isCurrent ? 'bg-emerald-500/20 text-emerald-600 ring-2 ring-emerald-500' : ''}
+        ${!isCompleted && !isCurrent ? 'bg-muted text-muted-foreground' : ''}
+      `}>
+        {isCompleted ? <Check className="w-4 h-4" /> : step}
+      </div>
+      <span className={`text-sm ${isCurrent ? 'font-medium text-foreground' : 'text-muted-foreground'}`}>
+        {label}
+      </span>
+    </div>
+  );
+};
+
 export const ConnectionVerification = ({ 
   accountId, 
   accountPhone,
@@ -38,6 +60,7 @@ export const ConnectionVerification = ({
   const [phoneNumber, setPhoneNumber] = useState("");
   const [status, setStatus] = useState<VerificationStatus>('pending');
   const [errorMessage, setErrorMessage] = useState("");
+  const [currentStep, setCurrentStep] = useState(1); // 1 = connected, 2 = verifying
   const { toast } = useToast();
 
   const handleSendTest = async () => {
@@ -51,6 +74,7 @@ export const ConnectionVerification = ({
     }
 
     setStatus('sending');
+    setCurrentStep(2);
     setErrorMessage("");
 
     try {
@@ -114,6 +138,7 @@ export const ConnectionVerification = ({
 
   const handleRetry = () => {
     setStatus('pending');
+    setCurrentStep(1);
     setErrorMessage("");
   };
 
@@ -135,24 +160,29 @@ export const ConnectionVerification = ({
             )}
           </div>
           <CardTitle className="font-display text-xl">
-            {status === 'success' 
-              ? '¡Cuenta verificada!' 
-              : status === 'error'
-              ? 'Error de verificación'
-              : 'Verificar conexión'
-            }
+            Verificación en dos pasos
           </CardTitle>
           <CardDescription>
-            {status === 'success' 
-              ? 'Tu cuenta de WhatsApp está lista para usar'
-              : status === 'error'
-              ? 'No se pudo enviar el mensaje de prueba'
-              : 'Envía un mensaje de prueba para confirmar que la conexión funciona'
-            }
+            Confirma que tu cuenta de WhatsApp funciona correctamente
           </CardDescription>
         </CardHeader>
         
         <CardContent className="space-y-4">
+          {/* Two-step progress indicator */}
+          <div className="flex items-center justify-center gap-4 py-2">
+            <StepIndicator 
+              step={1} 
+              currentStep={status === 'success' ? 3 : currentStep} 
+              label="Conectado" 
+            />
+            <div className={`h-0.5 w-8 ${status === 'success' || currentStep >= 2 ? 'bg-emerald-500' : 'bg-muted'}`} />
+            <StepIndicator 
+              step={2} 
+              currentStep={status === 'success' ? 3 : currentStep} 
+              label="Verificado" 
+            />
+          </div>
+
           {/* Account Info */}
           <div className="bg-muted/50 rounded-lg p-3 flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center">
@@ -163,12 +193,19 @@ export const ConnectionVerification = ({
               <p className="text-xs text-muted-foreground">{accountPhone}</p>
             </div>
             <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/30">
-              Conectada
+              <Check className="w-3 h-3 mr-1" />
+              Paso 1 ✓
             </Badge>
           </div>
 
           {status === 'pending' && (
             <>
+              <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3">
+                <p className="text-sm text-blue-700 dark:text-blue-300">
+                  <strong>Paso 2:</strong> Envía un mensaje de prueba para confirmar que la API está funcionando correctamente.
+                </p>
+              </div>
+
               <div className="space-y-2">
                 <label className="text-sm font-medium">
                   Número para mensaje de prueba
@@ -212,7 +249,8 @@ export const ConnectionVerification = ({
           {status === 'sending' && (
             <div className="py-8 text-center">
               <Loader2 className="w-8 h-8 animate-spin text-emerald-600 mx-auto mb-3" />
-              <p className="text-sm text-muted-foreground">Enviando mensaje de prueba...</p>
+              <p className="text-sm font-medium">Paso 2: Verificando conexión...</p>
+              <p className="text-xs text-muted-foreground mt-1">Enviando mensaje de prueba</p>
             </div>
           )}
 
@@ -222,9 +260,11 @@ export const ConnectionVerification = ({
                 <div className="flex items-start gap-3">
                   <CheckCircle2 className="w-5 h-5 text-emerald-600 mt-0.5" />
                   <div>
-                    <p className="font-medium text-sm text-emerald-700">Mensaje enviado correctamente</p>
+                    <p className="font-medium text-sm text-emerald-700 dark:text-emerald-400">
+                      ¡Verificación completada!
+                    </p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Revisa tu WhatsApp para confirmar que llegó el mensaje
+                      Los dos pasos han sido completados exitosamente. Tu cuenta está lista para usar.
                     </p>
                   </div>
                 </div>
@@ -246,7 +286,7 @@ export const ConnectionVerification = ({
                 <div className="flex items-start gap-3">
                   <XCircle className="w-5 h-5 text-destructive mt-0.5" />
                   <div>
-                    <p className="font-medium text-sm text-destructive">Error al enviar</p>
+                    <p className="font-medium text-sm text-destructive">Error en el paso 2</p>
                     <p className="text-xs text-muted-foreground mt-1">{errorMessage}</p>
                   </div>
                 </div>
