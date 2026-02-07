@@ -136,14 +136,14 @@ Deno.serve(async (req) => {
     const pages: FacebookPage[] = pagesData.data || [];
     console.log(`Found ${pages.length} pages`);
 
-    // If user has no pages at all, return error
+    // If user has no pages at all, return error in body (status 200 so Supabase client doesn't throw)
     if (pages.length === 0) {
       return new Response(
         JSON.stringify({ 
           error: 'No pages found', 
           message: 'Tu cuenta de Facebook no tiene ninguna página. Para conectar Messenger necesitas tener al menos una página de Facebook.'
         }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
