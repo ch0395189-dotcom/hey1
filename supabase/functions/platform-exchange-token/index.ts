@@ -116,8 +116,24 @@ Deno.serve(async (req) => {
 
     const longLivedUserToken = longLivedTokenData.access_token;
 
+    // First, check what permissions were granted
+    console.log('=== CHECKING GRANTED PERMISSIONS ===');
+    const permissionsResponse = await fetch(
+      `https://graph.facebook.com/v21.0/me/permissions?access_token=${longLivedUserToken}`
+    );
+    const permissionsData = await permissionsResponse.json();
+    console.log('Permissions response:', JSON.stringify(permissionsData, null, 2));
+
+    // Get user info
+    console.log('=== GETTING USER INFO ===');
+    const userInfoResponse = await fetch(
+      `https://graph.facebook.com/v21.0/me?fields=id,name,email&access_token=${longLivedUserToken}`
+    );
+    const userInfo = await userInfoResponse.json();
+    console.log('User info:', JSON.stringify(userInfo, null, 2));
+
     // Get user's pages with Instagram accounts
-    console.log('Fetching user pages...');
+    console.log('=== FETCHING USER PAGES ===');
     const pagesResponse = await fetch(
       `https://graph.facebook.com/v21.0/me/accounts?fields=id,name,access_token,instagram_business_account{id,username}&access_token=${longLivedUserToken}`
     );
@@ -136,12 +152,24 @@ Deno.serve(async (req) => {
     const pages: FacebookPage[] = pagesData.data || [];
     console.log(`Found ${pages.length} pages`);
 
-    // If user has no pages at all, return error in body (status 200 so Supabase client doesn't throw)
+    // If user has no pages at all, return error with debug info
     if (pages.length === 0) {
+      const grantedPermissions = permissionsData.data?.filter((p: any) => p.status === 'granted').map((p: any) => p.permission) || [];
+      const declinedPermissions = permissionsData.data?.filter((p: any) => p.status === 'declined').map((p: any) => p.permission) || [];
+      
+      console.log('Granted permissions:', grantedPermissions);
+      console.log('Declined permissions:', declinedPermissions);
+      
       return new Response(
         JSON.stringify({ 
           error: 'No pages found', 
-          message: 'Tu cuenta de Facebook no tiene ninguna página. Para conectar Messenger necesitas tener al menos una página de Facebook.'
+          message: 'Tu cuenta de Facebook no tiene ninguna página asociada, o no otorgaste permiso para verlas. Asegúrate de seleccionar tus páginas durante el login de Facebook.',
+          debug: {
+            user: userInfo,
+            grantedPermissions,
+            declinedPermissions,
+            pagesResponse: pagesData
+          }
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );

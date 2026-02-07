@@ -444,11 +444,16 @@ export const PlatformSetup = ({ onAccountConnected }: PlatformSetupProps) => {
     const handleLoginResponse = (response: FBLoginResponse) => {
       clearTimeout(timeoutId);
 
+      console.log('=== FB LOGIN RESPONSE ===');
+      console.log('Status:', response.status);
+      console.log('Auth Response:', JSON.stringify(response.authResponse, null, 2));
+      
       // FB SDK can misbehave with async callbacks; keep this callback sync.
       void (async () => {
         if (response.authResponse?.accessToken) {
           const accessToken = response.authResponse.accessToken;
           console.log('Facebook login successful, getting pages...');
+          console.log('Granted scopes:', (response.authResponse as any).grantedScopes);
 
           try {
             const { data, error } = await supabase.functions.invoke('platform-exchange-token', {
@@ -458,10 +463,19 @@ export const PlatformSetup = ({ onAccountConnected }: PlatformSetupProps) => {
               },
             });
 
+            console.log('=== EDGE FUNCTION RESPONSE ===');
+            console.log('Data:', JSON.stringify(data, null, 2));
+            console.log('Error:', error);
+
             if (error) throw error;
 
             // Handle error responses (like no pages)
             if (data.error) {
+              console.log('=== ERROR FROM EDGE FUNCTION ===');
+              console.log('Error:', data.error);
+              console.log('Message:', data.message);
+              console.log('Debug info:', data.debug);
+              
               toast({
                 variant: "destructive",
                 title: data.error === 'No pages found' ? "Sin páginas de Facebook" : "Error",
