@@ -764,10 +764,14 @@ async function getAIResponse(
   userMessage: string,
   context: Record<string, any>
 ): Promise<string> {
+  // Try Google AI first (user's own API key), then fallback to Lovable AI
+  const GOOGLE_AI_API_KEY = Deno.env.get('GOOGLE_AI_API_KEY');
   const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
   
-  if (!LOVABLE_API_KEY) {
-    console.error('LOVABLE_API_KEY not configured');
+  const useGoogleAI = !!GOOGLE_AI_API_KEY;
+  
+  if (!GOOGLE_AI_API_KEY && !LOVABLE_API_KEY) {
+    console.error('No AI API key configured (neither GOOGLE_AI_API_KEY nor LOVABLE_API_KEY)');
     return 'Lo siento, el servicio de IA no está disponible en este momento.';
   }
 
@@ -822,7 +826,7 @@ async function getAIResponse(
       .limit(10);
 
     // Build conversation history for AI context
-    const conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }> = [];
+    const conversationHistory: Array<{ role: 'user' | 'model'; content: string }> = [];
     
     if (recentMessages && recentMessages.length > 0) {
       // Reverse to get chronological order and map to AI message format
@@ -830,7 +834,7 @@ async function getAIResponse(
       for (const msg of orderedMessages) {
         if (msg.content) {
           conversationHistory.push({
-            role: msg.direction === 'inbound' ? 'user' : 'assistant',
+            role: msg.direction === 'inbound' ? 'user' : 'model',
             content: msg.content,
           });
         }
@@ -840,18 +844,7 @@ async function getAIResponse(
     // Add the current user message
     conversationHistory.push({ role: 'user', content: userMessage });
 
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-3-flash-preview',
-        messages: [
-          { 
-            role: 'system', 
-            content: `${systemPrompt}
+    const fullSystemPrompt = `${systemPrompt}
 ${knowledgeContext}
 INSTRUCCIONES IMPORTANTES:
 - Responde siempre en español
@@ -862,31 +855,102 @@ INSTRUCCIONES IMPORTANTES:
 - Si no puedes ayudar con algo o no tienes la información, sugiere hablar con un agente humano
 - No inventes información que no tengas
 
-Contexto adicional: ${JSON.stringify(context)}` 
+Contexto adicional: ${JSON.stringify(context)}`;
+
+    let aiResponse: string | null = null;
+
+    if (useGoogleAI) {
+      // Use Google AI API directly (Gemini)
+      console.log('Using Google AI API');
+      
+      // Build contents array for Gemini format
+      const contents = conversationHistory.map(msg => ({
+        role: msg.role,
+        parts: [{ text: msg.content }]
+      }));
+
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GOOGLE_AI_API_KEY}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
           },
-          ...conversationHistory,
-        ],
-        max_tokens: 300,
-        temperature: 0.7,
-      }),
-    });
+          body: JSON.stringify({
+            contents,
+            systemInstruction: {
+              parts: [{ text: fullSystemPrompt }]
+            },
+            generationConfig: {
+              temperature: 0.7,
+              maxOutputTokens: 300,
+            },
+          }),
+        }
+      );
 
-    if (!response.ok) {
-      if (response.status === 429) {
-        console.error('AI rate limited');
-        return 'Estamos recibiendo muchas consultas. Por favor intenta de nuevo en unos momentos.';
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Google AI error:', response.status, errorText);
+        
+        if (response.status === 429) {
+          return 'Estamos recibiendo muchas consultas. Por favor intenta de nuevo en unos momentos.';
+        }
+        if (response.status === 403 || response.status === 401) {
+          console.error('Google AI authentication error - API key may be invalid');
+          return 'Error de autenticación con el servicio de IA. Verifica tu API key.';
+        }
+        
+        throw new Error(`Google AI error: ${response.status}`);
       }
-      if (response.status === 402) {
-        console.error('AI payment required');
-        return 'El servicio de IA no está disponible temporalmente.';
+
+      const data = await response.json();
+      aiResponse = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      
+    } else {
+      // Fallback to Lovable AI
+      console.log('Using Lovable AI');
+      
+      // Convert to OpenAI format for Lovable AI
+      const openaiMessages = conversationHistory.map(msg => ({
+        role: msg.role === 'model' ? 'assistant' : msg.role,
+        content: msg.content
+      }));
+
+      const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-3-flash-preview',
+          messages: [
+            { role: 'system', content: fullSystemPrompt },
+            ...openaiMessages,
+          ],
+          max_tokens: 300,
+          temperature: 0.7,
+        }),
+      });
+
+      if (!response.ok) {
+        if (response.status === 429) {
+          console.error('AI rate limited');
+          return 'Estamos recibiendo muchas consultas. Por favor intenta de nuevo en unos momentos.';
+        }
+        if (response.status === 402) {
+          console.error('AI payment required');
+          return 'El servicio de IA no está disponible temporalmente. Configura tu propia API key de Google AI.';
+        }
+        const errorText = await response.text();
+        console.error('AI gateway error:', response.status, errorText);
+        throw new Error(`AI gateway error: ${response.status}`);
       }
-      const errorText = await response.text();
-      console.error('AI gateway error:', response.status, errorText);
-      throw new Error(`AI gateway error: ${response.status}`);
+
+      const data = await response.json();
+      aiResponse = data.choices?.[0]?.message?.content;
     }
-
-    const data = await response.json();
-    const aiResponse = data.choices?.[0]?.message?.content;
     
     if (!aiResponse) {
       console.error('Empty AI response');
