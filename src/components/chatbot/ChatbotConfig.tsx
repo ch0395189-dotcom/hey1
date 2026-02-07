@@ -8,11 +8,13 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Bot, Workflow, MessageSquare, Plus, Trash2, Save, BookOpen } from 'lucide-react';
+import { Bot, Workflow, MessageSquare, Plus, Trash2, Save, BookOpen, Sparkles, Mic } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { KeywordManager } from './KeywordManager';
 import { FlowBuilder } from './FlowBuilder';
 import { KnowledgeBase } from './KnowledgeBase';
+import { AIConfig } from './AIConfig';
+import { VoiceAgent } from './VoiceAgent';
 
 interface ChatbotConfigProps {
   whatsappAccountId: string;
@@ -41,13 +43,14 @@ export const ChatbotConfig = ({ whatsappAccountId, whatsappAccountName }: Chatbo
     name: 'Mi Chatbot',
     is_enabled: false,
     mode: 'manual',
-    ai_system_prompt: '',
-    ai_greeting: '',
+    ai_system_prompt: 'Eres un asistente amable y profesional. Responde de manera concisa y útil.',
+    ai_greeting: '¡Hola! Soy un asistente virtual. ¿En qué puedo ayudarte?',
     escalation_keywords: ['agente', 'humano', 'persona', 'hablar con alguien'],
     welcome_message: '¡Hola! Bienvenido. ¿En qué puedo ayudarte?',
     fallback_message: 'No entendí tu mensaje. ¿Podrías reformularlo?',
     auto_end_on_leaf: false,
   });
+  const [useAiFallback, setUseAiFallback] = useState(false);
   const [newKeyword, setNewKeyword] = useState('');
 
   useEffect(() => {
@@ -193,6 +196,14 @@ export const ChatbotConfig = ({ whatsappAccountId, whatsappAccountName }: Chatbo
             <BookOpen className="h-4 w-4 shrink-0" />
             <span className="hidden sm:inline">Conocimiento</span>
             <span className="sm:hidden">Info</span>
+          </TabsTrigger>
+          <TabsTrigger value="ai" className="flex items-center gap-1.5 px-3 py-2 whitespace-nowrap text-xs sm:text-sm">
+            <Sparkles className="h-4 w-4 shrink-0" />
+            <span>IA</span>
+          </TabsTrigger>
+          <TabsTrigger value="voice" className="flex items-center gap-1.5 px-3 py-2 whitespace-nowrap text-xs sm:text-sm">
+            <Mic className="h-4 w-4 shrink-0" />
+            <span>Voz</span>
           </TabsTrigger>
         </TabsList>
 
@@ -348,6 +359,29 @@ export const ChatbotConfig = ({ whatsappAccountId, whatsappAccountName }: Chatbo
               </CardContent>
             </Card>
           )}
+        </TabsContent>
+
+        <TabsContent value="ai">
+          <AIConfig
+            aiGreeting={config.ai_greeting}
+            aiSystemPrompt={config.ai_system_prompt}
+            isEnabled={useAiFallback}
+            onGreetingChange={(value) => setConfig({ ...config, ai_greeting: value })}
+            onSystemPromptChange={(value) => setConfig({ ...config, ai_system_prompt: value })}
+            onEnabledChange={(value) => {
+              setUseAiFallback(value);
+              // Update mode based on AI state
+              if (value) {
+                setConfig({ ...config, mode: 'hybrid' });
+              } else {
+                setConfig({ ...config, mode: 'manual' });
+              }
+            }}
+          />
+        </TabsContent>
+
+        <TabsContent value="voice">
+          <VoiceAgent />
         </TabsContent>
 
       </Tabs>
