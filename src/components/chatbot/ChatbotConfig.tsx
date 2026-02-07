@@ -7,9 +7,8 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Bot, Workflow, Sparkles, MessageSquare, Plus, Trash2, Save, BookOpen } from 'lucide-react';
+import { Bot, Workflow, MessageSquare, Plus, Trash2, Save, BookOpen } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { KeywordManager } from './KeywordManager';
 import { FlowBuilder } from './FlowBuilder';
@@ -41,9 +40,9 @@ export const ChatbotConfig = ({ whatsappAccountId, whatsappAccountName }: Chatbo
     whatsapp_account_id: whatsappAccountId,
     name: 'Mi Chatbot',
     is_enabled: false,
-    mode: 'hybrid',
-    ai_system_prompt: 'Eres un asistente amable y profesional. Responde de manera concisa y útil.',
-    ai_greeting: '¡Hola! Soy un asistente virtual. ¿En qué puedo ayudarte?',
+    mode: 'manual',
+    ai_system_prompt: '',
+    ai_greeting: '',
     escalation_keywords: ['agente', 'humano', 'persona', 'hablar con alguien'],
     welcome_message: '¡Hola! Bienvenido. ¿En qué puedo ayudarte?',
     fallback_message: 'No entendí tu mensaje. ¿Podrías reformularlo?',
@@ -195,10 +194,6 @@ export const ChatbotConfig = ({ whatsappAccountId, whatsappAccountName }: Chatbo
             <span className="hidden sm:inline">Conocimiento</span>
             <span className="sm:hidden">Info</span>
           </TabsTrigger>
-          <TabsTrigger value="ai" className="flex items-center gap-1.5 px-3 py-2 whitespace-nowrap text-xs sm:text-sm">
-            <Sparkles className="h-4 w-4 shrink-0" />
-            <span>IA</span>
-          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="general">
@@ -222,36 +217,11 @@ export const ChatbotConfig = ({ whatsappAccountId, whatsappAccountName }: Chatbo
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="bot-mode">Modo de Operación</Label>
-                  <Select
-                    value={config.mode}
-                    onValueChange={(value: 'manual' | 'ai' | 'hybrid') => 
-                      setConfig({ ...config, mode: value })
-                    }
-                  >
-                    <SelectTrigger id="bot-mode">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="manual">
-                        <div className="flex items-center gap-2">
-                          <Workflow className="h-4 w-4" />
-                          Solo Flujo Manual
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="ai">
-                        <div className="flex items-center gap-2">
-                          <Sparkles className="h-4 w-4" />
-                          Solo IA
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="hybrid">
-                        <div className="flex items-center gap-2">
-                          <Bot className="h-4 w-4" />
-                          Híbrido (Flujo + IA)
-                        </div>
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <div className="flex items-center gap-2 p-3 border rounded-md bg-muted/30">
+                    <Workflow className="h-4 w-4" />
+                    <span>Flujo Manual</span>
+                  </div>
+                  <input type="hidden" value="manual" />
                 </div>
               </div>
 
@@ -380,56 +350,6 @@ export const ChatbotConfig = ({ whatsappAccountId, whatsappAccountName }: Chatbo
           )}
         </TabsContent>
 
-        <TabsContent value="ai">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Sparkles className="h-5 w-5" />
-                Configuración de IA
-              </CardTitle>
-              <CardDescription>
-                Personaliza el comportamiento de la inteligencia artificial
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="ai-greeting">Saludo de IA</Label>
-                <Textarea
-                  id="ai-greeting"
-                  value={config.ai_greeting}
-                  onChange={(e) => setConfig({ ...config, ai_greeting: e.target.value })}
-                  placeholder="¡Hola! Soy un asistente virtual..."
-                  rows={2}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="ai-prompt">Prompt del Sistema</Label>
-                <Textarea
-                  id="ai-prompt"
-                  value={config.ai_system_prompt}
-                  onChange={(e) => setConfig({ ...config, ai_system_prompt: e.target.value })}
-                  placeholder="Eres un asistente amable..."
-                  rows={6}
-                />
-                <p className="text-sm text-muted-foreground">
-                  Define la personalidad y comportamiento de la IA. Incluye información sobre tu negocio, productos o servicios.
-                </p>
-              </div>
-
-              <div className="p-4 bg-muted rounded-lg">
-                <h4 className="font-medium mb-2">💡 Tips para el prompt:</h4>
-                <ul className="text-sm text-muted-foreground space-y-1">
-                  <li>• Describe el rol del asistente (ej: "Eres el asistente de ventas de...")</li>
-                  <li>• Incluye información de productos/servicios</li>
-                  <li>• Define el tono (formal, casual, amigable)</li>
-                  <li>• Especifica qué información NO debe compartir</li>
-                  <li>• Indica cuándo debe escalar a un humano</li>
-                </ul>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
       </Tabs>
     </div>
   );
