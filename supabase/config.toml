@@ -2,3 +2,6 @@ project_id = "gnnucexcnkuevxfepwmw"
 
 [functions.elevenlabs-conversation-token]
 verify_jwt = false
+
+[functions.fish-audio-tts]
+verify_jwt = false
