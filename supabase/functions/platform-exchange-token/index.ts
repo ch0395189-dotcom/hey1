@@ -15,7 +15,9 @@ interface FacebookPage {
 }
 
 interface ExchangeRequest {
-  access_token: string;
+  access_token?: string;
+  code?: string;
+  redirect_uri?: string;
   platform: 'messenger' | 'instagram';
   selected_page_id?: string;
 }
@@ -56,16 +58,8 @@ Deno.serve(async (req) => {
 
     const userId = userData.user.id;
     const body: ExchangeRequest = await req.json();
-    const { access_token, platform, selected_page_id } = body;
+    const { access_token, code, redirect_uri, platform, selected_page_id } = body;
 
-    if (!access_token) {
-      return new Response(
-        JSON.stringify({ error: 'access_token is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Get long-lived user access token
     const appId = Deno.env.get('META_APP_ID');
     const appSecret = Deno.env.get('META_APP_SECRET');
 
@@ -76,9 +70,38 @@ Deno.serve(async (req) => {
       );
     }
 
+    let shortLivedToken: string;
+
+    // If we received a code (from mobile redirect flow), exchange it for access token
+    if (code && redirect_uri) {
+      console.log('Exchanging authorization code for access token...');
+      const codeExchangeResponse = await fetch(
+        `https://graph.facebook.com/v21.0/oauth/access_token?client_id=${appId}&redirect_uri=${encodeURIComponent(redirect_uri)}&client_secret=${appSecret}&code=${code}`
+      );
+
+      const codeExchangeData = await codeExchangeResponse.json();
+      
+      if (!codeExchangeResponse.ok || codeExchangeData.error) {
+        console.error('Error exchanging code:', codeExchangeData);
+        return new Response(
+          JSON.stringify({ error: 'Failed to exchange authorization code', details: codeExchangeData.error?.message || codeExchangeData }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      shortLivedToken = codeExchangeData.access_token;
+    } else if (access_token) {
+      shortLivedToken = access_token;
+    } else {
+      return new Response(
+        JSON.stringify({ error: 'access_token or code is required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Exchange for long-lived token
     const longLivedTokenResponse = await fetch(
-      `https://graph.facebook.com/v21.0/oauth/access_token?grant_type=fb_exchange_token&client_id=${appId}&client_secret=${appSecret}&fb_exchange_token=${access_token}`
+      `https://graph.facebook.com/v21.0/oauth/access_token?grant_type=fb_exchange_token&client_id=${appId}&client_secret=${appSecret}&fb_exchange_token=${shortLivedToken}`
     );
 
     const longLivedTokenData = await longLivedTokenResponse.json();
@@ -115,6 +138,7 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           action: 'select_page',
+          access_token: longLivedUserToken, // Return token for subsequent page selection
           pages: pages.map(p => ({
             id: p.id,
             name: p.name,

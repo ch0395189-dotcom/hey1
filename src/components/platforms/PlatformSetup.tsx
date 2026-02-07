@@ -21,7 +21,8 @@ import {
   Loader2,
   Facebook,
   Bug,
-  ChevronDown
+  ChevronDown,
+  Smartphone
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -45,6 +46,19 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { FacebookDiagnostics } from "./FacebookDiagnostics";
+
+// Utility to detect if user is on mobile device
+const isMobileDevice = () => {
+  if (typeof window === 'undefined') return false;
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+};
+
+// Utility to check if Facebook app is likely installed (heuristic)
+const canUseFacebookApp = () => {
+  if (!isMobileDevice()) return false;
+  // On mobile, we assume Facebook app might be installed and use redirect flow
+  return true;
+};
 
 // Extending Window interface for FB SDK (different login modes)
 interface FBLoginResponse {
@@ -268,7 +282,130 @@ export const PlatformSetup = ({ onAccountConnected }: PlatformSetupProps) => {
     }
   });
 
+  // Handle Facebook OAuth redirect callback (for mobile flow)
+  const handleFacebookRedirectCallback = useCallback(async () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
+    const state = urlParams.get('state');
+    const error = urlParams.get('error');
+    
+    if (error) {
+      toast({
+        variant: "destructive",
+        title: "Conexión cancelada",
+        description: urlParams.get('error_description') || "El proceso fue cancelado.",
+      });
+      // Clean URL
+      window.history.replaceState({}, '', window.location.pathname);
+      return;
+    }
+    
+    if (code && state) {
+      try {
+        // Parse state to get platform
+        const stateData = JSON.parse(atob(state));
+        const platform = stateData.platform;
+        
+        setConnecting(true);
+        setPendingPlatform(platform);
+        
+        // Exchange code for token via edge function
+        const { data, error: exchangeError } = await supabase.functions.invoke('platform-exchange-token', {
+          body: { 
+            code,
+            platform,
+            redirect_uri: `${window.location.origin}/dashboard`
+          },
+        });
+        
+        if (exchangeError) throw exchangeError;
+        
+        if (data.action === 'select_page') {
+          const pages = data.pages as FacebookPage[];
+          if (platform === 'instagram') {
+            const pagesWithInstagram = pages.filter(p => p.instagram_account_id);
+            if (pagesWithInstagram.length === 0) {
+              toast({
+                variant: "destructive",
+                title: "Sin cuenta de Instagram",
+                description: "Ninguna de tus páginas tiene una cuenta de Instagram Business vinculada.",
+              });
+              setConnecting(false);
+              return;
+            }
+            setAvailablePages(pagesWithInstagram);
+          } else {
+            setAvailablePages(pages);
+          }
+          setPendingAccessToken(data.access_token);
+          setShowPageSelector(true);
+        } else if (data.success) {
+          const config = platformConfig[platform as keyof typeof platformConfig];
+          toast({
+            title: "¡Cuenta conectada!",
+            description: `${config.name} conectado exitosamente.`,
+          });
+          queryClient.invalidateQueries({ queryKey: ['platform-accounts'] });
+          onAccountConnected?.();
+        }
+      } catch (err: any) {
+        console.error('Error processing Facebook callback:', err);
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: err.message || "No se pudo completar la conexión.",
+        });
+      } finally {
+        setConnecting(false);
+        // Clean URL
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+    }
+  }, [toast, queryClient, onAccountConnected]);
+
+  // Check for OAuth callback on mount
+  useEffect(() => {
+    handleFacebookRedirectCallback();
+  }, [handleFacebookRedirectCallback]);
+
+  // Mobile-optimized Facebook login using redirect (uses native Facebook app if installed)
+  const handleFacebookLoginMobile = (platform: string) => {
+    const config = platformConfig[platform as keyof typeof platformConfig];
+    if (!config.scopes || !metaConfig.appId) {
+      toast({
+        variant: "destructive",
+        title: "Configuración incompleta",
+        description: "Faltan credenciales de Meta. Usa la configuración manual.",
+      });
+      return;
+    }
+
+    // Save state for callback
+    const state = btoa(JSON.stringify({ platform, timestamp: Date.now() }));
+    
+    // Build Facebook OAuth URL - this will open Facebook app on mobile if installed
+    const redirectUri = `${window.location.origin}/dashboard`;
+    const scope = config.scopes;
+    
+    const fbAuthUrl = new URL('https://www.facebook.com/v21.0/dialog/oauth');
+    fbAuthUrl.searchParams.set('client_id', metaConfig.appId);
+    fbAuthUrl.searchParams.set('redirect_uri', redirectUri);
+    fbAuthUrl.searchParams.set('scope', scope);
+    fbAuthUrl.searchParams.set('state', state);
+    fbAuthUrl.searchParams.set('response_type', 'code');
+    
+    // On mobile, Facebook will automatically use the app if installed
+    window.location.href = fbAuthUrl.toString();
+  };
+
   const handleFacebookLogin = async (platform: string) => {
+    // Use redirect flow on mobile for better UX with Facebook app
+    if (canUseFacebookApp()) {
+      handleFacebookLoginMobile(platform);
+      return;
+    }
+
+    // Desktop: use popup flow
     if (!window.FB || typeof window.FB.login !== 'function') {
       toast({
         variant: "destructive",
@@ -733,7 +870,35 @@ export const PlatformSetup = ({ onAccountConnected }: PlatformSetupProps) => {
                             Usar configuración manual
                           </Button>
                         </div>
+                      ) : isMobileDevice() ? (
+                        /* Mobile: Use redirect flow that opens Facebook app */
+                        <div className="space-y-3">
+                          <Button
+                            onClick={() => handleFacebookLogin(platform)}
+                            disabled={connecting}
+                            className="w-full bg-[#1877F2] hover:bg-[#166FE5] text-white"
+                          >
+                            {connecting ? (
+                              <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                Conectando...
+                              </>
+                            ) : (
+                              <>
+                                <Facebook className="w-4 h-4 mr-2" />
+                                Conectar con Facebook
+                              </>
+                            )}
+                          </Button>
+                          <div className="flex items-center gap-2 p-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                            <Smartphone className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                            <p className="text-xs text-blue-700 dark:text-blue-300">
+                              Se abrirá la app de Facebook si está instalada en tu dispositivo
+                            </p>
+                          </div>
+                        </div>
                       ) : !fbLoaded ? (
+                        /* Desktop: Wait for SDK to load */
                         <div className="space-y-3">
                           <Button
                             disabled
@@ -747,6 +912,7 @@ export const PlatformSetup = ({ onAccountConnected }: PlatformSetupProps) => {
                           </p>
                         </div>
                       ) : (
+                        /* Desktop: Use popup flow */
                         <Button
                           onClick={() => handleFacebookLogin(platform)}
                           disabled={connecting}
@@ -766,7 +932,7 @@ export const PlatformSetup = ({ onAccountConnected }: PlatformSetupProps) => {
                         </Button>
                       )}
 
-                      {isEmbedded && fbLoaded && (
+                      {isEmbedded && !isMobileDevice() && fbLoaded && (
                         <div className="rounded-lg border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
                           <p className="mb-2">
                             Si ves error o la ventana emergente se bloquea, abre este flujo en una nueva pestaña.
