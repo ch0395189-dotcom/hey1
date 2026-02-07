@@ -1,10 +1,8 @@
-import { useState, useCallback } from 'react';
-import { useConversation } from '@elevenlabs/react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -24,56 +22,107 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface VoiceAgentProps {
-  agentId?: string;
-  onAgentIdChange?: (agentId: string) => void;
+  voiceModelId?: string;
+  onVoiceModelIdChange?: (voiceModelId: string) => void;
 }
 
-export const VoiceAgent = ({ agentId: initialAgentId, onAgentIdChange }: VoiceAgentProps) => {
+export const VoiceAgent = ({ voiceModelId: initialVoiceModelId, onVoiceModelIdChange }: VoiceAgentProps) => {
   const [isConnecting, setIsConnecting] = useState(false);
-  const [agentId, setAgentId] = useState(initialAgentId || '');
-  const [showConfig, setShowConfig] = useState(!initialAgentId);
+  const [isConnected, setIsConnected] = useState(false);
+  const [voiceModelId, setVoiceModelId] = useState(initialVoiceModelId || '');
+  const [showConfig, setShowConfig] = useState(!initialVoiceModelId);
   const [isMuted, setIsMuted] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const [transcript, setTranscript] = useState<Array<{ role: 'user' | 'agent'; text: string }>>([]);
+  
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const conversation = useConversation({
-    onConnect: () => {
-      console.log('Connected to ElevenLabs agent');
-      toast.success('Conectado al agente de voz');
-    },
-    onDisconnect: () => {
-      console.log('Disconnected from ElevenLabs agent');
-      toast.info('Desconectado del agente');
-      setIsConnecting(false);
-    },
-    onMessage: (message: any) => {
-      console.log('Message from agent:', message);
-      
-      const messageType = message?.type || message?.message_type;
-      
-      if (messageType === 'user_transcript') {
-        const userText = message?.user_transcription_event?.user_transcript || message?.text;
-        if (userText) {
+  // Initialize speech recognition
+  useEffect(() => {
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = true;
+      recognitionRef.current.interimResults = false;
+      recognitionRef.current.lang = 'es-ES';
+
+      recognitionRef.current.onresult = async (event) => {
+        const last = event.results.length - 1;
+        const userText = event.results[last][0].transcript;
+        
+        if (userText.trim()) {
           setTranscript(prev => [...prev, { role: 'user', text: userText }]);
+          await generateAudioResponse(userText);
         }
-      }
+      };
+
+      recognitionRef.current.onerror = (event) => {
+        console.error('Speech recognition error:', event.error);
+        if (event.error !== 'no-speech') {
+          toast.error('Error en el reconocimiento de voz');
+        }
+      };
+
+      recognitionRef.current.onend = () => {
+        if (isConnected && isListening) {
+          recognitionRef.current?.start();
+        }
+      };
+    }
+
+    return () => {
+      recognitionRef.current?.stop();
+    };
+  }, [isConnected, isListening]);
+
+  const generateAudioResponse = async (userMessage: string) => {
+    setIsSpeaking(true);
+    
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
       
-      if (messageType === 'agent_response') {
-        const agentText = message?.agent_response_event?.agent_response || message?.text;
-        if (agentText) {
-          setTranscript(prev => [...prev, { role: 'agent', text: agentText }]);
+      // Generate a simple response (you can integrate with AI here)
+      const responseText = `Recibí tu mensaje: ${userMessage}`;
+      
+      setTranscript(prev => [...prev, { role: 'agent', text: responseText }]);
+
+      // Call Fish Audio TTS
+      const { data, error } = await supabase.functions.invoke('fish-audio-tts', {
+        body: { 
+          text: responseText,
+          voiceModelId: voiceModelId || undefined,
+          userId: user?.id
+        }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      // Play the audio response
+      if (data) {
+        const audioBlob = new Blob([data], { type: 'audio/mpeg' });
+        const audioUrl = URL.createObjectURL(audioBlob);
+        
+        if (audioRef.current) {
+          audioRef.current.src = audioUrl;
+          audioRef.current.volume = isMuted ? 0 : 1;
+          await audioRef.current.play();
         }
       }
-    },
-    onError: (error: any) => {
-      console.error('ElevenLabs error:', error);
-      toast.error('Error de conexión con el agente');
-      setIsConnecting(false);
-    },
-  });
+    } catch (error: any) {
+      console.error('Error generating audio response:', error);
+      toast.error(error.message || 'Error al generar respuesta de audio');
+    } finally {
+      setIsSpeaking(false);
+    }
+  };
 
   const startConversation = useCallback(async () => {
-    if (!agentId.trim()) {
-      toast.error('Ingresa el ID del agente de ElevenLabs');
+    if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+      toast.error('Tu navegador no soporta reconocimiento de voz');
       return;
     }
 
@@ -84,32 +133,14 @@ export const VoiceAgent = ({ agentId: initialAgentId, onAgentIdChange }: VoiceAg
       // Request microphone permission
       await navigator.mediaDevices.getUserMedia({ audio: true });
 
-      // Try to get token from edge function first (if configured)
-      try {
-        const { data, error } = await supabase.functions.invoke('elevenlabs-conversation-token', {
-          body: { agentId }
-        });
+      setIsConnected(true);
+      setIsListening(true);
+      recognitionRef.current?.start();
 
-        if (data?.token) {
-          // Use authenticated connection
-          await conversation.startSession({
-            conversationToken: data.token,
-            connectionType: 'webrtc',
-          } as any);
-          return;
-        }
-      } catch (e) {
-        console.log('No token endpoint, trying public agent connection');
-      }
+      toast.success('Conversación iniciada');
 
-      // Fallback to public agent connection
-      await conversation.startSession({
-        agentId: agentId.trim(),
-        connectionType: 'webrtc',
-      } as any);
-
-      if (onAgentIdChange) {
-        onAgentIdChange(agentId);
+      if (onVoiceModelIdChange && voiceModelId) {
+        onVoiceModelIdChange(voiceModelId);
       }
     } catch (error: any) {
       console.error('Failed to start conversation:', error);
@@ -117,35 +148,34 @@ export const VoiceAgent = ({ agentId: initialAgentId, onAgentIdChange }: VoiceAg
     } finally {
       setIsConnecting(false);
     }
-  }, [conversation, agentId, onAgentIdChange]);
+  }, [voiceModelId, onVoiceModelIdChange]);
 
-  const stopConversation = useCallback(async () => {
-    await conversation.endSession();
-  }, [conversation]);
+  const stopConversation = useCallback(() => {
+    recognitionRef.current?.stop();
+    setIsConnected(false);
+    setIsListening(false);
+    setIsSpeaking(false);
+    toast.info('Conversación terminada');
+  }, []);
 
-  const toggleMute = useCallback(async () => {
-    try {
-      await conversation.setVolume({ volume: isMuted ? 1 : 0 });
-      setIsMuted(!isMuted);
-    } catch (e) {
-      console.error('Error toggling mute:', e);
+  const toggleMute = useCallback(() => {
+    setIsMuted(!isMuted);
+    if (audioRef.current) {
+      audioRef.current.volume = isMuted ? 1 : 0;
     }
-  }, [conversation, isMuted]);
-
-  const isConnected = conversation.status === 'connected';
-  const isSpeaking = conversation.isSpeaking;
+  }, [isMuted]);
 
   return (
     <Card className="overflow-hidden">
-      <CardHeader className="bg-gradient-to-r from-violet-500/10 to-purple-500/10">
+      <CardHeader className="bg-gradient-to-r from-orange-500/10 to-red-500/10">
         <div className="flex items-center justify-between">
           <div>
             <CardTitle className="flex items-center gap-2">
-              <Waves className="h-5 w-5 text-violet-500" />
-              Agente de Voz IA
+              <Waves className="h-5 w-5 text-orange-500" />
+              Agente de Voz IA (Fish Audio)
             </CardTitle>
             <CardDescription>
-              Conversación en tiempo real con inteligencia artificial
+              Conversación en tiempo real con voces clonadas
             </CardDescription>
           </div>
           <Badge 
@@ -158,9 +188,12 @@ export const VoiceAgent = ({ agentId: initialAgentId, onAgentIdChange }: VoiceAg
       </CardHeader>
 
       <CardContent className="space-y-6 pt-6">
+        {/* Hidden audio element for playback */}
+        <audio ref={audioRef} onEnded={() => setIsSpeaking(false)} />
+
         {/* Configuration Section */}
         <AnimatePresence>
-          {(showConfig || !agentId) && (
+          {(showConfig || !voiceModelId) && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
@@ -169,28 +202,29 @@ export const VoiceAgent = ({ agentId: initialAgentId, onAgentIdChange }: VoiceAg
             >
               <div className="flex items-center gap-2 text-sm font-medium">
                 <Settings className="h-4 w-4" />
-                Configuración del Agente
+                Configuración de Fish Audio
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="agent-id">ID del Agente (ElevenLabs)</Label>
+                <Label htmlFor="voice-model-id">ID del Modelo de Voz (Opcional)</Label>
                 <Input
-                  id="agent-id"
-                  value={agentId}
-                  onChange={(e) => setAgentId(e.target.value)}
+                  id="voice-model-id"
+                  value={voiceModelId}
+                  onChange={(e) => setVoiceModelId(e.target.value)}
                   placeholder="ej: abc123xyz..."
                   disabled={isConnected}
                 />
                 <p className="text-xs text-muted-foreground">
                   Obtén el ID desde tu panel de{' '}
                   <a 
-                    href="https://elevenlabs.io/convai" 
+                    href="https://fish.audio" 
                     target="_blank" 
                     rel="noopener noreferrer"
                     className="text-primary underline"
                   >
-                    ElevenLabs Conversational AI
+                    Fish Audio
                   </a>
+                  {' '}para usar una voz clonada
                 </p>
               </div>
 
@@ -200,8 +234,8 @@ export const VoiceAgent = ({ agentId: initialAgentId, onAgentIdChange }: VoiceAg
                   <div className="text-sm">
                     <p className="font-medium text-amber-600">Requisitos:</p>
                     <ul className="text-muted-foreground text-xs mt-1 space-y-1">
-                      <li>• Crear un agente en ElevenLabs</li>
-                      <li>• Configurar el agente como público o agregar ELEVENLABS_API_KEY</li>
+                      <li>• Configurar FISH_AUDIO_API_KEY en Settings</li>
+                      <li>• Clonar una voz en Fish Audio (opcional)</li>
                       <li>• Permitir acceso al micrófono</li>
                     </ul>
                   </div>
@@ -218,7 +252,7 @@ export const VoiceAgent = ({ agentId: initialAgentId, onAgentIdChange }: VoiceAg
             className={`relative w-32 h-32 rounded-full flex items-center justify-center ${
               isConnected 
                 ? isSpeaking 
-                  ? 'bg-gradient-to-br from-violet-500 to-purple-600' 
+                  ? 'bg-gradient-to-br from-orange-500 to-red-600' 
                   : 'bg-gradient-to-br from-green-500 to-emerald-600'
                 : 'bg-muted'
             }`}
@@ -243,12 +277,12 @@ export const VoiceAgent = ({ agentId: initialAgentId, onAgentIdChange }: VoiceAg
             {isConnected && isSpeaking && (
               <>
                 <motion.div
-                  className="absolute inset-0 rounded-full border-4 border-violet-400"
+                  className="absolute inset-0 rounded-full border-4 border-orange-400"
                   animate={{ scale: [1, 1.5], opacity: [0.5, 0] }}
                   transition={{ repeat: Infinity, duration: 1 }}
                 />
                 <motion.div
-                  className="absolute inset-0 rounded-full border-4 border-violet-400"
+                  className="absolute inset-0 rounded-full border-4 border-orange-400"
                   animate={{ scale: [1, 1.8], opacity: [0.5, 0] }}
                   transition={{ repeat: Infinity, duration: 1, delay: 0.3 }}
                 />
@@ -261,7 +295,7 @@ export const VoiceAgent = ({ agentId: initialAgentId, onAgentIdChange }: VoiceAg
               ? 'Conectando...' 
               : isConnected 
                 ? isSpeaking 
-                  ? '🎙️ El agente está hablando...'
+                  ? '🔊 Reproduciendo respuesta...'
                   : '👂 Escuchando...'
                 : 'Presiona para iniciar conversación'}
           </p>
@@ -273,8 +307,8 @@ export const VoiceAgent = ({ agentId: initialAgentId, onAgentIdChange }: VoiceAg
             <Button
               size="lg"
               onClick={startConversation}
-              disabled={isConnecting || !agentId.trim()}
-              className="gap-2 bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700"
+              disabled={isConnecting}
+              className="gap-2 bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700"
             >
               {isConnecting ? (
                 <Loader2 className="h-5 w-5 animate-spin" />
@@ -327,7 +361,7 @@ export const VoiceAgent = ({ agentId: initialAgentId, onAgentIdChange }: VoiceAg
                   className={`p-2 rounded-lg text-sm ${
                     msg.role === 'user'
                       ? 'bg-primary/10 ml-8'
-                      : 'bg-violet-500/10 mr-8'
+                      : 'bg-orange-500/10 mr-8'
                   }`}
                 >
                   <span className="font-medium text-xs text-muted-foreground">
@@ -341,7 +375,7 @@ export const VoiceAgent = ({ agentId: initialAgentId, onAgentIdChange }: VoiceAg
         )}
 
         {/* Toggle config button */}
-        {agentId && (
+        {voiceModelId && (
           <Button
             variant="ghost"
             size="sm"
