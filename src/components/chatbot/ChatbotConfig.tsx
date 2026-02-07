@@ -7,8 +7,9 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Bot, Workflow, MessageSquare, Plus, Trash2, Save, BookOpen, Sparkles, Mic } from 'lucide-react';
+import { Bot, Workflow, MessageSquare, Plus, Trash2, Save, BookOpen, Sparkles, Mic, Zap } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { KeywordManager } from './KeywordManager';
 import { FlowBuilder } from './FlowBuilder';
@@ -228,11 +229,39 @@ export const ChatbotConfig = ({ whatsappAccountId, whatsappAccountName }: Chatbo
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="bot-mode">Modo de Operación</Label>
-                  <div className="flex items-center gap-2 p-3 border rounded-md bg-muted/30">
-                    <Workflow className="h-4 w-4" />
-                    <span>Flujo Manual</span>
-                  </div>
-                  <input type="hidden" value="manual" />
+                  <Select
+                    value={config.mode}
+                    onValueChange={(value: 'manual' | 'ai' | 'hybrid') => setConfig({ ...config, mode: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar modo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="manual">
+                        <div className="flex items-center gap-2">
+                          <Workflow className="h-4 w-4" />
+                          <span>Flujo Manual</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="ai">
+                        <div className="flex items-center gap-2">
+                          <Sparkles className="h-4 w-4" />
+                          <span>Solo IA</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="hybrid">
+                        <div className="flex items-center gap-2">
+                          <Zap className="h-4 w-4" />
+                          <span>Híbrido (Manual + IA)</span>
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    {config.mode === 'manual' && 'Responde solo con flujos y palabras clave configuradas'}
+                    {config.mode === 'ai' && 'Responde usando inteligencia artificial'}
+                    {config.mode === 'hybrid' && 'Usa flujos manuales con IA como respaldo'}
+                  </p>
                 </div>
               </div>
 
