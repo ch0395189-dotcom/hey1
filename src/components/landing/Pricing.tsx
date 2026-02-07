@@ -81,8 +81,9 @@ const plans: Array<{
     description: "Número blindado contra bloqueos",
     features: [
       "Número blindado anti-bloqueo",
-      "Protección avanzada",
-      "Soporte 24/7",
+      "1 Agente de voz IA",
+      "1 Bot automatizado",
+      "Soporte premium vía WhatsApp",
       "Sin límite de mensajes",
       "Configuración especial"
     ],
