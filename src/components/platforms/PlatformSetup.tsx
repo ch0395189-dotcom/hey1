@@ -460,9 +460,33 @@ export const PlatformSetup = ({ onAccountConnected }: PlatformSetupProps) => {
 
             if (error) throw error;
 
+            // Handle error responses (like no pages)
+            if (data.error) {
+              toast({
+                variant: "destructive",
+                title: data.error === 'No pages found' ? "Sin páginas de Facebook" : "Error",
+                description: data.message || data.error,
+              });
+              setConnecting(false);
+              return;
+            }
+
             if (data.action === 'select_page') {
               // Filter pages for Instagram - only show pages with Instagram accounts
               const pages = data.pages as FacebookPage[];
+              
+              if (pages.length === 0) {
+                toast({
+                  variant: "destructive",
+                  title: "Sin páginas disponibles",
+                  description: platform === 'instagram' 
+                    ? "No tienes páginas con cuenta de Instagram Business vinculada."
+                    : "No tienes páginas de Facebook disponibles.",
+                });
+                setConnecting(false);
+                return;
+              }
+              
               if (platform === 'instagram') {
                 const pagesWithInstagram = pages.filter((p) => p.instagram_account_id);
                 if (pagesWithInstagram.length === 0) {

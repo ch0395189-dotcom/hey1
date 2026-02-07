@@ -117,11 +117,13 @@ Deno.serve(async (req) => {
     const longLivedUserToken = longLivedTokenData.access_token;
 
     // Get user's pages with Instagram accounts
+    console.log('Fetching user pages...');
     const pagesResponse = await fetch(
       `https://graph.facebook.com/v21.0/me/accounts?fields=id,name,access_token,instagram_business_account{id,username}&access_token=${longLivedUserToken}`
     );
 
     const pagesData = await pagesResponse.json();
+    console.log('Pages response:', JSON.stringify(pagesData, null, 2));
 
     if (!pagesResponse.ok || pagesData.error) {
       console.error('Error getting pages:', pagesData);
@@ -132,6 +134,18 @@ Deno.serve(async (req) => {
     }
 
     const pages: FacebookPage[] = pagesData.data || [];
+    console.log(`Found ${pages.length} pages`);
+
+    // If user has no pages at all, return error
+    if (pages.length === 0) {
+      return new Response(
+        JSON.stringify({ 
+          error: 'No pages found', 
+          message: 'Tu cuenta de Facebook no tiene ninguna página. Para conectar Messenger necesitas tener al menos una página de Facebook.'
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // If no page selected, return the list of pages for user to choose
     if (!selected_page_id) {
