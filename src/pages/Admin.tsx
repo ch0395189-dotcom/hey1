@@ -4,10 +4,12 @@ import { useAdminCheck } from '@/hooks/useAdminCheck';
 import { UsersTable } from '@/components/admin/UsersTable';
 import { ManualPayments } from '@/components/admin/ManualPayments';
 import { PaymentAlerts } from '@/components/admin/PaymentAlerts';
+import { CreditPackagesManager } from '@/components/admin/CreditPackagesManager';
+import { CreditPurchasesManager } from '@/components/admin/CreditPurchasesManager';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Shield, Users, CreditCard, Bell } from 'lucide-react';
+import { ArrowLeft, Shield, Users, CreditCard, Bell, Coins } from 'lucide-react';
 
 const Admin = () => {
   const navigate = useNavigate();
@@ -49,7 +51,7 @@ const Admin = () => {
 
       <main className="container mx-auto px-4 py-8">
         <Tabs defaultValue="users" className="space-y-6">
-          <TabsList className="grid w-full max-w-md grid-cols-3">
+          <TabsList className="grid w-full max-w-2xl grid-cols-4">
             <TabsTrigger value="users" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
               <span className="hidden sm:inline">Usuarios</span>
@@ -57,6 +59,10 @@ const Admin = () => {
             <TabsTrigger value="payments" className="flex items-center gap-2">
               <CreditCard className="h-4 w-4" />
               <span className="hidden sm:inline">Pagos</span>
+            </TabsTrigger>
+            <TabsTrigger value="credits" className="flex items-center gap-2">
+              <Coins className="h-4 w-4" />
+              <span className="hidden sm:inline">Créditos</span>
             </TabsTrigger>
             <TabsTrigger value="alerts" className="flex items-center gap-2">
               <Bell className="h-4 w-4" />
@@ -83,6 +89,11 @@ const Admin = () => {
 
           <TabsContent value="payments">
             <ManualPayments />
+          </TabsContent>
+
+          <TabsContent value="credits" className="space-y-6">
+            <CreditPackagesManager />
+            <CreditPurchasesManager />
           </TabsContent>
 
           <TabsContent value="alerts">
