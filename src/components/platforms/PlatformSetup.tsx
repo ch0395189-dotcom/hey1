@@ -716,25 +716,57 @@ export const PlatformSetup = ({ onAccountConnected }: PlatformSetupProps) => {
                   {/* Facebook Login Button for Messenger/Instagram */}
                   {(platform === 'messenger' || platform === 'instagram') && !showManualEntry && (
                     <>
-                      <Button
-                        onClick={() => handleFacebookLogin(platform)}
-                        disabled={connecting || !fbLoaded}
-                        className="w-full bg-[#1877F2] hover:bg-[#166FE5] text-white"
-                      >
-                        {connecting ? (
-                          <>
+                      {!metaConfig.appId ? (
+                        <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/30">
+                          <p className="text-sm text-amber-700 font-medium mb-2">
+                            ⚠️ Configuración de Meta pendiente
+                          </p>
+                          <p className="text-xs text-muted-foreground mb-3">
+                            Para conectar {config.name}, necesitas configurar META_APP_ID en los secretos del proyecto.
+                          </p>
+                          <Button
+                            variant="outline"
+                            onClick={() => setShowManualEntry(true)}
+                            className="w-full"
+                          >
+                            <Settings className="w-4 h-4 mr-2" />
+                            Usar configuración manual
+                          </Button>
+                        </div>
+                      ) : !fbLoaded ? (
+                        <div className="space-y-3">
+                          <Button
+                            disabled
+                            className="w-full bg-[#1877F2]/50 text-white"
+                          >
                             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Conectando...
-                          </>
-                        ) : (
-                          <>
-                            <Facebook className="w-4 h-4 mr-2" />
-                            Conectar con Facebook
-                          </>
-                        )}
-                      </Button>
+                            Cargando Facebook SDK...
+                          </Button>
+                          <p className="text-xs text-muted-foreground text-center">
+                            Si tarda mucho, prueba recargar la página o usar configuración manual.
+                          </p>
+                        </div>
+                      ) : (
+                        <Button
+                          onClick={() => handleFacebookLogin(platform)}
+                          disabled={connecting}
+                          className="w-full bg-[#1877F2] hover:bg-[#166FE5] text-white"
+                        >
+                          {connecting ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              Conectando...
+                            </>
+                          ) : (
+                            <>
+                              <Facebook className="w-4 h-4 mr-2" />
+                              Conectar con Facebook
+                            </>
+                          )}
+                        </Button>
+                      )}
 
-                      {isEmbedded && (
+                      {isEmbedded && fbLoaded && (
                         <div className="rounded-lg border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
                           <p className="mb-2">
                             Si ves error o la ventana emergente se bloquea, abre este flujo en una nueva pestaña.
