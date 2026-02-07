@@ -13,6 +13,19 @@ export default defineConfig(({ mode }) => ({
       overlay: false,
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'react-router-dom'],
+          ui: ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-tabs', '@radix-ui/react-select'],
+          charts: ['recharts'],
+          utils: ['date-fns', 'clsx', 'tailwind-merge'],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 1000,
+  },
   plugins: [
     react(),
     mode === "development" && componentTagger(),
@@ -54,8 +67,6 @@ export default defineConfig(({ mode }) => ({
         navigateFallback: "/index.html",
         navigateFallbackDenylist: [/^\/api/, /^\/sw\.js$/],
         runtimeCaching: [
-          // IMPORTANT: Never cache auth endpoints. Caching /auth/v1/token can break
-          // refresh token rotation and cause users to get logged out when reopening the PWA.
           {
             urlPattern: /^https:\/\/.*\.supabase\.co\/auth\/v1\/token.*/i,
             handler: "NetworkOnly",
@@ -74,12 +85,10 @@ export default defineConfig(({ mode }) => ({
             urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
             handler: "NetworkFirst",
             options: {
-              // Bump cache name to avoid reusing any previously cached auth responses
-              // from older service worker versions.
               cacheName: "supabase-cache-v2",
               expiration: {
                 maxEntries: 50,
-                maxAgeSeconds: 60 * 60, // 1 hour
+                maxAgeSeconds: 60 * 60,
               },
               networkTimeoutSeconds: 10,
             },
