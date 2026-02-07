@@ -764,15 +764,49 @@ async function getAIResponse(
   userMessage: string,
   context: Record<string, any>
 ): Promise<string> {
-  // Try Google AI first (user's own API key), then fallback to Lovable AI
-  const GOOGLE_AI_API_KEY = Deno.env.get('GOOGLE_AI_API_KEY');
+  // Get user ID from the chatbot config to fetch their API key
+  const { data: configData } = await supabase
+    .from('chatbot_configs')
+    .select('whatsapp_account_id')
+    .eq('id', chatbotConfigId)
+    .single();
+
+  let userGoogleApiKey: string | null = null;
+  
+  if (configData?.whatsapp_account_id) {
+    // Get user_id from whatsapp_account
+    const { data: accountData } = await supabase
+      .from('whatsapp_accounts')
+      .select('user_id')
+      .eq('id', configData.whatsapp_account_id)
+      .single();
+
+    if (accountData?.user_id) {
+      // Try to get user's own Google AI API key
+      const { data: apiKeyData } = await supabase
+        .from('user_api_keys')
+        .select('api_key')
+        .eq('user_id', accountData.user_id)
+        .eq('provider', 'google_ai')
+        .eq('is_active', true)
+        .single();
+
+      if (apiKeyData?.api_key) {
+        userGoogleApiKey = apiKeyData.api_key;
+        console.log('Using user\'s own Google AI API key');
+      }
+    }
+  }
+
+  // Fallback to environment variables
+  const GOOGLE_AI_API_KEY = userGoogleApiKey || Deno.env.get('GOOGLE_AI_API_KEY');
   const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
   
   const useGoogleAI = !!GOOGLE_AI_API_KEY;
   
   if (!GOOGLE_AI_API_KEY && !LOVABLE_API_KEY) {
-    console.error('No AI API key configured (neither GOOGLE_AI_API_KEY nor LOVABLE_API_KEY)');
-    return 'Lo siento, el servicio de IA no está disponible en este momento.';
+    console.error('No AI API key configured');
+    return 'Lo siento, el servicio de IA no está disponible. Configura tu API key de Google AI en Ajustes.';
   }
 
   try {

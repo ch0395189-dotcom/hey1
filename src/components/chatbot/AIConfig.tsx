@@ -1,9 +1,12 @@
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import { Sparkles, Zap, DollarSign, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Sparkles, Zap, DollarSign, AlertCircle, CheckCircle2, Settings } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 interface AIConfigProps {
   aiGreeting: string;
@@ -25,6 +28,22 @@ export const AIConfig = ({
   const promptLength = aiSystemPrompt.length;
   const maxPromptLength = 4000;
   const promptUsagePercent = (promptLength / maxPromptLength) * 100;
+
+  // Check if user has configured their own Google AI API key
+  const { data: userApiKey } = useQuery({
+    queryKey: ['user-google-api-key'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('user_api_keys')
+        .select('id, is_active')
+        .eq('provider', 'google_ai')
+        .eq('is_active', true)
+        .maybeSingle();
+      return data;
+    },
+  });
+
+  const hasApiKey = !!userApiKey;
 
   return (
     <div className="space-y-6">
@@ -55,10 +74,19 @@ export const AIConfig = ({
                 <Zap className="h-3 w-3" />
                 Gemini 2.0 Flash
               </Badge>
-              <Badge variant="outline" className="gap-1 text-green-600 border-green-200 bg-green-50">
-                <CheckCircle2 className="h-3 w-3" />
-                Tu API Key configurada
-              </Badge>
+              {hasApiKey ? (
+                <Badge variant="outline" className="gap-1 text-green-600 border-green-200 bg-green-50">
+                  <CheckCircle2 className="h-3 w-3" />
+                  Tu API Key configurada
+                </Badge>
+              ) : (
+                <Link to="/dashboard?tab=settings">
+                  <Badge variant="outline" className="gap-1 text-amber-600 border-amber-200 bg-amber-50 cursor-pointer hover:bg-amber-100">
+                    <Settings className="h-3 w-3" />
+                    Configurar API Key
+                  </Badge>
+                </Link>
+              )}
             </div>
           )}
         </CardContent>
