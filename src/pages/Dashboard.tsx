@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { 
@@ -13,7 +13,8 @@ import {
   Plug,
   Volume2,
   VolumeX,
-  ArrowLeft
+  ArrowLeft,
+  Key
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -33,6 +34,7 @@ import { RenewalBanner } from "@/components/dashboard/RenewalBanner";
 import { PaymentAlertBanner } from "@/components/dashboard/PaymentAlertBanner";
 import { PlatformTabs, Platform } from "@/components/dashboard/PlatformTabs";
 import { PlatformSetup } from "@/components/platforms/PlatformSetup";
+import { ApiKeysSettings } from "@/components/settings/ApiKeysSettings";
 import { useAdminCheck } from "@/hooks/useAdminCheck";
 import { NotificationSettingsPanel } from "@/components/notifications/NotificationSettingsPanel";
 import {
@@ -59,6 +61,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type ActiveView = 'inbox' | 'contacts' | 'statistics';
 
@@ -90,7 +93,9 @@ const Dashboard = () => {
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<ActiveView>('inbox');
   const [activePlatform, setActivePlatform] = useState<Platform>('all');
+  const [settingsTab, setSettingsTab] = useState<'whatsapp' | 'apikeys'>('whatsapp');
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const { permission, isSupported, requestPermission, showNotification } = useNotifications();
   const { playNotificationSound } = useNotificationSound();
@@ -180,7 +185,12 @@ const Dashboard = () => {
     if (params.get('platformSetup') === '1') {
       setShowPlatformSetup(true);
     }
-  }, []);
+    // Open settings with API keys tab from URL
+    if (searchParams.get('tab') === 'settings') {
+      setShowSettings(true);
+      setSettingsTab('apikeys');
+    }
+  }, [searchParams]);
 
   const checkWhatsAppAccounts = async () => {
     const { data, error } = await supabase
@@ -548,25 +558,44 @@ const Dashboard = () => {
       <Dialog open={showSettings} onOpenChange={setShowSettings}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Configuración de WhatsApp</DialogTitle>
+            <DialogTitle>Configuración</DialogTitle>
           </DialogHeader>
           
-          {/* Account Info */}
-          {whatsappAccounts.length > 0 && (
-            <div className="mb-4 p-4 rounded-lg bg-muted/50 border">
-              <h3 className="text-sm font-medium text-muted-foreground mb-2">Tu cuenta conectada</h3>
-              <div className="space-y-1">
-                <p className="font-semibold text-lg">
-                  {whatsappAccounts.find(a => a.id === selectedAccountId)?.display_name || 'Mi cuenta'}
-                </p>
-                <p className="text-muted-foreground font-mono">
-                  {whatsappAccounts.find(a => a.id === selectedAccountId)?.phone_number || 'Sin número'}
-                </p>
-              </div>
-            </div>
-          )}
-          
-          <WhatsAppSetup onAccountConnected={checkWhatsAppAccounts} />
+          <Tabs value={settingsTab} onValueChange={(v) => setSettingsTab(v as any)}>
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="whatsapp" className="gap-2">
+                <MessageCircle className="h-4 w-4" />
+                WhatsApp
+              </TabsTrigger>
+              <TabsTrigger value="apikeys" className="gap-2">
+                <Key className="h-4 w-4" />
+                API Keys
+              </TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="whatsapp" className="mt-4">
+              {/* Account Info */}
+              {whatsappAccounts.length > 0 && (
+                <div className="mb-4 p-4 rounded-lg bg-muted/50 border">
+                  <h3 className="text-sm font-medium text-muted-foreground mb-2">Tu cuenta conectada</h3>
+                  <div className="space-y-1">
+                    <p className="font-semibold text-lg">
+                      {whatsappAccounts.find(a => a.id === selectedAccountId)?.display_name || 'Mi cuenta'}
+                    </p>
+                    <p className="text-muted-foreground font-mono">
+                      {whatsappAccounts.find(a => a.id === selectedAccountId)?.phone_number || 'Sin número'}
+                    </p>
+                  </div>
+                </div>
+              )}
+              
+              <WhatsAppSetup onAccountConnected={checkWhatsAppAccounts} />
+            </TabsContent>
+            
+            <TabsContent value="apikeys" className="mt-4">
+              <ApiKeysSettings />
+            </TabsContent>
+          </Tabs>
         </DialogContent>
       </Dialog>
 
