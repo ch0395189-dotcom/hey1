@@ -392,6 +392,116 @@ export type Database = {
           },
         ]
       }
+      credit_packages: {
+        Row: {
+          created_at: string
+          credits: number
+          id: string
+          is_active: boolean
+          is_popular: boolean
+          name: string
+          price_cop: number
+          price_usd: number | null
+        }
+        Insert: {
+          created_at?: string
+          credits: number
+          id?: string
+          is_active?: boolean
+          is_popular?: boolean
+          name: string
+          price_cop: number
+          price_usd?: number | null
+        }
+        Update: {
+          created_at?: string
+          credits?: number
+          id?: string
+          is_active?: boolean
+          is_popular?: boolean
+          name?: string
+          price_cop?: number
+          price_usd?: number | null
+        }
+        Relationships: []
+      }
+      credit_purchases: {
+        Row: {
+          amount: number
+          created_at: string
+          credits: number
+          currency: string
+          id: string
+          package_id: string | null
+          payment_method: string | null
+          payment_reference: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          credits: number
+          currency?: string
+          id?: string
+          package_id?: string | null
+          payment_method?: string | null
+          payment_reference?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          credits?: number
+          currency?: string
+          id?: string
+          package_id?: string | null
+          payment_method?: string | null
+          payment_reference?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_purchases_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "credit_packages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      credit_usage: {
+        Row: {
+          created_at: string
+          credits_used: number
+          description: string | null
+          id: string
+          metadata: Json | null
+          service_type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          credits_used: number
+          description?: string | null
+          id?: string
+          metadata?: Json | null
+          service_type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          credits_used?: number
+          description?: string | null
+          id?: string
+          metadata?: Json | null
+          service_type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       manual_payments: {
         Row: {
           admin_id: string
@@ -655,6 +765,36 @@ export type Database = {
         }
         Relationships: []
       }
+      user_credits: {
+        Row: {
+          balance: number
+          created_at: string
+          id: string
+          total_consumed: number
+          total_purchased: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          balance?: number
+          created_at?: string
+          id?: string
+          total_consumed?: number
+          total_purchased?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          balance?: number
+          created_at?: string
+          id?: string
+          total_consumed?: number
+          total_purchased?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -735,6 +875,20 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      add_credits: {
+        Args: { p_credits: number; p_user_id: string }
+        Returns: undefined
+      }
+      deduct_credits: {
+        Args: {
+          p_credits: number
+          p_description?: string
+          p_metadata?: Json
+          p_service_type: string
+          p_user_id: string
+        }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
