@@ -405,13 +405,15 @@ export const PlatformSetup = ({ onAccountConnected }: PlatformSetupProps) => {
       return;
     }
 
-    // Desktop: use popup flow
+    // If SDK is not ready, fall back to redirect flow (works without SDK)
     if (!window.FB || typeof window.FB.login !== 'function') {
+      console.log('Facebook SDK not ready, using redirect flow...');
       toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Facebook SDK no está listo. Recarga la página e intenta nuevamente.",
+        title: "Redirigiendo a Facebook",
+        description: "Usando flujo alternativo de conexión...",
       });
+      // Use redirect flow as fallback - it doesn't require the SDK
+      handleFacebookLoginMobile(platform);
       return;
     }
 
