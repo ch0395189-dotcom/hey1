@@ -398,7 +398,7 @@ export const PlatformSetup = ({ onAccountConnected }: PlatformSetupProps) => {
     window.location.href = fbAuthUrl.toString();
   };
 
-  const handleFacebookLogin = async (platform: string) => {
+  const handleFacebookLogin = (platform: string) => {
     // Use redirect flow on mobile for better UX with Facebook app
     if (canUseFacebookApp()) {
       handleFacebookLoginMobile(platform);
@@ -440,102 +440,81 @@ export const PlatformSetup = ({ onAccountConnected }: PlatformSetupProps) => {
       });
     }, 60000); // 60 second timeout
 
-    try {
-      window.FB.login(
-        async (response: FBLoginResponse) => {
-          clearTimeout(timeoutId);
-          
-          if (response.authResponse?.accessToken) {
-            const accessToken = response.authResponse.accessToken;
-            console.log('Facebook login successful, getting pages...');
-            
-            try {
-              const { data, error } = await supabase.functions.invoke('platform-exchange-token', {
-                body: { 
-                  access_token: accessToken, 
-                  platform 
-                },
-              });
+    const handleLoginResponse = async (response: FBLoginResponse) => {
+      clearTimeout(timeoutId);
+      
+      if (response.authResponse?.accessToken) {
+        const accessToken = response.authResponse.accessToken;
+        console.log('Facebook login successful, getting pages...');
+        
+        try {
+          const { data, error } = await supabase.functions.invoke('platform-exchange-token', {
+            body: { 
+              access_token: accessToken, 
+              platform 
+            },
+          });
 
-              if (error) throw error;
+          if (error) throw error;
 
-              if (data.action === 'select_page') {
-                // Filter pages for Instagram - only show pages with Instagram accounts
-                const pages = data.pages as FacebookPage[];
-                if (platform === 'instagram') {
-                  const pagesWithInstagram = pages.filter(p => p.instagram_account_id);
-                  if (pagesWithInstagram.length === 0) {
-                    toast({
-                      variant: "destructive",
-                      title: "Sin cuenta de Instagram",
-                      description: "Ninguna de tus páginas tiene una cuenta de Instagram Business vinculada.",
-                    });
-                    setConnecting(false);
-                    return;
-                  }
-                  setAvailablePages(pagesWithInstagram);
-                } else {
-                  setAvailablePages(pages);
-                }
-                setPendingAccessToken(accessToken);
-                setShowPageSelector(true);
-                setConnecting(false);
-              } else if (data.success) {
+          if (data.action === 'select_page') {
+            // Filter pages for Instagram - only show pages with Instagram accounts
+            const pages = data.pages as FacebookPage[];
+            if (platform === 'instagram') {
+              const pagesWithInstagram = pages.filter(p => p.instagram_account_id);
+              if (pagesWithInstagram.length === 0) {
                 toast({
-                  title: "¡Cuenta conectada!",
-                  description: `${config.name} conectado exitosamente.`,
+                  variant: "destructive",
+                  title: "Sin cuenta de Instagram",
+                  description: "Ninguna de tus páginas tiene una cuenta de Instagram Business vinculada.",
                 });
-                queryClient.invalidateQueries({ queryKey: ['platform-accounts'] });
-                onAccountConnected?.();
                 setConnecting(false);
+                return;
               }
-            } catch (error: any) {
-              console.error('Error exchanging token:', error);
-              toast({
-                variant: "destructive",
-                title: "Error",
-                description: error.message || "No se pudo conectar la cuenta.",
-              });
-              setConnecting(false);
+              setAvailablePages(pagesWithInstagram);
+            } else {
+              setAvailablePages(pages);
             }
-          } else {
-            const status = response.status || 'unknown';
+            setPendingAccessToken(accessToken);
+            setShowPageSelector(true);
+            setConnecting(false);
+          } else if (data.success) {
             toast({
-              variant: "destructive",
-              title: status === 'not_authorized' ? "Permisos no autorizados" : "Conexión cancelada",
-              description:
-                status === 'not_authorized'
-                  ? "Facebook no autorizó los permisos solicitados. Intenta nuevamente y acepta los permisos."
-                  : "El proceso de conexión fue cancelado o la ventana se cerró.",
+              title: "¡Cuenta conectada!",
+              description: `${config.name} conectado exitosamente.`,
             });
+            queryClient.invalidateQueries({ queryKey: ['platform-accounts'] });
+            onAccountConnected?.();
             setConnecting(false);
           }
-        },
-        { 
-          scope: config.scopes,
-          return_scopes: true 
-        } as any
-      );
-    } catch (error) {
-      clearTimeout(timeoutId);
-      console.error('FB.login error:', error);
-      setConnecting(false);
+        } catch (error: any) {
+          console.error('Error exchanging token:', error);
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: error.message || "No se pudo conectar la cuenta.",
+          });
+          setConnecting(false);
+        }
+      } else {
+        const status = response.status || 'unknown';
+        toast({
+          variant: "destructive",
+          title: status === 'not_authorized' ? "Permisos no autorizados" : "Conexión cancelada",
+          description:
+            status === 'not_authorized'
+              ? "Facebook no autorizó los permisos solicitados. Intenta nuevamente y acepta los permisos."
+              : "El proceso de conexión fue cancelado o la ventana se cerró.",
+        });
+        setConnecting(false);
+      }
+    };
 
-      const details =
-        error instanceof Error
-          ? error.message
-          : typeof error === 'string'
-            ? error
-            : JSON.stringify(error);
-
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: details
-          ? `No se pudo iniciar la conexión con Facebook: ${details}`
-          : "No se pudo iniciar la conexión con Facebook.",
-      });
-    }
+    // Call FB.login outside of try/catch to avoid catching SDK internal errors
+    window.FB.login(handleLoginResponse, { 
+      scope: config.scopes,
+      return_scopes: true 
+    } as any);
   };
 
   const handlePageSelect = async (pageId: string) => {
