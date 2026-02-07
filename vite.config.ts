@@ -50,7 +50,7 @@ export default defineConfig(({ mode }) => ({
       },
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
-        // Don't precache sw.js as we manage it manually
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MB limit
         navigateFallback: "/index.html",
         navigateFallbackDenylist: [/^\/api/, /^\/sw\.js$/],
         runtimeCaching: [
