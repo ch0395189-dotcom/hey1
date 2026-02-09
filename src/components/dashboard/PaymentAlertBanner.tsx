@@ -60,14 +60,14 @@ export const PaymentAlertBanner = () => {
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -10 }}
-          className="bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-3 flex items-start gap-3"
+          className="bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2 md:px-4 md:py-3 flex items-start gap-2 md:gap-3"
         >
-          <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-            <AlertTriangle className="w-4 h-4 text-amber-500" />
+          <div className="w-6 h-6 md:w-8 md:h-8 rounded-lg bg-amber-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+            <AlertTriangle className="w-3 h-3 md:w-4 md:h-4 text-amber-500" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-amber-600 dark:text-amber-400">
-              Tienes un pago pendiente de {formatAmount(alert.amount)}
+            <p className="text-xs md:text-sm font-medium text-amber-600 dark:text-amber-400">
+              Pago pendiente: {formatAmount(alert.amount)}
             </p>
             {alert.message && (
               <p className="text-xs text-muted-foreground mt-1">

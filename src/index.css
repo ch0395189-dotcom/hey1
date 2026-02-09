@@ -194,7 +194,7 @@
   /* Mobile chat input spacing for bottom navigation */
   @media (max-width: 767px) {
     .chat-input-mobile {
-      padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px)) !important;
+      padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px)) !important;
     }
     
     .dashboard-content-mobile {
