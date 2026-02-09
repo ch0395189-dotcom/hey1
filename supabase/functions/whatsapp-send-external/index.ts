@@ -1,5 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
+// WhatsApp Send External v2 - Sends messages via WuzAPI/HeyHey
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -12,11 +14,13 @@ interface SendMessageRequest {
   mediaUrl?: string;
   mediaType?: 'image' | 'audio' | 'video' | 'document' | 'sticker';
   fileName?: string;
-  conversationId?: string; // Optional: if provided, use existing conversation
-  createConversation?: boolean; // If true, create conversation for outbound message
+  conversationId?: string;
+  createConversation?: boolean;
 }
 
 Deno.serve(async (req) => {
+  console.log('📤 whatsapp-send-external v2');
+
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -34,12 +38,10 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     
-    // Use anon key for user auth verification
     const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } }
     });
 
-    // Use service role for database operations
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const token = authHeader.replace('Bearer ', '');
@@ -56,6 +58,8 @@ Deno.serve(async (req) => {
     const body: SendMessageRequest = await req.json();
     const { accountId, to, message, mediaUrl, mediaType, fileName, conversationId, createConversation } = body;
 
+    console.log('📨 Request:', { accountId, to, message: message?.substring(0, 30), hasMedia: !!mediaUrl, mediaType });
+
     if (!accountId || !to) {
       return new Response(
         JSON.stringify({ error: 'Missing required fields: accountId and to' }),
@@ -71,14 +75,13 @@ Deno.serve(async (req) => {
       .single();
 
     if (accountError || !account) {
-      console.error('Account error:', accountError);
+      console.error('❌ Account error:', accountError);
       return new Response(
         JSON.stringify({ error: 'Account not found' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Verify user owns this account
     if (account.user_id !== userId) {
       return new Response(
         JSON.stringify({ error: 'Unauthorized: You do not own this account' }),
@@ -86,7 +89,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Get API URL and token from account
     const apiBaseUrl = account.external_service_url;
     const apiToken = account.external_api_key;
 
@@ -97,38 +99,47 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Clean phone number (digits only)
     const phone = to.replace(/\D/g, '');
 
-    console.log(`Sending message to ${phone} via HeyHey API`);
-    console.log(`API Base URL: ${apiBaseUrl}`);
-    console.log(`Instance ID: ${account.external_instance_id}`);
+    console.log(`📱 Sending to ${phone} via HeyHey API`);
+    console.log(`🔗 API Base URL: ${apiBaseUrl}`);
 
-    // Build request body according to HeyHey/WuzAPI format
+    // Build request body - HeyHey/WuzAPI requires 'body' field for text
+    // For media, it requires 'mediaUrl' and optional 'body' for caption
     const requestBody: Record<string, unknown> = {
       number: phone,
       externalKey: `heyhey_${Date.now()}`,
     };
 
-    // Add message body
+    // Always include body field - it's required by the API
+    // For text messages: the actual message
+    // For media messages: caption (optional, can be empty string)
     if (message) {
       requestBody.body = message;
+    } else {
+      requestBody.body = ''; // Empty caption for media-only
     }
 
     // Add media URL if provided
     if (mediaUrl) {
       requestBody.mediaUrl = mediaUrl;
-      if (!message) {
-        requestBody.body = '';
+      
+      // Some WuzAPI versions need the media type hint
+      if (mediaType) {
+        requestBody.mediaType = mediaType;
+      }
+      
+      // Add filename for documents
+      if (fileName && mediaType === 'document') {
+        requestBody.fileName = fileName;
       }
     }
 
     const endpoint = apiBaseUrl;
 
-    console.log(`Endpoint: ${endpoint}`);
-    console.log('Request body:', JSON.stringify(requestBody));
+    console.log(`🔗 Endpoint: ${endpoint}`);
+    console.log('📦 Request body:', JSON.stringify(requestBody));
 
-    // Make request with Bearer token authentication
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
@@ -139,11 +150,11 @@ Deno.serve(async (req) => {
     });
 
     const responseText = await response.text();
-    console.log(`Response status: ${response.status}`);
-    console.log(`Response body: ${responseText}`);
+    console.log(`📥 Response status: ${response.status}`);
+    console.log(`📥 Response body: ${responseText}`);
 
     if (!response.ok) {
-      console.error('API error:', responseText);
+      console.error('❌ API error:', responseText);
       return new Response(
         JSON.stringify({ 
           error: 'Failed to send message',
@@ -161,20 +172,17 @@ Deno.serve(async (req) => {
       result = { raw: responseText };
     }
 
-    // Generate a unique message ID - use externalKey we sent or create a unique one
     const messageId = result.id || result.messageId || result.message_id || `heyhey_out_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-    console.log(`Message sent successfully. ID: ${messageId}`);
+    console.log(`✅ Message sent. ID: ${messageId}`);
 
-    // Create or update conversation and save message if requested
+    // Create or update conversation and save message
     let savedConversationId = conversationId;
     let savedMessageId = null;
 
     if (createConversation || conversationId) {
       try {
-        // Find or create conversation
         if (!savedConversationId) {
-          // Try to find existing conversation
           const { data: existingConv } = await supabase
             .from('conversations')
             .select('id')
@@ -185,7 +193,6 @@ Deno.serve(async (req) => {
           if (existingConv) {
             savedConversationId = existingConv.id;
           } else {
-            // Create new conversation
             const { data: newConv, error: convError } = await supabase
               .from('conversations')
               .insert({
@@ -200,15 +207,14 @@ Deno.serve(async (req) => {
               .single();
 
             if (convError) {
-              console.error('Error creating conversation:', convError);
+              console.error('❌ Error creating conversation:', convError);
             } else {
               savedConversationId = newConv.id;
-              console.log(`Created new conversation: ${savedConversationId}`);
+              console.log(`🆕 Created conversation: ${savedConversationId}`);
             }
           }
         }
 
-        // Save the outbound message
         if (savedConversationId) {
           const messageContent = message || (mediaUrl ? `[${mediaType || 'media'}]` : '');
           
@@ -227,20 +233,19 @@ Deno.serve(async (req) => {
             .single();
 
           if (msgError) {
-            console.error('Error saving message:', msgError);
+            console.error('❌ Error saving message:', msgError);
           } else {
             savedMessageId = savedMsg.id;
-            console.log(`Saved message: ${savedMessageId}`);
+            console.log(`💾 Saved message: ${savedMessageId}`);
           }
 
-          // Update conversation timestamp
           await supabase
             .from('conversations')
             .update({ last_message_at: new Date().toISOString() })
             .eq('id', savedConversationId);
         }
       } catch (dbError) {
-        console.error('Database error:', dbError);
+        console.error('❌ Database error:', dbError);
       }
     }
 
@@ -256,7 +261,7 @@ Deno.serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Error in whatsapp-send-external:', error);
+    console.error('❌ Error:', error);
     return new Response(
       JSON.stringify({ error: error.message || 'Internal server error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
