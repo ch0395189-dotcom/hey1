@@ -8,7 +8,8 @@ import {
   Loader2,
   ExternalLink,
   Info,
-  CheckCircle2
+  CheckCircle2,
+  Copy
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -63,6 +64,7 @@ const SERVICES = [
 export const ExternalWhatsAppSetup = ({ onAccountConnected }: ExternalWhatsAppSetupProps) => {
   const [saving, setSaving] = useState(false);
   const [selectedService, setSelectedService] = useState<string>('');
+  const [savedAccount, setSavedAccount] = useState<{ id: string; name: string } | null>(null);
   const [formData, setFormData] = useState({
     displayName: '',
     serviceUrl: '',
@@ -102,7 +104,7 @@ export const ExternalWhatsAppSetup = ({ onAccountConnected }: ExternalWhatsAppSe
       if (!user) throw new Error('No authenticated user');
 
       // Insert the external WhatsApp account
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('whatsapp_accounts')
         .insert({
           user_id: user.id,
@@ -116,14 +118,19 @@ export const ExternalWhatsAppSetup = ({ onAccountConnected }: ExternalWhatsAppSe
           external_service_url: formData.serviceUrl,
           external_api_key: formData.apiKey,
           external_instance_id: formData.instanceId,
-        });
+        })
+        .select('id')
+        .single();
 
       if (error) throw error;
 
       toast({
         title: "¡Cuenta configurada!",
-        description: "Ahora escanea el código QR en el panel del servicio externo.",
+        description: "Ahora configura el webhook en tu servicio externo.",
       });
+
+      // Store account ID to show webhook URL
+      setSavedAccount({ id: data.id, name: formData.displayName });
 
       setFormData({
         displayName: '',
@@ -147,6 +154,90 @@ export const ExternalWhatsAppSetup = ({ onAccountConnected }: ExternalWhatsAppSe
   };
 
   const selectedServiceData = SERVICES.find(s => s.id === selectedService);
+
+  const webhookUrl = savedAccount 
+    ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-webhook-external?account_id=${savedAccount.id}`
+    : '';
+
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    toast({
+      title: "Copiado",
+      description: `${label} copiado al portapapeles.`,
+    });
+  };
+
+  // Show webhook configuration after account is saved
+  if (savedAccount) {
+    return (
+      <Card className="border-2 border-primary/20">
+        <CardHeader className="text-center">
+          <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center mx-auto mb-4">
+            <CheckCircle2 className="w-8 h-8 text-primary-foreground" />
+          </div>
+          <CardTitle className="font-display">¡Cuenta creada!</CardTitle>
+          <CardDescription>
+            Ahora configura el webhook en tu servicio externo para recibir mensajes
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Alert className="bg-primary/5 border-primary/20">
+            <Info className="h-4 w-4 text-primary" />
+            <AlertDescription>
+              <strong>Paso importante:</strong> Copia esta URL y configúrala como webhook en el panel de tu servicio externo (WuzAPI, Z-API, etc.)
+            </AlertDescription>
+          </Alert>
+
+          <div className="space-y-2">
+            <Label className="font-medium">URL del Webhook</Label>
+            <div className="flex gap-2">
+              <Input 
+                value={webhookUrl} 
+                readOnly 
+                className="bg-muted font-mono text-xs"
+              />
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => copyToClipboard(webhookUrl, "URL del Webhook")}
+              >
+                <Copy className="h-4 w-4" />
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Esta URL es única para tu cuenta "{savedAccount.name}"
+            </p>
+          </div>
+
+          <div className="bg-muted rounded-lg p-4 space-y-2">
+            <h4 className="font-medium text-sm">Configuración en WuzAPI:</h4>
+            <ol className="space-y-1 text-sm text-muted-foreground">
+              <li>1. Ve al panel de administración de WuzAPI</li>
+              <li>2. Activa la opción "Activar Webhook"</li>
+              <li>3. Pega la URL de arriba en el campo de webhook</li>
+              <li>4. Guarda los cambios</li>
+            </ol>
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => setSavedAccount(null)}
+            >
+              Conectar otra cuenta
+            </Button>
+            <Button
+              className="flex-1 bg-gradient-hero hover:opacity-90"
+              onClick={() => window.location.href = '/dashboard'}
+            >
+              Ir al Dashboard
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="border-dashed">
@@ -293,6 +384,10 @@ export const ExternalWhatsAppSetup = ({ onAccountConnected }: ExternalWhatsAppSe
             </li>
             <li className="flex gap-2">
               <span className="font-bold text-primary">5.</span>
+              Configura el webhook con la URL que te daremos
+            </li>
+            <li className="flex gap-2">
+              <span className="font-bold text-primary">6.</span>
               Escanea el QR en el panel del servicio externo
             </li>
           </ol>
