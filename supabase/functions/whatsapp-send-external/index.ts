@@ -12,6 +12,8 @@ interface SendMessageRequest {
   mediaUrl?: string;
   mediaType?: 'image' | 'audio' | 'video' | 'document' | 'sticker';
   fileName?: string;
+  conversationId?: string; // Optional: if provided, use existing conversation
+  createConversation?: boolean; // If true, create conversation for outbound message
 }
 
 Deno.serve(async (req) => {
@@ -29,14 +31,19 @@ Deno.serve(async (req) => {
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    // Use anon key for user auth verification
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } }
     });
 
+    // Use service role for database operations
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
     const token = authHeader.replace('Bearer ', '');
-    const { data: claims, error: authError } = await supabase.auth.getUser(token);
+    const { data: claims, error: authError } = await supabaseAuth.auth.getUser(token);
     
     if (authError || !claims?.user) {
       return new Response(
@@ -47,7 +54,7 @@ Deno.serve(async (req) => {
 
     const userId = claims.user.id;
     const body: SendMessageRequest = await req.json();
-    const { accountId, to, message, mediaUrl, mediaType, fileName } = body;
+    const { accountId, to, message, mediaUrl, mediaType, fileName, conversationId, createConversation } = body;
 
     if (!accountId || !to) {
       return new Response(
@@ -59,9 +66,8 @@ Deno.serve(async (req) => {
     // Fetch account with external API credentials
     const { data: account, error: accountError } = await supabase
       .from('whatsapp_accounts')
-      .select('id, external_service_url, external_api_key, external_instance_id, connection_type')
+      .select('id, external_service_url, external_api_key, external_instance_id, connection_type, user_id')
       .eq('id', accountId)
-      .eq('user_id', userId)
       .single();
 
     if (accountError || !account) {
@@ -69,6 +75,14 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ error: 'Account not found' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Verify user owns this account
+    if (account.user_id !== userId) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized: You do not own this account' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -91,10 +105,9 @@ Deno.serve(async (req) => {
     console.log(`Instance ID: ${account.external_instance_id}`);
 
     // Build request body according to HeyHey/WuzAPI format
-    // POST to base_url with body containing: body, number, mediaUrl (optional)
     const requestBody: Record<string, unknown> = {
       number: phone,
-      externalKey: `heyhey_${Date.now()}`, // Unique ID for tracking
+      externalKey: `heyhey_${Date.now()}`,
     };
 
     // Add message body
@@ -105,14 +118,12 @@ Deno.serve(async (req) => {
     // Add media URL if provided
     if (mediaUrl) {
       requestBody.mediaUrl = mediaUrl;
-      // If no text message but has media, set a default body
       if (!message) {
         requestBody.body = '';
       }
     }
 
-    // For location messages, use /location endpoint
-    let endpoint = apiBaseUrl;
+    const endpoint = apiBaseUrl;
 
     console.log(`Endpoint: ${endpoint}`);
     console.log('Request body:', JSON.stringify(requestBody));
@@ -150,15 +161,94 @@ Deno.serve(async (req) => {
       result = { raw: responseText };
     }
 
-    // Extract message ID from response
     const messageId = result.id || result.messageId || result.message_id || result.externalKey || 'sent';
 
     console.log(`Message sent successfully. ID: ${messageId}`);
+
+    // Create or update conversation and save message if requested
+    let savedConversationId = conversationId;
+    let savedMessageId = null;
+
+    if (createConversation || conversationId) {
+      try {
+        // Find or create conversation
+        if (!savedConversationId) {
+          // Try to find existing conversation
+          const { data: existingConv } = await supabase
+            .from('conversations')
+            .select('id')
+            .eq('whatsapp_account_id', accountId)
+            .eq('customer_phone', phone)
+            .single();
+
+          if (existingConv) {
+            savedConversationId = existingConv.id;
+          } else {
+            // Create new conversation
+            const { data: newConv, error: convError } = await supabase
+              .from('conversations')
+              .insert({
+                whatsapp_account_id: accountId,
+                customer_phone: phone,
+                customer_name: null,
+                platform: 'whatsapp',
+                last_message_at: new Date().toISOString(),
+                unread_count: 0,
+              })
+              .select('id')
+              .single();
+
+            if (convError) {
+              console.error('Error creating conversation:', convError);
+            } else {
+              savedConversationId = newConv.id;
+              console.log(`Created new conversation: ${savedConversationId}`);
+            }
+          }
+        }
+
+        // Save the outbound message
+        if (savedConversationId) {
+          const messageContent = message || (mediaUrl ? `[${mediaType || 'media'}]` : '');
+          
+          const { data: savedMsg, error: msgError } = await supabase
+            .from('messages')
+            .insert({
+              conversation_id: savedConversationId,
+              content: messageContent,
+              direction: 'outbound',
+              message_type: mediaType || 'text',
+              media_url: mediaUrl || null,
+              whatsapp_message_id: messageId,
+              status: 'sent',
+            })
+            .select('id')
+            .single();
+
+          if (msgError) {
+            console.error('Error saving message:', msgError);
+          } else {
+            savedMessageId = savedMsg.id;
+            console.log(`Saved message: ${savedMessageId}`);
+          }
+
+          // Update conversation timestamp
+          await supabase
+            .from('conversations')
+            .update({ last_message_at: new Date().toISOString() })
+            .eq('id', savedConversationId);
+        }
+      } catch (dbError) {
+        console.error('Database error:', dbError);
+      }
+    }
 
     return new Response(
       JSON.stringify({ 
         success: true, 
         messageId,
+        conversationId: savedConversationId,
+        savedMessageId,
         result 
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
