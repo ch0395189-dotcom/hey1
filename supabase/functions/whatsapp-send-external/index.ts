@@ -10,9 +10,19 @@ interface SendMessageRequest {
   to: string;
   message?: string;
   mediaUrl?: string;
-  mediaType?: 'image' | 'audio' | 'video' | 'document';
+  mediaType?: 'image' | 'audio' | 'video' | 'document' | 'sticker';
   fileName?: string;
 }
+
+// HeyHey/WuzAPI endpoints
+const WUZAPI_ENDPOINTS = {
+  text: '/chat/send/text',
+  image: '/chat/send/image',
+  audio: '/chat/send/audio',
+  video: '/chat/send/video',
+  document: '/chat/send/document',
+  sticker: '/chat/send/sticker',
+} as const;
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -56,85 +66,96 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Fetch account with external API credentials
     const { data: account, error: accountError } = await supabase
       .from('whatsapp_accounts')
-      .select('*')
+      .select('id, external_service_url, external_api_key, external_instance_id, connection_type')
       .eq('id', accountId)
       .eq('user_id', userId)
       .single();
 
     if (accountError || !account) {
+      console.error('Account error:', accountError);
       return new Response(
         JSON.stringify({ error: 'Account not found' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const serverUrl = Deno.env.get('WHATSAPP_SERVER_URL') || account.external_service_url;
-    const serverToken = Deno.env.get('WHATSAPP_SERVER_TOKEN') || account.external_api_key;
+    // Get API URL and token from account
+    const apiUrl = account.external_service_url;
+    const apiToken = account.external_api_key;
 
-    if (!serverUrl || !serverToken) {
+    if (!apiUrl || !apiToken) {
       return new Response(
-        JSON.stringify({ error: 'Server configuration missing' }),
+        JSON.stringify({ error: 'External API configuration missing. Please reconfigure the account.' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Limpiar número de teléfono (solo dígitos)
+    // Clean phone number (digits only)
     const phone = to.replace(/\D/g, '');
 
-    console.log(`Enviando mensaje a ${phone} via WuzAPI: ${serverUrl}`);
+    console.log(`Sending message to ${phone} via HeyHey API`);
+    console.log(`API URL: ${apiUrl}`);
+    console.log(`Connection type: ${account.connection_type}`);
 
     let endpoint: string;
     let requestBody: Record<string, unknown>;
 
-    // Siempre usar formato WuzAPI
+    // Build request based on message type
     if (mediaUrl && mediaType) {
-      const mediaEndpoints: Record<string, string> = {
-        'image': '/chat/send/image',
-        'audio': '/chat/send/audio',
-        'video': '/chat/send/video',
-        'document': '/chat/send/document',
-      };
-      endpoint = `${serverUrl}${mediaEndpoints[mediaType] || '/chat/send/document'}`;
+      const mediaEndpoint = WUZAPI_ENDPOINTS[mediaType] || WUZAPI_ENDPOINTS.document;
+      endpoint = `${apiUrl}${mediaEndpoint}`;
+      
       requestBody = {
         Phone: phone,
         Media: mediaUrl,
         Caption: message || '',
-        FileName: fileName || 'file',
       };
+
+      // Add filename for documents
+      if (mediaType === 'document' && fileName) {
+        requestBody.FileName = fileName;
+      }
+
+      console.log(`Sending ${mediaType} message`);
     } else if (message) {
-      endpoint = `${serverUrl}/chat/send/text`;
+      endpoint = `${apiUrl}${WUZAPI_ENDPOINTS.text}`;
       requestBody = {
         Phone: phone,
         Body: message,
       };
+      console.log('Sending text message');
     } else {
       return new Response(
-        JSON.stringify({ error: 'Se requiere mensaje o mediaUrl' }),
+        JSON.stringify({ error: 'Message or mediaUrl is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     console.log(`Endpoint: ${endpoint}`);
-    console.log('Body:', JSON.stringify(requestBody));
+    console.log('Request body:', JSON.stringify(requestBody));
 
+    // Make request to HeyHey/WuzAPI with JWT Bearer token
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Token': serverToken,
+        'Authorization': `Bearer ${apiToken}`,
       },
       body: JSON.stringify(requestBody),
     });
 
     const responseText = await response.text();
-    console.log(`Respuesta: ${response.status} - ${responseText}`);
+    console.log(`Response status: ${response.status}`);
+    console.log(`Response body: ${responseText}`);
 
     if (!response.ok) {
+      console.error('API error:', responseText);
       return new Response(
         JSON.stringify({ 
-          error: 'Error al enviar mensaje',
+          error: 'Failed to send message',
           details: responseText,
           status: response.status
         }),
@@ -149,19 +170,24 @@ Deno.serve(async (req) => {
       result = { raw: responseText };
     }
 
+    // Extract message ID from WuzAPI response
+    const messageId = result.Id || result.id || result.messageId || result.message_id || 'sent';
+
+    console.log(`Message sent successfully. ID: ${messageId}`);
+
     return new Response(
       JSON.stringify({ 
         success: true, 
-        messageId: result.Id || result.messageId || 'sent',
+        messageId,
         result 
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Error in whatsapp-send-external:', error);
     return new Response(
-      JSON.stringify({ error: error.message || 'Error interno' }),
+      JSON.stringify({ error: error.message || 'Internal server error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
