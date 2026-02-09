@@ -440,10 +440,15 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
               mediaUrl: mediaUrl,
               mediaType: mediaType,
               conversationId: conversation.id,
+              createConversation: true, // Ensure message is saved
             },
           });
           if (error) throw error;
           if (data?.error) throw new Error(data.details || data.error);
+          
+          // Refresh messages to show the newly sent message immediately
+          // (in case realtime is slow or fails)
+          setTimeout(() => fetchMessages(), 500);
         } else {
           // Use Meta API for official connections
           const { data, error } = await supabase.functions.invoke('whatsapp-send-message', {
