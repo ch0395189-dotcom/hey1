@@ -161,7 +161,8 @@ Deno.serve(async (req) => {
       result = { raw: responseText };
     }
 
-    const messageId = result.id || result.messageId || result.message_id || result.externalKey || 'sent';
+    // Generate a unique message ID - use externalKey we sent or create a unique one
+    const messageId = result.id || result.messageId || result.message_id || `heyhey_out_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
     console.log(`Message sent successfully. ID: ${messageId}`);
 
