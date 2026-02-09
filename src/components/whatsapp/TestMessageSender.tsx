@@ -62,6 +62,7 @@ export const TestMessageSender = ({ accountId, accountPhone, connectionType }: T
             accountId,
             to: phoneNumber,
             message: message,
+            createConversation: true, // Create conversation so it appears in inbox
           },
         });
 
