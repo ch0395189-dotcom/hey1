@@ -10,7 +10,7 @@ import { es } from "date-fns/locale";
 import { FaWhatsapp, FaFacebookMessenger, FaInstagram, FaTiktok } from "react-icons/fa";
 import { useAutoRefresh, useAutoRefreshSettings } from "@/hooks/useAutoRefresh";
 import { PullToRefreshContainer } from "@/components/ui/PullToRefreshContainer";
-
+import { NewMessageDialog } from "./NewMessageDialog";
 export interface Conversation {
   id: string;
   customer_name: string | null;
@@ -51,6 +51,7 @@ export const ConversationsList = ({
   const [showArchived, setShowArchived] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [showNewMessageDialog, setShowNewMessageDialog] = useState(false);
   
   // Use ref to store onNewMessage to avoid recreating subscription on every render
   const onNewMessageRef = useRef(onNewMessage);
@@ -261,7 +262,13 @@ export const ConversationsList = ({
             >
               {showArchived ? <Inbox className="w-4 h-4" /> : <Archive className="w-4 h-4" />}
             </Button>
-            <Button size="icon" variant="ghost" className="w-8 h-8">
+            <Button 
+              size="icon" 
+              variant="ghost" 
+              className="w-8 h-8"
+              onClick={() => setShowNewMessageDialog(true)}
+              title="Nuevo mensaje"
+            >
               <Plus className="w-4 h-4" />
             </Button>
           </div>
@@ -361,6 +368,40 @@ export const ConversationsList = ({
           ))
         )}
       </PullToRefreshContainer>
+
+      {/* New Message Dialog */}
+      <NewMessageDialog
+        open={showNewMessageDialog}
+        onOpenChange={setShowNewMessageDialog}
+        preselectedAccountId={whatsappAccountId}
+        onMessageSent={(conversationId) => {
+          fetchConversations();
+          // Find and select the new conversation
+          setTimeout(async () => {
+            const { data } = await supabase
+              .from('conversations')
+              .select('*')
+              .eq('id', conversationId)
+              .single();
+            
+            if (data) {
+              // Fetch last message for the conversation
+              const { data: messages } = await supabase
+                .from('messages')
+                .select('content, direction')
+                .eq('conversation_id', data.id)
+                .order('created_at', { ascending: false })
+                .limit(1);
+              
+              const conversationWithMessage = {
+                ...data,
+                last_message: messages?.[0] || null,
+              };
+              onSelectConversation(conversationWithMessage as Conversation);
+            }
+          }, 500);
+        }}
+      />
     </div>
   );
 };
