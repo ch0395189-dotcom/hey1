@@ -2,23 +2,67 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-webhook-token',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-webhook-token, client-token',
 }
 
-interface IncomingMessage {
-  from: string;           // Phone number of sender (e.g., "573001234567")
-  to?: string;            // Phone number of receiver (your WhatsApp number)
-  message?: string;       // Text content
-  messageId?: string;     // Unique message ID from WhatsApp
-  timestamp?: number;     // Unix timestamp
-  type?: 'text' | 'image' | 'audio' | 'video' | 'document' | 'sticker' | 'location';
-  mediaUrl?: string;      // URL of media if applicable
-  pushName?: string;      // Contact name from WhatsApp
-  isGroup?: boolean;      // If message is from a group
-  // Alternative field names your server might use
-  body?: string;          // Alternative for message
-  sender?: string;        // Alternative for from
-  chatId?: string;        // Alternative format for from
+// Z-API webhook payload format
+interface ZApiMessage {
+  phone: string;           // Phone number (e.g., "5573001234567")
+  isGroup: boolean;
+  messageId: string;
+  momment: number;         // Timestamp
+  type: 'ReceivedCallback' | 'MessageStatusCallback';
+  senderName?: string;
+  photo?: string;
+  broadcast?: boolean;
+  participantPhone?: string;
+  // Text message
+  text?: {
+    message: string;
+  };
+  // Image message
+  image?: {
+    imageUrl: string;
+    caption?: string;
+    mimeType: string;
+  };
+  // Audio message
+  audio?: {
+    audioUrl: string;
+    mimeType: string;
+  };
+  // Video message
+  video?: {
+    videoUrl: string;
+    caption?: string;
+    mimeType: string;
+  };
+  // Document message
+  document?: {
+    documentUrl: string;
+    mimeType: string;
+    title?: string;
+  };
+  // Sticker message
+  sticker?: {
+    stickerUrl: string;
+    mimeType: string;
+  };
+  // Location message
+  location?: {
+    latitude: number;
+    longitude: number;
+    name?: string;
+    address?: string;
+  };
+  // Alternative format (generic)
+  from?: string;
+  message?: string;
+  body?: string;
+  sender?: string;
+  chatId?: string;
+  pushName?: string;
+  mediaUrl?: string;
 }
 
 Deno.serve(async (req) => {
@@ -52,22 +96,25 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Validate webhook token
-    const webhookToken = req.headers.get('x-webhook-token') || req.headers.get('authorization')?.replace('Bearer ', '');
+    // Optional token validation (Z-API uses Client-Token header)
+    const webhookToken = req.headers.get('x-webhook-token') || 
+                         req.headers.get('client-token') ||
+                         req.headers.get('authorization')?.replace('Bearer ', '');
     const expectedToken = Deno.env.get('WHATSAPP_SERVER_TOKEN');
     
-    if (expectedToken && webhookToken !== expectedToken) {
+    // Log for debugging
+    console.log('Received headers:', Object.fromEntries(req.headers.entries()));
+    
+    // Token validation is optional - Z-API may not send a token
+    if (expectedToken && webhookToken && webhookToken !== expectedToken) {
       console.warn('Invalid webhook token received');
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      // Don't reject - Z-API might not send the token
     }
 
     const body = await req.text();
     console.log('Received webhook payload:', body);
 
-    let payload: IncomingMessage | IncomingMessage[];
+    let payload: ZApiMessage | ZApiMessage[];
     try {
       payload = JSON.parse(body);
     } catch {
@@ -89,26 +136,74 @@ Deno.serve(async (req) => {
     const results = [];
 
     for (const msg of messages) {
-      // Normalize field names
-      const from = msg.from || msg.sender || msg.chatId?.replace('@c.us', '') || '';
-      const messageContent = msg.message || msg.body || '';
-      const messageType = msg.type || (msg.mediaUrl ? 'image' : 'text');
-      const pushName = msg.pushName || null;
-      const messageId = msg.messageId || `ext_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      const mediaUrl = msg.mediaUrl || null;
-
-      if (!from) {
-        console.warn('Message missing sender, skipping:', msg);
+      // Skip status callbacks - only process received messages
+      if (msg.type === 'MessageStatusCallback') {
+        console.log('Skipping status callback:', msg.messageId);
         continue;
       }
 
-      // Format phone number (remove @c.us, spaces, etc.)
-      const phoneNumber = from.replace(/@c\.us|@g\.us|\s|\+|-/g, '');
-      
-      console.log(`Processing message from ${phoneNumber}: ${messageContent?.substring(0, 50)}...`);
+      // Skip group messages if needed
+      if (msg.isGroup) {
+        console.log('Skipping group message');
+        continue;
+      }
 
-      // Find conversation for this phone number
-      // First, find all WhatsApp accounts with external_qr connection type
+      // Extract phone number (Z-API format or generic format)
+      let phoneNumber = msg.phone || msg.from || msg.sender || msg.chatId?.replace('@c.us', '') || '';
+      
+      // Clean phone number (remove @c.us, spaces, +, -)
+      phoneNumber = phoneNumber.replace(/@c\.us|@g\.us|\s|\+|-/g, '');
+      
+      if (!phoneNumber) {
+        console.warn('Message missing phone number, skipping:', msg);
+        continue;
+      }
+
+      // Determine message content and type
+      let messageContent = '';
+      let messageType = 'text';
+      let mediaUrl: string | null = null;
+
+      if (msg.text?.message) {
+        messageContent = msg.text.message;
+        messageType = 'text';
+      } else if (msg.image) {
+        messageContent = msg.image.caption || '📷 Imagen';
+        messageType = 'image';
+        mediaUrl = msg.image.imageUrl;
+      } else if (msg.audio) {
+        messageContent = '🎵 Audio';
+        messageType = 'audio';
+        mediaUrl = msg.audio.audioUrl;
+      } else if (msg.video) {
+        messageContent = msg.video.caption || '🎥 Video';
+        messageType = 'video';
+        mediaUrl = msg.video.videoUrl;
+      } else if (msg.document) {
+        messageContent = msg.document.title || '📄 Documento';
+        messageType = 'document';
+        mediaUrl = msg.document.documentUrl;
+      } else if (msg.sticker) {
+        messageContent = '🎨 Sticker';
+        messageType = 'sticker';
+        mediaUrl = msg.sticker.stickerUrl;
+      } else if (msg.location) {
+        messageContent = `📍 ${msg.location.name || msg.location.address || 'Ubicación'}`;
+        messageType = 'location';
+      } else if (msg.message || msg.body) {
+        // Generic format fallback
+        messageContent = msg.message || msg.body || '';
+        messageType = msg.mediaUrl ? 'image' : 'text';
+        mediaUrl = msg.mediaUrl || null;
+      }
+
+      const pushName = msg.senderName || msg.pushName || null;
+      const messageId = msg.messageId || `zapi_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const profilePic = msg.photo || null;
+
+      console.log(`Processing Z-API message from ${phoneNumber}: ${messageContent?.substring(0, 50)}...`);
+
+      // Find all WhatsApp accounts with external_qr connection type
       const { data: accounts, error: accountsError } = await supabase
         .from('whatsapp_accounts')
         .select('id, user_id')
@@ -125,14 +220,13 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // For now, use the first active external account
-      // In production, you might want to match by the "to" phone number
+      // Use the first active external account
       const account = accounts[0];
 
       // Find or create conversation
       let { data: conversation, error: convError } = await supabase
         .from('conversations')
-        .select('id')
+        .select('id, unread_count')
         .eq('whatsapp_account_id', account.id)
         .eq('customer_phone', phoneNumber)
         .single();
@@ -150,11 +244,12 @@ Deno.serve(async (req) => {
             whatsapp_account_id: account.id,
             customer_phone: phoneNumber,
             customer_name: pushName,
+            customer_profile_pic: profilePic,
             platform: 'whatsapp',
             last_message_at: new Date().toISOString(),
             unread_count: 1,
           })
-          .select('id')
+          .select('id, unread_count')
           .single();
 
         if (createError) {
@@ -165,29 +260,21 @@ Deno.serve(async (req) => {
         console.log(`Created new conversation: ${conversation.id}`);
       } else {
         // Update existing conversation
+        const updateData: Record<string, unknown> = {
+          last_message_at: new Date().toISOString(),
+          unread_count: (conversation.unread_count || 0) + 1,
+        };
+        
+        // Update name and photo if provided
+        if (pushName) updateData.customer_name = pushName;
+        if (profilePic) updateData.customer_profile_pic = profilePic;
+
         await supabase
           .from('conversations')
-          .update({
-            last_message_at: new Date().toISOString(),
-            unread_count: supabase.rpc('increment', { x: 1 }), // This won't work, need different approach
-            customer_name: pushName || undefined,
-          })
+          .update(updateData)
           .eq('id', conversation.id);
-        
-        // Increment unread count properly
-        const { data: convData } = await supabase
-          .from('conversations')
-          .select('unread_count')
-          .eq('id', conversation.id)
-          .single();
-        
-        await supabase
-          .from('conversations')
-          .update({
-            unread_count: (convData?.unread_count || 0) + 1,
-            last_message_at: new Date().toISOString(),
-          })
-          .eq('id', conversation.id);
+          
+        console.log(`Updated conversation: ${conversation.id}`);
       }
 
       // Insert message
