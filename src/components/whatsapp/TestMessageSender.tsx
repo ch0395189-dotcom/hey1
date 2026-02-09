@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 interface TestMessageSenderProps {
   accountId: string;
   accountPhone: string;
+  connectionType?: string | null;
 }
 
 interface SendResult {
@@ -22,7 +23,7 @@ interface SendResult {
   timestamp: Date;
 }
 
-export const TestMessageSender = ({ accountId, accountPhone }: TestMessageSenderProps) => {
+export const TestMessageSender = ({ accountId, accountPhone, connectionType }: TestMessageSenderProps) => {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [message, setMessage] = useState("¡Hola! Este es un mensaje de prueba desde InboxWA. 🎉");
   const [sending, setSending] = useState(false);
@@ -52,64 +53,99 @@ export const TestMessageSender = ({ accountId, accountPhone }: TestMessageSender
     setResult(null);
 
     try {
-      // First, we need to find or create a conversation for this phone number
-      const { data: existingConv, error: convFetchError } = await supabase
-        .from('conversations')
-        .select('id')
-        .eq('customer_phone', phoneNumber.replace(/[\s\-()]/g, ''))
-        .eq('whatsapp_account_id', accountId)
-        .maybeSingle();
+      const isExternal = connectionType === 'external_qr' || connectionType === 'z-api';
+      
+      if (isExternal) {
+        // Use external function for Z-API/external connections
+        const { data, error } = await supabase.functions.invoke('whatsapp-send-external', {
+          body: {
+            accountId,
+            to: phoneNumber,
+            message: message,
+          },
+        });
 
-      let conversationId: string;
+        if (error) throw error;
 
-      if (existingConv) {
-        conversationId = existingConv.id;
+        if (data.error) {
+          setResult({
+            success: false,
+            error: data.error,
+            details: data.details,
+            timestamp: new Date(),
+          });
+        } else {
+          setResult({
+            success: true,
+            message_id: data.messageId || 'sent',
+            whatsapp_message_id: data.result?.messageId || data.messageId,
+            timestamp: new Date(),
+          });
+
+          toast({
+            title: "¡Mensaje enviado!",
+            description: `El mensaje de prueba fue enviado a ${phoneNumber}`,
+          });
+        }
       } else {
-        // Create a new conversation for the test
-        const { data: newConv, error: convError } = await supabase
+        // Use Meta API for official connections
+        // First, find or create a conversation
+        const { data: existingConv } = await supabase
           .from('conversations')
-          .insert({
-            customer_phone: phoneNumber.replace(/[\s\-()]/g, ''),
-            customer_name: 'Mensaje de prueba',
-            whatsapp_account_id: accountId,
-          })
           .select('id')
-          .single();
+          .eq('customer_phone', phoneNumber.replace(/[\s\-()]/g, ''))
+          .eq('whatsapp_account_id', accountId)
+          .maybeSingle();
 
-        if (convError) throw convError;
-        conversationId = newConv.id;
-      }
+        let conversationId: string;
 
-      // Send the message using the edge function
-      const { data, error } = await supabase.functions.invoke('whatsapp-send-message', {
-        body: {
-          conversation_id: conversationId,
-          message: message,
-          message_type: 'text',
-        },
-      });
+        if (existingConv) {
+          conversationId = existingConv.id;
+        } else {
+          const { data: newConv, error: convError } = await supabase
+            .from('conversations')
+            .insert({
+              customer_phone: phoneNumber.replace(/[\s\-()]/g, ''),
+              customer_name: 'Mensaje de prueba',
+              whatsapp_account_id: accountId,
+            })
+            .select('id')
+            .single();
 
-      if (error) throw error;
+          if (convError) throw convError;
+          conversationId = newConv.id;
+        }
 
-      if (data.error) {
-        setResult({
-          success: false,
-          error: data.error,
-          details: data.details,
-          timestamp: new Date(),
+        const { data, error } = await supabase.functions.invoke('whatsapp-send-message', {
+          body: {
+            conversation_id: conversationId,
+            message: message,
+            message_type: 'text',
+          },
         });
-      } else {
-        setResult({
-          success: true,
-          message_id: data.message_id,
-          whatsapp_message_id: data.whatsapp_message_id,
-          timestamp: new Date(),
-        });
 
-        toast({
-          title: "¡Mensaje enviado!",
-          description: `El mensaje de prueba fue enviado a ${phoneNumber}`,
-        });
+        if (error) throw error;
+
+        if (data.error) {
+          setResult({
+            success: false,
+            error: data.error,
+            details: data.details,
+            timestamp: new Date(),
+          });
+        } else {
+          setResult({
+            success: true,
+            message_id: data.message_id,
+            whatsapp_message_id: data.whatsapp_message_id,
+            timestamp: new Date(),
+          });
+
+          toast({
+            title: "¡Mensaje enviado!",
+            description: `El mensaje de prueba fue enviado a ${phoneNumber}`,
+          });
+        }
       }
     } catch (error: any) {
       console.error('Error sending test message:', error);

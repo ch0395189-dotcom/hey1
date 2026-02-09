@@ -78,6 +78,7 @@ interface WhatsAppAccount {
   is_active: boolean;
   webhook_verify_token: string | null;
   created_at: string;
+  connection_type: string | null;
 }
 
 interface WhatsAppSetupProps {
@@ -671,7 +672,8 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
                     >
                       <TestMessageSender 
                         accountId={account.id} 
-                        accountPhone={account.phone_number} 
+                        accountPhone={account.phone_number}
+                        connectionType={account.connection_type}
                       />
                     </motion.div>
                   )}
