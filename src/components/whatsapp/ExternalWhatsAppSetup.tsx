@@ -27,32 +27,36 @@ interface ExternalWhatsAppSetupProps {
 
 const SERVICES = [
   { 
+    id: 'whatsapp-web-js', 
+    name: 'whatsapp-web.js (Servidor propio)', 
+    url: 'https://github.com/pedroslopez/whatsapp-web.js',
+    description: 'Tu propio servidor con whatsapp-web.js',
+    baseUrl: '',
+    isSelfHosted: true
+  },
+  { 
     id: 'z-api', 
     name: 'Z-API', 
     url: 'https://z-api.io',
     description: 'Popular en Latinoamérica, fácil de usar',
-    baseUrl: 'https://api.z-api.io'
+    baseUrl: 'https://api.z-api.io',
+    isSelfHosted: false
   },
   { 
     id: 'waha', 
     name: 'WAHA', 
     url: 'https://waha.devlike.pro',
     description: 'Open source, tiene plan gratuito',
-    baseUrl: 'https://api.waha.devlike.pro'
-  },
-  { 
-    id: 'evolution', 
-    name: 'Evolution API', 
-    url: 'https://evolution-api.com',
-    description: 'Open source, muy completo',
-    baseUrl: ''
+    baseUrl: 'https://api.waha.devlike.pro',
+    isSelfHosted: false
   },
   { 
     id: 'custom', 
     name: 'Otro servicio', 
     url: '',
     description: 'Configura tu propio servicio',
-    baseUrl: ''
+    baseUrl: '',
+    isSelfHosted: false
   },
 ];
 
