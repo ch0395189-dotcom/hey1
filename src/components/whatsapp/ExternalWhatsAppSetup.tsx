@@ -19,14 +19,15 @@ interface ExternalWhatsAppSetupProps {
   onAccountConnected?: () => void;
 }
 
-const WUZAPI_URL = 'https://bot.heyheychat.uk';
+const WUZAPI_PANEL_URL = 'https://bot.heyheychat.uk';
+const WUZAPI_API_URL = 'https://api.heyheychat.uk';
 
 export const ExternalWhatsAppSetup = ({ onAccountConnected }: ExternalWhatsAppSetupProps) => {
   const [saving, setSaving] = useState(false);
   const [savedAccount, setSavedAccount] = useState<{ id: string; name: string } | null>(null);
   const [formData, setFormData] = useState({
     displayName: '',
-    apiKey: '',
+    apiToken: '',
     instanceId: '',
   });
   const { toast } = useToast();
@@ -38,7 +39,7 @@ export const ExternalWhatsAppSetup = ({ onAccountConnected }: ExternalWhatsAppSe
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.displayName || !formData.apiKey || !formData.instanceId) {
+    if (!formData.displayName || !formData.apiToken || !formData.instanceId) {
       toast({
         title: "Campos requeridos",
         description: "Por favor completa todos los campos.",
@@ -53,6 +54,9 @@ export const ExternalWhatsAppSetup = ({ onAccountConnected }: ExternalWhatsAppSe
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('No authenticated user');
 
+      // Build the full API URL with the instance ID
+      const fullApiUrl = `${WUZAPI_API_URL}/v1/api/external/${formData.instanceId}`;
+
       // Insert the external WhatsApp account
       const { data, error } = await supabase
         .from('whatsapp_accounts')
@@ -61,12 +65,12 @@ export const ExternalWhatsAppSetup = ({ onAccountConnected }: ExternalWhatsAppSe
           phone_number: formData.instanceId,
           phone_number_id: formData.instanceId,
           business_account_id: 'wuzapi',
-          access_token: formData.apiKey,
+          access_token: formData.apiToken,
           display_name: formData.displayName,
           is_active: true,
           connection_type: 'external_qr',
-          external_service_url: WUZAPI_URL,
-          external_api_key: formData.apiKey,
+          external_service_url: fullApiUrl,
+          external_api_key: formData.apiToken,
           external_instance_id: formData.instanceId,
         })
         .select('id')
@@ -83,7 +87,7 @@ export const ExternalWhatsAppSetup = ({ onAccountConnected }: ExternalWhatsAppSe
 
       setFormData({
         displayName: '',
-        apiKey: '',
+        apiToken: '',
         instanceId: '',
       });
       
@@ -157,7 +161,7 @@ export const ExternalWhatsAppSetup = ({ onAccountConnected }: ExternalWhatsAppSe
           <div className="bg-muted rounded-lg p-4 space-y-2">
             <h4 className="font-medium text-sm">Configuración en WuzAPI:</h4>
             <ol className="space-y-1 text-sm text-muted-foreground">
-              <li>1. Ve al panel de WuzAPI: <a href={WUZAPI_URL} target="_blank" rel="noopener noreferrer" className="text-primary underline">{WUZAPI_URL}</a></li>
+              <li>1. Ve al panel de WuzAPI: <a href={WUZAPI_PANEL_URL} target="_blank" rel="noopener noreferrer" className="text-primary underline">{WUZAPI_PANEL_URL}</a></li>
               <li>2. Haz clic en "AJUSTES" de tu conexión de WhatsApp</li>
               <li>3. Activa la opción <strong>"Activar Webhook"</strong></li>
               <li>4. Pega la URL de arriba en el campo "URL servidor WebHook"</li>
@@ -193,22 +197,22 @@ export const ExternalWhatsAppSetup = ({ onAccountConnected }: ExternalWhatsAppSe
         </div>
         <CardTitle className="font-display">Conexión WuzAPI</CardTitle>
         <CardDescription>
-          Conecta tu WhatsApp usando WuzAPI ({WUZAPI_URL})
+          Conecta tu WhatsApp usando la API de HeyHey
         </CardDescription>
       </CardHeader>
       <CardContent>
         <Alert className="mb-6 bg-muted/50">
           <Info className="h-4 w-4" />
           <AlertDescription className="flex items-center justify-between">
-            <span>Primero escanea el QR en WuzAPI</span>
+            <span>Obtén los datos de API en el panel</span>
             <Button
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => window.open(WUZAPI_URL, '_blank')}
+              onClick={() => window.open(WUZAPI_PANEL_URL, '_blank')}
             >
               <ExternalLink className="w-4 h-4 mr-1" />
-              Abrir WuzAPI
+              Abrir Panel
             </Button>
           </AlertDescription>
         </Alert>
@@ -226,31 +230,31 @@ export const ExternalWhatsAppSetup = ({ onAccountConnected }: ExternalWhatsAppSe
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="instanceId">Nombre de usuario en WuzAPI *</Label>
+            <Label htmlFor="instanceId">ID de Instancia (UUID) *</Label>
             <Input
               id="instanceId"
-              placeholder="Ej: jefferson, admin, etc."
+              placeholder="Ej: a3b7b66f-5b0c-4d61-b39f-5119fa4acedd"
               value={formData.instanceId}
               onChange={(e) => handleInputChange('instanceId', e.target.value)}
               required
             />
             <p className="text-xs text-muted-foreground">
-              Es el usuario que configuraste en WuzAPI (visible en el panel)
+              Lo encuentras en la URL de la API (después de /external/)
             </p>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="apiKey">Token de API *</Label>
+            <Label htmlFor="apiToken">Token de API *</Label>
             <Input
-              id="apiKey"
+              id="apiToken"
               type="password"
-              placeholder="Token configurado en WuzAPI"
-              value={formData.apiKey}
-              onChange={(e) => handleInputChange('apiKey', e.target.value)}
+              placeholder="eyJhbGciOiJIUzI1NiIs..."
+              value={formData.apiToken}
+              onChange={(e) => handleInputChange('apiToken', e.target.value)}
               required
             />
             <p className="text-xs text-muted-foreground">
-              Es el token de autenticación configurado en WuzAPI
+              El token JWT que aparece en la configuración de API
             </p>
           </div>
 
@@ -266,7 +270,7 @@ export const ExternalWhatsAppSetup = ({ onAccountConnected }: ExternalWhatsAppSe
                   Guardando...
                 </>
               ) : (
-                'Conectar WuzAPI'
+                'Conectar API'
               )}
             </Button>
           </div>
@@ -277,11 +281,11 @@ export const ExternalWhatsAppSetup = ({ onAccountConnected }: ExternalWhatsAppSe
           <ol className="space-y-2 text-sm text-muted-foreground">
             <li className="flex gap-2">
               <span className="font-bold text-primary">1.</span>
-              Abre el panel de WuzAPI y escanea el código QR con tu WhatsApp
+              Abre el panel y ve a la pestaña "API"
             </li>
             <li className="flex gap-2">
               <span className="font-bold text-primary">2.</span>
-              Una vez conectado, copia el nombre de usuario y token
+              Copia la URL (el UUID es el ID de instancia) y el Token
             </li>
             <li className="flex gap-2">
               <span className="font-bold text-primary">3.</span>
@@ -289,7 +293,7 @@ export const ExternalWhatsAppSetup = ({ onAccountConnected }: ExternalWhatsAppSe
             </li>
             <li className="flex gap-2">
               <span className="font-bold text-primary">4.</span>
-              Configura el webhook en WuzAPI con la URL que te daremos
+              Configura el webhook en "CANALES" → "AJUSTES"
             </li>
           </ol>
         </div>
