@@ -113,11 +113,21 @@ Deno.serve(async (req) => {
 
     // Always include body field - it's required by the API
     // For text messages: the actual message
-    // For media messages: caption (optional, can be empty string)
+    // For media messages: caption (required non-empty by HeyHey API)
     if (message) {
       requestBody.body = message;
+    } else if (mediaUrl) {
+      // HeyHey requires a non-empty body even for media messages
+      const mediaLabels: Record<string, string> = {
+        image: '📷 Imagen',
+        audio: '🎵 Audio',
+        video: '🎥 Video',
+        document: '📄 Documento',
+        sticker: '🎨 Sticker',
+      };
+      requestBody.body = mediaLabels[mediaType || ''] || '📎 Archivo';
     } else {
-      requestBody.body = ''; // Empty caption for media-only
+      requestBody.body = '';
     }
 
     // Add media URL if provided
