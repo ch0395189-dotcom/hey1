@@ -73,81 +73,7 @@ export const ConversationsList = ({
     }
   };
 
-  useEffect(() => {
-    fetchConversations();
-    
-    // Subscribe to realtime changes for conversations
-    const conversationsChannel = supabase
-      .channel('conversations-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'conversations',
-        },
-        (payload) => {
-          console.log('Conversation change:', payload);
-          fetchConversations();
-        }
-      )
-      .subscribe();
-
-    // Subscribe to new inbound messages for notifications
-    const messagesChannel = supabase
-      .channel('messages-notifications')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages',
-        },
-        async (payload) => {
-          const newMessage = payload.new as { 
-            direction: string; 
-            content: string | null; 
-            conversation_id: string;
-          };
-          
-          console.log('[Realtime] New message received:', newMessage);
-          
-          // Only notify for inbound messages
-          if (newMessage.direction === 'inbound' && onNewMessageRef.current) {
-            console.log('[Realtime] Inbound message - triggering notification');
-            // Fetch conversation details including platform
-            const { data: conv } = await supabase
-              .from('conversations')
-              .select('customer_name, customer_phone, platform')
-              .eq('id', newMessage.conversation_id)
-              .single();
-            
-            if (conv) {
-              console.log('[Realtime] Calling onNewMessage with:', {
-                name: conv.customer_name || conv.customer_phone,
-                content: newMessage.content,
-                platform: conv.platform
-              });
-              onNewMessageRef.current(
-                conv.customer_name || conv.customer_phone,
-                newMessage.content || 'Mensaje multimedia',
-                newMessage.conversation_id,
-                conv.platform || 'whatsapp'
-              );
-            }
-          }
-        }
-      )
-      .subscribe((status) => {
-        console.log('[Realtime] Messages channel status:', status);
-      });
-
-    return () => {
-      supabase.removeChannel(conversationsChannel);
-      supabase.removeChannel(messagesChannel);
-    };
-  }, [whatsappAccountId, showArchived]);
-
+  // Declare fetchConversations before useEffect that uses it
   const fetchConversations = useCallback(async () => {
     try {
       let query = supabase
@@ -193,6 +119,95 @@ export const ConversationsList = ({
       setLoading(false);
     }
   }, [showArchived, platform, whatsappAccountId]);
+
+  useEffect(() => {
+    fetchConversations();
+    
+    // Create unique channel names to avoid conflicts
+    const channelId = `conversations-${Date.now()}`;
+    const messagesChannelId = `messages-${Date.now()}`;
+    
+    // Subscribe to realtime changes for conversations
+    const conversationsChannel = supabase
+      .channel(channelId)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'conversations',
+        },
+        (payload) => {
+          console.log('[Realtime] Conversation change:', payload.eventType);
+          fetchConversations();
+        }
+      )
+      .subscribe((status, err) => {
+        console.log('[Realtime] Conversations channel status:', status);
+        if (err) console.error('[Realtime] Conversations subscription error:', err);
+      });
+
+    // Subscribe to new inbound messages for notifications
+    const messagesChannel = supabase
+      .channel(messagesChannelId)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+        },
+        (payload) => {
+          const newMessage = payload.new as { 
+            direction: string; 
+            content: string | null; 
+            conversation_id: string;
+          };
+          
+          console.log('[Realtime] New message received:', newMessage.direction, newMessage.content?.substring(0, 30));
+          
+          // Refresh conversations list for any new message
+          fetchConversations();
+          
+          // Only notify for inbound messages
+          if (newMessage.direction === 'inbound' && onNewMessageRef.current) {
+            console.log('[Realtime] Inbound message - triggering notification');
+            // Fetch conversation details using setTimeout to avoid potential issues
+            setTimeout(async () => {
+              try {
+                const { data: conv } = await supabase
+                  .from('conversations')
+                  .select('customer_name, customer_phone, platform')
+                  .eq('id', newMessage.conversation_id)
+                  .single();
+                
+                if (conv && onNewMessageRef.current) {
+                  console.log('[Realtime] Calling onNewMessage');
+                  onNewMessageRef.current(
+                    conv.customer_name || conv.customer_phone,
+                    newMessage.content || 'Mensaje multimedia',
+                    newMessage.conversation_id,
+                    conv.platform || 'whatsapp'
+                  );
+                }
+              } catch (err) {
+                console.error('[Realtime] Error fetching conversation for notification:', err);
+              }
+            }, 0);
+          }
+        }
+      )
+      .subscribe((status, err) => {
+        console.log('[Realtime] Messages channel status:', status);
+        if (err) console.error('[Realtime] Messages subscription error:', err);
+      });
+
+    return () => {
+      console.log('[Realtime] Cleaning up channels');
+      supabase.removeChannel(conversationsChannel);
+      supabase.removeChannel(messagesChannel);
+    };
+  }, [whatsappAccountId, showArchived, fetchConversations]);
 
   // Auto-refresh integration
   const { enabled: autoRefreshEnabled, interval: autoRefreshInterval } = useAutoRefreshSettings();
