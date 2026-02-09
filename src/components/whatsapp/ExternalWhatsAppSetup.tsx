@@ -9,7 +9,8 @@ import {
   Info,
   CheckCircle2,
   Copy,
-  ExternalLink
+  ExternalLink,
+  Webhook
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -24,7 +25,9 @@ const WUZAPI_API_URL = 'https://api.heyheychat.uk';
 
 export const ExternalWhatsAppSetup = ({ onAccountConnected }: ExternalWhatsAppSetupProps) => {
   const [saving, setSaving] = useState(false);
-  const [savedAccount, setSavedAccount] = useState<{ id: string; name: string } | null>(null);
+  const [configuringWebhook, setConfiguringWebhook] = useState(false);
+  const [savedAccount, setSavedAccount] = useState<{ id: string; name: string; instanceId: string } | null>(null);
+  const [webhookConfigured, setWebhookConfigured] = useState(false);
   const [formData, setFormData] = useState({
     displayName: '',
     apiToken: '',
@@ -34,6 +37,43 @@ export const ExternalWhatsAppSetup = ({ onAccountConnected }: ExternalWhatsAppSe
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const configureWebhookAutomatically = async (accountId: string, instanceId: string) => {
+    setConfiguringWebhook(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('No session');
+
+      const response = await supabase.functions.invoke('heyhey-setup-webhook', {
+        body: { accountId, instanceId },
+      });
+
+      if (response.error) {
+        console.error('Webhook setup error:', response.error);
+        return false;
+      }
+
+      const result = response.data;
+      console.log('Webhook setup result:', result);
+
+      if (result.success) {
+        setWebhookConfigured(true);
+        toast({
+          title: "¡Webhook configurado!",
+          description: "Los mensajes entrantes llegarán automáticamente.",
+        });
+        return true;
+      } else {
+        console.log('Webhook not auto-configured:', result.message);
+        return false;
+      }
+    } catch (error) {
+      console.error('Error configuring webhook:', error);
+      return false;
+    } finally {
+      setConfiguringWebhook(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -79,11 +119,14 @@ export const ExternalWhatsAppSetup = ({ onAccountConnected }: ExternalWhatsAppSe
       if (error) throw error;
 
       toast({
-        title: "¡Cuenta configurada!",
-        description: "Ahora configura el webhook en WuzAPI.",
+        title: "¡Cuenta guardada!",
+        description: "Configurando webhook automáticamente...",
       });
 
-      setSavedAccount({ id: data.id, name: formData.displayName });
+      setSavedAccount({ id: data.id, name: formData.displayName, instanceId: formData.instanceId });
+
+      // Try to configure webhook automatically
+      await configureWebhookAutomatically(data.id, formData.instanceId);
 
       setFormData({
         displayName: '',
@@ -126,54 +169,92 @@ export const ExternalWhatsAppSetup = ({ onAccountConnected }: ExternalWhatsAppSe
           </div>
           <CardTitle className="font-display">¡Cuenta creada!</CardTitle>
           <CardDescription>
-            Ahora configura el webhook en WuzAPI para recibir mensajes
+            {webhookConfigured 
+              ? "El webhook se configuró automáticamente. ¡Ya puedes recibir mensajes!"
+              : "Configura el webhook para recibir mensajes entrantes"
+            }
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Alert className="bg-primary/5 border-primary/20">
-            <Info className="h-4 w-4 text-primary" />
-            <AlertDescription>
-              <strong>Paso importante:</strong> Copia esta URL y configúrala como webhook en el panel de WuzAPI
-            </AlertDescription>
-          </Alert>
+          {webhookConfigured ? (
+            <Alert className="bg-green-500/10 border-green-500/30">
+              <CheckCircle2 className="h-4 w-4 text-green-500" />
+              <AlertDescription className="text-green-700 dark:text-green-300">
+                <strong>¡Webhook configurado!</strong> Los mensajes entrantes llegarán automáticamente a tu bandeja.
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <>
+              {configuringWebhook ? (
+                <Alert className="bg-blue-500/10 border-blue-500/30">
+                  <Loader2 className="h-4 w-4 text-blue-500 animate-spin" />
+                  <AlertDescription>
+                    Configurando webhook automáticamente...
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                <>
+                  <Alert className="bg-amber-500/10 border-amber-500/30">
+                    <Info className="h-4 w-4 text-amber-500" />
+                    <AlertDescription>
+                      <strong>Configuración manual necesaria:</strong> Copia esta URL y configúrala en el panel de HeyHey
+                    </AlertDescription>
+                  </Alert>
 
-          <div className="space-y-2">
-            <Label className="font-medium">URL del Webhook</Label>
-            <div className="flex gap-2">
-              <Input 
-                value={webhookUrl} 
-                readOnly 
-                className="bg-muted font-mono text-xs"
-              />
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => copyToClipboard(webhookUrl, "URL del Webhook")}
-              >
-                <Copy className="h-4 w-4" />
-              </Button>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Esta URL es única para tu cuenta "{savedAccount.name}"
-            </p>
-          </div>
+                  <div className="space-y-2">
+                    <Label className="font-medium">URL del Webhook</Label>
+                    <div className="flex gap-2">
+                      <Input 
+                        value={webhookUrl} 
+                        readOnly 
+                        className="bg-muted font-mono text-xs"
+                      />
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => copyToClipboard(webhookUrl, "URL del Webhook")}
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Esta URL es única para tu cuenta "{savedAccount.name}"
+                    </p>
+                  </div>
 
-          <div className="bg-muted rounded-lg p-4 space-y-2">
-            <h4 className="font-medium text-sm">Configuración en WuzAPI:</h4>
-            <ol className="space-y-1 text-sm text-muted-foreground">
-              <li>1. Ve al panel de WuzAPI: <a href={WUZAPI_PANEL_URL} target="_blank" rel="noopener noreferrer" className="text-primary underline">{WUZAPI_PANEL_URL}</a></li>
-              <li>2. Haz clic en "AJUSTES" de tu conexión de WhatsApp</li>
-              <li>3. Activa la opción <strong>"Activar Webhook"</strong></li>
-              <li>4. Pega la URL de arriba en el campo "URL servidor WebHook"</li>
-              <li>5. Guarda los cambios</li>
-            </ol>
-          </div>
+                  <div className="bg-muted rounded-lg p-4 space-y-2">
+                    <h4 className="font-medium text-sm">Configuración en HeyHey:</h4>
+                    <ol className="space-y-1 text-sm text-muted-foreground">
+                      <li>1. Ve al panel: <a href={WUZAPI_PANEL_URL} target="_blank" rel="noopener noreferrer" className="text-primary underline">{WUZAPI_PANEL_URL}</a></li>
+                      <li>2. Busca tu instancia y haz clic en "AJUSTES"</li>
+                      <li>3. Activa <strong>"Activar Webhook"</strong></li>
+                      <li>4. Pega la URL de arriba</li>
+                      <li>5. Guarda los cambios</li>
+                    </ol>
+                  </div>
+
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => configureWebhookAutomatically(savedAccount.id, savedAccount.instanceId)}
+                    disabled={configuringWebhook}
+                  >
+                    <Webhook className="w-4 h-4 mr-2" />
+                    Reintentar configuración automática
+                  </Button>
+                </>
+              )}
+            </>
+          )}
 
           <div className="flex gap-3 pt-4">
             <Button
               variant="outline"
               className="flex-1"
-              onClick={() => setSavedAccount(null)}
+              onClick={() => {
+                setSavedAccount(null);
+                setWebhookConfigured(false);
+              }}
             >
               Conectar otra cuenta
             </Button>
