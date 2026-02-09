@@ -28,10 +28,10 @@ interface ExternalWhatsAppSetupProps {
 
 const SERVICES = [
   { 
-    id: 'whatsapp-web-js', 
-    name: 'whatsapp-web.js (Servidor propio)', 
-    url: 'https://github.com/pedroslopez/whatsapp-web.js',
-    description: 'Tu propio servidor con whatsapp-web.js',
+    id: 'wuzapi', 
+    name: 'WuzAPI', 
+    url: 'https://github.com/asternic/wuzapi',
+    description: 'API REST open source para WhatsApp',
     baseUrl: '',
     isSelfHosted: true
   },
@@ -364,19 +364,19 @@ export const ExternalWhatsAppSetup = ({ onAccountConnected }: ExternalWhatsAppSe
         </form>
 
         <div className="mt-6 pt-6 border-t">
-          <h4 className="font-medium mb-3">Pasos para conectar:</h4>
+          <h4 className="font-medium mb-3">Pasos para conectar con WuzAPI:</h4>
           <ol className="space-y-2 text-sm text-muted-foreground">
             <li className="flex gap-2">
               <span className="font-bold text-primary">1.</span>
-              Crea una cuenta en el servicio elegido
+              Instala y configura WuzAPI en tu servidor
             </li>
             <li className="flex gap-2">
               <span className="font-bold text-primary">2.</span>
-              Crea una nueva instancia/sesión de WhatsApp
+              Escanea el código QR en el panel de WuzAPI
             </li>
             <li className="flex gap-2">
               <span className="font-bold text-primary">3.</span>
-              Copia el ID de instancia y la API Key
+              Copia la URL del servidor y el Token de la API
             </li>
             <li className="flex gap-2">
               <span className="font-bold text-primary">4.</span>
@@ -384,11 +384,7 @@ export const ExternalWhatsAppSetup = ({ onAccountConnected }: ExternalWhatsAppSe
             </li>
             <li className="flex gap-2">
               <span className="font-bold text-primary">5.</span>
-              Configura el webhook con la URL que te daremos
-            </li>
-            <li className="flex gap-2">
-              <span className="font-bold text-primary">6.</span>
-              Escanea el QR en el panel del servicio externo
+              Configura el webhook en WuzAPI con la URL que te daremos
             </li>
           </ol>
         </div>
