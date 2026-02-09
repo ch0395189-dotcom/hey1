@@ -61,6 +61,12 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type ActiveView = 'inbox' | 'contacts' | 'statistics';
@@ -94,6 +100,7 @@ const Dashboard = () => {
   const [activeView, setActiveView] = useState<ActiveView>('inbox');
   const [activePlatform, setActivePlatform] = useState<Platform>('all');
   const [settingsTab, setSettingsTab] = useState<'whatsapp' | 'apikeys'>('whatsapp');
+  const [showMobileNotifications, setShowMobileNotifications] = useState(false);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
@@ -517,56 +524,91 @@ const Dashboard = () => {
       </div>
 
       {/* Mobile Bottom Navigation - WhatsApp Style */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border flex items-center justify-around px-2 z-50" style={{ height: 'calc(4rem + env(safe-area-inset-bottom, 0px))', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border flex items-center justify-around px-1 z-50" style={{ height: 'calc(3.5rem + env(safe-area-inset-bottom, 0px))', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
         <button
           onClick={() => setActiveView('inbox')}
-          className={`flex flex-col items-center gap-0.5 py-2 px-2 rounded-lg transition-colors ${
+          className={`flex flex-col items-center gap-0.5 py-1.5 px-1.5 rounded-lg transition-colors ${
             activeView === 'inbox' ? 'text-primary' : 'text-muted-foreground'
           }`}
         >
           <MessageCircle className="w-5 h-5" />
-          <span className="text-[10px] font-medium">Chats</span>
+          <span className="text-[9px] font-medium">Chats</span>
         </button>
         <button
           onClick={() => setActiveView('contacts')}
-          className={`flex flex-col items-center gap-0.5 py-2 px-2 rounded-lg transition-colors ${
+          className={`flex flex-col items-center gap-0.5 py-1.5 px-1.5 rounded-lg transition-colors ${
             activeView === 'contacts' ? 'text-primary' : 'text-muted-foreground'
           }`}
         >
           <Users className="w-5 h-5" />
-          <span className="text-[10px] font-medium">Contactos</span>
+          <span className="text-[9px] font-medium">Contactos</span>
         </button>
         <button
           onClick={() => setActiveView('statistics')}
-          className={`flex flex-col items-center gap-0.5 py-2 px-2 rounded-lg transition-colors ${
+          className={`flex flex-col items-center gap-0.5 py-1.5 px-1.5 rounded-lg transition-colors ${
             activeView === 'statistics' ? 'text-primary' : 'text-muted-foreground'
           }`}
         >
           <BarChart3 className="w-5 h-5" />
-          <span className="text-[10px] font-medium">Stats</span>
+          <span className="text-[9px] font-medium">Stats</span>
+        </button>
+        <button
+          onClick={() => setShowMobileNotifications(true)}
+          className={`flex flex-col items-center gap-0.5 py-1.5 px-1.5 rounded-lg transition-colors ${
+            soundEnabled ? 'text-primary' : 'text-muted-foreground'
+          }`}
+        >
+          {soundEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
+          <span className="text-[9px] font-medium">Sonido</span>
         </button>
         <button
           onClick={() => setShowChatbot(true)}
-          className="flex flex-col items-center gap-0.5 py-2 px-2 rounded-lg transition-colors text-muted-foreground"
+          className="flex flex-col items-center gap-0.5 py-1.5 px-1.5 rounded-lg transition-colors text-muted-foreground"
         >
           <Bot className="w-5 h-5" />
-          <span className="text-[10px] font-medium">Bot</span>
+          <span className="text-[9px] font-medium">Bot</span>
         </button>
         <button
           onClick={() => setShowPlatformSetup(true)}
-          className="flex flex-col items-center gap-0.5 py-2 px-2 rounded-lg transition-colors text-muted-foreground"
+          className="flex flex-col items-center gap-0.5 py-1.5 px-1.5 rounded-lg transition-colors text-muted-foreground"
         >
           <Plug className="w-5 h-5" />
-          <span className="text-[10px] font-medium">Redes</span>
+          <span className="text-[9px] font-medium">Redes</span>
         </button>
         <button
           onClick={() => setShowSettings(true)}
-          className="flex flex-col items-center gap-0.5 py-2 px-2 rounded-lg transition-colors text-muted-foreground"
+          className="flex flex-col items-center gap-0.5 py-1.5 px-1.5 rounded-lg transition-colors text-muted-foreground"
         >
           <Settings className="w-5 h-5" />
-          <span className="text-[10px] font-medium">Config</span>
+          <span className="text-[9px] font-medium">Config</span>
         </button>
       </nav>
+
+      {/* Mobile Notification Settings Sheet */}
+      <Sheet open={showMobileNotifications} onOpenChange={setShowMobileNotifications}>
+        <SheetContent side="bottom" className="max-h-[80vh] overflow-y-auto rounded-t-2xl">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              {soundEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
+              Notificaciones
+            </SheetTitle>
+          </SheetHeader>
+          <NotificationSettingsPanel
+            soundEnabled={soundEnabled}
+            desktopEnabled={desktopEnabled}
+            volume={volume}
+            tone={tone}
+            platformTones={platformTones}
+            desktopPermission={permission}
+            onToggleSound={toggleSound}
+            onToggleDesktop={toggleDesktop}
+            onVolumeChange={setVolume}
+            onToneChange={setTone}
+            onPlatformToneChange={setPlatformTone}
+            onRequestDesktopPermission={handleEnableNotifications}
+          />
+        </SheetContent>
+      </Sheet>
 
       {/* Settings Dialog */}
       <Dialog open={showSettings} onOpenChange={setShowSettings}>

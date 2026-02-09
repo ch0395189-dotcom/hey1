@@ -157,7 +157,7 @@ export const RenewalBanner = () => {
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -20 }}
-          className={`relative px-4 py-3 rounded-lg flex items-center justify-between gap-4 ${
+          className={`relative px-3 py-2 md:px-4 md:py-3 rounded-lg flex items-center justify-between gap-2 md:gap-4 ${
             isExpired
               ? 'bg-destructive/10 border border-destructive/30'
               : isUrgent
@@ -165,22 +165,22 @@ export const RenewalBanner = () => {
               : 'bg-yellow-500/10 border border-yellow-500/30'
           }`}
         >
-          <div className="flex items-center gap-3">
-            <AlertTriangle className={`w-5 h-5 flex-shrink-0 ${
+          <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
+            <AlertTriangle className={`w-4 h-4 md:w-5 md:h-5 flex-shrink-0 ${
               isExpired ? 'text-destructive' : isUrgent ? 'text-orange-500' : 'text-yellow-600'
             }`} />
-            <div>
-              <p className={`text-sm font-medium ${
+            <div className="min-w-0">
+              <p className={`text-xs md:text-sm font-medium ${
                 isExpired ? 'text-destructive' : isUrgent ? 'text-orange-600' : 'text-yellow-700'
               }`}>
                 {isExpired 
-                  ? `Tu ${PLAN_NAMES[subscription.plan]} ha expirado`
+                  ? `${PLAN_NAMES[subscription.plan]} expirado`
                   : subscription.status === 'trialing'
-                  ? `Tu prueba gratis termina en ${subscription.daysUntilExpiry} día${subscription.daysUntilExpiry !== 1 ? 's' : ''}`
-                  : `Tu suscripción vence en ${subscription.daysUntilExpiry} día${subscription.daysUntilExpiry !== 1 ? 's' : ''}`
+                  ? `Prueba: ${subscription.daysUntilExpiry}d restantes`
+                  : `Vence en ${subscription.daysUntilExpiry}d`
                 }
               </p>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-[10px] md:text-xs text-muted-foreground hidden md:block">
                 {isExpired 
                   ? 'Renueva ahora para recuperar el acceso completo'
                   : 'Renueva para mantener todas las funciones'

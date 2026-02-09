@@ -55,24 +55,24 @@ export const TrialBanner = () => {
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-destructive/10 border border-destructive/20 rounded-xl px-4 py-3 flex items-center gap-3"
+        className="bg-destructive/10 border border-destructive/20 rounded-xl px-3 py-2 md:px-4 md:py-3 flex items-center gap-2 md:gap-3"
       >
-        <div className="w-8 h-8 rounded-lg bg-destructive/20 flex items-center justify-center flex-shrink-0">
-          <AlertTriangle className="w-4 h-4 text-destructive" />
+        <div className="w-6 h-6 md:w-8 md:h-8 rounded-lg bg-destructive/20 flex items-center justify-center flex-shrink-0">
+          <AlertTriangle className="w-3 h-3 md:w-4 md:h-4 text-destructive" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-destructive">
+          <p className="text-xs md:text-sm font-medium text-destructive">
             Tu período de prueba ha expirado
           </p>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-[10px] md:text-xs text-muted-foreground hidden md:block">
             Actualiza tu plan para seguir usando todas las funciones
           </p>
         </div>
         <button 
           onClick={handleUpgrade}
-          className="px-3 py-1.5 text-xs font-medium bg-destructive text-destructive-foreground rounded-lg hover:bg-destructive/90 transition-colors"
+          className="px-2 py-1 md:px-3 md:py-1.5 text-[10px] md:text-xs font-medium bg-destructive text-destructive-foreground rounded-lg hover:bg-destructive/90 transition-colors whitespace-nowrap"
         >
-          Actualizar plan
+          Actualizar
         </button>
       </motion.div>
     );
@@ -128,28 +128,28 @@ export const TrialBanner = () => {
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -10 }}
-        className={`border rounded-xl px-4 py-3 flex items-center gap-3 ${bgColor}`}
+        className={`border rounded-xl px-3 py-2 md:px-4 md:py-3 flex items-center gap-2 md:gap-3 ${bgColor}`}
       >
-        <div className={`w-8 h-8 rounded-lg ${iconBgColor} flex items-center justify-center flex-shrink-0`}>
+        <div className={`w-6 h-6 md:w-8 md:h-8 rounded-lg ${iconBgColor} flex items-center justify-center flex-shrink-0`}>
           {isUrgent ? (
-            <AlertTriangle className={`w-4 h-4 ${iconColor}`} />
+            <AlertTriangle className={`w-3 h-3 md:w-4 md:h-4 ${iconColor}`} />
           ) : (
-            <Clock className={`w-4 h-4 ${iconColor}`} />
+            <Clock className={`w-3 h-3 md:w-4 md:h-4 ${iconColor}`} />
           )}
         </div>
         <div className="flex-1 min-w-0">
-          <p className={`text-sm font-medium ${textColor}`}>
+          <p className={`text-xs md:text-sm font-medium ${textColor}`}>
             {isUrgent ? "¡Tu prueba termina pronto!" : "Período de prueba"}
           </p>
-          <p className="text-xs text-muted-foreground">
-            Te quedan <span className="font-semibold">{timeText}</span> de prueba gratuita
+          <p className="text-[10px] md:text-xs text-muted-foreground">
+            <span className="font-semibold">{timeText}</span> restantes
           </p>
         </div>
         <button 
           onClick={handleUpgrade}
-          className="px-3 py-1.5 text-xs font-medium bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-1.5"
+          className="px-2 py-1 md:px-3 md:py-1.5 text-[10px] md:text-xs font-medium bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-1 whitespace-nowrap"
         >
-          <Sparkles className="w-3 h-3" />
+          <Sparkles className="w-3 h-3 hidden md:block" />
           Actualizar
         </button>
       </motion.div>
