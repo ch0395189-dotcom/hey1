@@ -14,16 +14,6 @@ interface SendMessageRequest {
   fileName?: string;
 }
 
-// WuzAPI endpoints (relative to instance URL)
-const WUZAPI_ENDPOINTS = {
-  text: '/chat/send/text',
-  image: '/chat/send/image',
-  audio: '/chat/send/audio',
-  video: '/chat/send/video',
-  document: '/chat/send/document',
-  sticker: '/chat/send/sticker',
-} as const;
-
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -83,75 +73,56 @@ Deno.serve(async (req) => {
     }
 
     // Get API URL and token from account
-    // Try different URL formats based on what's stored
-    let apiBaseUrl = account.external_service_url || '';
+    const apiBaseUrl = account.external_service_url;
     const apiToken = account.external_api_key;
 
-    if (!apiToken) {
+    if (!apiBaseUrl || !apiToken) {
       return new Response(
-        JSON.stringify({ error: 'API token missing. Please reconfigure the account.' }),
+        JSON.stringify({ error: 'API configuration missing. Please reconfigure the account.' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    // Extract the base API URL (without the instance path)
-    // If URL contains /v1/api/external/, strip it to just the base domain
-    const apiUrlMatch = apiBaseUrl.match(/^(https?:\/\/[^\/]+)/);
-    const cleanApiBase = apiUrlMatch ? apiUrlMatch[1] : 'https://api.heyheychat.uk';
 
     // Clean phone number (digits only)
     const phone = to.replace(/\D/g, '');
 
     console.log(`Sending message to ${phone} via HeyHey API`);
-    console.log(`Stored API URL: ${apiBaseUrl}`);
-    console.log(`Clean API Base: ${cleanApiBase}`);
+    console.log(`API Base URL: ${apiBaseUrl}`);
     console.log(`Instance ID: ${account.external_instance_id}`);
-    console.log(`Connection type: ${account.connection_type}`);
 
-    let endpoint: string;
-    let requestBody: Record<string, unknown>;
+    // Build request body according to HeyHey/WuzAPI format
+    // POST to base_url with body containing: body, number, mediaUrl (optional)
+    const requestBody: Record<string, unknown> = {
+      number: phone,
+      externalKey: `heyhey_${Date.now()}`, // Unique ID for tracking
+    };
 
-    // Build request based on message type
-    // Use clean base URL (WuzAPI standard endpoints)
-    if (mediaUrl && mediaType) {
-      const mediaEndpoint = WUZAPI_ENDPOINTS[mediaType] || WUZAPI_ENDPOINTS.document;
-      endpoint = `${cleanApiBase}${mediaEndpoint}`;
-      
-      requestBody = {
-        Phone: phone,
-        Media: mediaUrl,
-        Caption: message || '',
-      };
-
-      // Add filename for documents
-      if (mediaType === 'document' && fileName) {
-        requestBody.FileName = fileName;
-      }
-
-      console.log(`Sending ${mediaType} message`);
-    } else if (message) {
-      endpoint = `${cleanApiBase}${WUZAPI_ENDPOINTS.text}`;
-      requestBody = {
-        Phone: phone,
-        Body: message,
-      };
-      console.log('Sending text message');
-    } else {
-      return new Response(
-        JSON.stringify({ error: 'Message or mediaUrl is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    // Add message body
+    if (message) {
+      requestBody.body = message;
     }
+
+    // Add media URL if provided
+    if (mediaUrl) {
+      requestBody.mediaUrl = mediaUrl;
+      // If no text message but has media, set a default body
+      if (!message) {
+        requestBody.body = '';
+      }
+    }
+
+    // For location messages, use /location endpoint
+    let endpoint = apiBaseUrl;
 
     console.log(`Endpoint: ${endpoint}`);
     console.log('Request body:', JSON.stringify(requestBody));
 
-    // Make request to WuzAPI with Token header (NOT Bearer)
+    // Make request with Bearer token authentication
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Token': apiToken,
+        'Authorization': `Bearer ${apiToken}`,
       },
       body: JSON.stringify(requestBody),
     });
@@ -179,8 +150,8 @@ Deno.serve(async (req) => {
       result = { raw: responseText };
     }
 
-    // Extract message ID from WuzAPI response
-    const messageId = result.Id || result.id || result.messageId || result.message_id || 'sent';
+    // Extract message ID from response
+    const messageId = result.id || result.messageId || result.message_id || result.externalKey || 'sent';
 
     console.log(`Message sent successfully. ID: ${messageId}`);
 
