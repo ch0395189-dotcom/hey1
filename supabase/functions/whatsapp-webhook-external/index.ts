@@ -1,5 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
+// WhatsApp External Webhook Handler v2 - Receives messages from WuzAPI/HeyHey
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, token, x-webhook-token, x-account-id',
@@ -30,6 +32,8 @@ interface WuzApiMessage {
 }
 
 Deno.serve(async (req) => {
+  console.log('📥 Webhook external v2 recibido:', req.method);
+
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -39,13 +43,13 @@ Deno.serve(async (req) => {
     const url = new URL(req.url);
     const challenge = url.searchParams.get('challenge') || url.searchParams.get('hub.challenge');
     if (challenge) {
-      console.log('Webhook verification received');
+      console.log('✅ Webhook verification received');
       return new Response(challenge, { 
         status: 200, 
         headers: { ...corsHeaders, 'Content-Type': 'text/plain' } 
       });
     }
-    return new Response('Webhook activo', { 
+    return new Response('Webhook activo v2', { 
       status: 200, 
       headers: { ...corsHeaders, 'Content-Type': 'text/plain' } 
     });
@@ -56,19 +60,18 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Obtener el account_id del header o query param para identificar el usuario
     const url = new URL(req.url);
     const accountId = req.headers.get('x-account-id') || url.searchParams.get('account_id');
     
     const body = await req.text();
-    console.log('Webhook payload recibido:', body);
-    console.log('Account ID:', accountId);
+    console.log('📨 Webhook payload:', body);
+    console.log('🆔 Account ID:', accountId);
 
     let payload: WuzApiMessage | WuzApiMessage[];
     try {
       payload = JSON.parse(body);
     } catch {
-      console.error('JSON inválido');
+      console.error('❌ JSON inválido');
       return new Response(
         JSON.stringify({ error: 'Invalid JSON' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -87,12 +90,12 @@ Deno.serve(async (req) => {
       const msgData = msg.data || msg;
       
       if (msg.event && msg.event !== 'Message') {
-        console.log(`Saltando evento: ${msg.event}`);
+        console.log(`⏭️ Saltando evento: ${msg.event}`);
         continue;
       }
 
       if (msgData.fromMe) {
-        console.log('Ignorando mensaje propio');
+        console.log('⏭️ Ignorando mensaje propio');
         continue;
       }
 
@@ -100,7 +103,7 @@ Deno.serve(async (req) => {
       phoneNumber = phoneNumber.replace(/@s\.whatsapp\.net|@c\.us|@g\.us/g, '').replace(/\D/g, '');
       
       if (!phoneNumber) {
-        console.warn('Mensaje sin número de teléfono:', msg);
+        console.warn('⚠️ Mensaje sin número de teléfono:', msg);
         continue;
       }
 
@@ -143,14 +146,13 @@ Deno.serve(async (req) => {
       const pushName = msgData.pushName || null;
       const messageId = msgData.id || `wuzapi_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-      console.log(`Procesando mensaje de ${phoneNumber}: ${messageContent?.substring(0, 50)}...`);
+      console.log(`📱 Procesando: ${phoneNumber} -> ${messageContent?.substring(0, 50)}...`);
 
-      // Buscar cuenta - por ID si se proporciona, o buscar activas
+      // Buscar cuenta
       let account = null;
       
       if (accountId) {
-        // Buscar cuenta específica por ID
-        const { data: specificAccount, error: accError } = await supabase
+        const { data: specificAccount } = await supabase
           .from('whatsapp_accounts')
           .select('id, user_id, phone_number')
           .eq('id', accountId)
@@ -160,40 +162,32 @@ Deno.serve(async (req) => {
         
         if (specificAccount) {
           account = specificAccount;
-          console.log(`Cuenta encontrada por ID: ${accountId}`);
+          console.log(`✅ Cuenta encontrada: ${accountId}`);
         }
       }
       
       if (!account) {
-        // Buscar todas las cuentas externas activas
-        const { data: accounts, error: accountsError } = await supabase
+        const { data: accounts } = await supabase
           .from('whatsapp_accounts')
           .select('id, user_id, phone_number')
           .eq('connection_type', 'external_qr')
           .eq('is_active', true);
 
-        if (accountsError || !accounts?.length) {
-          console.error('No hay cuentas externas activas');
+        if (!accounts?.length) {
+          console.error('❌ No hay cuentas externas activas');
           continue;
         }
 
-        // Si solo hay una cuenta, usarla
-        if (accounts.length === 1) {
-          account = accounts[0];
-        } else {
-          // Si hay múltiples, buscar por número de teléfono en el payload
-          // WuzAPI no siempre envía el número destino, así que usamos la primera
-          console.warn('Múltiples cuentas encontradas, usando la primera. Configura account_id en el webhook.');
-          account = accounts[0];
+        account = accounts[0];
+        if (accounts.length > 1) {
+          console.warn('⚠️ Múltiples cuentas, usando primera');
         }
       }
 
       if (!account) {
-        console.error('No se encontró cuenta válida');
+        console.error('❌ No se encontró cuenta válida');
         continue;
       }
-
-      console.log(`Usando cuenta: ${account.id} (Usuario: ${account.user_id})`);
 
       // Buscar o crear conversación
       let { data: conversation, error: convError } = await supabase
@@ -204,7 +198,7 @@ Deno.serve(async (req) => {
         .single();
 
       if (convError && convError.code !== 'PGRST116') {
-        console.error('Error buscando conversación:', convError);
+        console.error('❌ Error buscando conversación:', convError);
         continue;
       }
 
@@ -223,11 +217,11 @@ Deno.serve(async (req) => {
           .single();
 
         if (createError) {
-          console.error('Error creando conversación:', createError);
+          console.error('❌ Error creando conversación:', createError);
           continue;
         }
         conversation = newConv;
-        console.log(`Nueva conversación: ${conversation.id}`);
+        console.log(`🆕 Nueva conversación: ${conversation.id}`);
       } else {
         const updateData: Record<string, unknown> = {
           last_message_at: new Date().toISOString(),
@@ -241,7 +235,7 @@ Deno.serve(async (req) => {
           .eq('id', conversation.id);
       }
 
-      // Insertar mensaje
+      // Insertar mensaje - usar 'delivered' porque 'received' no está en el constraint
       const { data: message, error: msgError } = await supabase
         .from('messages')
         .insert({
@@ -251,17 +245,17 @@ Deno.serve(async (req) => {
           message_type: messageType,
           media_url: mediaUrl,
           whatsapp_message_id: messageId,
-          status: 'received',
+          status: 'delivered',  // Changed from 'received' to 'delivered'
         })
         .select('id')
         .single();
 
       if (msgError) {
-        console.error('Error insertando mensaje:', msgError);
+        console.error('❌ Error insertando mensaje:', msgError);
         continue;
       }
 
-      console.log(`Mensaje guardado: ${message.id}`);
+      console.log(`✅ Mensaje guardado: ${message.id}`);
       results.push({ messageId: message.id, from: phoneNumber, accountId: account.id, success: true });
 
       // Procesar chatbot si está activo
@@ -274,7 +268,7 @@ Deno.serve(async (req) => {
           .single();
 
         if (chatbotConfig) {
-          console.log('Enviando a chatbot...');
+          console.log('🤖 Enviando a chatbot...');
           await supabase.functions.invoke('chatbot-process', {
             body: {
               conversation_id: conversation.id,
@@ -285,7 +279,7 @@ Deno.serve(async (req) => {
           });
         }
       } catch (chatbotError) {
-        console.error('Error en chatbot:', chatbotError);
+        console.error('❌ Error en chatbot:', chatbotError);
       }
     }
 
@@ -295,7 +289,7 @@ Deno.serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Error en webhook:', error);
+    console.error('❌ Error en webhook:', error);
     return new Response(
       JSON.stringify({ error: error.message || 'Error interno' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
