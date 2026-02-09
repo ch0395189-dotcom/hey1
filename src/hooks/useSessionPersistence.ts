@@ -169,7 +169,7 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
 
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         if (!mounted) return;
         
         console.log('[Session] Auth state changed:', event, session?.user?.email);
@@ -182,7 +182,10 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
               sessionValidRef.current = true;
               initialCheckDoneRef.current = true;
               setIsInitializing(false);
-              onSessionRestoredRef.current?.(session.user);
+              // Use setTimeout to avoid potential deadlocks
+              setTimeout(() => {
+                onSessionRestoredRef.current?.(session.user);
+              }, 0);
             }
             break;
             
@@ -193,21 +196,22 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
               sessionValidRef.current = true;
               initialCheckDoneRef.current = true;
               setIsInitializing(false);
-              onSessionRestoredRef.current?.(session.user);
+              setTimeout(() => {
+                onSessionRestoredRef.current?.(session.user);
+              }, 0);
             } else {
-              console.log('[Session] No initial session');
-              // Some older phones take longer to hydrate storage for PWAs.
-              // Retry getSession a few times before declaring the user logged out.
+              console.log('[Session] No initial session, trying to recover...');
+              // Try to recover session with retries
               (async () => {
-                const delays = [0, 250, 750, 1500, 2500, 4000];
+                const delays = [100, 300, 600, 1000, 2000];
 
                 for (const delay of delays) {
                   if (!mounted || bootstrapCancelled) return;
-                  if (delay) await new Promise((r) => setTimeout(r, delay));
+                  await new Promise((r) => setTimeout(r, delay));
 
                   const s = await checkSession();
                   if (s?.user) {
-                    console.log('[Session] Session hydrated after delay:', delay);
+                    console.log('[Session] Session recovered after delay:', delay);
                     sessionValidRef.current = true;
                     initialCheckDoneRef.current = true;
                     setIsInitializing(false);

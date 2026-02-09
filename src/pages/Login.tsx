@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { MessageCircle, Mail, Lock, ArrowLeft } from "lucide-react";
+import { MessageCircle, Mail, Lock, ArrowLeft, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { WhatsAppFloatingButton } from "@/components/ui/WhatsAppFloatingButton";
@@ -13,8 +13,37 @@ const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  // Check for existing session on mount
+  useEffect(() => {
+    const checkExistingSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          console.log('[Login] Existing session found, redirecting to dashboard');
+          navigate('/dashboard', { replace: true });
+          return;
+        }
+      } catch (error) {
+        console.error('[Login] Error checking session:', error);
+      }
+      setCheckingSession(false);
+    };
+
+    checkExistingSession();
+
+    // Also listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session?.user) {
+        navigate('/dashboard', { replace: true });
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,6 +72,15 @@ const Login = () => {
       setLoading(false);
     }
   };
+
+  // Show loading state while checking for existing session
+  if (checkingSession) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex">
