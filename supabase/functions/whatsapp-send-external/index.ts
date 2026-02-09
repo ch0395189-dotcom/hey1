@@ -14,7 +14,7 @@ interface SendMessageRequest {
   fileName?: string;
 }
 
-// HeyHey/WuzAPI endpoints
+// WuzAPI endpoints (relative to instance URL)
 const WUZAPI_ENDPOINTS = {
   text: '/chat/send/text',
   image: '/chat/send/image',
@@ -83,30 +83,39 @@ Deno.serve(async (req) => {
     }
 
     // Get API URL and token from account
-    const apiUrl = account.external_service_url;
+    // Try different URL formats based on what's stored
+    let apiBaseUrl = account.external_service_url || '';
     const apiToken = account.external_api_key;
 
-    if (!apiUrl || !apiToken) {
+    if (!apiToken) {
       return new Response(
-        JSON.stringify({ error: 'External API configuration missing. Please reconfigure the account.' }),
+        JSON.stringify({ error: 'API token missing. Please reconfigure the account.' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    // Extract the base API URL (without the instance path)
+    // If URL contains /v1/api/external/, strip it to just the base domain
+    const apiUrlMatch = apiBaseUrl.match(/^(https?:\/\/[^\/]+)/);
+    const cleanApiBase = apiUrlMatch ? apiUrlMatch[1] : 'https://api.heyheychat.uk';
 
     // Clean phone number (digits only)
     const phone = to.replace(/\D/g, '');
 
     console.log(`Sending message to ${phone} via HeyHey API`);
-    console.log(`API URL: ${apiUrl}`);
+    console.log(`Stored API URL: ${apiBaseUrl}`);
+    console.log(`Clean API Base: ${cleanApiBase}`);
+    console.log(`Instance ID: ${account.external_instance_id}`);
     console.log(`Connection type: ${account.connection_type}`);
 
     let endpoint: string;
     let requestBody: Record<string, unknown>;
 
     // Build request based on message type
+    // Use clean base URL (WuzAPI standard endpoints)
     if (mediaUrl && mediaType) {
       const mediaEndpoint = WUZAPI_ENDPOINTS[mediaType] || WUZAPI_ENDPOINTS.document;
-      endpoint = `${apiUrl}${mediaEndpoint}`;
+      endpoint = `${cleanApiBase}${mediaEndpoint}`;
       
       requestBody = {
         Phone: phone,
@@ -121,7 +130,7 @@ Deno.serve(async (req) => {
 
       console.log(`Sending ${mediaType} message`);
     } else if (message) {
-      endpoint = `${apiUrl}${WUZAPI_ENDPOINTS.text}`;
+      endpoint = `${cleanApiBase}${WUZAPI_ENDPOINTS.text}`;
       requestBody = {
         Phone: phone,
         Body: message,
@@ -137,12 +146,12 @@ Deno.serve(async (req) => {
     console.log(`Endpoint: ${endpoint}`);
     console.log('Request body:', JSON.stringify(requestBody));
 
-    // Make request to HeyHey/WuzAPI with JWT Bearer token
+    // Make request to WuzAPI with Token header (NOT Bearer)
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiToken}`,
+        'Token': apiToken,
       },
       body: JSON.stringify(requestBody),
     });
