@@ -503,9 +503,12 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
     }
   };
 
-  const copyWebhookUrl = (token: string) => {
-    const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-webhook-v2`;
-    navigator.clipboard.writeText(webhookUrl);
+  const copyWebhookUrl = (account: WhatsAppAccount) => {
+    // For external QR connections, include account_id in the webhook URL
+    const baseUrl = account.connection_type === 'external_qr'
+      ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-webhook-external?account_id=${account.id}`
+      : `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-webhook-v2`;
+    navigator.clipboard.writeText(baseUrl);
     toast({
       title: "URL copiada",
       description: "La URL del webhook ha sido copiada al portapapeles.",
@@ -611,7 +614,7 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => copyWebhookUrl(account.webhook_verify_token || '')}
+                        onClick={() => copyWebhookUrl(account)}
                       >
                         <Copy className="w-4 h-4 mr-1" />
                         Webhook URL
