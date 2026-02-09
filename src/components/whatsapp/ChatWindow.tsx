@@ -30,6 +30,8 @@ import {
   RefreshCw,
   ListOrdered,
   Tag,
+  Bot,
+  User,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -116,6 +118,8 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [accountConnectionType, setAccountConnectionType] = useState<string | null>(null);
+  const [isBotActive, setIsBotActive] = useState<boolean | null>(null);
+  const [hasChatbotConfig, setHasChatbotConfig] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -139,6 +143,88 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
     
     fetchAccountType();
   }, [conversation?.whatsapp_account_id]);
+
+  // Fetch bot state for this conversation
+  const fetchBotState = useCallback(async () => {
+    if (!conversation?.id) return;
+    
+    // Check if there's a chatbot config for this account
+    const { data: config } = await supabase
+      .from('chatbot_configs')
+      .select('id, is_enabled')
+      .eq('whatsapp_account_id', conversation.whatsapp_account_id)
+      .eq('is_enabled', true)
+      .single();
+    
+    setHasChatbotConfig(!!config);
+    
+    if (!config) {
+      setIsBotActive(null);
+      return;
+    }
+    
+    // Check conversation state
+    const { data: state } = await supabase
+      .from('chatbot_conversation_state')
+      .select('is_bot_active')
+      .eq('conversation_id', conversation.id)
+      .single();
+    
+    setIsBotActive(state?.is_bot_active ?? null);
+  }, [conversation?.id, conversation?.whatsapp_account_id]);
+
+  useEffect(() => {
+    fetchBotState();
+  }, [fetchBotState]);
+
+  const handleToggleBot = async (activate: boolean) => {
+    if (!conversation) return;
+    
+    try {
+      if (activate) {
+        // Activate bot: upsert conversation state
+        const { error } = await supabase
+          .from('chatbot_conversation_state')
+          .upsert({
+            conversation_id: conversation.id,
+            is_bot_active: true,
+            current_node_id: null,
+            escalated_at: null,
+            context: {},
+          }, { onConflict: 'conversation_id' });
+        
+        if (error) throw error;
+        setIsBotActive(true);
+        toast({
+          title: "🤖 Bot activado",
+          description: "El chatbot ahora responderá en esta conversación.",
+        });
+      } else {
+        // Deactivate bot
+        const { error } = await supabase
+          .from('chatbot_conversation_state')
+          .upsert({
+            conversation_id: conversation.id,
+            is_bot_active: false,
+            escalated_at: new Date().toISOString(),
+          }, { onConflict: 'conversation_id' });
+        
+        if (error) throw error;
+        setIsBotActive(false);
+        toast({
+          title: "👤 Bot desactivado",
+          description: "Ahora puedes responder manualmente.",
+        });
+      }
+    } catch (error: any) {
+      console.error('Error toggling bot:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo cambiar el estado del bot.",
+        variant: "destructive",
+      });
+    }
+  };
 
   // Helper to get platform icon
   const getPlatformIcon = (platform: string) => {
@@ -870,9 +956,17 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                 {conversation.customer_name || conversation.customer_phone}
               </a>
             </div>
-            <p className="text-xs text-primary-foreground/70">
-              {conversation.customer_phone}
-            </p>
+            <div className="flex items-center gap-1.5">
+              <p className="text-xs text-primary-foreground/70">
+                {conversation.customer_phone}
+              </p>
+              {hasChatbotConfig && isBotActive && (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-primary-foreground/20 text-[10px] text-primary-foreground">
+                  <Bot className="w-3 h-3" />
+                  Bot
+                </span>
+              )}
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-1">
@@ -893,6 +987,21 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="bg-card">
+              {hasChatbotConfig && (
+                <>
+                  {isBotActive ? (
+                    <DropdownMenuItem onClick={() => handleToggleBot(false)}>
+                      <User className="w-4 h-4 mr-2" />
+                      Tomar control (desactivar bot)
+                    </DropdownMenuItem>
+                  ) : (
+                    <DropdownMenuItem onClick={() => handleToggleBot(true)}>
+                      <Bot className="w-4 h-4 mr-2" />
+                      Transferir al bot
+                    </DropdownMenuItem>
+                  )}
+                </>
+              )}
               <DropdownMenuItem onClick={handleArchive}>
                 <Archive className="w-4 h-4 mr-2" />
                 {conversation.is_archived ? 'Restaurar' : 'Archivar'}
