@@ -79,9 +79,13 @@ interface ConversationState {
 interface PlatformAccountData {
   id: string;
   platform: 'whatsapp' | 'messenger' | 'instagram' | 'tiktok';
+  connection_type?: string;
   // WhatsApp
   phone_number_id?: string;
   access_token?: string;
+  // External QR (WuzAPI/HeyHey)
+  external_service_url?: string;
+  external_api_key?: string;
   // Messenger/Instagram
   page_id?: string;
   page_access_token?: string;
@@ -145,13 +149,32 @@ Deno.serve(async (req) => {
     let platformAccount: PlatformAccountData | null = null;
     
     if (currentPlatform === 'whatsapp') {
-      // Use legacy WhatsApp parameters
-      platformAccount = {
-        id: whatsapp_account_id,
-        platform: 'whatsapp',
-        phone_number_id,
-        access_token,
-      };
+      // Fetch WhatsApp account from database to determine connection type
+      const { data: waAccount } = await supabase
+        .from('whatsapp_accounts')
+        .select('id, connection_type, phone_number_id, access_token, external_service_url, external_api_key')
+        .eq('id', whatsapp_account_id)
+        .single();
+
+      if (waAccount) {
+        platformAccount = {
+          id: waAccount.id,
+          platform: 'whatsapp',
+          connection_type: waAccount.connection_type,
+          phone_number_id: waAccount.phone_number_id || phone_number_id,
+          access_token: waAccount.access_token || access_token,
+          external_service_url: waAccount.external_service_url,
+          external_api_key: waAccount.external_api_key,
+        };
+      } else {
+        // Fallback to legacy parameters
+        platformAccount = {
+          id: whatsapp_account_id,
+          platform: 'whatsapp',
+          phone_number_id,
+          access_token,
+        };
+      }
     } else {
       // Fetch platform account from database
       const { data: accountData } = await supabase
@@ -306,12 +329,25 @@ Deno.serve(async (req) => {
               } else if (buttonDirectResponse.response_type === 'media') {
                 // For media, send the URL directly
                 const mediaUrl = buttonDirectResponse.response_content;
-                await sendWhatsAppMediaMessage(
-                  platformAccount.phone_number_id!,
-                  platformAccount.access_token!,
-                  customerIdentifier,
-                  mediaUrl
-                );
+                
+                const isExternal = platformAccount?.connection_type === 'external_qr' || platformAccount?.connection_type === 'z-api';
+                
+                if (isExternal && platformAccount?.external_service_url && platformAccount?.external_api_key) {
+                  // Send media via external API
+                  await sendExternalWhatsAppMediaMessage(
+                    platformAccount.external_service_url,
+                    platformAccount.external_api_key,
+                    customerIdentifier,
+                    mediaUrl
+                  );
+                } else {
+                  await sendWhatsAppMediaMessage(
+                    platformAccount!.phone_number_id!,
+                    platformAccount!.access_token!,
+                    customerIdentifier,
+                    mediaUrl
+                  );
+                }
                 await saveOutboundMessage(supabase, conversation_id, `[Media] ${mediaUrl}`);
                 
                 // Check if we should end the bot after this response
@@ -444,14 +480,33 @@ Deno.serve(async (req) => {
 
     // Send response
     if (responseMessage) {
-      if (interactiveResponse && currentPlatform === 'whatsapp') {
-        // Send interactive message for WhatsApp
+      const isExternal = platformAccount?.connection_type === 'external_qr' || platformAccount?.connection_type === 'z-api';
+      
+      if (interactiveResponse && currentPlatform === 'whatsapp' && !isExternal) {
+        // Send interactive message for WhatsApp (Meta API only)
         await sendWhatsAppInteractiveMessage(
           platformAccount.phone_number_id!,
           platformAccount.access_token!,
           customerIdentifier,
           interactiveResponse
         );
+      } else if (interactiveResponse && currentPlatform === 'whatsapp' && isExternal) {
+        // For external QR, convert interactive to text with numbered options
+        let textMessage = responseMessage;
+        if (interactiveResponse.type === 'button' && interactiveResponse.action?.buttons) {
+          textMessage += '\n\n';
+          interactiveResponse.action.buttons.forEach((btn, idx) => {
+            textMessage += `${idx + 1}. ${btn.reply.title}\n`;
+          });
+        } else if (interactiveResponse.type === 'list' && interactiveResponse.action?.sections) {
+          textMessage += '\n\n';
+          interactiveResponse.action.sections.forEach(section => {
+            section.rows.forEach((row, idx) => {
+              textMessage += `${idx + 1}. ${row.title}${row.description ? ' - ' + row.description : ''}\n`;
+            });
+          });
+        }
+        await sendPlatformMessage(platformAccount, customerIdentifier, textMessage);
       } else {
         await sendPlatformMessage(platformAccount, customerIdentifier, responseMessage);
       }
@@ -521,11 +576,15 @@ async function sendPlatformMessage(
   recipientId: string,
   message: string
 ): Promise<void> {
-  console.log(`Sending message via ${account.platform} to ${recipientId}`);
+  console.log(`Sending message via ${account.platform} (${account.connection_type || 'meta'}) to ${recipientId}`);
 
   switch (account.platform) {
     case 'whatsapp':
-      await sendWhatsAppMessage(account.phone_number_id!, account.access_token!, recipientId, message);
+      if (account.connection_type === 'external_qr' || account.connection_type === 'z-api') {
+        await sendExternalWhatsAppMessage(account.external_service_url!, account.external_api_key!, recipientId, message);
+      } else {
+        await sendWhatsAppMessage(account.phone_number_id!, account.access_token!, recipientId, message);
+      }
       break;
     case 'messenger':
       await sendMessengerMessage(account.page_id!, account.page_access_token!, recipientId, message);
@@ -538,6 +597,69 @@ async function sendPlatformMessage(
       break;
     default:
       console.error('Unknown platform:', account.platform);
+  }
+}
+
+// Send message via external API (WuzAPI/HeyHey)
+async function sendExternalWhatsAppMessage(
+  apiBaseUrl: string,
+  apiToken: string,
+  to: string,
+  message: string
+): Promise<void> {
+  const phone = to.replace(/\D/g, '');
+  
+  console.log(`Sending external WhatsApp message to ${phone}`);
+  
+  const response = await fetch(apiBaseUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiToken}`,
+    },
+    body: JSON.stringify({
+      number: phone,
+      body: message,
+      externalKey: `bot_${Date.now()}`,
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    console.error('External WhatsApp send error:', error);
+    throw new Error(`Failed to send external WhatsApp message: ${error}`);
+  }
+}
+
+// Send media via external API (WuzAPI/HeyHey)
+async function sendExternalWhatsAppMediaMessage(
+  apiBaseUrl: string,
+  apiToken: string,
+  to: string,
+  mediaUrl: string
+): Promise<void> {
+  const phone = to.replace(/\D/g, '');
+  
+  console.log(`Sending external WhatsApp media to ${phone}: ${mediaUrl}`);
+  
+  const response = await fetch(apiBaseUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiToken}`,
+    },
+    body: JSON.stringify({
+      number: phone,
+      body: '',
+      mediaUrl: mediaUrl,
+      externalKey: `bot_media_${Date.now()}`,
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    console.error('External WhatsApp media send error:', error);
+    throw new Error(`Failed to send external WhatsApp media: ${error}`);
   }
 }
 

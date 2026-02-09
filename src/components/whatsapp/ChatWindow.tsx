@@ -604,17 +604,53 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
 
     setSending(true);
     try {
-      const { data: result, error } = await supabase.functions.invoke('whatsapp-send-message', {
-        body: {
-          conversation_id: conversation.id,
-          interactive: data,
-        },
-      });
-
-      if (error) throw error;
+      const isExternalConnection = accountConnectionType === 'external_qr' || accountConnectionType === 'z-api';
       
-      if (result?.error) {
-        throw new Error(result.details || result.error);
+      if (isExternalConnection) {
+        // For external QR, convert interactive message to text with numbered options
+        let textMessage = data.bodyText || '';
+        if (data.headerText) {
+          textMessage = `*${data.headerText}*\n\n${textMessage}`;
+        }
+        if (data.type === 'buttons' && data.buttons) {
+          textMessage += '\n\n';
+          data.buttons.forEach((btn, idx) => {
+            textMessage += `${idx + 1}. ${btn.title}\n`;
+          });
+        } else if (data.type === 'list' && data.listOptions) {
+          textMessage += '\n\n';
+          data.listOptions.forEach((opt, idx) => {
+            textMessage += `${idx + 1}. ${opt.title}${opt.description ? ' - ' + opt.description : ''}\n`;
+          });
+        }
+        if (data.footerText) {
+          textMessage += `\n_${data.footerText}_`;
+        }
+        
+        const { data: result, error } = await supabase.functions.invoke('whatsapp-send-external', {
+          body: {
+            accountId: conversation.whatsapp_account_id,
+            to: conversation.customer_phone,
+            message: textMessage.trim(),
+            conversationId: conversation.id,
+            createConversation: true,
+          },
+        });
+        if (error) throw error;
+        if (result?.error) throw new Error(result.details || result.error);
+        
+        setTimeout(() => fetchMessages(), 500);
+      } else {
+        // Use Meta API for interactive messages
+        const { data: result, error } = await supabase.functions.invoke('whatsapp-send-message', {
+          body: {
+            conversation_id: conversation.id,
+            interactive: data,
+          },
+        });
+
+        if (error) throw error;
+        if (result?.error) throw new Error(result.details || result.error);
       }
 
       toast({
