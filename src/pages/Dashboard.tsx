@@ -32,7 +32,7 @@ import { StatisticsPanel } from "@/components/statistics/StatisticsPanel";
 import { TrialBanner } from "@/components/dashboard/TrialBanner";
 import { RenewalBanner } from "@/components/dashboard/RenewalBanner";
 import { PaymentAlertBanner } from "@/components/dashboard/PaymentAlertBanner";
-import { PlatformTabs, Platform } from "@/components/dashboard/PlatformTabs";
+import { PlatformSidebar, Platform } from "@/components/dashboard/PlatformSidebar";
 import { PlatformSetup } from "@/components/platforms/PlatformSetup";
 import { ApiKeysSettings } from "@/components/settings/ApiKeysSettings";
 import { useAdminCheck } from "@/hooks/useAdminCheck";
@@ -424,23 +424,37 @@ const Dashboard = () => {
       {/* Main Content Area */}
       {activeView === 'inbox' && (
         <>
-          {/* Conversations List with Platform Tabs - Hidden on mobile when conversation is selected */}
+          {/* Platform Sidebar - Hidden on mobile when conversation is selected */}
+          <motion.div
+            initial={{ x: -30, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            transition={{ delay: 0.05 }}
+            className={`${selectedConversation ? 'hidden md:flex' : 'flex'}`}
+          >
+            <PlatformSidebar 
+              activePlatform={activePlatform} 
+              onPlatformChange={setActivePlatform}
+            />
+          </motion.div>
+
+          {/* Conversations List - Hidden on mobile when conversation is selected */}
           <motion.div
             initial={{ x: -30, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             transition={{ delay: 0.1 }}
-            className={`w-full md:w-80 bg-card border-r border-border flex flex-col min-h-0 ${
+            className={`w-full md:w-72 bg-card border-r border-border flex flex-col min-h-0 ${
               selectedConversation ? 'hidden md:flex' : 'flex'
             }`}
           >
-            {/* Header with WhatsApp style */}
+            {/* Header with platform name */}
             <div className="h-14 px-4 bg-primary flex items-center justify-between">
-              <h1 className="text-primary-foreground font-semibold text-lg">Chats</h1>
+              <h1 className="text-primary-foreground font-semibold text-lg">
+                {activePlatform === 'all' ? 'Todos los chats' :
+                 activePlatform === 'whatsapp' ? 'WhatsApp' :
+                 activePlatform === 'messenger' ? 'Messenger' :
+                 activePlatform === 'instagram' ? 'Instagram' : 'TikTok'}
+              </h1>
             </div>
-            <PlatformTabs 
-              activePlatform={activePlatform} 
-              onPlatformChange={setActivePlatform}
-            />
             <div className="flex-1 min-h-0 overflow-hidden">
               <ConversationsList
                 selectedConversationId={selectedConversation?.id || null}
