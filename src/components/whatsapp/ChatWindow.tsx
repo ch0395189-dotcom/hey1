@@ -115,10 +115,30 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
   const [showInteractiveDialog, setShowInteractiveDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [accountConnectionType, setAccountConnectionType] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+
+  // Fetch account connection type when conversation changes
+  useEffect(() => {
+    const fetchAccountType = async () => {
+      if (!conversation?.whatsapp_account_id) return;
+      
+      const { data } = await supabase
+        .from('whatsapp_accounts')
+        .select('connection_type')
+        .eq('id', conversation.whatsapp_account_id)
+        .single();
+      
+      if (data) {
+        setAccountConnectionType(data.connection_type);
+      }
+    };
+    
+    fetchAccountType();
+  }, [conversation?.whatsapp_account_id]);
 
   // Helper to get platform icon
   const getPlatformIcon = (platform: string) => {
@@ -406,18 +426,36 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
       }
 
       const platform = conversation.platform || 'whatsapp';
+      const isExternalConnection = accountConnectionType === 'external_qr' || accountConnectionType === 'z-api';
       
-      // Choose the correct edge function based on platform
+      // Choose the correct edge function based on platform and connection type
       if (platform === 'whatsapp') {
-        const { data, error } = await supabase.functions.invoke('whatsapp-send-message', {
-          body: {
-            conversation_id: conversation.id,
-            message: newMessage.trim() || undefined,
-            media_url: mediaUrl,
-            media_type: mediaType,
-          },
-        });
-        if (error) throw error;
+        if (isExternalConnection) {
+          // Use external API (HeyHey/WuzAPI) for external connections
+          const { data, error } = await supabase.functions.invoke('whatsapp-send-external', {
+            body: {
+              accountId: conversation.whatsapp_account_id,
+              to: conversation.customer_phone,
+              message: newMessage.trim() || undefined,
+              mediaUrl: mediaUrl,
+              mediaType: mediaType,
+              conversationId: conversation.id,
+            },
+          });
+          if (error) throw error;
+          if (data?.error) throw new Error(data.details || data.error);
+        } else {
+          // Use Meta API for official connections
+          const { data, error } = await supabase.functions.invoke('whatsapp-send-message', {
+            body: {
+              conversation_id: conversation.id,
+              message: newMessage.trim() || undefined,
+              media_url: mediaUrl,
+              media_type: mediaType,
+            },
+          });
+          if (error) throw error;
+        }
       } else {
         // For Messenger, Instagram, TikTok - use platform-specific send functions
         const functionName = `${platform}-send-message`;
@@ -501,18 +539,32 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
         .from('media')
         .getPublicUrl(filePath);
 
-      const { data, error } = await supabase.functions.invoke('whatsapp-send-message', {
-        body: {
-          conversation_id: conversation.id,
-          media_url: urlData.publicUrl,
-          media_type: 'audio',
-        },
-      });
-
-      if (error) throw error;
+      const isExternalConnection = accountConnectionType === 'external_qr' || accountConnectionType === 'z-api';
       
-      if (data?.error) {
-        throw new Error(data.details || data.error);
+      if (isExternalConnection) {
+        // Use external API for audio
+        const { data, error } = await supabase.functions.invoke('whatsapp-send-external', {
+          body: {
+            accountId: conversation.whatsapp_account_id,
+            to: conversation.customer_phone,
+            mediaUrl: urlData.publicUrl,
+            mediaType: 'audio',
+            conversationId: conversation.id,
+          },
+        });
+        if (error) throw error;
+        if (data?.error) throw new Error(data.details || data.error);
+      } else {
+        // Use Meta API for audio
+        const { data, error } = await supabase.functions.invoke('whatsapp-send-message', {
+          body: {
+            conversation_id: conversation.id,
+            media_url: urlData.publicUrl,
+            media_type: 'audio',
+          },
+        });
+        if (error) throw error;
+        if (data?.error) throw new Error(data.details || data.error);
       }
 
       clearRecording();
