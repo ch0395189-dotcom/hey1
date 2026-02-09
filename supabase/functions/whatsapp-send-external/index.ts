@@ -14,6 +14,35 @@ interface SendMessageRequest {
   fileName?: string;
 }
 
+// Detect API type based on URL or response patterns
+function detectApiType(serverUrl: string): 'wuzapi' | 'zapi' | 'generic' {
+  const lowerUrl = serverUrl.toLowerCase();
+  if (lowerUrl.includes('wuzapi') || lowerUrl.includes('wapi')) {
+    return 'wuzapi';
+  }
+  if (lowerUrl.includes('z-api') || lowerUrl.includes('api.z-api')) {
+    return 'zapi';
+  }
+  return 'generic';
+}
+
+// Format phone for different APIs
+function formatPhoneForApi(phone: string, apiType: string): string {
+  // Remove all non-digit characters
+  const cleanPhone = phone.replace(/\D/g, '');
+  
+  if (apiType === 'wuzapi') {
+    // WuzAPI expects just the phone number with country code
+    return cleanPhone;
+  } else if (apiType === 'zapi') {
+    // Z-API expects phone number with country code
+    return cleanPhone;
+  } else {
+    // Generic/whatsapp-web.js format
+    return cleanPhone.includes('@c.us') ? cleanPhone : `${cleanPhone}@c.us`;
+  }
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -88,49 +117,124 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Format phone number (remove + and spaces)
-    const formattedPhone = to.replace(/[\s+\-()]/g, '');
-    const chatId = formattedPhone.includes('@c.us') ? formattedPhone : `${formattedPhone}@c.us`;
+    // Detect API type
+    const apiType = detectApiType(serverUrl);
+    console.log(`Detected API type: ${apiType} for URL: ${serverUrl}`);
 
-    console.log(`Sending message to ${chatId} via external server ${serverUrl}`);
+    // Format phone number based on API type
+    const formattedPhone = formatPhoneForApi(to, apiType);
+
+    console.log(`Sending message to ${formattedPhone} via ${apiType} server ${serverUrl}`);
 
     let response;
     let endpoint: string;
     let requestBody: Record<string, unknown>;
+    let headers: Record<string, string>;
 
-    if (mediaUrl && mediaType) {
-      // Send media message
-      endpoint = `${serverUrl}/send-media`;
-      requestBody = {
-        chatId,
-        mediaUrl,
-        mediaType,
-        caption: message || '',
-        fileName: fileName || 'file',
+    if (apiType === 'wuzapi') {
+      // WuzAPI format
+      headers = {
+        'Content-Type': 'application/json',
+        'Token': serverToken, // WuzAPI uses Token header
       };
-    } else if (message) {
-      // Send text message
-      endpoint = `${serverUrl}/send-message`;
-      requestBody = {
-        chatId,
-        message,
+
+      if (mediaUrl && mediaType) {
+        // WuzAPI media endpoints
+        const mediaEndpoints: Record<string, string> = {
+          'image': '/chat/send/image',
+          'audio': '/chat/send/audio',
+          'video': '/chat/send/video',
+          'document': '/chat/send/document',
+        };
+        endpoint = `${serverUrl}${mediaEndpoints[mediaType] || '/chat/send/document'}`;
+        requestBody = {
+          Phone: formattedPhone,
+          Media: mediaUrl,
+          Caption: message || '',
+          FileName: fileName || 'file',
+        };
+      } else if (message) {
+        endpoint = `${serverUrl}/chat/send/text`;
+        requestBody = {
+          Phone: formattedPhone,
+          Body: message,
+        };
+      } else {
+        return new Response(
+          JSON.stringify({ error: 'Either message or mediaUrl is required' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    } else if (apiType === 'zapi') {
+      // Z-API format
+      headers = {
+        'Content-Type': 'application/json',
+        'Client-Token': serverToken,
       };
+
+      if (mediaUrl && mediaType) {
+        // Z-API uses different endpoints for different media
+        const mediaEndpoints: Record<string, string> = {
+          'image': '/send-image',
+          'audio': '/send-audio',
+          'video': '/send-video',
+          'document': '/send-document',
+        };
+        endpoint = `${serverUrl}${mediaEndpoints[mediaType] || '/send-document'}`;
+        requestBody = {
+          phone: formattedPhone,
+          [mediaType]: mediaUrl,
+          caption: message || '',
+        };
+      } else if (message) {
+        endpoint = `${serverUrl}/send-text`;
+        requestBody = {
+          phone: formattedPhone,
+          message: message,
+        };
+      } else {
+        return new Response(
+          JSON.stringify({ error: 'Either message or mediaUrl is required' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     } else {
-      return new Response(
-        JSON.stringify({ error: 'Either message or mediaUrl is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      // Generic format (whatsapp-web.js style)
+      headers = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${serverToken}`,
+      };
+
+      if (mediaUrl && mediaType) {
+        endpoint = `${serverUrl}/send-media`;
+        requestBody = {
+          chatId: formattedPhone,
+          mediaUrl,
+          mediaType,
+          caption: message || '',
+          fileName: fileName || 'file',
+        };
+      } else if (message) {
+        endpoint = `${serverUrl}/send-message`;
+        requestBody = {
+          chatId: formattedPhone,
+          message,
+        };
+      } else {
+        return new Response(
+          JSON.stringify({ error: 'Either message or mediaUrl is required' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     console.log(`Calling endpoint: ${endpoint}`);
     console.log('Request body:', JSON.stringify(requestBody));
+    console.log('Headers (excluding token):', JSON.stringify({ ...headers, Token: '[HIDDEN]', 'Client-Token': '[HIDDEN]', Authorization: '[HIDDEN]' }));
 
     response = await fetch(endpoint, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${serverToken}`,
-      },
+      headers,
       body: JSON.stringify(requestBody),
     });
 
@@ -143,7 +247,8 @@ Deno.serve(async (req) => {
         JSON.stringify({ 
           error: 'Failed to send message via external server',
           details: responseText,
-          status: response.status
+          status: response.status,
+          apiType
         }),
         { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -159,7 +264,8 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: true, 
-        messageId: result.messageId || result.id || 'sent',
+        messageId: result.messageId || result.id || result.Id || 'sent',
+        apiType,
         result 
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
