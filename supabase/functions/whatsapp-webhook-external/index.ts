@@ -2,29 +2,25 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, token, x-webhook-token',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, token, x-webhook-token, x-account-id',
 }
 
 // WuzAPI webhook payload format
 interface WuzApiMessage {
-  // Event type
-  event?: string;  // "Message", "ReadReceipt", etc.
-  // Message data
+  event?: string;
   data?: {
     id?: string;
     pushName?: string;
     timestamp?: number;
-    source?: string;  // Phone number with @s.whatsapp.net
+    source?: string;
     fromMe?: boolean;
-    // Message types
-    type?: string;  // "text", "image", "audio", "video", "document", etc.
+    type?: string;
     text?: string;
     caption?: string;
     url?: string;
     mimetype?: string;
     filename?: string;
   };
-  // Alternative format (direct message)
   source?: string;
   pushName?: string;
   text?: string;
@@ -60,8 +56,13 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Obtener el account_id del header o query param para identificar el usuario
+    const url = new URL(req.url);
+    const accountId = req.headers.get('x-account-id') || url.searchParams.get('account_id');
+    
     const body = await req.text();
     console.log('Webhook payload recibido:', body);
+    console.log('Account ID:', accountId);
 
     let payload: WuzApiMessage | WuzApiMessage[];
     try {
@@ -83,24 +84,19 @@ Deno.serve(async (req) => {
     const results = [];
 
     for (const msg of messages) {
-      // WuzAPI puede enviar el mensaje en data o directamente
       const msgData = msg.data || msg;
       
-      // Solo procesar eventos de mensaje
       if (msg.event && msg.event !== 'Message') {
         console.log(`Saltando evento: ${msg.event}`);
         continue;
       }
 
-      // Ignorar mensajes enviados por nosotros
       if (msgData.fromMe) {
         console.log('Ignorando mensaje propio');
         continue;
       }
 
-      // Extraer número de teléfono
       let phoneNumber = msgData.source || '';
-      // WuzAPI usa formato @s.whatsapp.net o @c.us
       phoneNumber = phoneNumber.replace(/@s\.whatsapp\.net|@c\.us|@g\.us/g, '').replace(/\D/g, '');
       
       if (!phoneNumber) {
@@ -108,7 +104,6 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // Determinar contenido y tipo
       let messageContent = '';
       let messageType = 'text';
       let mediaUrl: string | null = null;
@@ -141,7 +136,6 @@ Deno.serve(async (req) => {
         messageContent = '📍 Ubicación';
         messageType = 'location';
       } else {
-        // Fallback para otros tipos
         messageContent = msgData.text || msgData.caption || `[${msgType}]`;
         messageType = 'text';
       }
@@ -151,19 +145,55 @@ Deno.serve(async (req) => {
 
       console.log(`Procesando mensaje de ${phoneNumber}: ${messageContent?.substring(0, 50)}...`);
 
-      // Buscar cuentas externas activas
-      const { data: accounts, error: accountsError } = await supabase
-        .from('whatsapp_accounts')
-        .select('id, user_id')
-        .eq('connection_type', 'external_qr')
-        .eq('is_active', true);
+      // Buscar cuenta - por ID si se proporciona, o buscar activas
+      let account = null;
+      
+      if (accountId) {
+        // Buscar cuenta específica por ID
+        const { data: specificAccount, error: accError } = await supabase
+          .from('whatsapp_accounts')
+          .select('id, user_id, phone_number')
+          .eq('id', accountId)
+          .eq('connection_type', 'external_qr')
+          .eq('is_active', true)
+          .single();
+        
+        if (specificAccount) {
+          account = specificAccount;
+          console.log(`Cuenta encontrada por ID: ${accountId}`);
+        }
+      }
+      
+      if (!account) {
+        // Buscar todas las cuentas externas activas
+        const { data: accounts, error: accountsError } = await supabase
+          .from('whatsapp_accounts')
+          .select('id, user_id, phone_number')
+          .eq('connection_type', 'external_qr')
+          .eq('is_active', true);
 
-      if (accountsError || !accounts?.length) {
-        console.error('No hay cuentas externas activas');
+        if (accountsError || !accounts?.length) {
+          console.error('No hay cuentas externas activas');
+          continue;
+        }
+
+        // Si solo hay una cuenta, usarla
+        if (accounts.length === 1) {
+          account = accounts[0];
+        } else {
+          // Si hay múltiples, buscar por número de teléfono en el payload
+          // WuzAPI no siempre envía el número destino, así que usamos la primera
+          console.warn('Múltiples cuentas encontradas, usando la primera. Configura account_id en el webhook.');
+          account = accounts[0];
+        }
+      }
+
+      if (!account) {
+        console.error('No se encontró cuenta válida');
         continue;
       }
 
-      const account = accounts[0];
+      console.log(`Usando cuenta: ${account.id} (Usuario: ${account.user_id})`);
 
       // Buscar o crear conversación
       let { data: conversation, error: convError } = await supabase
@@ -232,7 +262,7 @@ Deno.serve(async (req) => {
       }
 
       console.log(`Mensaje guardado: ${message.id}`);
-      results.push({ messageId: message.id, from: phoneNumber, success: true });
+      results.push({ messageId: message.id, from: phoneNumber, accountId: account.id, success: true });
 
       // Procesar chatbot si está activo
       try {
