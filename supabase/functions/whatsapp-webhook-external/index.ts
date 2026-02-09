@@ -2,228 +2,170 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-webhook-token, client-token',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, token, x-webhook-token',
 }
 
-// Z-API webhook payload format
-interface ZApiMessage {
-  phone: string;           // Phone number (e.g., "5573001234567")
-  isGroup: boolean;
-  messageId: string;
-  momment: number;         // Timestamp
-  type: 'ReceivedCallback' | 'MessageStatusCallback';
-  senderName?: string;
-  photo?: string;
-  broadcast?: boolean;
-  participantPhone?: string;
-  // Text message
-  text?: {
-    message: string;
-  };
-  // Image message
-  image?: {
-    imageUrl: string;
+// WuzAPI webhook payload format
+interface WuzApiMessage {
+  // Event type
+  event?: string;  // "Message", "ReadReceipt", etc.
+  // Message data
+  data?: {
+    id?: string;
+    pushName?: string;
+    timestamp?: number;
+    source?: string;  // Phone number with @s.whatsapp.net
+    fromMe?: boolean;
+    // Message types
+    type?: string;  // "text", "image", "audio", "video", "document", etc.
+    text?: string;
     caption?: string;
-    mimeType: string;
+    url?: string;
+    mimetype?: string;
+    filename?: string;
   };
-  // Audio message
-  audio?: {
-    audioUrl: string;
-    mimeType: string;
-  };
-  // Video message
-  video?: {
-    videoUrl: string;
-    caption?: string;
-    mimeType: string;
-  };
-  // Document message
-  document?: {
-    documentUrl: string;
-    mimeType: string;
-    title?: string;
-  };
-  // Sticker message
-  sticker?: {
-    stickerUrl: string;
-    mimeType: string;
-  };
-  // Location message
-  location?: {
-    latitude: number;
-    longitude: number;
-    name?: string;
-    address?: string;
-  };
-  // Alternative format (generic)
-  from?: string;
-  message?: string;
-  body?: string;
-  sender?: string;
-  chatId?: string;
+  // Alternative format (direct message)
+  source?: string;
   pushName?: string;
-  mediaUrl?: string;
+  text?: string;
+  type?: string;
+  id?: string;
+  fromMe?: boolean;
 }
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
 
-  // Allow GET for webhook verification
+  // Verificación del webhook
   if (req.method === 'GET') {
     const url = new URL(req.url);
     const challenge = url.searchParams.get('challenge') || url.searchParams.get('hub.challenge');
     if (challenge) {
-      console.log('Webhook verification request received');
+      console.log('Webhook verification received');
       return new Response(challenge, { 
         status: 200, 
         headers: { ...corsHeaders, 'Content-Type': 'text/plain' } 
       });
     }
-    return new Response('Webhook is active', { 
+    return new Response('Webhook activo', { 
       status: 200, 
       headers: { ...corsHeaders, 'Content-Type': 'text/plain' } 
     });
   }
 
   if (req.method !== 'POST') {
-    return new Response('Method not allowed', { 
-      status: 405, 
-      headers: corsHeaders 
-    });
+    return new Response('Method not allowed', { status: 405, headers: corsHeaders });
   }
 
   try {
-    // Optional token validation (Z-API uses Client-Token header)
-    const webhookToken = req.headers.get('x-webhook-token') || 
-                         req.headers.get('client-token') ||
-                         req.headers.get('authorization')?.replace('Bearer ', '');
-    const expectedToken = Deno.env.get('WHATSAPP_SERVER_TOKEN');
-    
-    // Log for debugging
-    console.log('Received headers:', Object.fromEntries(req.headers.entries()));
-    
-    // Token validation is optional - Z-API may not send a token
-    if (expectedToken && webhookToken && webhookToken !== expectedToken) {
-      console.warn('Invalid webhook token received');
-      // Don't reject - Z-API might not send the token
-    }
-
     const body = await req.text();
-    console.log('Received webhook payload:', body);
+    console.log('Webhook payload recibido:', body);
 
-    let payload: ZApiMessage | ZApiMessage[];
+    let payload: WuzApiMessage | WuzApiMessage[];
     try {
       payload = JSON.parse(body);
     } catch {
-      console.error('Invalid JSON payload');
+      console.error('JSON inválido');
       return new Response(
         JSON.stringify({ error: 'Invalid JSON' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Handle both single message and array of messages
     const messages = Array.isArray(payload) ? payload : [payload];
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const results = [];
 
     for (const msg of messages) {
-      // Skip status callbacks - only process received messages
-      if (msg.type === 'MessageStatusCallback') {
-        console.log('Skipping status callback:', msg.messageId);
-        continue;
-      }
-
-      // Skip group messages if needed
-      if (msg.isGroup) {
-        console.log('Skipping group message');
-        continue;
-      }
-
-      // Extract phone number (Z-API format or generic format)
-      let phoneNumber = msg.phone || msg.from || msg.sender || msg.chatId?.replace('@c.us', '') || '';
+      // WuzAPI puede enviar el mensaje en data o directamente
+      const msgData = msg.data || msg;
       
-      // Clean phone number (remove @c.us, spaces, +, -)
-      phoneNumber = phoneNumber.replace(/@c\.us|@g\.us|\s|\+|-/g, '');
+      // Solo procesar eventos de mensaje
+      if (msg.event && msg.event !== 'Message') {
+        console.log(`Saltando evento: ${msg.event}`);
+        continue;
+      }
+
+      // Ignorar mensajes enviados por nosotros
+      if (msgData.fromMe) {
+        console.log('Ignorando mensaje propio');
+        continue;
+      }
+
+      // Extraer número de teléfono
+      let phoneNumber = msgData.source || '';
+      // WuzAPI usa formato @s.whatsapp.net o @c.us
+      phoneNumber = phoneNumber.replace(/@s\.whatsapp\.net|@c\.us|@g\.us/g, '').replace(/\D/g, '');
       
       if (!phoneNumber) {
-        console.warn('Message missing phone number, skipping:', msg);
+        console.warn('Mensaje sin número de teléfono:', msg);
         continue;
       }
 
-      // Determine message content and type
+      // Determinar contenido y tipo
       let messageContent = '';
       let messageType = 'text';
       let mediaUrl: string | null = null;
+      const msgType = msgData.type || 'text';
 
-      if (msg.text?.message) {
-        messageContent = msg.text.message;
+      if (msgType === 'text' || !msgType) {
+        messageContent = msgData.text || '';
         messageType = 'text';
-      } else if (msg.image) {
-        messageContent = msg.image.caption || '📷 Imagen';
+      } else if (msgType === 'image') {
+        messageContent = msgData.caption || '📷 Imagen';
         messageType = 'image';
-        mediaUrl = msg.image.imageUrl;
-      } else if (msg.audio) {
+        mediaUrl = msgData.url || null;
+      } else if (msgType === 'audio' || msgType === 'ptt') {
         messageContent = '🎵 Audio';
         messageType = 'audio';
-        mediaUrl = msg.audio.audioUrl;
-      } else if (msg.video) {
-        messageContent = msg.video.caption || '🎥 Video';
+        mediaUrl = msgData.url || null;
+      } else if (msgType === 'video') {
+        messageContent = msgData.caption || '🎥 Video';
         messageType = 'video';
-        mediaUrl = msg.video.videoUrl;
-      } else if (msg.document) {
-        messageContent = msg.document.title || '📄 Documento';
+        mediaUrl = msgData.url || null;
+      } else if (msgType === 'document') {
+        messageContent = msgData.filename || '📄 Documento';
         messageType = 'document';
-        mediaUrl = msg.document.documentUrl;
-      } else if (msg.sticker) {
+        mediaUrl = msgData.url || null;
+      } else if (msgType === 'sticker') {
         messageContent = '🎨 Sticker';
         messageType = 'sticker';
-        mediaUrl = msg.sticker.stickerUrl;
-      } else if (msg.location) {
-        messageContent = `📍 ${msg.location.name || msg.location.address || 'Ubicación'}`;
+        mediaUrl = msgData.url || null;
+      } else if (msgType === 'location') {
+        messageContent = '📍 Ubicación';
         messageType = 'location';
-      } else if (msg.message || msg.body) {
-        // Generic format fallback
-        messageContent = msg.message || msg.body || '';
-        messageType = msg.mediaUrl ? 'image' : 'text';
-        mediaUrl = msg.mediaUrl || null;
+      } else {
+        // Fallback para otros tipos
+        messageContent = msgData.text || msgData.caption || `[${msgType}]`;
+        messageType = 'text';
       }
 
-      const pushName = msg.senderName || msg.pushName || null;
-      const messageId = msg.messageId || `zapi_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      const profilePic = msg.photo || null;
+      const pushName = msgData.pushName || null;
+      const messageId = msgData.id || `wuzapi_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-      console.log(`Processing Z-API message from ${phoneNumber}: ${messageContent?.substring(0, 50)}...`);
+      console.log(`Procesando mensaje de ${phoneNumber}: ${messageContent?.substring(0, 50)}...`);
 
-      // Find all WhatsApp accounts with external_qr connection type
+      // Buscar cuentas externas activas
       const { data: accounts, error: accountsError } = await supabase
         .from('whatsapp_accounts')
         .select('id, user_id')
         .eq('connection_type', 'external_qr')
         .eq('is_active', true);
 
-      if (accountsError) {
-        console.error('Error fetching accounts:', accountsError);
+      if (accountsError || !accounts?.length) {
+        console.error('No hay cuentas externas activas');
         continue;
       }
 
-      if (!accounts || accounts.length === 0) {
-        console.warn('No active external WhatsApp accounts found');
-        continue;
-      }
-
-      // Use the first active external account
       const account = accounts[0];
 
-      // Find or create conversation
+      // Buscar o crear conversación
       let { data: conversation, error: convError } = await supabase
         .from('conversations')
         .select('id, unread_count')
@@ -232,19 +174,17 @@ Deno.serve(async (req) => {
         .single();
 
       if (convError && convError.code !== 'PGRST116') {
-        console.error('Error fetching conversation:', convError);
+        console.error('Error buscando conversación:', convError);
         continue;
       }
 
       if (!conversation) {
-        // Create new conversation
         const { data: newConv, error: createError } = await supabase
           .from('conversations')
           .insert({
             whatsapp_account_id: account.id,
             customer_phone: phoneNumber,
             customer_name: pushName,
-            customer_profile_pic: profilePic,
             platform: 'whatsapp',
             last_message_at: new Date().toISOString(),
             unread_count: 1,
@@ -253,31 +193,25 @@ Deno.serve(async (req) => {
           .single();
 
         if (createError) {
-          console.error('Error creating conversation:', createError);
+          console.error('Error creando conversación:', createError);
           continue;
         }
         conversation = newConv;
-        console.log(`Created new conversation: ${conversation.id}`);
+        console.log(`Nueva conversación: ${conversation.id}`);
       } else {
-        // Update existing conversation
         const updateData: Record<string, unknown> = {
           last_message_at: new Date().toISOString(),
           unread_count: (conversation.unread_count || 0) + 1,
         };
-        
-        // Update name and photo if provided
         if (pushName) updateData.customer_name = pushName;
-        if (profilePic) updateData.customer_profile_pic = profilePic;
 
         await supabase
           .from('conversations')
           .update(updateData)
           .eq('id', conversation.id);
-          
-        console.log(`Updated conversation: ${conversation.id}`);
       }
 
-      // Insert message
+      // Insertar mensaje
       const { data: message, error: msgError } = await supabase
         .from('messages')
         .insert({
@@ -293,27 +227,47 @@ Deno.serve(async (req) => {
         .single();
 
       if (msgError) {
-        console.error('Error inserting message:', msgError);
+        console.error('Error insertando mensaje:', msgError);
         continue;
       }
 
-      console.log(`Message saved: ${message.id}`);
+      console.log(`Mensaje guardado: ${message.id}`);
       results.push({ messageId: message.id, from: phoneNumber, success: true });
+
+      // Procesar chatbot si está activo
+      try {
+        const { data: chatbotConfig } = await supabase
+          .from('chatbot_configs')
+          .select('id, is_enabled')
+          .eq('whatsapp_account_id', account.id)
+          .eq('is_enabled', true)
+          .single();
+
+        if (chatbotConfig) {
+          console.log('Enviando a chatbot...');
+          await supabase.functions.invoke('chatbot-process', {
+            body: {
+              conversation_id: conversation.id,
+              message_content: messageContent,
+              whatsapp_account_id: account.id,
+              customer_phone: phoneNumber,
+            }
+          });
+        }
+      } catch (chatbotError) {
+        console.error('Error en chatbot:', chatbotError);
+      }
     }
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        processed: results.length,
-        results 
-      }),
+      JSON.stringify({ success: true, processed: results.length, results }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
-    console.error('Error in webhook:', error);
+    console.error('Error en webhook:', error);
     return new Response(
-      JSON.stringify({ error: error.message || 'Internal server error' }),
+      JSON.stringify({ error: error.message || 'Error interno' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
