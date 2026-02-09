@@ -87,8 +87,10 @@ Deno.serve(async (req) => {
     const results = [];
 
     for (const msg of messages) {
-      const msgData = msg.data || msg;
-      
+      // HeyHey y WuzAPI no comparten exactamente el mismo formato.
+      // Usamos `any` para tolerar ambos payloads sin romper el build por typings.
+      const msgData: any = (msg as any).data ?? msg;
+
       if (msg.event && msg.event !== 'Message') {
         console.log(`⏭️ Saltando evento: ${msg.event}`);
         continue;
@@ -99,52 +101,85 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      let phoneNumber = msgData.source || '';
-      phoneNumber = phoneNumber.replace(/@s\.whatsapp\.net|@c\.us|@g\.us/g, '').replace(/\D/g, '');
-      
+      // Número de teléfono: soporta WuzAPI (source) y HeyHey (contact.phoneNumber)
+      const rawPhone =
+        msgData.source ??
+        msgData.from ??
+        msgData.contact?.phoneNumber ??
+        msgData.contact?.number ??
+        '';
+
+      let phoneNumber = String(rawPhone || '');
+      phoneNumber = phoneNumber
+        .replace(/@s\.whatsapp\.net|@c\.us|@g\.us/g, '')
+        .replace(/\D/g, '');
+
       if (!phoneNumber) {
-        console.warn('⚠️ Mensaje sin número de teléfono:', msg);
+        console.warn('⚠️ Mensaje sin número de teléfono:', {
+          rawPhone,
+          hasContact: !!msgData.contact,
+          contactPhoneNumber: msgData.contact?.phoneNumber,
+          messageId: msgData.id ?? msgData.messageId,
+        });
         continue;
       }
+
+      const msgTypeRaw = String(msgData.type ?? msgData.mediaType ?? 'text');
+      const urlCandidate = (msgData.url ?? msgData.mediaUrl ?? msgData.media_url ?? null) as string | null;
+      const textBody = (msgData.text ?? msgData.messageBody ?? msgData.body ?? msgData.caption ?? '') as string;
 
       let messageContent = '';
       let messageType = 'text';
       let mediaUrl: string | null = null;
-      const msgType = msgData.type || 'text';
 
-      if (msgType === 'text' || !msgType) {
-        messageContent = msgData.text || '';
+      // Texto “normal” (HeyHey suele usar mediaType=chat|conversation)
+      if (!urlCandidate && (msgTypeRaw === 'text' || msgTypeRaw === 'chat' || msgTypeRaw === 'conversation' || !msgTypeRaw)) {
+        messageContent = String(textBody || '');
         messageType = 'text';
-      } else if (msgType === 'image') {
-        messageContent = msgData.caption || '📷 Imagen';
+        mediaUrl = null;
+      } else if (msgTypeRaw === 'image' || msgTypeRaw === 'photo') {
+        messageContent = String(textBody || '📷 Imagen');
         messageType = 'image';
-        mediaUrl = msgData.url || null;
-      } else if (msgType === 'audio' || msgType === 'ptt') {
-        messageContent = '🎵 Audio';
+        mediaUrl = urlCandidate;
+      } else if (msgTypeRaw === 'audio' || msgTypeRaw === 'ptt' || msgTypeRaw === 'voice') {
+        messageContent = String(textBody || '🎵 Audio');
         messageType = 'audio';
-        mediaUrl = msgData.url || null;
-      } else if (msgType === 'video') {
-        messageContent = msgData.caption || '🎥 Video';
+        mediaUrl = urlCandidate;
+      } else if (msgTypeRaw === 'video') {
+        messageContent = String(textBody || '🎥 Video');
         messageType = 'video';
-        mediaUrl = msgData.url || null;
-      } else if (msgType === 'document') {
-        messageContent = msgData.filename || '📄 Documento';
+        mediaUrl = urlCandidate;
+      } else if (msgTypeRaw === 'document' || msgTypeRaw === 'file') {
+        messageContent = String(msgData.filename || textBody || '📄 Documento');
         messageType = 'document';
-        mediaUrl = msgData.url || null;
-      } else if (msgType === 'sticker') {
-        messageContent = '🎨 Sticker';
+        mediaUrl = urlCandidate;
+      } else if (msgTypeRaw === 'sticker') {
+        messageContent = String(textBody || '🎨 Sticker');
         messageType = 'sticker';
-        mediaUrl = msgData.url || null;
-      } else if (msgType === 'location') {
-        messageContent = '📍 Ubicación';
+        mediaUrl = urlCandidate;
+      } else if (msgTypeRaw === 'location') {
+        messageContent = String(textBody || '📍 Ubicación');
         messageType = 'location';
+        mediaUrl = null;
       } else {
-        messageContent = msgData.text || msgData.caption || `[${msgType}]`;
-        messageType = 'text';
+        // Fallback: si hay URL asumimos que es multimedia
+        messageContent = String(textBody || `[${msgTypeRaw}]`);
+        messageType = urlCandidate ? 'document' : 'text';
+        mediaUrl = urlCandidate;
       }
 
-      const pushName = msgData.pushName || null;
-      const messageId = msgData.id || `wuzapi_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const pushName =
+        msgData.pushName ??
+        msgData.push_name ??
+        msgData.contact?.pushname ??
+        msgData.contact?.pushName ??
+        msgData.contact?.name ??
+        null;
+
+      const messageId =
+        msgData.id ??
+        msgData.messageId ??
+        `heyhey_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
       console.log(`📱 Procesando: ${phoneNumber} -> ${messageContent?.substring(0, 50)}...`);
 
