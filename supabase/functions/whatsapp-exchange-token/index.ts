@@ -120,7 +120,7 @@ Deno.serve(async (req) => {
       // Step 3: Get the WABA ID from the granular_scopes
       if (wabaDebugData.data?.granular_scopes) {
         for (const scope of wabaDebugData.data.granular_scopes) {
-          if (scope.scope === 'whatsapp_business_management' && scope.target_ids?.length > 0) {
+          if ((scope.scope === 'whatsapp_business_management' || scope.scope === 'whatsapp_business_messaging') && scope.target_ids?.length > 0) {
             wabaId = scope.target_ids[0];
             break;
           }
