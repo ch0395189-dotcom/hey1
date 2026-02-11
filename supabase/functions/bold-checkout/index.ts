@@ -36,10 +36,10 @@ const PLAN_PRICES = {
     description: 'Plan empresarial con todas las funciones',
   },
   esoterico_pro: {
-    amount: 30000, // 30,000 COP semanal
+    amount: 30000, // 30,000 COP mensual
     currency: 'COP',
     name: 'Plan Esoterico Pro',
-    description: 'Numero blindado contra bloqueos - pago semanal',
+    description: 'Numero blindado contra bloqueos - pago mensual',
   },
 };
 

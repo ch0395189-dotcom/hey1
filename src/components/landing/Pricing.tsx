@@ -77,7 +77,7 @@ const plans: Array<{
     key: "esoterico_pro",
     price: "30.000",
     currency: "COP",
-    period: "semana",
+    period: "mes",
     description: "Número blindado contra bloqueos",
     features: [
       "Número blindado anti-bloqueo",
