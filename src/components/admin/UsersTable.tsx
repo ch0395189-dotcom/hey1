@@ -22,6 +22,7 @@ interface UserWithSubscription {
     current_period_end: string | null;
   } | null;
   created_at: string;
+  platforms: string[];
 }
 
 export const UsersTable = () => {
@@ -55,6 +56,33 @@ export const UsersTable = () => {
         });
       }
 
+      // Fetch active platform connections
+      const { data: waAccounts } = await supabase
+        .from('whatsapp_accounts')
+        .select('user_id, is_active, connection_type');
+
+      const { data: platAccounts } = await supabase
+        .from('platform_accounts')
+        .select('user_id, platform, is_active');
+
+      const platformsMap = new Map<string, string[]>();
+      waAccounts?.forEach(wa => {
+        if (wa.is_active) {
+          const list = platformsMap.get(wa.user_id) || [];
+          const label = wa.connection_type === 'external' ? 'WA External' : 'WhatsApp';
+          if (!list.includes(label)) list.push(label);
+          platformsMap.set(wa.user_id, list);
+        }
+      });
+      platAccounts?.forEach(pa => {
+        if (pa.is_active) {
+          const list = platformsMap.get(pa.user_id) || [];
+          const name = pa.platform.charAt(0).toUpperCase() + pa.platform.slice(1);
+          if (!list.includes(name)) list.push(name);
+          platformsMap.set(pa.user_id, list);
+        }
+      });
+
       const usersWithSubs = profiles?.map(profile => {
         const sub = subscriptions?.find(s => s.user_id === profile.user_id);
         return {
@@ -69,6 +97,7 @@ export const UsersTable = () => {
             current_period_end: sub.current_period_end,
           } : null,
           created_at: profile.created_at,
+          platforms: platformsMap.get(profile.user_id) || [],
         };
       }) || [];
 
@@ -155,6 +184,7 @@ export const UsersTable = () => {
               <TableHead>Email</TableHead>
               <TableHead>Plan</TableHead>
               <TableHead>Estado</TableHead>
+              <TableHead>Plataformas</TableHead>
               <TableHead>Período</TableHead>
               <TableHead>Registro</TableHead>
               <TableHead>Acciones</TableHead>
@@ -163,13 +193,13 @@ export const UsersTable = () => {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8">
+                <TableCell colSpan={8} className="text-center py-8">
                   Cargando usuarios...
                 </TableCell>
               </TableRow>
             ) : filteredUsers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8">
+                <TableCell colSpan={8} className="text-center py-8">
                   No se encontraron usuarios
                 </TableCell>
               </TableRow>
@@ -197,6 +227,13 @@ export const UsersTable = () => {
                   </TableCell>
                   <TableCell>
                     {user.subscription ? getStatusBadge(user.subscription.status) : '-'}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1">
+                      {user.platforms.length > 0 ? user.platforms.map(p => (
+                        <Badge key={p} variant="outline" className="text-xs">{p}</Badge>
+                      )) : <span className="text-muted-foreground text-xs">Ninguna</span>}
+                    </div>
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {user.subscription?.current_period_end 
