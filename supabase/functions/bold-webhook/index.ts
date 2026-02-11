@@ -105,7 +105,7 @@ serve(async (req) => {
         }
 
         // Validate plan is one of the allowed values
-        const validPlans = ['starter', 'professional', 'enterprise'];
+        const validPlans = ['starter', 'professional', 'enterprise', 'esoterico_pro'];
         if (!validPlans.includes(plan)) {
           console.error('Invalid plan:', plan);
           return new Response(
@@ -132,6 +132,19 @@ serve(async (req) => {
             JSON.stringify({ error: 'Failed to update subscription' }),
             { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
+        }
+
+        // Mark any pending payment_alerts as paid for this user
+        const { error: alertError } = await supabase
+          .from('payment_alerts')
+          .update({ status: 'paid', paid_at: new Date().toISOString() })
+          .eq('user_id', userId)
+          .eq('status', 'pending');
+
+        if (alertError) {
+          console.error('Error updating payment alerts:', alertError);
+        } else {
+          console.log(`Payment alerts marked as paid for user ${userId}`);
         }
 
         console.log(`Subscription updated for user ${userId} to plan ${plan}`);
