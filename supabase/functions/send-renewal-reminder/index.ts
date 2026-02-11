@@ -10,7 +10,7 @@ const PLAN_DETAILS: Record<string, { name: string; price: string; period: string
   starter: { name: 'Plan Starter', price: '$49.000 COP', period: 'mes', daysBeforeExpiry: 3 },
   professional: { name: 'Plan Professional', price: '$149.000 COP', period: 'mes', daysBeforeExpiry: 3 },
   enterprise: { name: 'Plan Enterprise', price: '$399.000 COP', period: 'mes', daysBeforeExpiry: 5 },
-  esoterico_pro: { name: 'Plan Esotérico Pro', price: '$30.000 COP', period: 'semana', daysBeforeExpiry: 1 },
+  esoterico_pro: { name: 'Plan Esotérico Pro', price: '$30.000 COP', period: 'mes', daysBeforeExpiry: 3 },
 };
 
 serve(async (req) => {
