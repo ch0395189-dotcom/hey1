@@ -202,11 +202,23 @@ Deno.serve(async (req) => {
       },
       body: JSON.stringify({
         messaging_product: 'whatsapp',
-        pin: '123456', // Default PIN, user should change this
+        pin: '123456',
       }),
     });
     const registerData = await registerResponse.json();
     console.log('Register response:', JSON.stringify(registerData, null, 2));
+
+    if (registerData.error) {
+      console.error('Phone registration error:', registerData.error);
+      return new Response(
+        JSON.stringify({ 
+          error: 'No se pudo registrar el número de teléfono en la Cloud API', 
+          details: registerData.error.message || 'Error en el registro del número',
+          code: registerData.error.code
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Step 7: Generate a unique webhook verify token
     const webhookVerifyToken = crypto.randomUUID();
