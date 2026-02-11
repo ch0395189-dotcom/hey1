@@ -87,8 +87,7 @@ const plans: Array<{
       "Sin límite de mensajes",
       "Configuración especial"
     ],
-    popular: false,
-    noTrial: true
+    popular: false
   }
 ];
 
