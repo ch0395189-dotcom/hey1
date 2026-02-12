@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useMetaPixel } from '@/hooks/useMetaPixel';
 
 type Plan = 'starter' | 'professional' | 'enterprise' | 'esoterico_pro';
 
 export const useBoldCheckout = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const { trackInitiateCheckout, trackPurchase } = useMetaPixel();
 
   const createCheckout = async (plan: Plan) => {
     setIsLoading(true);
@@ -41,6 +43,7 @@ export const useBoldCheckout = () => {
       const { paymentUrl } = response.data;
       
       if (paymentUrl) {
+        trackInitiateCheckout({ value: 0, currency: 'COP', content_ids: [plan], content_type: 'product' });
         window.location.href = paymentUrl;
       } else {
         throw new Error('No se recibió URL de pago');
