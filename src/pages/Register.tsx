@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { MessageCircle, Mail, Lock, User, ArrowLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useMetaPixel } from "@/hooks/useMetaPixel";
 import { WhatsAppFloatingButton } from "@/components/ui/WhatsAppFloatingButton";
 
 const Register = () => {
@@ -16,6 +17,7 @@ const Register = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { trackCompleteRegistration, trackLead } = useMetaPixel();
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,6 +41,8 @@ const Register = () => {
         title: "¡Cuenta creada!",
         description: "Tu cuenta ha sido creada exitosamente.",
       });
+      trackCompleteRegistration({ content_name: 'Registro', status: 'complete' });
+      trackLead({ content_name: 'Nuevo usuario' });
       navigate("/dashboard");
     } catch (error: any) {
       toast({
