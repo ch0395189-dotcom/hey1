@@ -192,32 +192,30 @@ Deno.serve(async (req) => {
     const subscribeData = await subscribeResponse.json();
     console.log('Subscribe response:', JSON.stringify(subscribeData, null, 2));
 
-    // Step 6: Register the phone number for Cloud API
-    const registerUrl = `https://graph.facebook.com/v21.0/${phoneNumberId}/register`;
-    const registerResponse = await fetch(registerUrl, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        messaging_product: 'whatsapp',
-        pin: '123456',
-      }),
-    });
-    const registerData = await registerResponse.json();
-    console.log('Register response:', JSON.stringify(registerData, null, 2));
-
-    if (registerData.error) {
-      console.error('Phone registration error:', registerData.error);
-      return new Response(
-        JSON.stringify({ 
-          error: 'No se pudo registrar el número de teléfono en la Cloud API', 
-          details: registerData.error.message || 'Error en el registro del número',
-          code: registerData.error.code
+    // Step 6: Register the phone number for Cloud API (non-blocking - may already be registered)
+    try {
+      const registerUrl = `https://graph.facebook.com/v21.0/${phoneNumberId}/register`;
+      const registerResponse = await fetch(registerUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          pin: '123456',
         }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      });
+      const registerData = await registerResponse.json();
+      console.log('Register response:', JSON.stringify(registerData, null, 2));
+
+      if (registerData.error) {
+        // Log but don't block - the number may already be registered or the user
+        // may not have the required permissions from their Facebook profile
+        console.warn('Phone registration warning (non-blocking):', registerData.error);
+      }
+    } catch (regError) {
+      console.warn('Phone registration failed (non-blocking):', regError);
     }
 
     // Step 7: Generate a unique webhook verify token
