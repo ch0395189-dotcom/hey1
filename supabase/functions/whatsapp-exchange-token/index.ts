@@ -214,30 +214,8 @@ Deno.serve(async (req) => {
       console.warn('Subscribe failed (non-blocking):', e);
     }
 
-    // Step 5: Register the phone number for Cloud API (non-blocking)
-    if (phoneNumberId && !phoneNumberId.startsWith('waba_')) {
-      try {
-        const registerUrl = `https://graph.facebook.com/v21.0/${phoneNumberId}/register`;
-        const registerResponse = await fetch(registerUrl, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            messaging_product: 'whatsapp',
-            pin: '123456',
-          }),
-        });
-        const registerData = await registerResponse.json();
-        console.log('Register response:', JSON.stringify(registerData, null, 2));
-        if (registerData.error) {
-          console.warn('Phone registration warning (non-blocking):', registerData.error.message);
-        }
-      } catch (e) {
-        console.warn('Phone registration failed (non-blocking):', e);
-      }
-    }
+    // Note: Phone registration for Cloud API is handled automatically by
+    // Meta's Embedded Signup v2 flow. No manual /register call needed.
 
     // Step 6: Generate a unique webhook verify token
     const webhookVerifyToken = crypto.randomUUID();
