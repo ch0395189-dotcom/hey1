@@ -142,27 +142,40 @@ Deno.serve(async (req) => {
     if (!phoneNumberId) {
       const phoneNumbersUrl = `https://graph.facebook.com/v21.0/${wabaId}/phone_numbers?access_token=${accessToken}`;
       const phoneNumbersResponse = await fetch(phoneNumbersUrl);
-      const phoneNumbersData = await phoneNumbersResponse.json() as PhoneNumbersResponse & { error?: { message: string } };
+      const phoneNumbersData = await phoneNumbersResponse.json() as PhoneNumbersResponse & { error?: { message: string; code?: number } };
 
       if (phoneNumbersData.error) {
-        console.error('Phone numbers error:', phoneNumbersData.error);
-        return new Response(
-          JSON.stringify({ error: 'Failed to get phone numbers', details: phoneNumbersData.error.message }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      if (!phoneNumbersData.data || phoneNumbersData.data.length === 0) {
+        console.warn('Phone numbers API error (will try alternatives):', phoneNumbersData.error);
+        
+        // Alternative: try with app-level token
+        const appTokenUrl = `https://graph.facebook.com/v21.0/${wabaId}/phone_numbers?access_token=${META_APP_ID}|${META_APP_SECRET}`;
+        const appTokenResponse = await fetch(appTokenUrl);
+        const appTokenData = await appTokenResponse.json() as PhoneNumbersResponse & { error?: { message: string } };
+        
+        if (!appTokenData.error && appTokenData.data && appTokenData.data.length > 0) {
+          console.log('Got phone numbers via app token');
+          const phoneData = appTokenData.data[0];
+          phoneNumberId = phoneData.id;
+          phoneDisplayNumber = phoneData.display_phone_number;
+          phoneVerifiedName = phoneData.verified_name;
+        } else {
+          console.warn('App token also failed, saving with WABA ID as fallback');
+          // Save account with WABA ID as phone_number_id fallback
+          phoneNumberId = wabaId;
+          phoneDisplayNumber = 'Pendiente de configurar';
+          phoneVerifiedName = '';
+        }
+      } else if (!phoneNumbersData.data || phoneNumbersData.data.length === 0) {
         return new Response(
           JSON.stringify({ error: 'No phone numbers found for this WhatsApp Business Account' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
+      } else {
+        const phoneData = phoneNumbersData.data[0];
+        phoneNumberId = phoneData.id;
+        phoneDisplayNumber = phoneData.display_phone_number;
+        phoneVerifiedName = phoneData.verified_name;
       }
-
-      const phoneData = phoneNumbersData.data[0];
-      phoneNumberId = phoneData.id;
-      phoneDisplayNumber = phoneData.display_phone_number;
-      phoneVerifiedName = phoneData.verified_name;
     } else {
       // If phoneNumberId was provided, fetch its details
       const phoneDetailUrl = `https://graph.facebook.com/v21.0/${phoneNumberId}?access_token=${accessToken}`;
@@ -170,8 +183,7 @@ Deno.serve(async (req) => {
       const phoneDetailData = await phoneDetailResponse.json() as { display_phone_number?: string; verified_name?: string; error?: { message: string } };
 
       if (phoneDetailData.error) {
-        console.error('Phone detail error:', phoneDetailData.error);
-        // Fallback: use the ID as phone number if we can't fetch details
+        console.warn('Phone detail error (non-blocking):', phoneDetailData.error);
         phoneDisplayNumber = phoneNumberId;
         phoneVerifiedName = '';
       } else {
