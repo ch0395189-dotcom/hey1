@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Dialog,
@@ -13,12 +13,26 @@ import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { Send, Loader2, CheckCircle, XCircle, AlertCircle } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface Contact {
   id: string;
   customer_name: string | null;
   customer_phone: string;
   whatsapp_account_id: string;
+}
+
+interface WhatsAppAccount {
+  id: string;
+  phone_number: string;
+  display_name: string | null;
+  connection_type: string | null;
 }
 
 interface BulkMessageDialogProps {
@@ -46,10 +60,40 @@ export const BulkMessageDialog = ({
   const [progress, setProgress] = useState(0);
   const [results, setResults] = useState<SendResult[]>([]);
   const [showResults, setShowResults] = useState(false);
+  const [accounts, setAccounts] = useState<WhatsAppAccount[]>([]);
+  const [selectedAccountId, setSelectedAccountId] = useState<string>("");
   const { toast } = useToast();
 
+  useEffect(() => {
+    if (open) {
+      fetchAccounts();
+    }
+  }, [open]);
+
+  const fetchAccounts = async () => {
+    const { data } = await supabase
+      .from('whatsapp_accounts')
+      .select('id, phone_number, display_name, connection_type')
+      .eq('is_active', true)
+      .order('display_name');
+    
+    if (data && data.length > 0) {
+      setAccounts(data);
+      // Default to the first account or the most common among selected contacts
+      const accountCounts = new Map<string, number>();
+      selectedContacts.forEach(c => {
+        accountCounts.set(c.whatsapp_account_id, (accountCounts.get(c.whatsapp_account_id) || 0) + 1);
+      });
+      const mostCommon = [...accountCounts.entries()].sort((a, b) => b[1] - a[1])[0];
+      setSelectedAccountId(mostCommon?.[0] || data[0].id);
+    }
+  };
+
   const handleSend = async () => {
-    if (!message.trim() || selectedContacts.length === 0) return;
+    if (!message.trim() || selectedContacts.length === 0 || !selectedAccountId) return;
+
+    const selectedAccount = accounts.find(a => a.id === selectedAccountId);
+    const isExternal = selectedAccount?.connection_type === 'external_qr' || selectedAccount?.connection_type === 'z-api';
 
     setSending(true);
     setProgress(0);
@@ -63,13 +107,26 @@ export const BulkMessageDialog = ({
       const contact = selectedContacts[i];
       
       try {
-        const { data, error } = await supabase.functions.invoke('whatsapp-send-message', {
-          body: {
-            conversation_id: contact.id,
-            message: message.trim(),
-            message_type: 'text',
-          },
-        });
+        let data, error;
+        
+        if (isExternal) {
+          ({ data, error } = await supabase.functions.invoke('whatsapp-send-external', {
+            body: {
+              accountId: selectedAccountId,
+              to: contact.customer_phone.replace(/[\s+\-()]/g, ''),
+              message: message.trim(),
+              createConversation: true,
+            },
+          }));
+        } else {
+          ({ data, error } = await supabase.functions.invoke('whatsapp-send-message', {
+            body: {
+              conversation_id: contact.id,
+              message: message.trim(),
+              message_type: 'text',
+            },
+          }));
+        }
 
         if (error) throw error;
         
@@ -154,6 +211,31 @@ export const BulkMessageDialog = ({
         {!showResults ? (
           <>
             <div className="space-y-4">
+              {/* Account selector */}
+              {accounts.length > 1 && (
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Enviar desde</label>
+                  <Select
+                    value={selectedAccountId}
+                    onValueChange={setSelectedAccountId}
+                    disabled={sending}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecciona una cuenta" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {accounts.map((account) => (
+                        <SelectItem key={account.id} value={account.id}>
+                          {account.display_name || account.phone_number}
+                          {account.connection_type === 'external_qr' || account.connection_type === 'z-api'
+                            ? ' (QR)' : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
               <div>
                 <Textarea
                   placeholder="Escribe tu mensaje aquí..."
