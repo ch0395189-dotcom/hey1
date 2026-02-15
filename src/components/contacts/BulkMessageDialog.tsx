@@ -63,7 +63,7 @@ export const BulkMessageDialog = ({
       const contact = selectedContacts[i];
       
       try {
-        const { error } = await supabase.functions.invoke('whatsapp-send-message', {
+        const { data, error } = await supabase.functions.invoke('whatsapp-send-message', {
           body: {
             conversation_id: contact.id,
             message: message.trim(),
@@ -72,6 +72,11 @@ export const BulkMessageDialog = ({
         });
 
         if (error) throw error;
+        
+        // Check for WhatsApp API errors in the response data
+        if (data && !data.success) {
+          throw new Error(data.error || 'Error de WhatsApp API');
+        }
 
         sendResults.push({
           contactId: contact.id,

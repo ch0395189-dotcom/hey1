@@ -94,6 +94,22 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Exchange short-lived token for long-lived token
+    try {
+      const longLivedUrl = `https://graph.facebook.com/v21.0/oauth/access_token?grant_type=fb_exchange_token&client_id=${META_APP_ID}&client_secret=${META_APP_SECRET}&fb_exchange_token=${accessToken}`;
+      const longLivedResponse = await fetch(longLivedUrl);
+      const longLivedData = await longLivedResponse.json() as TokenResponse & { error?: { message: string }; expires_in?: number };
+
+      if (!longLivedData.error && longLivedData.access_token) {
+        console.log('Successfully exchanged for long-lived token, expires_in:', longLivedData.expires_in);
+        accessToken = longLivedData.access_token;
+      } else {
+        console.warn('Long-lived token exchange failed (non-blocking), using short-lived token:', longLivedData.error?.message);
+      }
+    } catch (e) {
+      console.warn('Long-lived token exchange error (non-blocking):', e);
+    }
+
     // Step 2: Get WABA ID (skip if already provided from sessionInfoListener)
     let wabaId: string | null = wabaIdFromSession || null;
     let phoneNumberId: string | null = phoneNumberIdFromSession || null;
