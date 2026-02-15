@@ -264,9 +264,10 @@ Deno.serve(async (req) => {
 
     if (whatsappData.error) {
       console.error('WhatsApp API error:', whatsappData.error);
+      // Return 200 with error field so the client SDK doesn't throw generic "non-2xx" errors
       return new Response(
-        JSON.stringify({ error: 'Failed to send message', details: whatsappData.error.message }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ success: false, error: whatsappData.error.message || 'Error de WhatsApp API', details: whatsappData.error }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
