@@ -83,8 +83,50 @@ export const VoiceAgent = ({ voiceModelId: initialVoiceModelId, onVoiceModelIdCh
     try {
       const { data: { user } } = await supabase.auth.getUser();
       
-      // Generate a simple response (you can integrate with AI here)
-      const responseText = `Recibí tu mensaje: ${userMessage}`;
+      // Get AI response using user's Google AI key or Lovable AI
+      let responseText = '';
+      
+      // Check for user's Google AI API key
+      const { data: apiKeyData } = await supabase
+        .from('user_api_keys')
+        .select('api_key')
+        .eq('provider', 'google_ai')
+        .eq('is_active', true)
+        .maybeSingle();
+
+      if (apiKeyData?.api_key) {
+        // Use Google AI directly
+        const aiRes = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKeyData.api_key}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ role: 'user', parts: [{ text: userMessage }] }],
+              systemInstruction: {
+                parts: [{ text: 'Eres un asistente de voz amable. Responde de forma concisa y natural, en máximo 2 oraciones. Responde siempre en español.' }]
+              },
+              generationConfig: { temperature: 0.7, maxOutputTokens: 150 },
+            }),
+          }
+        );
+        if (aiRes.ok) {
+          const aiData = await aiRes.json();
+          responseText = aiData.candidates?.[0]?.content?.parts?.[0]?.text || 'No pude generar una respuesta.';
+        } else {
+          responseText = 'Error al conectar con el servicio de IA.';
+        }
+      } else {
+        // Fallback: use edge function with Lovable AI
+        const { data: aiData, error: aiError } = await supabase.functions.invoke('chatbot-process', {
+          body: {
+            conversation_id: 'voice-agent',
+            message_content: userMessage,
+            whatsapp_account_id: 'voice-preview',
+          },
+        });
+        responseText = aiData?.response || 'No pude procesar tu mensaje.';
+      }
       
       setTranscript(prev => [...prev, { role: 'agent', text: responseText }]);
 

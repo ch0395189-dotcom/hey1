@@ -257,6 +257,59 @@ Deno.serve(async (req) => {
         }
         conversation = newConv;
         console.log(`🆕 Nueva conversación: ${conversation.id}`);
+
+        // Send welcome message for new conversations if chatbot is enabled
+        try {
+          const { data: chatbotWelcome } = await supabase
+            .from('chatbot_configs')
+            .select('is_enabled, welcome_message')
+            .eq('whatsapp_account_id', account.id)
+            .eq('is_enabled', true)
+            .single();
+
+          if (chatbotWelcome?.welcome_message) {
+            // Get account external API details
+            const { data: waAccount } = await supabase
+              .from('whatsapp_accounts')
+              .select('external_service_url, external_api_key')
+              .eq('id', account.id)
+              .single();
+
+            if (waAccount?.external_service_url && waAccount?.external_api_key) {
+              const welcomeApiUrl = waAccount.external_service_url.replace(/\/+$/, '');
+              const sendUrl = welcomeApiUrl.includes('/send-text') ? welcomeApiUrl : `${welcomeApiUrl}/send-text`;
+              
+              const welcomeRes = await fetch(sendUrl, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${waAccount.external_api_key}`,
+                },
+                body: JSON.stringify({
+                  number: phoneNumber,
+                  body: chatbotWelcome.welcome_message,
+                  externalKey: `welcome_${Date.now()}`,
+                }),
+              });
+
+              if (welcomeRes.ok) {
+                console.log('✅ Welcome message sent via external API');
+                // Save welcome message to DB
+                await supabase.from('messages').insert({
+                  conversation_id: conversation.id,
+                  content: chatbotWelcome.welcome_message,
+                  message_type: 'text',
+                  direction: 'outbound',
+                  status: 'sent',
+                });
+              } else {
+                console.error('❌ Failed to send welcome message:', await welcomeRes.text());
+              }
+            }
+          }
+        } catch (welcomeErr) {
+          console.error('❌ Error sending welcome message:', welcomeErr);
+        }
       } else {
         const updateData: Record<string, unknown> = {
           last_message_at: new Date().toISOString(),
