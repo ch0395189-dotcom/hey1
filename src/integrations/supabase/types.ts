@@ -723,6 +723,72 @@ export type Database = {
         }
         Relationships: []
       }
+      scheduled_messages: {
+        Row: {
+          account_id: string
+          bot_node_id: string | null
+          completed_at: string | null
+          created_at: string
+          id: string
+          media_type: string | null
+          media_url: string | null
+          message: string | null
+          recipient_names: string[] | null
+          recipient_phones: string[]
+          results: Json | null
+          scheduled_at: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          account_id: string
+          bot_node_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          media_type?: string | null
+          media_url?: string | null
+          message?: string | null
+          recipient_names?: string[] | null
+          recipient_phones?: string[]
+          results?: Json | null
+          scheduled_at: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          account_id?: string
+          bot_node_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          media_type?: string | null
+          media_url?: string | null
+          message?: string | null
+          recipient_names?: string[] | null
+          recipient_phones?: string[]
+          results?: Json | null
+          scheduled_at?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scheduled_messages_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scheduled_messages_bot_node_id_fkey"
+            columns: ["bot_node_id"]
+            isOneToOne: false
+            referencedRelation: "chatbot_flow_nodes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subscriptions: {
         Row: {
           created_at: string
