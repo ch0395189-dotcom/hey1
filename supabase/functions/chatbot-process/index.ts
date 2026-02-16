@@ -611,7 +611,13 @@ async function sendExternalWhatsAppMessage(
   
   console.log(`Sending external WhatsApp message to ${phone}`);
   
-  const response = await fetch(apiBaseUrl, {
+  // Ensure we use the correct endpoint - append /send-text if not already in the URL
+  const cleanUrl = apiBaseUrl.replace(/\/+$/, '');
+  const sendUrl = cleanUrl.includes('/send-text') || cleanUrl.includes('/send-message') 
+    ? cleanUrl 
+    : `${cleanUrl}/send-text`;
+  
+  const response = await fetch(sendUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -642,7 +648,11 @@ async function sendExternalWhatsAppMediaMessage(
   
   console.log(`Sending external WhatsApp media to ${phone}: ${mediaUrl}`);
   
-  const response = await fetch(apiBaseUrl, {
+  // Use send-media or send-image endpoint
+  const cleanUrl = apiBaseUrl.replace(/\/+$/, '').replace(/\/send-text$/, '').replace(/\/send-message$/, '');
+  const sendUrl = `${cleanUrl}/send-media`;
+  
+  const response = await fetch(sendUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
