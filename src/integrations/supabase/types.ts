@@ -127,6 +127,8 @@ export type Database = {
           created_at: string
           id: string
           interactive_type: string
+          media_type: string | null
+          media_url: string | null
           node_type: string
           parent_node_id: string | null
           position: number
@@ -143,6 +145,8 @@ export type Database = {
           created_at?: string
           id?: string
           interactive_type?: string
+          media_type?: string | null
+          media_url?: string | null
           node_type?: string
           parent_node_id?: string | null
           position?: number
@@ -159,6 +163,8 @@ export type Database = {
           created_at?: string
           id?: string
           interactive_type?: string
+          media_type?: string | null
+          media_url?: string | null
           node_type?: string
           parent_node_id?: string | null
           position?: number

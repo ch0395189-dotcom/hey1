@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Plus, Trash2, ChevronRight, MessageSquare, ArrowRight, User, CircleStop, MousePointer, List, Pencil } from 'lucide-react';
+import { Plus, Trash2, ChevronRight, MessageSquare, ArrowRight, User, CircleStop, MousePointer, List, Pencil, Upload, Image, Video, Music, FileText, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface FlowBuilderProps {
@@ -36,6 +36,8 @@ interface FlowNode {
   position: number;
   interactive_type: 'none' | 'buttons' | 'list';
   button_options: ButtonOption[];
+  media_url: string | null;
+  media_type: string | null;
   children?: FlowNode[];
 }
 
@@ -54,7 +56,11 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
     action_type: null as string | null,
     interactive_type: 'none' as 'none' | 'buttons' | 'list',
     button_options: [] as ButtonOption[],
+    media_url: null as string | null,
+    media_type: null as string | null,
   });
+  const [uploadingMedia, setUploadingMedia] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchNodes();
@@ -133,6 +139,46 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
     });
   };
 
+  const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const maxSize = 16 * 1024 * 1024;
+    if (file.size > maxSize) {
+      toast.error('El archivo no puede superar 16MB');
+      return;
+    }
+
+    setUploadingMedia(true);
+    try {
+      const ext = file.name.split('.').pop();
+      const fileName = `bot_media_${Date.now()}.${ext}`;
+      const { data, error } = await supabase.storage
+        .from('media')
+        .upload(fileName, file, { contentType: file.type });
+
+      if (error) throw error;
+
+      const { data: publicUrl } = supabase.storage
+        .from('media')
+        .getPublicUrl(data.path);
+
+      let detectedType = 'document';
+      if (file.type.startsWith('image/')) detectedType = 'image';
+      else if (file.type.startsWith('video/')) detectedType = 'video';
+      else if (file.type.startsWith('audio/')) detectedType = 'audio';
+
+      setNewNode(prev => ({ ...prev, media_url: publicUrl.publicUrl, media_type: detectedType }));
+      toast.success('Archivo subido correctamente');
+    } catch (err: any) {
+      console.error('Upload error:', err);
+      toast.error('Error al subir el archivo');
+    } finally {
+      setUploadingMedia(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   const saveNode = async () => {
     if (!newNode.title.trim() || !newNode.content.trim()) {
       toast.error('El título y contenido son requeridos');
@@ -175,6 +221,8 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
           action_type: newNode.action_type,
           interactive_type: newNode.interactive_type,
           button_options: cleanedOptions,
+          media_url: newNode.media_url,
+          media_type: newNode.media_type,
         })
         .eq('id', editingNode.id);
 
@@ -203,6 +251,8 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
           position: nodes.length,
           interactive_type: newNode.interactive_type,
           button_options: cleanedOptions,
+          media_url: newNode.media_url,
+          media_type: newNode.media_type,
         })
         .select()
         .single();
@@ -230,6 +280,8 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
       action_type: null,
       interactive_type: 'none',
       button_options: [],
+      media_url: null,
+      media_type: null,
     });
     setShowAddForm(false);
     setEditingNode(null);
@@ -247,6 +299,8 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
       action_type: node.action_type,
       interactive_type: node.interactive_type || 'none',
       button_options: node.button_options || [],
+      media_url: node.media_url || null,
+      media_type: node.media_type || null,
     });
     setShowAddForm(true);
   };
@@ -335,6 +389,15 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
                 {getTriggerBadge()}
               </span>
               {getInteractiveBadge()}
+              {node.media_url && (
+                <span className="text-xs px-2 py-0.5 bg-accent text-accent-foreground rounded-full flex items-center gap-1">
+                  {node.media_type === 'image' ? <Image className="h-3 w-3" /> : 
+                   node.media_type === 'video' ? <Video className="h-3 w-3" /> :
+                   node.media_type === 'audio' ? <Music className="h-3 w-3" /> :
+                   <FileText className="h-3 w-3" />}
+                  {node.media_type}
+                </span>
+              )}
               {node.action_type && (
                 <span className="text-xs px-2 py-0.5 bg-destructive/10 text-destructive rounded-full">
                   {node.action_type === 'escalate' ? 'Escalar' : 'Finalizar'}
@@ -431,6 +494,8 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
               action_type: null,
               interactive_type: 'none',
               button_options: [],
+              media_url: null,
+              media_type: null,
             });
             setShowAddForm(true);
           }}>
@@ -546,6 +611,72 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
                   placeholder="El mensaje que el bot enviará..."
                   rows={3}
                 />
+              </div>
+
+              {/* Media Attachment */}
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <Upload className="h-4 w-4" />
+                  Archivo Multimedia (opcional)
+                </Label>
+                {newNode.media_url ? (
+                  <div className="flex items-center gap-3 p-3 border rounded-lg bg-muted/30">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      {newNode.media_type === 'image' && <Image className="h-5 w-5 text-primary shrink-0" />}
+                      {newNode.media_type === 'video' && <Video className="h-5 w-5 text-primary shrink-0" />}
+                      {newNode.media_type === 'audio' && <Music className="h-5 w-5 text-primary shrink-0" />}
+                      {newNode.media_type === 'document' && <FileText className="h-5 w-5 text-primary shrink-0" />}
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium capitalize">{newNode.media_type}</p>
+                        <p className="text-xs text-muted-foreground truncate">{newNode.media_url}</p>
+                      </div>
+                    </div>
+                    {newNode.media_type === 'image' && (
+                      <img src={newNode.media_url} alt="Preview" className="h-12 w-12 object-cover rounded" />
+                    )}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setNewNode({ ...newNode, media_url: null, media_type: null })}
+                      className="text-destructive shrink-0"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx"
+                      onChange={handleMediaUpload}
+                      className="hidden"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploadingMedia}
+                      className="w-full"
+                    >
+                      {uploadingMedia ? (
+                        <div className="flex items-center gap-2">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                          Subiendo...
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <Upload className="h-4 w-4" />
+                          Subir imagen, video, audio o documento
+                        </div>
+                      )}
+                    </Button>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      El archivo se enviará junto con el mensaje de texto del nodo
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Interactive Type Selection */}
