@@ -478,7 +478,7 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
           config_id: metaConfig.configId,
           response_type: 'code',
           override_default_response_type: true,
-          redirect_uri: `${window.location.origin}${window.location.pathname}`,
+          redirect_uri: `https://www.heyhey.site${window.location.pathname}`,
           extras: {
             feature: 'whatsapp_embedded_signup',
             version: 2,
