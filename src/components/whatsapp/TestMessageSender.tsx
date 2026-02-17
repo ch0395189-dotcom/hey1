@@ -89,37 +89,11 @@ export const TestMessageSender = ({ accountId, accountPhone, connectionType }: T
           });
         }
       } else {
-        // Use Meta API for official connections
-        // First, find or create a conversation
-        const { data: existingConv } = await supabase
-          .from('conversations')
-          .select('id')
-          .eq('customer_phone', phoneNumber.replace(/[\s\-()]/g, ''))
-          .eq('whatsapp_account_id', accountId)
-          .maybeSingle();
-
-        let conversationId: string;
-
-        if (existingConv) {
-          conversationId = existingConv.id;
-        } else {
-          const { data: newConv, error: convError } = await supabase
-            .from('conversations')
-            .insert({
-              customer_phone: phoneNumber.replace(/[\s\-()]/g, ''),
-              customer_name: 'Mensaje de prueba',
-              whatsapp_account_id: accountId,
-            })
-            .select('id')
-            .single();
-
-          if (convError) throw convError;
-          conversationId = newConv.id;
-        }
-
+        // Use Meta API - let the edge function handle conversation creation
         const { data, error } = await supabase.functions.invoke('whatsapp-send-message', {
           body: {
-            conversation_id: conversationId,
+            phone_number: phoneNumber.replace(/[\s\-()]/g, ''),
+            whatsapp_account_id: accountId,
             message: message,
             message_type: 'text',
           },
@@ -127,7 +101,7 @@ export const TestMessageSender = ({ accountId, accountPhone, connectionType }: T
 
         if (error) throw error;
 
-        if (data.error) {
+        if (data?.error) {
           setResult({
             success: false,
             error: data.error,
