@@ -133,20 +133,73 @@ export const NewMessageDialog = ({
 
     setSending(true);
     try {
-      const { data, error } = await supabase.functions.invoke(
-        "whatsapp-send-external",
-        {
-          body: {
-            accountId: selectedAccountId,
-            to: digitsOnly,
-            message: message.trim(),
-            createConversation: true,
-          },
-        }
-      );
+      const selectedAccount = accounts.find(a => a.id === selectedAccountId);
+      const isExternal = selectedAccount?.connection_type === 'external_qr' || selectedAccount?.connection_type === 'z-api';
 
-      if (error) throw error;
-      if (data?.error) throw new Error(data.details || data.error);
+      let conversationId: string | null = null;
+
+      if (isExternal) {
+        // Use external function for Z-API/WuzAPI connections
+        const { data, error } = await supabase.functions.invoke(
+          "whatsapp-send-external",
+          {
+            body: {
+              accountId: selectedAccountId,
+              to: digitsOnly,
+              message: message.trim(),
+              createConversation: true,
+            },
+          }
+        );
+
+        if (error) throw error;
+        if (data?.error) throw new Error(data.details || data.error);
+        conversationId = data?.conversationId;
+      } else {
+        // Use Meta API for official connections
+        // First, find or create conversation
+        const { data: existingConv } = await supabase
+          .from('conversations')
+          .select('id')
+          .eq('customer_phone', digitsOnly)
+          .eq('whatsapp_account_id', selectedAccountId)
+          .maybeSingle();
+
+        if (existingConv) {
+          conversationId = existingConv.id;
+        } else {
+          const { data: newConv, error: convError } = await supabase
+            .from('conversations')
+            .insert({
+              customer_phone: digitsOnly,
+              customer_name: null,
+              whatsapp_account_id: selectedAccountId,
+              platform: 'whatsapp',
+              last_message_at: new Date().toISOString(),
+              unread_count: 0,
+            })
+            .select('id')
+            .single();
+
+          if (convError) throw convError;
+          conversationId = newConv.id;
+        }
+
+        // Send message via Meta API
+        const { data, error } = await supabase.functions.invoke(
+          "whatsapp-send-message",
+          {
+            body: {
+              conversation_id: conversationId,
+              message: message.trim(),
+              message_type: 'text',
+            },
+          }
+        );
+
+        if (error) throw error;
+        if (data?.error) throw new Error(data.details || data.error);
+      }
 
       toast({
         title: "Mensaje enviado",
@@ -159,8 +212,8 @@ export const NewMessageDialog = ({
       onOpenChange(false);
 
       // Notify parent about the new conversation
-      if (data?.conversationId && onMessageSent) {
-        onMessageSent(data.conversationId);
+      if (conversationId && onMessageSent) {
+        onMessageSent(conversationId);
       }
     } catch (error: any) {
       console.error("Error sending message:", error);
