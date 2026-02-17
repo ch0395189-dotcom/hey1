@@ -314,7 +314,7 @@ export const PlatformSetup = ({ onAccountConnected }: PlatformSetupProps) => {
           body: { 
             code,
             platform,
-            redirect_uri: `${window.location.origin}/dashboard`
+            redirect_uri: `https://www.heyhey.site/dashboard`
           },
         });
         
@@ -384,7 +384,7 @@ export const PlatformSetup = ({ onAccountConnected }: PlatformSetupProps) => {
     const state = btoa(JSON.stringify({ platform, timestamp: Date.now() }));
     
     // Build Facebook OAuth URL - this will open Facebook app on mobile if installed
-    const redirectUri = `${window.location.origin}/dashboard`;
+    const redirectUri = `https://www.heyhey.site/dashboard`;
     const scope = config.scopes;
     
     const fbAuthUrl = new URL('https://www.facebook.com/v21.0/dialog/oauth');
