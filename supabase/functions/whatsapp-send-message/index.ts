@@ -318,8 +318,43 @@ Deno.serve(async (req) => {
       body: JSON.stringify(whatsappPayload),
     });
 
-    const whatsappData = await whatsappResponse.json();
+    let whatsappData = await whatsappResponse.json();
     console.log('WhatsApp API response status:', whatsappResponse.status, 'data:', JSON.stringify(whatsappData));
+
+    // Auto-register phone if error 133010 (Account not registered)
+    if (whatsappData.error?.code === 133010) {
+      console.log('Phone not registered, attempting auto-registration...');
+      try {
+        const registerUrl = `https://graph.facebook.com/v21.0/${whatsappAccount.phone_number_id}/register`;
+        const registerResponse = await fetch(registerUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${whatsappAccount.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ messaging_product: 'whatsapp', pin: '123456' }),
+        });
+        const registerData = await registerResponse.json();
+        console.log('Auto-registration result:', JSON.stringify(registerData));
+
+        if (!registerData.error) {
+          // Retry sending the message
+          console.log('Retrying message after registration...');
+          const retryResponse = await fetch(whatsappUrl, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${whatsappAccount.access_token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(whatsappPayload),
+          });
+          whatsappData = await retryResponse.json();
+          console.log('Retry result:', JSON.stringify(whatsappData));
+        }
+      } catch (e) {
+        console.warn('Auto-registration failed:', e);
+      }
+    }
 
     if (whatsappData.error) {
       console.error('WhatsApp API error:', JSON.stringify(whatsappData.error));
