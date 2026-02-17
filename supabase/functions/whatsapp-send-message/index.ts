@@ -319,9 +319,10 @@ Deno.serve(async (req) => {
     });
 
     const whatsappData = await whatsappResponse.json();
+    console.log('WhatsApp API response status:', whatsappResponse.status, 'data:', JSON.stringify(whatsappData));
 
     if (whatsappData.error) {
-      console.error('WhatsApp API error:', whatsappData.error);
+      console.error('WhatsApp API error:', JSON.stringify(whatsappData.error));
       return new Response(
         JSON.stringify({ success: false, error: whatsappData.error.message || 'Error de WhatsApp API', details: whatsappData.error }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
