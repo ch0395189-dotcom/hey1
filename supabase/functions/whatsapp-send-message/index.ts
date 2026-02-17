@@ -2,7 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 interface ButtonOption {
@@ -27,7 +27,9 @@ interface InteractiveMessage {
 }
 
 interface SendMessageRequest {
-  conversation_id: string;
+  conversation_id?: string;
+  phone_number?: string;
+  whatsapp_account_id?: string;
   message?: string;
   message_type?: 'text' | 'template' | 'image' | 'video' | 'document' | 'audio' | 'interactive';
   template_name?: string;
@@ -127,32 +129,92 @@ Deno.serve(async (req) => {
       );
     }
 
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_ANON_KEY')!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
 
     const token = authHeader.replace('Bearer ', '');
-    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims) {
+    const { data: userData, error: authError } = await supabaseAuth.auth.getUser(token);
+    if (authError || !userData?.user) {
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const { conversation_id, message, message_type, media_url, media_type, interactive } = await req.json() as SendMessageRequest;
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+
+    const body = await req.json() as SendMessageRequest;
+    const { message, message_type, media_url, media_type, interactive } = body;
+    let { conversation_id } = body;
+
+    // If no conversation_id, create or find conversation by phone_number + whatsapp_account_id
+    if (!conversation_id && body.phone_number && body.whatsapp_account_id) {
+      const phone = body.phone_number.replace(/\D/g, '');
+      
+      // Verify user owns this account
+      const { data: account, error: accError } = await supabaseAdmin
+        .from('whatsapp_accounts')
+        .select('id, user_id')
+        .eq('id', body.whatsapp_account_id)
+        .single();
+
+      if (accError || !account || account.user_id !== userData.user.id) {
+        return new Response(
+          JSON.stringify({ error: 'Unauthorized: account not found or not owned' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Find existing conversation
+      const { data: existingConv } = await supabaseAdmin
+        .from('conversations')
+        .select('id')
+        .eq('customer_phone', phone)
+        .eq('whatsapp_account_id', body.whatsapp_account_id)
+        .maybeSingle();
+
+      if (existingConv) {
+        conversation_id = existingConv.id;
+      } else {
+        const { data: newConv, error: convError } = await supabaseAdmin
+          .from('conversations')
+          .insert({
+            customer_phone: phone,
+            customer_name: null,
+            whatsapp_account_id: body.whatsapp_account_id,
+            platform: 'whatsapp',
+            last_message_at: new Date().toISOString(),
+            unread_count: 0,
+          })
+          .select('id')
+          .single();
+
+        if (convError) {
+          console.error('Error creating conversation:', convError);
+          return new Response(
+            JSON.stringify({ error: 'Failed to create conversation', details: convError.message }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        conversation_id = newConv.id;
+        console.log(`🆕 Created conversation: ${conversation_id}`);
+      }
+    }
 
     if (!conversation_id || (!message && !media_url && !interactive)) {
       return new Response(
-        JSON.stringify({ error: 'conversation_id and (message, media_url, or interactive) are required' }),
+        JSON.stringify({ error: 'conversation_id (or phone_number+whatsapp_account_id) and (message, media_url, or interactive) are required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Get conversation with WhatsApp account details
-    const { data: conversation, error: convError } = await supabase
+    // Get conversation with WhatsApp account details using admin client
+    const { data: conversation, error: convError } = await supabaseAdmin
       .from('conversations')
       .select(`
         id,
@@ -194,16 +256,13 @@ Deno.serve(async (req) => {
 
     // Build payload based on message type
     if (interactive) {
-      // Interactive message (buttons or list)
       whatsappPayload = buildInteractivePayload(interactive, recipientPhone);
       actualMessageType = 'interactive';
       
-      // Format content for database storage
       const buttonLabels = interactive.buttons?.map(b => b.title).join(', ') || 
                           interactive.listOptions?.map(o => o.title).join(', ') || '';
       contentToSave = `${interactive.bodyText}\n\n[${interactive.type === 'buttons' ? 'Botones' : 'Lista'}: ${buttonLabels}]`;
     } else {
-      // Regular message
       actualMessageType = message_type || 'text';
       if (media_url && media_type) {
         actualMessageType = media_type;
@@ -216,7 +275,6 @@ Deno.serve(async (req) => {
         type: actualMessageType,
       };
 
-      // Add content based on message type
       if (actualMessageType === 'text' && message) {
         whatsappPayload.text = {
           preview_url: false,
@@ -264,7 +322,6 @@ Deno.serve(async (req) => {
 
     if (whatsappData.error) {
       console.error('WhatsApp API error:', whatsappData.error);
-      // Return 200 with error field so the client SDK doesn't throw generic "non-2xx" errors
       return new Response(
         JSON.stringify({ success: false, error: whatsappData.error.message || 'Error de WhatsApp API', details: whatsappData.error }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -273,12 +330,7 @@ Deno.serve(async (req) => {
 
     const whatsappMessageId = whatsappData.messages?.[0]?.id;
 
-    // Save message to database using service role to bypass RLS
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
-
+    // Save message to database
     const { data: savedMessage, error: msgError } = await supabaseAdmin
       .from('messages')
       .insert({
@@ -311,6 +363,7 @@ Deno.serve(async (req) => {
         success: true,
         message_id: savedMessage?.id,
         whatsapp_message_id: whatsappMessageId,
+        conversationId: conversation_id,
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

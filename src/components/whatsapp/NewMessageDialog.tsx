@@ -156,41 +156,13 @@ export const NewMessageDialog = ({
         if (data?.error) throw new Error(data.details || data.error);
         conversationId = data?.conversationId;
       } else {
-        // Use Meta API for official connections
-        // First, find or create conversation
-        const { data: existingConv } = await supabase
-          .from('conversations')
-          .select('id')
-          .eq('customer_phone', digitsOnly)
-          .eq('whatsapp_account_id', selectedAccountId)
-          .maybeSingle();
-
-        if (existingConv) {
-          conversationId = existingConv.id;
-        } else {
-          const { data: newConv, error: convError } = await supabase
-            .from('conversations')
-            .insert({
-              customer_phone: digitsOnly,
-              customer_name: null,
-              whatsapp_account_id: selectedAccountId,
-              platform: 'whatsapp',
-              last_message_at: new Date().toISOString(),
-              unread_count: 0,
-            })
-            .select('id')
-            .single();
-
-          if (convError) throw convError;
-          conversationId = newConv.id;
-        }
-
-        // Send message via Meta API
+        // Use Meta API - edge function handles conversation creation
         const { data, error } = await supabase.functions.invoke(
           "whatsapp-send-message",
           {
             body: {
-              conversation_id: conversationId,
+              phone_number: digitsOnly,
+              whatsapp_account_id: selectedAccountId,
               message: message.trim(),
               message_type: 'text',
             },
@@ -199,6 +171,7 @@ export const NewMessageDialog = ({
 
         if (error) throw error;
         if (data?.error) throw new Error(data.details || data.error);
+        conversationId = data?.conversationId;
       }
 
       toast({
