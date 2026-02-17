@@ -39,6 +39,8 @@ interface FlowNode {
   position: number;
   interactive_type: 'none' | 'buttons' | 'list';
   button_options: ButtonOption[];
+  media_url: string | null;
+  media_type: string | null;
 }
 
 // Response can be text or interactive
@@ -482,6 +484,31 @@ Deno.serve(async (req) => {
     if (responseMessage) {
       const isExternal = platformAccount?.connection_type === 'external_qr' || platformAccount?.connection_type === 'z-api';
       
+      // Send media first if the current node has a media attachment
+      if (currentNode?.media_url && currentPlatform === 'whatsapp') {
+        try {
+          if (isExternal && platformAccount?.external_service_url && platformAccount?.external_api_key) {
+            await sendExternalWhatsAppMediaMessage(
+              platformAccount.external_service_url,
+              platformAccount.external_api_key,
+              customerIdentifier,
+              currentNode.media_url
+            );
+          } else {
+            await sendWhatsAppMediaMessage(
+              platformAccount.phone_number_id!,
+              platformAccount.access_token!,
+              customerIdentifier,
+              currentNode.media_url
+            );
+          }
+          await saveOutboundMessage(supabase, conversation_id, `[${currentNode.media_type || 'media'}] ${currentNode.media_url}`, currentNode.media_type || 'image', currentNode.media_url);
+          console.log('📎 Node media sent:', currentNode.media_type, currentNode.media_url);
+        } catch (mediaErr) {
+          console.error('Error sending node media:', mediaErr);
+        }
+      }
+
       if (interactiveResponse && currentPlatform === 'whatsapp' && !isExternal) {
         // Send interactive message for WhatsApp (Meta API only)
         await sendWhatsAppInteractiveMessage(
@@ -871,14 +898,17 @@ async function sendTikTokMessage(
 async function saveOutboundMessage(
   supabase: any,
   conversationId: string,
-  content: string
+  content: string,
+  messageType: string = 'text',
+  mediaUrl: string | null = null
 ): Promise<void> {
   const { error } = await supabase
     .from('messages')
     .insert({
       conversation_id: conversationId,
       content,
-      message_type: 'text',
+      message_type: messageType,
+      media_url: mediaUrl,
       direction: 'outbound',
       status: 'sent',
     });
