@@ -155,7 +155,9 @@ Deno.serve(async (req) => {
             .from('whatsapp_accounts')
             .select('id, user_id')
             .eq('phone_number_id', phoneNumberId)
-            .single();
+            .eq('is_active', true)
+            .limit(1)
+            .maybeSingle();
 
           if (accountError || !whatsappAccount) {
             console.error('WhatsApp account not found for phone_number_id:', phoneNumberId);
