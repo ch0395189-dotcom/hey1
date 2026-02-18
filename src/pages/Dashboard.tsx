@@ -630,20 +630,23 @@ const Dashboard = () => {
             </TabsList>
             
             <TabsContent value="whatsapp" className="mt-4">
-              {/* Account Info */}
-              {whatsappAccounts.length > 0 && (
-                <div className="mb-4 p-4 rounded-lg bg-muted/50 border">
-                  <h3 className="text-sm font-medium text-muted-foreground mb-2">Tu cuenta conectada</h3>
-                  <div className="space-y-1">
-                    <p className="font-semibold text-lg">
-                      {whatsappAccounts.find(a => a.id === selectedAccountId)?.display_name || 'Mi cuenta'}
+              {/* User Info */}
+              <div className="mb-4 p-4 rounded-lg bg-muted/50 border">
+                <h3 className="text-sm font-medium text-muted-foreground mb-2">Tu cuenta</h3>
+                <div className="space-y-1">
+                  <p className="font-semibold text-lg">
+                    {user?.user_metadata?.full_name || 'Sin nombre'}
+                  </p>
+                  <p className="text-muted-foreground text-sm">
+                    {user?.email || 'Sin correo'}
+                  </p>
+                  {whatsappAccounts.length > 0 && (
+                    <p className="text-muted-foreground font-mono text-sm">
+                      📱 {whatsappAccounts.find(a => a.id === selectedAccountId)?.display_name || 'Mi cuenta'} — {whatsappAccounts.find(a => a.id === selectedAccountId)?.phone_number || 'Sin número'}
                     </p>
-                    <p className="text-muted-foreground font-mono">
-                      {whatsappAccounts.find(a => a.id === selectedAccountId)?.phone_number || 'Sin número'}
-                    </p>
-                  </div>
+                  )}
                 </div>
-              )}
+              </div>
               
               <WhatsAppSetup onAccountConnected={checkWhatsAppAccounts} />
             </TabsContent>
