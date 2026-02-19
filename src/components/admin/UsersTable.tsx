@@ -8,12 +8,14 @@ import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Check, X, Search, RefreshCw } from 'lucide-react';
+import { Check, X, Search, RefreshCw, Trash2 } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
 interface UserWithSubscription {
   user_id: string;
   full_name: string | null;
   email: string;
+  phone_number: string | null;
   subscription: {
     id: string;
     plan: string;
@@ -59,19 +61,24 @@ export const UsersTable = () => {
       // Fetch active platform connections
       const { data: waAccounts } = await supabase
         .from('whatsapp_accounts')
-        .select('user_id, is_active, connection_type');
+        .select('user_id, is_active, connection_type, phone_number');
 
       const { data: platAccounts } = await supabase
         .from('platform_accounts')
         .select('user_id, platform, is_active');
 
       const platformsMap = new Map<string, string[]>();
+      const phoneMap = new Map<string, string>();
       waAccounts?.forEach(wa => {
         if (wa.is_active) {
           const list = platformsMap.get(wa.user_id) || [];
           const label = wa.connection_type === 'external' ? 'WA External' : 'WhatsApp';
           if (!list.includes(label)) list.push(label);
           platformsMap.set(wa.user_id, list);
+        }
+        // Store first phone number found
+        if (!phoneMap.has(wa.user_id) && wa.phone_number) {
+          phoneMap.set(wa.user_id, wa.phone_number);
         }
       });
       platAccounts?.forEach(pa => {
@@ -89,6 +96,7 @@ export const UsersTable = () => {
           user_id: profile.user_id,
           full_name: profile.full_name,
           email: emailMap.get(profile.user_id) || 'N/A',
+          phone_number: phoneMap.get(profile.user_id) || null,
           subscription: sub ? {
             id: sub.id,
             plan: sub.plan,
@@ -143,6 +151,20 @@ export const UsersTable = () => {
     }
   };
 
+  const handleDeleteUser = async (userId: string, userName: string) => {
+    try {
+      const { error } = await supabase.functions.invoke('admin-delete-user', {
+        body: { userId },
+      });
+      if (error) throw error;
+      toast.success(`Usuario "${userName}" eliminado correctamente`);
+      fetchUsers();
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      toast.error('Error al eliminar usuario');
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     const variants: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
       active: 'default',
@@ -155,7 +177,8 @@ export const UsersTable = () => {
 
   const filteredUsers = users.filter(user => 
     user.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchTerm.toLowerCase())
+    user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.phone_number?.includes(searchTerm)
   );
 
   return (
@@ -178,10 +201,11 @@ export const UsersTable = () => {
 
       <div className="rounded-md border">
         <Table>
-          <TableHeader>
+           <TableHeader>
             <TableRow>
               <TableHead>Usuario</TableHead>
               <TableHead>Email</TableHead>
+              <TableHead>Teléfono</TableHead>
               <TableHead>Plan</TableHead>
               <TableHead>Estado</TableHead>
               <TableHead>Plataformas</TableHead>
@@ -193,13 +217,13 @@ export const UsersTable = () => {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8">
+                <TableCell colSpan={9} className="text-center py-8">
                   Cargando usuarios...
                 </TableCell>
               </TableRow>
             ) : filteredUsers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8">
+                <TableCell colSpan={9} className="text-center py-8">
                   No se encontraron usuarios
                 </TableCell>
               </TableRow>
@@ -209,7 +233,10 @@ export const UsersTable = () => {
                   <TableCell className="font-medium">
                     {user.full_name || 'Sin nombre'}
                   </TableCell>
-                  <TableCell>{user.email}</TableCell>
+                  <TableCell className="text-sm">{user.email}</TableCell>
+                  <TableCell className="text-sm font-mono">
+                    {user.phone_number || <span className="text-muted-foreground">-</span>}
+                  </TableCell>
                   <TableCell>
                     <Select
                       value={user.subscription?.plan || 'starter'}
@@ -266,6 +293,30 @@ export const UsersTable = () => {
                         <X className="h-4 w-4 mr-1" />
                         Cancelar
                       </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button size="sm" variant="destructive">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>¿Eliminar usuario?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Esta acción eliminará permanentemente a <strong>{user.full_name || user.email}</strong> y todos sus datos asociados. Esta acción no se puede deshacer.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => handleDeleteUser(user.user_id, user.full_name || user.email)}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              Eliminar
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </div>
                   </TableCell>
                 </TableRow>
