@@ -45,6 +45,7 @@ export const UsersTable = () => {
   const [addDays, setAddDays] = useState('30');
   const [renewalDate, setRenewalDate] = useState<Date | undefined>(undefined);
   const [submitting, setSubmitting] = useState(false);
+  const [userPendingAlerts, setUserPendingAlerts] = useState<{ id: string; amount: number; message: string | null; sent_at: string }[]>([]);
 
   // Manual charge dialog
   const [chargeDialogOpen, setChargeDialogOpen] = useState(false);
@@ -296,11 +297,52 @@ export const UsersTable = () => {
     }
   };
 
-  const openManageDialog = (user: UserWithSubscription) => {
+  const openManageDialog = async (user: UserWithSubscription) => {
     setSelectedUser(user);
     setAddDays('30');
     setRenewalDate(user.subscription?.current_period_end ? new Date(user.subscription.current_period_end) : undefined);
     setManageDialogOpen(true);
+
+    // Fetch pending alerts for this user
+    const { data } = await supabase
+      .from('payment_alerts')
+      .select('id, amount, message, sent_at')
+      .eq('user_id', user.user_id)
+      .eq('status', 'pending')
+      .order('sent_at', { ascending: false });
+    setUserPendingAlerts(data || []);
+  };
+
+  const handleMarkAlertPaid = async (alertId: string) => {
+    try {
+      const { error } = await supabase
+        .from('payment_alerts')
+        .update({ status: 'paid', paid_at: new Date().toISOString() })
+        .eq('id', alertId);
+      if (error) throw error;
+      setUserPendingAlerts(prev => prev.filter(a => a.id !== alertId));
+      toast.success('Alerta marcada como pagada');
+    } catch (error) {
+      console.error('Error marking alert as paid:', error);
+      toast.error('Error al marcar como pagado');
+    }
+  };
+
+  const handleDismissAllAlerts = async () => {
+    if (!selectedUser || userPendingAlerts.length === 0) return;
+    try {
+      const { error } = await supabase
+        .from('payment_alerts')
+        .update({ status: 'paid', paid_at: new Date().toISOString() })
+        .eq('user_id', selectedUser.user_id)
+        .eq('status', 'pending');
+      if (error) throw error;
+      setUserPendingAlerts([]);
+      toast.success('Todas las alertas marcadas como pagadas');
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error('Error al actualizar alertas');
+    }
   };
 
   const openChargeDialog = (user: UserWithSubscription) => {
@@ -495,6 +537,35 @@ export const UsersTable = () => {
           </DialogHeader>
 
           <div className="space-y-6">
+            {/* Pending Alerts */}
+            {userPendingAlerts.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-semibold text-amber-600">Alertas Pendientes ({userPendingAlerts.length})</Label>
+                  <Button size="sm" variant="outline" onClick={handleDismissAllAlerts}>
+                    <Check className="h-3 w-3 mr-1" />
+                    Marcar todas pagadas
+                  </Button>
+                </div>
+                <div className="space-y-2">
+                  {userPendingAlerts.map(alert => (
+                    <div key={alert.id} className="flex items-center justify-between rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2">
+                      <div className="text-sm">
+                        <span className="font-semibold">{new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(alert.amount)}</span>
+                        {alert.message && <span className="text-muted-foreground ml-2">— {alert.message}</span>}
+                        <span className="text-xs text-muted-foreground ml-2">{format(new Date(alert.sent_at), 'dd MMM', { locale: es })}</span>
+                      </div>
+                      <Button size="sm" variant="default" onClick={() => handleMarkAlertPaid(alert.id)} className="h-7 text-xs">
+                        <Check className="h-3 w-3 mr-1" />
+                        Pagado
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+                <div className="border-t" />
+              </div>
+            )}
+
             {/* Add Days */}
             <div className="space-y-3">
               <Label className="text-sm font-semibold">Agregar días</Label>
