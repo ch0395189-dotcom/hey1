@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AlertTriangle, X } from 'lucide-react';
+import { AlertTriangle, X, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useBoldCheckout } from '@/hooks/useBoldCheckout';
 
 interface PaymentAlert {
   id: string;
@@ -15,25 +16,33 @@ interface PaymentAlert {
 export const PaymentAlertBanner = () => {
   const [alerts, setAlerts] = useState<PaymentAlert[]>([]);
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
+  const [currentPlan, setCurrentPlan] = useState<string>('starter');
+  const { createCheckout, isLoading } = useBoldCheckout();
 
   useEffect(() => {
-    const fetchAlerts = async () => {
+    const fetchData = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
-      const { data } = await supabase
-        .from('payment_alerts')
-        .select('id, amount, currency, message, sent_at')
-        .eq('user_id', session.user.id)
-        .eq('status', 'pending')
-        .order('sent_at', { ascending: false });
+      const [alertsRes, subRes] = await Promise.all([
+        supabase
+          .from('payment_alerts')
+          .select('id, amount, currency, message, sent_at')
+          .eq('user_id', session.user.id)
+          .eq('status', 'pending')
+          .order('sent_at', { ascending: false }),
+        supabase
+          .from('subscriptions')
+          .select('plan')
+          .eq('user_id', session.user.id)
+          .single(),
+      ]);
 
-      if (data) {
-        setAlerts(data);
-      }
+      if (alertsRes.data) setAlerts(alertsRes.data);
+      if (subRes.data) setCurrentPlan(subRes.data.plan);
     };
 
-    fetchAlerts();
+    fetchData();
   }, []);
 
   const formatAmount = (amount: number) => {
@@ -46,6 +55,10 @@ export const PaymentAlertBanner = () => {
 
   const handleDismiss = (id: string) => {
     setDismissedIds(prev => new Set(prev).add(id));
+  };
+
+  const handleRenew = () => {
+    createCheckout(currentPlan as 'starter' | 'professional' | 'enterprise' | 'esoterico_pro');
   };
 
   const visibleAlerts = alerts.filter(alert => !dismissedIds.has(alert.id));
@@ -75,14 +88,25 @@ export const PaymentAlertBanner = () => {
               </p>
             )}
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6 text-muted-foreground hover:text-foreground flex-shrink-0"
-            onClick={() => handleDismiss(alert.id)}
-          >
-            <X className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <Button
+              size="sm"
+              onClick={handleRenew}
+              disabled={isLoading}
+              className="bg-amber-600 hover:bg-amber-700 text-white h-7 text-xs px-2 md:h-8 md:text-sm md:px-3"
+            >
+              <CreditCard className="h-3 w-3 mr-1" />
+              Renovar
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 text-muted-foreground hover:text-foreground"
+              onClick={() => handleDismiss(alert.id)}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
         </motion.div>
       ))}
     </AnimatePresence>
