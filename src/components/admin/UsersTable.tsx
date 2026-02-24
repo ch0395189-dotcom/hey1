@@ -5,11 +5,17 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Check, X, Search, RefreshCw, Trash2 } from 'lucide-react';
+import { Check, X, Search, RefreshCw, Trash2, CalendarDays, Plus, CreditCard } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
+import { Textarea } from '@/components/ui/textarea';
 
 interface UserWithSubscription {
   user_id: string;
@@ -22,6 +28,7 @@ interface UserWithSubscription {
     status: string;
     trial_end: string | null;
     current_period_end: string | null;
+    current_period_start: string | null;
   } | null;
   created_at: string;
   platforms: string[];
@@ -32,10 +39,23 @@ export const UsersTable = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
+  // Manage subscription dialog
+  const [manageDialogOpen, setManageDialogOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<UserWithSubscription | null>(null);
+  const [addDays, setAddDays] = useState('30');
+  const [renewalDate, setRenewalDate] = useState<Date | undefined>(undefined);
+  const [submitting, setSubmitting] = useState(false);
+
+  // Manual charge dialog
+  const [chargeDialogOpen, setChargeDialogOpen] = useState(false);
+  const [chargeAmount, setChargeAmount] = useState('');
+  const [chargeMethod, setChargeMethod] = useState('');
+  const [chargeReference, setChargeReference] = useState('');
+  const [chargeNotes, setChargeNotes] = useState('');
+
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      // Fetch profiles with subscriptions
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('user_id, full_name, created_at');
@@ -44,12 +64,11 @@ export const UsersTable = () => {
 
       const { data: subscriptions, error: subsError } = await supabase
         .from('subscriptions')
-        .select('id, user_id, plan, status, trial_end, current_period_end');
+        .select('id, user_id, plan, status, trial_end, current_period_end, current_period_start');
 
       if (subsError) throw subsError;
 
-      // Get emails from auth.users via edge function
-      const { data: authData, error: authError } = await supabase.functions.invoke('admin-get-users');
+      const { data: authData } = await supabase.functions.invoke('admin-get-users');
       
       const emailMap = new Map<string, string>();
       if (authData?.users) {
@@ -58,7 +77,6 @@ export const UsersTable = () => {
         });
       }
 
-      // Fetch active platform connections
       const { data: waAccounts } = await supabase
         .from('whatsapp_accounts')
         .select('user_id, is_active, connection_type, phone_number');
@@ -76,7 +94,6 @@ export const UsersTable = () => {
           if (!list.includes(label)) list.push(label);
           platformsMap.set(wa.user_id, list);
         }
-        // Store first phone number found
         if (!phoneMap.has(wa.user_id) && wa.phone_number) {
           phoneMap.set(wa.user_id, wa.phone_number);
         }
@@ -103,6 +120,7 @@ export const UsersTable = () => {
             status: sub.status,
             trial_end: sub.trial_end,
             current_period_end: sub.current_period_end,
+            current_period_start: sub.current_period_start,
           } : null,
           created_at: profile.created_at,
           platforms: platformsMap.get(profile.user_id) || [],
@@ -130,7 +148,6 @@ export const UsersTable = () => {
     try {
       const updateData: Record<string, unknown> = { [field]: value };
       
-      // If activating, set period dates
       if (field === 'status' && value === 'active') {
         updateData.current_period_start = new Date().toISOString();
         updateData.current_period_end = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
@@ -165,6 +182,136 @@ export const UsersTable = () => {
     }
   };
 
+  const handleAddDays = async () => {
+    if (!selectedUser || !addDays) return;
+    setSubmitting(true);
+    try {
+      const days = parseInt(addDays);
+      const currentEnd = selectedUser.subscription?.current_period_end 
+        ? new Date(selectedUser.subscription.current_period_end)
+        : new Date();
+      
+      // If current end is in the past, start from now
+      const baseDate = currentEnd > new Date() ? currentEnd : new Date();
+      const newEnd = new Date(baseDate.getTime() + days * 24 * 60 * 60 * 1000);
+
+      const { error } = await supabase
+        .from('subscriptions')
+        .update({
+          status: 'active',
+          current_period_start: selectedUser.subscription?.current_period_start || new Date().toISOString(),
+          current_period_end: newEnd.toISOString(),
+        })
+        .eq('user_id', selectedUser.user_id);
+
+      if (error) throw error;
+      toast.success(`Se agregaron ${days} días a ${selectedUser.full_name || selectedUser.email}`);
+      setManageDialogOpen(false);
+      fetchUsers();
+    } catch (error) {
+      console.error('Error adding days:', error);
+      toast.error('Error al agregar días');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleSetRenewalDate = async () => {
+    if (!selectedUser || !renewalDate) return;
+    setSubmitting(true);
+    try {
+      const { error } = await supabase
+        .from('subscriptions')
+        .update({
+          status: 'active',
+          current_period_start: new Date().toISOString(),
+          current_period_end: renewalDate.toISOString(),
+        })
+        .eq('user_id', selectedUser.user_id);
+
+      if (error) throw error;
+      toast.success(`Fecha de renovación actualizada para ${selectedUser.full_name || selectedUser.email}`);
+      setManageDialogOpen(false);
+      fetchUsers();
+    } catch (error) {
+      console.error('Error setting renewal date:', error);
+      toast.error('Error al establecer fecha');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleManualCharge = async () => {
+    if (!selectedUser || !chargeAmount) {
+      toast.error('Completa los campos requeridos');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('No session');
+
+      const { error } = await supabase
+        .from('manual_payments')
+        .insert({
+          user_id: selectedUser.user_id,
+          admin_id: session.user.id,
+          amount: parseInt(chargeAmount),
+          currency: 'COP',
+          payment_method: chargeMethod || null,
+          reference: chargeReference || null,
+          notes: chargeNotes || null,
+        });
+
+      if (error) throw error;
+
+      // Activate subscription for 30 days
+      const currentEnd = selectedUser.subscription?.current_period_end 
+        ? new Date(selectedUser.subscription.current_period_end)
+        : new Date();
+      const baseDate = currentEnd > new Date() ? currentEnd : new Date();
+      const newEnd = new Date(baseDate.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+      await supabase
+        .from('subscriptions')
+        .update({
+          status: 'active',
+          current_period_start: new Date().toISOString(),
+          current_period_end: newEnd.toISOString(),
+        })
+        .eq('user_id', selectedUser.user_id);
+
+      toast.success(`Cobro registrado y suscripción activada para ${selectedUser.full_name || selectedUser.email}`);
+      setChargeDialogOpen(false);
+      setChargeAmount('');
+      setChargeMethod('');
+      setChargeReference('');
+      setChargeNotes('');
+      fetchUsers();
+    } catch (error) {
+      console.error('Error creating manual charge:', error);
+      toast.error('Error al registrar cobro');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const openManageDialog = (user: UserWithSubscription) => {
+    setSelectedUser(user);
+    setAddDays('30');
+    setRenewalDate(user.subscription?.current_period_end ? new Date(user.subscription.current_period_end) : undefined);
+    setManageDialogOpen(true);
+  };
+
+  const openChargeDialog = (user: UserWithSubscription) => {
+    setSelectedUser(user);
+    setChargeAmount('');
+    setChargeMethod('');
+    setChargeReference('');
+    setChargeNotes('');
+    setChargeDialogOpen(true);
+  };
+
   const getStatusBadge = (status: string) => {
     const variants: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
       active: 'default',
@@ -187,7 +334,7 @@ export const UsersTable = () => {
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Buscar por nombre o email..."
+            placeholder="Buscar por nombre, email o teléfono..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10"
@@ -199,7 +346,7 @@ export const UsersTable = () => {
         </Button>
       </div>
 
-      <div className="rounded-md border">
+      <div className="rounded-md border overflow-x-auto">
         <Table>
            <TableHeader>
             <TableRow>
@@ -249,6 +396,7 @@ export const UsersTable = () => {
                         <SelectItem value="starter">Starter</SelectItem>
                         <SelectItem value="professional">Professional</SelectItem>
                         <SelectItem value="enterprise">Enterprise</SelectItem>
+                        <SelectItem value="esoterico_pro">Esotérico Pro</SelectItem>
                       </SelectContent>
                     </Select>
                   </TableCell>
@@ -274,28 +422,35 @@ export const UsersTable = () => {
                     {format(new Date(user.created_at), 'dd MMM yyyy', { locale: es })}
                   </TableCell>
                   <TableCell>
-                    <div className="flex gap-2">
+                    <div className="flex gap-1 flex-wrap">
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={() => handleUpdateSubscription(user.user_id, 'status', 'active')}
                         disabled={user.subscription?.status === 'active'}
+                        title="Activar"
                       >
-                        <Check className="h-4 w-4 mr-1" />
-                        Activar
+                        <Check className="h-4 w-4" />
                       </Button>
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => handleUpdateSubscription(user.user_id, 'status', 'canceled')}
-                        disabled={user.subscription?.status === 'canceled'}
+                        onClick={() => openManageDialog(user)}
+                        title="Gestionar días/fechas"
                       >
-                        <X className="h-4 w-4 mr-1" />
-                        Cancelar
+                        <CalendarDays className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openChargeDialog(user)}
+                        title="Cobrar manualmente"
+                      >
+                        <CreditCard className="h-4 w-4" />
                       </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button size="sm" variant="destructive">
+                          <Button size="sm" variant="destructive" title="Eliminar">
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </AlertDialogTrigger>
@@ -325,6 +480,146 @@ export const UsersTable = () => {
           </TableBody>
         </Table>
       </div>
+
+      {/* Manage Days/Date Dialog */}
+      <Dialog open={manageDialogOpen} onOpenChange={setManageDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Gestionar Suscripción</DialogTitle>
+            <DialogDescription>
+              {selectedUser?.full_name || selectedUser?.email} — Estado actual: {selectedUser?.subscription?.status || 'Sin suscripción'}
+              {selectedUser?.subscription?.current_period_end && (
+                <> · Vence: {format(new Date(selectedUser.subscription.current_period_end), 'dd MMM yyyy', { locale: es })}</>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6">
+            {/* Add Days */}
+            <div className="space-y-3">
+              <Label className="text-sm font-semibold">Agregar días</Label>
+              <div className="flex gap-2">
+                <Input
+                  type="number"
+                  placeholder="30"
+                  value={addDays}
+                  onChange={(e) => setAddDays(e.target.value)}
+                  className="w-24"
+                />
+                <div className="flex gap-1">
+                  {[7, 15, 30, 60, 90].map(d => (
+                    <Button key={d} size="sm" variant="outline" onClick={() => setAddDays(String(d))}>
+                      {d}d
+                    </Button>
+                  ))}
+                </div>
+              </div>
+              <Button onClick={handleAddDays} disabled={submitting || !addDays} className="w-full">
+                <Plus className="h-4 w-4 mr-2" />
+                Agregar {addDays} días
+              </Button>
+            </div>
+
+            <div className="border-t" />
+
+            {/* Set Renewal Date */}
+            <div className="space-y-3">
+              <Label className="text-sm font-semibold">Establecer fecha de renovación</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn("w-full justify-start text-left font-normal", !renewalDate && "text-muted-foreground")}
+                  >
+                    <CalendarDays className="mr-2 h-4 w-4" />
+                    {renewalDate ? format(renewalDate, 'dd MMM yyyy', { locale: es }) : 'Seleccionar fecha'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={renewalDate}
+                    onSelect={setRenewalDate}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+              <Button onClick={handleSetRenewalDate} disabled={submitting || !renewalDate} variant="secondary" className="w-full">
+                <CalendarDays className="h-4 w-4 mr-2" />
+                Establecer fecha
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Manual Charge Dialog */}
+      <Dialog open={chargeDialogOpen} onOpenChange={setChargeDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cobrar Manualmente</DialogTitle>
+            <DialogDescription>
+              Registra un cobro para {selectedUser?.full_name || selectedUser?.email}. Se activará la suscripción por 30 días adicionales.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Monto (COP) *</Label>
+              <Input
+                type="number"
+                placeholder="50000"
+                value={chargeAmount}
+                onChange={(e) => setChargeAmount(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Método de Pago</Label>
+              <Select value={chargeMethod} onValueChange={setChargeMethod}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona método" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="transferencia">Transferencia Bancaria</SelectItem>
+                  <SelectItem value="nequi">Nequi</SelectItem>
+                  <SelectItem value="daviplata">Daviplata</SelectItem>
+                  <SelectItem value="efectivo">Efectivo</SelectItem>
+                  <SelectItem value="otro">Otro</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Referencia</Label>
+              <Input
+                placeholder="Número de transacción..."
+                value={chargeReference}
+                onChange={(e) => setChargeReference(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Notas</Label>
+              <Textarea
+                placeholder="Notas adicionales..."
+                value={chargeNotes}
+                onChange={(e) => setChargeNotes(e.target.value)}
+              />
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setChargeDialogOpen(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={handleManualCharge} disabled={submitting || !chargeAmount}>
+                {submitting ? 'Registrando...' : 'Registrar Cobro'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
