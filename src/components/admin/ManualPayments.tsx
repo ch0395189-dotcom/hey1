@@ -32,7 +32,10 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Plus, CreditCard, Search, RefreshCw, Download, FileSpreadsheet } from 'lucide-react';
+import { Plus, CreditCard, Search, RefreshCw, Download, FileSpreadsheet, CalendarIcon, X } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 interface UnifiedPayment {
   id: string;
@@ -59,6 +62,8 @@ export const ManualPayments = () => {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [dateFrom, setDateFrom] = useState<Date | undefined>();
+  const [dateTo, setDateTo] = useState<Date | undefined>();
   
   // Form state
   const [selectedUserId, setSelectedUserId] = useState('');
@@ -294,12 +299,20 @@ export const ManualPayments = () => {
   const filteredPayments = payments.filter(payment => {
     const user = users.find(u => u.user_id === payment.user_id);
     const searchLower = searchTerm.toLowerCase();
-    return (
+    const matchesSearch = !searchTerm || (
       user?.full_name?.toLowerCase().includes(searchLower) ||
       user?.email.toLowerCase().includes(searchLower) ||
       payment.reference?.toLowerCase().includes(searchLower) ||
       payment.notes?.toLowerCase().includes(searchLower)
     );
+
+    const paymentDate = new Date(payment.date);
+    const fromStart = dateFrom ? new Date(dateFrom.getFullYear(), dateFrom.getMonth(), dateFrom.getDate()) : null;
+    const toEnd = dateTo ? new Date(dateTo.getFullYear(), dateTo.getMonth(), dateTo.getDate(), 23, 59, 59, 999) : null;
+    const matchesDateFrom = !fromStart || paymentDate >= fromStart;
+    const matchesDateTo = !toEnd || paymentDate <= toEnd;
+
+    return matchesSearch && matchesDateFrom && matchesDateTo;
   });
 
   const totalAmount = filteredPayments.reduce((sum, p) => sum + p.amount, 0);
@@ -453,7 +466,7 @@ export const ManualPayments = () => {
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          <div className="flex items-center gap-4 flex-wrap">
+          <div className="flex items-center gap-3 flex-wrap">
             <div className="relative flex-1 min-w-[200px] max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -463,6 +476,37 @@ export const ManualPayments = () => {
                 className="pl-10"
               />
             </div>
+
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className={cn("min-w-[140px] justify-start text-left font-normal", !dateFrom && "text-muted-foreground")}>
+                  <CalendarIcon className="h-4 w-4 mr-2" />
+                  {dateFrom ? format(dateFrom, 'dd/MM/yyyy') : 'Desde'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} initialFocus className={cn("p-3 pointer-events-auto")} />
+              </PopoverContent>
+            </Popover>
+
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className={cn("min-w-[140px] justify-start text-left font-normal", !dateTo && "text-muted-foreground")}>
+                  <CalendarIcon className="h-4 w-4 mr-2" />
+                  {dateTo ? format(dateTo, 'dd/MM/yyyy') : 'Hasta'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar mode="single" selected={dateTo} onSelect={setDateTo} initialFocus className={cn("p-3 pointer-events-auto")} />
+              </PopoverContent>
+            </Popover>
+
+            {(dateFrom || dateTo) && (
+              <Button variant="ghost" size="icon" onClick={() => { setDateFrom(undefined); setDateTo(undefined); }}>
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+
             <Button variant="outline" onClick={fetchAllPayments} disabled={loading}>
               <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
               Actualizar
