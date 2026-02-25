@@ -92,6 +92,29 @@ serve(async (req) => {
       const metadata = data.metadata || {};
       const userId = metadata.user_id;
       const plan = metadata.plan;
+      const transactionAmount = data.amount || metadata.amount || 0;
+      const transactionId = data.transaction_id || data.id || null;
+
+      // Store bold payment record
+      if (userId) {
+        const { error: boldPaymentError } = await supabase
+          .from('bold_payments')
+          .insert({
+            user_id: userId,
+            amount: typeof transactionAmount === 'number' ? transactionAmount : parseInt(transactionAmount) || 0,
+            currency: data.currency || 'COP',
+            plan: plan || null,
+            bold_transaction_id: transactionId,
+            event_type: event,
+            metadata: data,
+          });
+
+        if (boldPaymentError) {
+          console.error('Error storing bold payment:', boldPaymentError);
+        } else {
+          console.log(`Bold payment recorded for user ${userId}`);
+        }
+      }
 
       if (userId && plan) {
         // Validate userId is a valid UUID format

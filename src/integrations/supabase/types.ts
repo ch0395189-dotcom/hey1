@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      bold_payments: {
+        Row: {
+          amount: number
+          bold_transaction_id: string | null
+          created_at: string
+          currency: string
+          event_type: string | null
+          id: string
+          metadata: Json | null
+          plan: string | null
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          bold_transaction_id?: string | null
+          created_at?: string
+          currency?: string
+          event_type?: string | null
+          id?: string
+          metadata?: Json | null
+          plan?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          bold_transaction_id?: string | null
+          created_at?: string
+          currency?: string
+          event_type?: string | null
+          id?: string
+          metadata?: Json | null
+          plan?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       chatbot_configs: {
         Row: {
           ai_greeting: string | null

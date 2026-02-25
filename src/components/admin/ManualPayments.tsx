@@ -71,7 +71,7 @@ export const ManualPayments = () => {
   const fetchAllPayments = async () => {
     setLoading(true);
     try {
-      const [manualRes, alertsRes] = await Promise.all([
+      const [manualRes, alertsRes, boldRes] = await Promise.all([
         supabase
           .from('manual_payments')
           .select('*')
@@ -81,6 +81,10 @@ export const ManualPayments = () => {
           .select('*')
           .eq('status', 'paid')
           .order('paid_at', { ascending: false }),
+        supabase
+          .from('bold_payments' as any)
+          .select('*')
+          .order('created_at', { ascending: false }),
       ]);
 
       const unified: UnifiedPayment[] = [];
@@ -117,6 +121,24 @@ export const ManualPayments = () => {
             notes: a.message,
             date: a.paid_at || a.sent_at,
             source: 'alert',
+            status: 'paid',
+          });
+        });
+      }
+
+      // Bold automatic payments
+      if (boldRes.data) {
+        (boldRes.data as any[]).forEach((b: any) => {
+          unified.push({
+            id: b.id,
+            user_id: b.user_id,
+            amount: b.amount,
+            currency: b.currency || 'COP',
+            payment_method: 'Bold',
+            reference: b.bold_transaction_id,
+            notes: b.plan ? `Plan: ${b.plan}` : null,
+            date: b.created_at,
+            source: 'bold',
             status: 'paid',
           });
         });
