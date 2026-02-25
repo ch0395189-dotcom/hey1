@@ -282,7 +282,14 @@ export const UsersTable = () => {
         })
         .eq('user_id', selectedUser.user_id);
 
-      toast.success(`Cobro registrado y suscripción activada para ${selectedUser.full_name || selectedUser.email}`);
+      // Clear all pending payment alerts for this user
+      await supabase
+        .from('payment_alerts')
+        .update({ status: 'paid', paid_at: new Date().toISOString() })
+        .eq('user_id', selectedUser.user_id)
+        .eq('status', 'pending');
+
+      toast.success(`Cobro registrado, suscripción activada y alertas eliminadas para ${selectedUser.full_name || selectedUser.email}`);
       setChargeDialogOpen(false);
       setChargeAmount('');
       setChargeMethod('');
@@ -314,14 +321,33 @@ export const UsersTable = () => {
   };
 
   const handleMarkAlertPaid = async (alertId: string) => {
+    if (!selectedUser) return;
     try {
       const { error } = await supabase
         .from('payment_alerts')
         .update({ status: 'paid', paid_at: new Date().toISOString() })
         .eq('id', alertId);
       if (error) throw error;
+
+      // Also add 30 days to subscription and activate
+      const currentEnd = selectedUser.subscription?.current_period_end
+        ? new Date(selectedUser.subscription.current_period_end)
+        : new Date();
+      const baseDate = currentEnd > new Date() ? currentEnd : new Date();
+      const newEnd = new Date(baseDate.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+      await supabase
+        .from('subscriptions')
+        .update({
+          status: 'active',
+          current_period_start: new Date().toISOString(),
+          current_period_end: newEnd.toISOString(),
+        })
+        .eq('user_id', selectedUser.user_id);
+
       setUserPendingAlerts(prev => prev.filter(a => a.id !== alertId));
-      toast.success('Alerta marcada como pagada');
+      toast.success('Pago confirmado, suscripción activada por 30 días');
+      fetchUsers();
     } catch (error) {
       console.error('Error marking alert as paid:', error);
       toast.error('Error al marcar como pagado');
@@ -337,8 +363,26 @@ export const UsersTable = () => {
         .eq('user_id', selectedUser.user_id)
         .eq('status', 'pending');
       if (error) throw error;
+
+      // Add 30 days and activate subscription
+      const currentEnd = selectedUser.subscription?.current_period_end
+        ? new Date(selectedUser.subscription.current_period_end)
+        : new Date();
+      const baseDate = currentEnd > new Date() ? currentEnd : new Date();
+      const newEnd = new Date(baseDate.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+      await supabase
+        .from('subscriptions')
+        .update({
+          status: 'active',
+          current_period_start: new Date().toISOString(),
+          current_period_end: newEnd.toISOString(),
+        })
+        .eq('user_id', selectedUser.user_id);
+
       setUserPendingAlerts([]);
-      toast.success('Todas las alertas marcadas como pagadas');
+      toast.success('Todos los pagos confirmados, suscripción activada');
+      fetchUsers();
     } catch (error) {
       console.error('Error:', error);
       toast.error('Error al actualizar alertas');
