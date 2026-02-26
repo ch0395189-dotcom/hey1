@@ -89,7 +89,34 @@ interface WhatsAppAccount {
 }
 
 const Dashboard = () => {
-  const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Persist activeView and selectedConversation in URL params
+  const activeView = (searchParams.get('view') as ActiveView) || 'inbox';
+  const activePlatform = (searchParams.get('platform') as Platform) || 'all';
+  const conversationIdFromUrl = searchParams.get('conv');
+
+  const setActiveView = useCallback((view: ActiveView) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.set('view', view);
+      if (view !== 'inbox') {
+        next.delete('conv');
+      }
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  const setActivePlatform = useCallback((platform: Platform) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.set('platform', platform);
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  const [selectedConversation, setSelectedConversationState] = useState<Conversation | null>(null);
   const [user, setUser] = useState<any>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showChatbot, setShowChatbot] = useState(false);
@@ -97,12 +124,39 @@ const Dashboard = () => {
   const [hasWhatsAppAccount, setHasWhatsAppAccount] = useState<boolean | null>(null);
   const [whatsappAccounts, setWhatsappAccounts] = useState<WhatsAppAccount[]>([]);
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
-  const [activeView, setActiveView] = useState<ActiveView>('inbox');
-  const [activePlatform, setActivePlatform] = useState<Platform>('all');
   const [settingsTab, setSettingsTab] = useState<'whatsapp' | 'apikeys'>('whatsapp');
   const [showMobileNotifications, setShowMobileNotifications] = useState(false);
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+
+  // Wrap setSelectedConversation to also update URL
+  const setSelectedConversation = useCallback((conv: Conversation | null) => {
+    setSelectedConversationState(conv);
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (conv) {
+        next.set('conv', conv.id);
+      } else {
+        next.delete('conv');
+      }
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  // Restore conversation from URL on mount
+  useEffect(() => {
+    if (conversationIdFromUrl && !selectedConversation) {
+      const restoreConversation = async () => {
+        const { data } = await supabase
+          .from('conversations')
+          .select('id, customer_name, customer_phone, customer_profile_pic, is_archived, whatsapp_account_id, platform, platform_account_id')
+          .eq('id', conversationIdFromUrl)
+          .single();
+        if (data) {
+          setSelectedConversationState(data as Conversation);
+        }
+      };
+      restoreConversation();
+    }
+  }, [conversationIdFromUrl]);
   const { toast } = useToast();
   const { permission, isSupported, requestPermission, showNotification } = useNotifications();
   const { playNotificationSound } = useNotificationSound();
