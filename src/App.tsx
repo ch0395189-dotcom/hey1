@@ -18,7 +18,16 @@ import UpdatePassword from "./pages/UpdatePassword";
 import Install from "./pages/Install";
 import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60, // 1 minute
+      refetchOnWindowFocus: true,
+      refetchOnReconnect: true,
+      retry: 2,
+    },
+  },
+});
 
 const App = () => {
   // Reduce unexpected logouts on older/low-storage phones by requesting
