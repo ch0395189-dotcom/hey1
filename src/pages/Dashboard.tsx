@@ -36,6 +36,8 @@ import { PlatformSidebar, Platform } from "@/components/dashboard/PlatformSideba
 import { PlatformSetup } from "@/components/platforms/PlatformSetup";
 import { ApiKeysSettings } from "@/components/settings/ApiKeysSettings";
 import { useAdminCheck } from "@/hooks/useAdminCheck";
+import { useSubscriptionGuard } from "@/hooks/useSubscriptionGuard";
+import { SuspendedServiceScreen } from "@/components/dashboard/SuspendedServiceScreen";
 import { NotificationSettingsPanel } from "@/components/notifications/NotificationSettingsPanel";
 import {
   Dialog,
@@ -163,6 +165,7 @@ const Dashboard = () => {
   const { soundEnabled, desktopEnabled, volume, tone, platformTones, toggleSound, toggleDesktop, setVolume, setTone, setPlatformTone, getToneForPlatform } = useNotificationSettings();
   const { isAdmin } = useAdminCheck();
   const { isRegistered, registerServiceWorker, sendNotification: sendPushNotification } = usePushNotifications();
+  const { isSuspended, loading: suspendedLoading, plan: suspendedPlan, daysExpired, reason: suspendedReason } = useSubscriptionGuard();
 
   // Register service worker on mount for push notifications
   useEffect(() => {
@@ -277,6 +280,11 @@ const Dashboard = () => {
     });
     navigate("/");
   };
+
+  // Show suspended screen if subscription expired
+  if (!suspendedLoading && isSuspended) {
+    return <SuspendedServiceScreen plan={suspendedPlan} daysExpired={daysExpired} reason={suspendedReason} />;
+  }
 
   // Show setup if no WhatsApp accounts
   if (hasWhatsAppAccount === false) {
