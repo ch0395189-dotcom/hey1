@@ -281,6 +281,11 @@ const Dashboard = () => {
     navigate("/");
   };
 
+  // Show suspended screen if subscription expired
+  if (!suspendedLoading && isSuspended) {
+    return <SuspendedServiceScreen plan={suspendedPlan} daysExpired={daysExpired} reason={suspendedReason} />;
+  }
+
   // Show setup if no WhatsApp accounts
   if (hasWhatsAppAccount === false) {
     return (
