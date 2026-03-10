@@ -33,7 +33,7 @@ export const SuspendedServiceScreen = ({ plan, daysExpired, reason }: SuspendedS
 
   const handleRenew = async () => {
     if (plan) {
-      await createCheckout(plan);
+      await createCheckout(plan as 'starter' | 'professional' | 'enterprise' | 'esoterico_pro');
     }
   };
 
