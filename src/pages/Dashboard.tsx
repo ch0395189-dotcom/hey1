@@ -165,6 +165,7 @@ const Dashboard = () => {
   const { soundEnabled, desktopEnabled, volume, tone, platformTones, toggleSound, toggleDesktop, setVolume, setTone, setPlatformTone, getToneForPlatform } = useNotificationSettings();
   const { isAdmin } = useAdminCheck();
   const { isRegistered, registerServiceWorker, sendNotification: sendPushNotification } = usePushNotifications();
+  const { isSuspended, loading: suspendedLoading, plan: suspendedPlan, daysExpired, reason: suspendedReason } = useSubscriptionGuard();
 
   // Register service worker on mount for push notifications
   useEffect(() => {
