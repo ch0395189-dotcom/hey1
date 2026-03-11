@@ -14,7 +14,8 @@ import {
   Volume2,
   VolumeX,
   ArrowLeft,
-  Key
+  Key,
+  Menu
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
