@@ -590,6 +590,27 @@ const Dashboard = () => {
       )}
       </div>
 
+      {/* Mobile FAB - New Message */}
+      {activeView === 'inbox' && !selectedConversation && (
+        <button
+          onClick={() => setShowMobileNewMessage(true)}
+          className="md:hidden fixed bottom-20 right-4 z-50 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:bg-primary/90 active:scale-95 transition-all"
+          aria-label="Nuevo mensaje"
+        >
+          <Send className="w-6 h-6" />
+        </button>
+      )}
+
+      {/* Mobile New Message Dialog */}
+      <NewMessageDialog
+        open={showMobileNewMessage}
+        onOpenChange={setShowMobileNewMessage}
+        preselectedAccountId={selectedAccountId || undefined}
+        onMessageSent={(conversationId) => {
+          setShowMobileNewMessage(false);
+        }}
+      />
+
       {/* Mobile Bottom Navigation - WhatsApp Style */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border flex items-center justify-around px-2 z-50" style={{ height: 'calc(3.5rem + env(safe-area-inset-bottom, 0px))', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
         <button
