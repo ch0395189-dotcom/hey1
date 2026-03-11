@@ -14,7 +14,8 @@ import {
   Volume2,
   VolumeX,
   ArrowLeft,
-  Key
+  Key,
+  Menu
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -128,6 +129,7 @@ const Dashboard = () => {
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   const [settingsTab, setSettingsTab] = useState<'whatsapp' | 'apikeys'>('whatsapp');
   const [showMobileNotifications, setShowMobileNotifications] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
 
   // Wrap setSelectedConversation to also update URL
   const setSelectedConversation = useCallback((conv: Conversation | null) => {
@@ -586,65 +588,97 @@ const Dashboard = () => {
       </div>
 
       {/* Mobile Bottom Navigation - WhatsApp Style */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border flex items-center justify-around px-1 z-50" style={{ height: 'calc(3.5rem + env(safe-area-inset-bottom, 0px))', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border flex items-center justify-around px-2 z-50" style={{ height: 'calc(3.5rem + env(safe-area-inset-bottom, 0px))', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
         <button
           onClick={() => setActiveView('inbox')}
-          className={`flex flex-col items-center gap-0.5 py-1.5 px-1.5 rounded-lg transition-colors ${
+          className={`flex flex-col items-center gap-0.5 py-1.5 px-3 rounded-lg transition-colors ${
             activeView === 'inbox' ? 'text-primary' : 'text-muted-foreground'
           }`}
         >
           <MessageCircle className="w-5 h-5" />
-          <span className="text-[9px] font-medium">Chats</span>
+          <span className="text-[10px] font-medium">Chats</span>
         </button>
         <button
           onClick={() => setActiveView('contacts')}
-          className={`flex flex-col items-center gap-0.5 py-1.5 px-1.5 rounded-lg transition-colors ${
+          className={`flex flex-col items-center gap-0.5 py-1.5 px-3 rounded-lg transition-colors ${
             activeView === 'contacts' ? 'text-primary' : 'text-muted-foreground'
           }`}
         >
           <Users className="w-5 h-5" />
-          <span className="text-[9px] font-medium">Contactos</span>
+          <span className="text-[10px] font-medium">Contactos</span>
         </button>
         <button
           onClick={() => setActiveView('statistics')}
-          className={`flex flex-col items-center gap-0.5 py-1.5 px-1.5 rounded-lg transition-colors ${
+          className={`flex flex-col items-center gap-0.5 py-1.5 px-3 rounded-lg transition-colors ${
             activeView === 'statistics' ? 'text-primary' : 'text-muted-foreground'
           }`}
         >
           <BarChart3 className="w-5 h-5" />
-          <span className="text-[9px] font-medium">Stats</span>
+          <span className="text-[10px] font-medium">Stats</span>
         </button>
         <button
-          onClick={() => setShowMobileNotifications(true)}
-          className={`flex flex-col items-center gap-0.5 py-1.5 px-1.5 rounded-lg transition-colors ${
-            soundEnabled ? 'text-primary' : 'text-muted-foreground'
-          }`}
+          onClick={() => setShowMobileMenu(true)}
+          className="flex flex-col items-center gap-0.5 py-1.5 px-3 rounded-lg transition-colors text-muted-foreground"
         >
-          {soundEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
-          <span className="text-[9px] font-medium">Sonido</span>
-        </button>
-        <button
-          onClick={() => setShowChatbot(true)}
-          className="flex flex-col items-center gap-0.5 py-1.5 px-1.5 rounded-lg transition-colors text-muted-foreground"
-        >
-          <Bot className="w-5 h-5" />
-          <span className="text-[9px] font-medium">Bot</span>
-        </button>
-        <button
-          onClick={() => setShowPlatformSetup(true)}
-          className="flex flex-col items-center gap-0.5 py-1.5 px-1.5 rounded-lg transition-colors text-muted-foreground"
-        >
-          <Plug className="w-5 h-5" />
-          <span className="text-[9px] font-medium">Redes</span>
-        </button>
-        <button
-          onClick={() => setShowSettings(true)}
-          className="flex flex-col items-center gap-0.5 py-1.5 px-1.5 rounded-lg transition-colors text-muted-foreground"
-        >
-          <Settings className="w-5 h-5" />
-          <span className="text-[9px] font-medium">Config</span>
+          <Menu className="w-5 h-5" />
+          <span className="text-[10px] font-medium">Más</span>
         </button>
       </nav>
+
+      {/* Mobile "More" Menu Sheet */}
+      <Sheet open={showMobileMenu} onOpenChange={setShowMobileMenu}>
+        <SheetContent side="bottom" className="rounded-t-2xl safe-area-bottom">
+          <SheetHeader>
+            <SheetTitle>Menú</SheetTitle>
+          </SheetHeader>
+          <div className="grid grid-cols-3 gap-3 py-4">
+            <button
+              onClick={() => { setShowMobileMenu(false); setShowMobileNotifications(true); }}
+              className="flex flex-col items-center gap-2 p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
+            >
+              {soundEnabled ? <Volume2 className="w-6 h-6 text-primary" /> : <VolumeX className="w-6 h-6 text-muted-foreground" />}
+              <span className="text-xs font-medium">Sonido</span>
+            </button>
+            <button
+              onClick={() => { setShowMobileMenu(false); setShowChatbot(true); }}
+              className="flex flex-col items-center gap-2 p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
+            >
+              <Bot className="w-6 h-6 text-muted-foreground" />
+              <span className="text-xs font-medium">Chatbot</span>
+            </button>
+            <button
+              onClick={() => { setShowMobileMenu(false); setShowPlatformSetup(true); }}
+              className="flex flex-col items-center gap-2 p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
+            >
+              <Plug className="w-6 h-6 text-muted-foreground" />
+              <span className="text-xs font-medium">Redes</span>
+            </button>
+            <button
+              onClick={() => { setShowMobileMenu(false); setShowSettings(true); }}
+              className="flex flex-col items-center gap-2 p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
+            >
+              <Settings className="w-6 h-6 text-muted-foreground" />
+              <span className="text-xs font-medium">Ajustes</span>
+            </button>
+            {isAdmin && (
+              <button
+                onClick={() => { setShowMobileMenu(false); navigate('/admin'); }}
+                className="flex flex-col items-center gap-2 p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
+              >
+                <Shield className="w-6 h-6 text-yellow-500" />
+                <span className="text-xs font-medium">Admin</span>
+              </button>
+            )}
+            <button
+              onClick={() => { setShowMobileMenu(false); handleLogout(); }}
+              className="flex flex-col items-center gap-2 p-3 rounded-xl bg-destructive/10 hover:bg-destructive/20 transition-colors"
+            >
+              <LogOut className="w-6 h-6 text-destructive" />
+              <span className="text-xs font-medium text-destructive">Salir</span>
+            </button>
+          </div>
+        </SheetContent>
+      </Sheet>
 
       {/* Mobile Notification Settings Sheet */}
       <Sheet open={showMobileNotifications} onOpenChange={setShowMobileNotifications}>
