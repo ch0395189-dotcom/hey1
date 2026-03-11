@@ -132,6 +132,7 @@ const Dashboard = () => {
   const [settingsTab, setSettingsTab] = useState<'whatsapp' | 'apikeys'>('whatsapp');
   const [showMobileNotifications, setShowMobileNotifications] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [showMobileNewMessage, setShowMobileNewMessage] = useState(false);
 
   // Wrap setSelectedConversation to also update URL
   const setSelectedConversation = useCallback((conv: Conversation | null) => {
