@@ -15,8 +15,10 @@ import {
   VolumeX,
   ArrowLeft,
   Key,
-  Menu
+  Menu,
+  Send
 } from "lucide-react";
+import { NewMessageDialog } from "@/components/whatsapp/NewMessageDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useNotifications } from "@/hooks/useNotifications";
@@ -130,6 +132,7 @@ const Dashboard = () => {
   const [settingsTab, setSettingsTab] = useState<'whatsapp' | 'apikeys'>('whatsapp');
   const [showMobileNotifications, setShowMobileNotifications] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [showMobileNewMessage, setShowMobileNewMessage] = useState(false);
 
   // Wrap setSelectedConversation to also update URL
   const setSelectedConversation = useCallback((conv: Conversation | null) => {
@@ -587,6 +590,27 @@ const Dashboard = () => {
       )}
       </div>
 
+      {/* Mobile FAB - New Message */}
+      {activeView === 'inbox' && !selectedConversation && (
+        <button
+          onClick={() => setShowMobileNewMessage(true)}
+          className="md:hidden fixed bottom-20 right-4 z-50 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:bg-primary/90 active:scale-95 transition-all"
+          aria-label="Nuevo mensaje"
+        >
+          <Send className="w-6 h-6" />
+        </button>
+      )}
+
+      {/* Mobile New Message Dialog */}
+      <NewMessageDialog
+        open={showMobileNewMessage}
+        onOpenChange={setShowMobileNewMessage}
+        preselectedAccountId={selectedAccountId || undefined}
+        onMessageSent={(conversationId) => {
+          setShowMobileNewMessage(false);
+        }}
+      />
+
       {/* Mobile Bottom Navigation - WhatsApp Style */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border flex items-center justify-around px-2 z-50" style={{ height: 'calc(3.5rem + env(safe-area-inset-bottom, 0px))', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
         <button
@@ -632,6 +656,13 @@ const Dashboard = () => {
             <SheetTitle>Menú</SheetTitle>
           </SheetHeader>
           <div className="grid grid-cols-3 gap-3 py-4">
+            <button
+              onClick={() => { setShowMobileMenu(false); setShowMobileNewMessage(true); }}
+              className="flex flex-col items-center gap-2 p-3 rounded-xl bg-primary/10 hover:bg-primary/20 transition-colors"
+            >
+              <Send className="w-6 h-6 text-primary" />
+              <span className="text-xs font-medium text-primary">Nuevo mensaje</span>
+            </button>
             <button
               onClick={() => { setShowMobileMenu(false); setShowMobileNotifications(true); }}
               className="flex flex-col items-center gap-2 p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
