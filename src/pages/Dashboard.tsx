@@ -657,6 +657,13 @@ const Dashboard = () => {
           </SheetHeader>
           <div className="grid grid-cols-3 gap-3 py-4">
             <button
+              onClick={() => { setShowMobileMenu(false); setShowMobileNewMessage(true); }}
+              className="flex flex-col items-center gap-2 p-3 rounded-xl bg-primary/10 hover:bg-primary/20 transition-colors"
+            >
+              <Send className="w-6 h-6 text-primary" />
+              <span className="text-xs font-medium text-primary">Nuevo mensaje</span>
+            </button>
+            <button
               onClick={() => { setShowMobileMenu(false); setShowMobileNotifications(true); }}
               className="flex flex-col items-center gap-2 p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
             >
