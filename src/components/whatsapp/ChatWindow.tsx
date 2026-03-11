@@ -1270,8 +1270,8 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
       )}
 
       {/* Message Input - Added padding for mobile nav and Android system navigation */}
-      <form onSubmit={handleSendMessage} className="p-4 border-t border-border bg-card chat-input-mobile">
-        <div className="max-w-3xl mx-auto flex items-center gap-3">
+      <form onSubmit={handleSendMessage} className="p-2 md:p-4 border-t border-border bg-card chat-input-mobile">
+        <div className="max-w-3xl mx-auto flex items-center gap-1.5 md:gap-3">
           <input
             type="file"
             ref={fileInputRef}
@@ -1281,7 +1281,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
           />
           <Popover open={showEmojiPicker} onOpenChange={setShowEmojiPicker}>
             <PopoverTrigger asChild>
-              <Button type="button" variant="ghost" size="icon" className="shrink-0">
+              <Button type="button" variant="ghost" size="icon" className="shrink-0 h-9 w-9 md:h-10 md:w-10">
                 <Smile className="w-5 h-5 text-muted-foreground" />
               </Button>
             </PopoverTrigger>
@@ -1297,7 +1297,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
             type="button" 
             variant="ghost" 
             size="icon" 
-            className="shrink-0"
+            className="shrink-0 h-9 w-9 md:h-10 md:w-10"
             onClick={() => fileInputRef.current?.click()}
           >
             <Paperclip className="w-5 h-5 text-muted-foreground" />
@@ -1307,7 +1307,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
               type="button" 
               variant="ghost" 
               size="icon" 
-              className="shrink-0"
+              className="shrink-0 hidden md:inline-flex h-9 w-9 md:h-10 md:w-10"
               onClick={() => setShowInteractiveDialog(true)}
               title="Mensaje con botones"
             >
@@ -1318,14 +1318,14 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             placeholder="Escribe un mensaje..."
-            className="flex-1 bg-muted border-0"
+            className="flex-1 min-w-0 bg-muted border-0 h-9 md:h-10 text-sm"
             disabled={sending || isRecording}
           />
           {newMessage.trim() || attachedFile ? (
             <Button
               type="submit"
               size="icon"
-              className="shrink-0 bg-gradient-hero hover:opacity-90"
+              className="shrink-0 h-9 w-9 md:h-10 md:w-10 bg-gradient-hero hover:opacity-90"
               disabled={sending}
             >
               <Send className="w-4 h-4" />
@@ -1334,7 +1334,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
             <Button
               type="button"
               size="icon"
-              className="shrink-0 bg-gradient-hero hover:opacity-90"
+              className="shrink-0 h-9 w-9 md:h-10 md:w-10 bg-gradient-hero hover:opacity-90"
               onClick={startRecording}
               disabled={sending}
             >
@@ -1344,7 +1344,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
             <Button
               type="submit"
               size="icon"
-              className="shrink-0 bg-gradient-hero hover:opacity-90"
+              className="shrink-0 h-9 w-9 md:h-10 md:w-10 bg-gradient-hero hover:opacity-90"
               disabled
             >
               <Send className="w-4 h-4" />
