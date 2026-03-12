@@ -498,12 +498,12 @@ const Dashboard = () => {
       {/* Main Content Area */}
       {activeView === 'inbox' && (
         <>
-          {/* Platform Sidebar - Hidden on mobile when conversation is selected */}
+          {/* Platform Sidebar - Desktop only */}
           <motion.div
             initial={{ x: -30, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             transition={{ delay: 0.05 }}
-            className={`${selectedConversation ? 'hidden md:flex' : 'flex'}`}
+            className="hidden md:flex"
           >
             <PlatformSidebar 
               activePlatform={activePlatform} 
@@ -529,6 +529,30 @@ const Dashboard = () => {
                  activePlatform === 'instagram' ? 'Instagram' : 'TikTok'}
               </h1>
             </div>
+            
+            {/* Mobile Platform Filter */}
+            <div className="md:hidden flex items-center gap-1 px-2 py-2 border-b border-border overflow-x-auto scrollbar-whatsapp">
+              {([
+                { id: 'all' as Platform, label: 'Todos' },
+                { id: 'whatsapp' as Platform, label: 'WhatsApp' },
+                { id: 'messenger' as Platform, label: 'Messenger' },
+                { id: 'instagram' as Platform, label: 'Instagram' },
+                { id: 'tiktok' as Platform, label: 'TikTok' },
+              ]).map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => setActivePlatform(p.id)}
+                  className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                    activePlatform === p.id
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                  }`}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+
             <div className="flex-1 min-h-0 overflow-hidden">
               <ConversationsList
                 selectedConversationId={selectedConversation?.id || null}
