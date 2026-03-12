@@ -66,7 +66,7 @@ export const PlatformSidebar = ({
   counts = { all: 0, whatsapp: 0, messenger: 0, instagram: 0, tiktok: 0 }
 }: PlatformSidebarProps) => {
   return (
-    <div className="w-16 bg-card border-r border-border flex flex-col items-center py-4 gap-2">
+    <div className="hidden md:flex w-16 bg-card border-r border-border flex-col items-center py-4 gap-2">
       {platforms.map((platform) => {
         const Icon = platform.icon;
         const count = counts[platform.id];
