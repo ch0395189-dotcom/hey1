@@ -976,9 +976,9 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
           </button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="text-primary-foreground hover:bg-primary-foreground/10">
+              <button className="p-2 rounded-full hover:bg-primary-foreground/10 transition-colors">
                 <MoreVertical className="w-4 h-4" />
-              </Button>
+              </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="bg-card">
               {hasChatbotConfig && (
