@@ -1036,7 +1036,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
 
       {/* Messages Area - WhatsApp Style Background */}
       <ScrollArea type="always" className="flex-1 min-h-0 bg-chat relative scrollbar-whatsapp" ref={messagesContainerRef} onScrollCapture={handleScroll}>
-        <div className="p-4 md:p-6">
+        <div className="px-3 py-3 md:p-6">
           <div className="max-w-3xl mx-auto space-y-1">
             {loading ? (
               <div className="flex items-center justify-center h-32">
