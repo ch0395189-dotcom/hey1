@@ -909,20 +909,18 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
     <div className="flex-1 min-h-0 flex flex-col">
       <ImagePreviewDialog url={previewImageUrl} onClose={() => setPreviewImageUrl(null)} />
       {/* Chat Header - WhatsApp Style */}
-      <div className="h-14 px-3 md:px-4 border-b border-border flex items-center justify-between bg-primary text-primary-foreground">
-        <div className="flex items-center gap-2 md:gap-3">
+      <div className="h-14 md:h-14 px-2 md:px-4 border-b border-border flex items-center justify-between bg-primary text-primary-foreground safe-area-top">
+        <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
           {onBack && (
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="md:hidden text-primary-foreground hover:bg-primary-foreground/10"
+            <button
+              className="md:hidden shrink-0 p-1.5 rounded-full hover:bg-primary-foreground/10 active:bg-primary-foreground/20 transition-colors"
               onClick={onBack}
             >
               <ArrowLeft className="w-5 h-5" />
-            </Button>
+            </button>
           )}
-          <div className="relative">
-            <div className="w-10 h-10 rounded-full bg-primary-foreground/20 flex items-center justify-center text-primary-foreground font-semibold">
+          <div className="relative shrink-0">
+            <div className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-primary-foreground/20 flex items-center justify-center text-primary-foreground font-semibold text-sm">
               {conversation.customer_profile_pic ? (
                 <img
                   src={conversation.customer_profile_pic}
@@ -938,48 +936,44 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
               {getPlatformIcon(conversation.platform || 'whatsapp')}
             </div>
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <a 
-                href={
-                  conversation.platform === 'messenger' 
-                    ? `https://www.facebook.com/messages/t/${conversation.customer_phone}`
-                    : conversation.platform === 'instagram'
-                    ? `https://www.instagram.com/direct/t/${conversation.customer_phone}`
-                    : `https://wa.me/${conversation.customer_phone.replace(/[^0-9]/g, '')}`
-                }
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-medium text-primary-foreground hover:underline transition-colors cursor-pointer"
-                title={`Abrir en ${getPlatformLabel(conversation.platform || 'whatsapp')}`}
-              >
-                {conversation.customer_name || conversation.customer_phone}
-              </a>
-            </div>
+          <div className="min-w-0 flex-1">
+            <a 
+              href={
+                conversation.platform === 'messenger' 
+                  ? `https://www.facebook.com/messages/t/${conversation.customer_phone}`
+                  : conversation.platform === 'instagram'
+                  ? `https://www.instagram.com/direct/t/${conversation.customer_phone}`
+                  : `https://wa.me/${conversation.customer_phone.replace(/[^0-9]/g, '')}`
+              }
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-sm md:text-base text-primary-foreground hover:underline transition-colors cursor-pointer truncate block"
+              title={`Abrir en ${getPlatformLabel(conversation.platform || 'whatsapp')}`}
+            >
+              {conversation.customer_name || conversation.customer_phone}
+            </a>
             <div className="flex items-center gap-1.5">
-              <p className="text-xs text-primary-foreground/70">
+              <p className="text-[11px] md:text-xs text-primary-foreground/70 truncate">
                 {conversation.customer_phone}
               </p>
               {hasChatbotConfig && isBotActive && (
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-primary-foreground/20 text-[10px] text-primary-foreground">
-                  <Bot className="w-3 h-3" />
+                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-primary-foreground/20 text-[10px] text-primary-foreground shrink-0">
+                  <Bot className="w-2.5 h-2.5" />
                   Bot
                 </span>
               )}
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-1">
-          <Button 
-            variant="ghost" 
-            size="icon"
-            className="text-primary-foreground hover:bg-primary-foreground/10"
+        <div className="flex items-center shrink-0">
+          <button
+            className="p-2 rounded-full hover:bg-primary-foreground/10 transition-colors"
             onClick={handleRefresh}
             disabled={refreshing}
             title="Actualizar mensajes"
           >
             <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-          </Button>
+          </button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="text-primary-foreground hover:bg-primary-foreground/10">
