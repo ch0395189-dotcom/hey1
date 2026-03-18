@@ -17,7 +17,7 @@ const PLAN_NAMES: Record<string, string> = {
   starter: 'Starter',
   professional: 'Professional',
   enterprise: 'Enterprise',
-  esoterico_pro: 'Esotérico Pro',
+  esoterico_pro: 'Nichos Difíciles',
 };
 
 export const SuspendedServiceScreen = ({ plan, daysExpired, reason }: SuspendedServiceScreenProps) => {

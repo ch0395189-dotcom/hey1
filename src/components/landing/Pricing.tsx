@@ -73,7 +73,7 @@ const plans: Array<{
     popular: false
   },
   {
-    name: "Esotérico Pro",
+    name: "Nichos Difíciles",
     key: "esoterico_pro",
     price: "199.900",
     currency: "COP",

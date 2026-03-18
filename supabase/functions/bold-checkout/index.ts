@@ -37,7 +37,7 @@ const PLAN_PRICES = {
   esoterico_pro: {
     amount: 199900,
     currency: 'COP',
-    name: 'Plan Esoterico Pro',
+    name: 'Plan Nichos Difíciles',
     description: 'Numero blindado contra bloqueos - pago mensual',
   },
 };
