@@ -18,7 +18,7 @@ const PLAN_NAMES: Record<string, string> = {
   starter: 'Plan Starter',
   professional: 'Plan Professional',
   enterprise: 'Plan Enterprise',
-  esoterico_pro: 'Plan Esotérico Pro',
+  esoterico_pro: 'Plan Nichos Difíciles',
 };
 
 const PLAN_ICONS: Record<string, React.ReactNode> = {
