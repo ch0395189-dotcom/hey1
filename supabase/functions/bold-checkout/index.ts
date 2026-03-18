@@ -7,7 +7,6 @@ const corsHeaders = {
 };
 
 const BOLD_API_KEY = Deno.env.get('BOLD_API_KEY')!;
-// Bold Colombia API - correct endpoint
 const BOLD_API_URL = 'https://integrations.api.bold.co';
 
 interface CheckoutRequest {
@@ -18,25 +17,25 @@ interface CheckoutRequest {
 
 const PLAN_PRICES = {
   starter: {
-    amount: 49000, // 49,000 COP
+    amount: 49000,
     currency: 'COP',
     name: 'Plan Starter',
     description: 'Plan basico para empezar con WhatsApp Business',
   },
   professional: {
-    amount: 149000, // 149,000 COP
+    amount: 149000,
     currency: 'COP',
     name: 'Plan Professional',
     description: 'Plan profesional con funciones avanzadas',
   },
   enterprise: {
-    amount: 399000, // 399,000 COP
+    amount: 399000,
     currency: 'COP',
     name: 'Plan Enterprise',
     description: 'Plan empresarial con todas las funciones',
   },
   esoterico_pro: {
-    amount: 199900, // 199,900 COP mensual
+    amount: 199900,
     currency: 'COP',
     name: 'Plan Esoterico Pro',
     description: 'Numero blindado contra bloqueos - pago mensual',
@@ -44,13 +43,11 @@ const PLAN_PRICES = {
 };
 
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Validate authorization
     const authHeader = req.headers.get('Authorization');
     if (!authHeader?.startsWith('Bearer ')) {
       return new Response(
@@ -76,8 +73,6 @@ serve(async (req) => {
     }
 
     const userId = user.id;
-
-    // Parse request body
     const { plan, successUrl, cancelUrl }: CheckoutRequest = await req.json();
 
     if (!plan || !PLAN_PRICES[plan]) {
@@ -88,17 +83,33 @@ serve(async (req) => {
     }
 
     const planDetails = PLAN_PRICES[plan];
-
-    // Get user email for Bold
     const userEmail = user.email || '';
-
-    // Create Bold payment link using API Link de Pagos v1
-    const reference = `order_${userId}_${Date.now()}`;
+    const reference = `order_${userId}_${plan}_${Date.now()}`;
     
-    // Calculate expiration (24 hours from now in nanoseconds)
+    // Store pending payment in DB so webhook can look it up by reference
+    const adminSupabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    );
+
+    const { error: insertError } = await adminSupabase
+      .from('bold_payments')
+      .insert({
+        user_id: userId,
+        amount: planDetails.amount,
+        currency: planDetails.currency,
+        plan: plan,
+        bold_transaction_id: reference,
+        event_type: 'pending',
+        metadata: { reference, plan, successUrl, cancelUrl },
+      });
+
+    if (insertError) {
+      console.error('Error storing pending payment:', insertError);
+    }
+
     const expirationNanoseconds = (Date.now() + 24 * 60 * 60 * 1000) * 1e6;
     
-    // Bold API v1 payload format (as per documentation)
     const boldPayload = {
       amount_type: 'CLOSE',
       amount: {
