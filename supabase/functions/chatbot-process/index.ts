@@ -311,20 +311,31 @@ Deno.serve(async (req) => {
             // Check if user clicked a button by matching button IDs
             const parentNode = nodes.find(n => n.id === conversationState.current_node_id);
             
+            console.log('🔍 Matching input:', JSON.stringify(lowerMessage.trim()), 
+              'Parent node:', parentNode?.id, 
+              'Button options:', JSON.stringify(parentNode?.button_options?.map(b => ({ id: b.id, title: b.title }))),
+              'Child nodes:', childNodes.length);
+            
             // First, check if user clicked a button with direct response
             let buttonDirectResponse: ButtonOption | null = null;
+            let matchedButtonIndex = -1;
             if (parentNode?.button_options && parentNode.button_options.length > 0) {
-              buttonDirectResponse = parentNode.button_options.find(
-                btn => btn.id.toLowerCase() === lowerMessage.trim() || 
-                       btn.title.toLowerCase() === lowerMessage.trim()
-              ) || null;
+              for (let i = 0; i < parentNode.button_options.length; i++) {
+                const btn = parentNode.button_options[i];
+                if (btn.id.toLowerCase() === lowerMessage.trim() || 
+                    btn.title.toLowerCase() === lowerMessage.trim()) {
+                  buttonDirectResponse = btn;
+                  matchedButtonIndex = i;
+                  break;
+                }
+              }
             }
 
             // If button has direct response (text or media), use it
             if (buttonDirectResponse && buttonDirectResponse.response_type && 
                 buttonDirectResponse.response_type !== 'flow' && 
                 buttonDirectResponse.response_content) {
-              console.log('Button has direct response:', buttonDirectResponse);
+              console.log('✅ Button has direct response:', buttonDirectResponse.response_type);
               
               if (buttonDirectResponse.response_type === 'text') {
                 responseMessage = buttonDirectResponse.response_content;
@@ -335,7 +346,6 @@ Deno.serve(async (req) => {
                 const isExternal = platformAccount?.connection_type === 'external_qr' || platformAccount?.connection_type === 'z-api';
                 
                 if (isExternal && platformAccount?.external_service_url && platformAccount?.external_api_key) {
-                  // Send media via external API
                   await sendExternalWhatsAppMediaMessage(
                     platformAccount.external_service_url,
                     platformAccount.external_api_key,
@@ -354,9 +364,8 @@ Deno.serve(async (req) => {
                 
                 // Check if we should end the bot after this response
                 if (chatbotConfig.auto_end_on_leaf && parentNode) {
-                  const buttonIndex = parentNode.button_options.indexOf(buttonDirectResponse);
                   const childForThisButton = childNodes.find(c => 
-                    c.trigger_type === 'option' && c.trigger_value === String(buttonIndex + 1)
+                    c.trigger_type === 'option' && c.trigger_value === String(matchedButtonIndex + 1)
                   );
                   
                   if (!childForThisButton) {
@@ -376,73 +385,95 @@ Deno.serve(async (req) => {
               }
             } else {
               // Try to find matching child node
-              for (const child of childNodes) {
-                let matches = false;
-                
-                if (child.trigger_type === 'option' && child.trigger_value) {
-                  // Match by number OR by button ID
-                  matches = lowerMessage.trim() === child.trigger_value.toLowerCase();
-                  
-                  // Also check if parent has buttons and user selected by ID
-                  if (!matches && parentNode?.button_options) {
-                    const buttonMatch = parentNode.button_options.find(
-                      btn => btn.id.toLowerCase() === lowerMessage.trim() || 
-                             btn.title.toLowerCase() === lowerMessage.trim()
-                    );
-                    if (buttonMatch) {
-                      // Find child that corresponds to this button index
-                      const buttonIndex = parentNode.button_options.indexOf(buttonMatch);
-                      matches = child.trigger_value === String(buttonIndex + 1);
-                    }
-                  }
-                } else if (child.trigger_type === 'keyword' && child.trigger_value) {
-                  matches = lowerMessage.includes(child.trigger_value.toLowerCase());
+              // If we matched a button, use its index to find the child
+              let foundChild = false;
+              
+              if (matchedButtonIndex >= 0) {
+                // We matched a button by ID/title - find child by index (trigger_value = index+1)
+                const expectedTriggerValue = String(matchedButtonIndex + 1);
+                const matchingChild = childNodes.find(c => 
+                  c.trigger_type === 'option' && c.trigger_value === expectedTriggerValue
+                );
+                if (matchingChild) {
+                  currentNode = matchingChild;
+                  foundChild = true;
+                  console.log('✅ Matched child by button index:', matchedButtonIndex + 1);
                 }
-
-                if (matches) {
-                  currentNode = child;
+              }
+              
+              if (!foundChild) {
+                for (const child of childNodes) {
+                  let matches = false;
                   
-                  if (child.action_type === 'escalate') {
-                    await supabase
-                      .from('chatbot_conversation_state')
-                      .update({
-                        is_bot_active: false,
-                        escalated_at: new Date().toISOString(),
-                      })
-                      .eq('id', conversationState.id);
-                  } else if (child.action_type === 'end') {
-                    await supabase
-                      .from('chatbot_conversation_state')
-                      .update({ current_node_id: null })
-                      .eq('id', conversationState.id);
-                  } else {
-                    await supabase
-                      .from('chatbot_conversation_state')
-                      .update({ current_node_id: child.id })
-                      .eq('id', conversationState.id);
-
-                    // Check if this is a leaf node (no children) and auto_end_on_leaf is enabled
-                    if (chatbotConfig.auto_end_on_leaf) {
-                      const { data: leafChildNodes } = await supabase
-                        .from('chatbot_flow_nodes')
-                        .select('id')
-                        .eq('parent_node_id', child.id)
-                        .limit(1);
-
-                      if (!leafChildNodes || leafChildNodes.length === 0) {
-                        // This is a leaf node, deactivate bot for manual attention
-                        await supabase
-                          .from('chatbot_conversation_state')
-                          .update({
-                            is_bot_active: false,
-                            escalated_at: new Date().toISOString(),
-                          })
-                          .eq('id', conversationState.id);
+                  if (child.trigger_type === 'option' && child.trigger_value) {
+                    // Match by number directly (for text input like "1", "2")
+                    matches = lowerMessage.trim() === child.trigger_value.toLowerCase();
+                    
+                    // Also check if parent has buttons and user selected by ID/title
+                    if (!matches && parentNode?.button_options) {
+                      const buttonMatch = parentNode.button_options.find(
+                        btn => btn.id.toLowerCase() === lowerMessage.trim() || 
+                               btn.title.toLowerCase() === lowerMessage.trim()
+                      );
+                      if (buttonMatch) {
+                        const buttonIndex = parentNode.button_options.indexOf(buttonMatch);
+                        matches = child.trigger_value === String(buttonIndex + 1);
                       }
                     }
+                  } else if (child.trigger_type === 'keyword' && child.trigger_value) {
+                    matches = lowerMessage.includes(child.trigger_value.toLowerCase());
                   }
-                  break;
+
+                  if (matches) {
+                    currentNode = child;
+                    console.log('✅ Matched child node:', child.id, 'trigger:', child.trigger_value);
+                    break;
+                  }
                 }
+              }
+              
+              // Handle matched child node state updates
+              if (currentNode) {
+                if (currentNode.action_type === 'escalate') {
+                  await supabase
+                    .from('chatbot_conversation_state')
+                    .update({
+                      is_bot_active: false,
+                      escalated_at: new Date().toISOString(),
+                    })
+                    .eq('id', conversationState.id);
+                } else if (currentNode.action_type === 'end') {
+                  await supabase
+                    .from('chatbot_conversation_state')
+                    .update({ current_node_id: null })
+                    .eq('id', conversationState.id);
+                } else {
+                  await supabase
+                    .from('chatbot_conversation_state')
+                    .update({ current_node_id: currentNode.id })
+                    .eq('id', conversationState.id);
+
+                  // Check if this is a leaf node (no children) and auto_end_on_leaf is enabled
+                  if (chatbotConfig.auto_end_on_leaf) {
+                    const { data: leafChildNodes } = await supabase
+                      .from('chatbot_flow_nodes')
+                      .select('id')
+                      .eq('parent_node_id', currentNode.id)
+                      .limit(1);
+
+                    if (!leafChildNodes || leafChildNodes.length === 0) {
+                      await supabase
+                        .from('chatbot_conversation_state')
+                        .update({
+                          is_bot_active: false,
+                          escalated_at: new Date().toISOString(),
+                        })
+                        .eq('id', conversationState.id);
+                    }
+                  }
+                }
+              } else {
+                console.log('⚠️ No matching child found for input:', lowerMessage.trim());
               }
             }
           }
