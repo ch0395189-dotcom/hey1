@@ -41,6 +41,18 @@ interface WhatsAppMessage {
     filename: string;
     caption?: string;
   };
+  interactive?: {
+    type: string;
+    button_reply?: {
+      id: string;
+      title: string;
+    };
+    list_reply?: {
+      id: string;
+      title: string;
+      description?: string;
+    };
+  };
 }
 
 interface WhatsAppStatus {
@@ -382,6 +394,20 @@ Deno.serve(async (req) => {
               switch (message.type) {
                 case 'text':
                   content = message.text?.body || '';
+                  break;
+                case 'interactive':
+                  // Handle button and list replies from interactive messages
+                  if (message.interactive?.type === 'button_reply' && message.interactive.button_reply) {
+                    content = message.interactive.button_reply.id;
+                    messageType = 'text'; // Treat as text for chatbot processing
+                    console.log('📱 Button reply received:', message.interactive.button_reply.id, message.interactive.button_reply.title);
+                  } else if (message.interactive?.type === 'list_reply' && message.interactive.list_reply) {
+                    content = message.interactive.list_reply.id;
+                    messageType = 'text'; // Treat as text for chatbot processing
+                    console.log('📋 List reply received:', message.interactive.list_reply.id, message.interactive.list_reply.title);
+                  } else {
+                    content = '[interactive]';
+                  }
                   break;
                 case 'image':
                   content = message.image?.caption || '';
