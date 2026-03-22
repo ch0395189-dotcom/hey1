@@ -489,7 +489,7 @@ Deno.serve(async (req) => {
                         },
                         body: JSON.stringify({
                           conversation_id: conversationId,
-                          message_content: content,
+                          message_content: chatbotContent || content,
                           whatsapp_account_id: whatsappAccount.id,
                           phone_number_id: phoneNumberId,
                           access_token: accountData.access_token,
