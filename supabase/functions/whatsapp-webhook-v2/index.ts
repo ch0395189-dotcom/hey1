@@ -303,6 +303,7 @@ Deno.serve(async (req) => {
               let content = '';
               let chatbotContent = ''; // Content sent to chatbot (may differ from display content)
               let messageType = message.type;
+              let mediaUrl: string | null = null;
 
               // Function to download media from WhatsApp
               const downloadWhatsAppMedia = async (mediaId: string): Promise<string | null> => {
