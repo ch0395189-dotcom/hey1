@@ -41,6 +41,18 @@ interface WhatsAppMessage {
     filename: string;
     caption?: string;
   };
+  interactive?: {
+    type: string;
+    button_reply?: {
+      id: string;
+      title: string;
+    };
+    list_reply?: {
+      id: string;
+      title: string;
+      description?: string;
+    };
+  };
 }
 
 interface WhatsAppStatus {
