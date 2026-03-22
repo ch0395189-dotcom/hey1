@@ -398,13 +398,19 @@ Deno.serve(async (req) => {
                 case 'interactive':
                   // Handle button and list replies from interactive messages
                   if (message.interactive?.type === 'button_reply' && message.interactive.button_reply) {
-                    content = message.interactive.button_reply.id;
-                    messageType = 'text'; // Treat as text for chatbot processing
-                    console.log('📱 Button reply received:', message.interactive.button_reply.id, message.interactive.button_reply.title);
+                    // Save the human-readable title for display in chat
+                    content = message.interactive.button_reply.title;
+                    // Pass the button ID to chatbot for matching
+                    chatbotContent = message.interactive.button_reply.id;
+                    messageType = 'text';
+                    console.log('📱 Button reply received - ID:', message.interactive.button_reply.id, 'Title:', message.interactive.button_reply.title);
                   } else if (message.interactive?.type === 'list_reply' && message.interactive.list_reply) {
-                    content = message.interactive.list_reply.id;
-                    messageType = 'text'; // Treat as text for chatbot processing
-                    console.log('📋 List reply received:', message.interactive.list_reply.id, message.interactive.list_reply.title);
+                    // Save the human-readable title for display in chat
+                    content = message.interactive.list_reply.title;
+                    // Pass the list item ID to chatbot for matching
+                    chatbotContent = message.interactive.list_reply.id;
+                    messageType = 'text';
+                    console.log('📋 List reply received - ID:', message.interactive.list_reply.id, 'Title:', message.interactive.list_reply.title);
                   } else {
                     content = '[interactive]';
                   }
