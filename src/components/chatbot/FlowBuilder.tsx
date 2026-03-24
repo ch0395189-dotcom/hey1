@@ -7,8 +7,10 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Plus, Trash2, ChevronRight, MessageSquare, ArrowRight, User, CircleStop, MousePointer, List, Pencil, Upload, Image, Video, Music, FileText, X } from 'lucide-react';
+import { Plus, Trash2, ChevronRight, MessageSquare, ArrowRight, User, CircleStop, MousePointer, List, Pencil, Upload, Image, Video, Music, FileText, X, CalendarDays } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { MediaCaptureButtons } from './MediaCaptureButtons';
+import { AppointmentConfig, defaultAppointmentSettings, type AppointmentSettings } from './AppointmentConfig';
 
 interface FlowBuilderProps {
   chatbotConfigId: string;
