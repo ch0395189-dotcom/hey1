@@ -40,6 +40,7 @@ interface FlowNode {
   button_options: ButtonOption[];
   media_url: string | null;
   media_type: string | null;
+  appointment_settings?: AppointmentSettings;
   children?: FlowNode[];
 }
 
@@ -60,6 +61,7 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
     button_options: [] as ButtonOption[],
     media_url: null as string | null,
     media_type: null as string | null,
+    appointment_settings: defaultAppointmentSettings as AppointmentSettings,
   });
   const [uploadingMedia, setUploadingMedia] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
