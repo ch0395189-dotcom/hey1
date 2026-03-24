@@ -675,10 +675,17 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
                       ) : (
                         <div className="flex items-center gap-2">
                           <Upload className="h-4 w-4" />
-                          Subir imagen, video, audio o documento
+                          Subir archivo desde dispositivo
                         </div>
                       )}
                     </Button>
+                    <div className="mt-2">
+                      <MediaCaptureButtons
+                        onMediaCaptured={(url, type) => setNewNode(prev => ({ ...prev, media_url: url, media_type: type }))}
+                        uploading={uploadingMedia}
+                        setUploading={setUploadingMedia}
+                      />
+                    </div>
                     <p className="text-xs text-muted-foreground mt-1">
                       El archivo se enviará junto con el mensaje de texto del nodo
                     </p>
@@ -832,9 +839,22 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
                     <SelectContent>
                       <SelectItem value="escalate">Escalar a Humano</SelectItem>
                       <SelectItem value="end">Finalizar Conversación</SelectItem>
+                      <SelectItem value="schedule">
+                        <div className="flex items-center gap-2">
+                          <CalendarDays className="h-4 w-4" />
+                          Agendar Cita
+                        </div>
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
+              )}
+
+              {newNode.node_type === 'action' && newNode.action_type === 'schedule' && (
+                <AppointmentConfig
+                  settings={newNode.appointment_settings}
+                  onChange={(settings) => setNewNode({ ...newNode, appointment_settings: settings })}
+                />
               )}
 
               <div className="flex justify-end gap-2">
