@@ -286,6 +286,7 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
       button_options: [],
       media_url: null,
       media_type: null,
+      appointment_settings: defaultAppointmentSettings,
     });
     setShowAddForm(false);
     setEditingNode(null);
@@ -305,6 +306,7 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
       button_options: node.button_options || [],
       media_url: node.media_url || null,
       media_type: node.media_type || null,
+      appointment_settings: node.appointment_settings || defaultAppointmentSettings,
     });
     setShowAddForm(true);
   };
