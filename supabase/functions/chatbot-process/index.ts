@@ -772,11 +772,13 @@ async function sendWhatsAppMediaMessage(
   const lowerUrl = mediaUrl.toLowerCase();
   let mediaType: 'image' | 'video' | 'document' | 'audio' = 'image';
   
-  if (lowerUrl.includes('.mp4') || lowerUrl.includes('.mov') || lowerUrl.includes('video')) {
+  if (lowerUrl.includes('.mp4') || lowerUrl.includes('.mov') || lowerUrl.includes('.avi') || lowerUrl.includes('video')) {
     mediaType = 'video';
-  } else if (lowerUrl.includes('.pdf') || lowerUrl.includes('.doc') || lowerUrl.includes('document')) {
+  } else if (lowerUrl.includes('.pdf') || lowerUrl.includes('.doc') || lowerUrl.includes('.xlsx') || lowerUrl.includes('document')) {
     mediaType = 'document';
-  } else if (lowerUrl.includes('.mp3') || lowerUrl.includes('.ogg') || lowerUrl.includes('audio')) {
+  } else if (lowerUrl.includes('.mp3') || lowerUrl.includes('.ogg') || lowerUrl.includes('.m4a') || 
+             lowerUrl.includes('.wav') || lowerUrl.includes('.aac') || lowerUrl.includes('.amr') || 
+             lowerUrl.includes('.opus') || lowerUrl.includes('audio')) {
     mediaType = 'audio';
   }
 
