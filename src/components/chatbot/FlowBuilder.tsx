@@ -7,8 +7,10 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Plus, Trash2, ChevronRight, MessageSquare, ArrowRight, User, CircleStop, MousePointer, List, Pencil, Upload, Image, Video, Music, FileText, X } from 'lucide-react';
+import { Plus, Trash2, ChevronRight, MessageSquare, ArrowRight, User, CircleStop, MousePointer, List, Pencil, Upload, Image, Video, Music, FileText, X, CalendarDays } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { MediaCaptureButtons } from './MediaCaptureButtons';
+import { AppointmentConfig, defaultAppointmentSettings, type AppointmentSettings } from './AppointmentConfig';
 
 interface FlowBuilderProps {
   chatbotConfigId: string;
@@ -38,6 +40,7 @@ interface FlowNode {
   button_options: ButtonOption[];
   media_url: string | null;
   media_type: string | null;
+  appointment_settings?: AppointmentSettings;
   children?: FlowNode[];
 }
 
@@ -58,6 +61,7 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
     button_options: [] as ButtonOption[],
     media_url: null as string | null,
     media_type: null as string | null,
+    appointment_settings: defaultAppointmentSettings as AppointmentSettings,
   });
   const [uploadingMedia, setUploadingMedia] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -282,6 +286,7 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
       button_options: [],
       media_url: null,
       media_type: null,
+      appointment_settings: defaultAppointmentSettings,
     });
     setShowAddForm(false);
     setEditingNode(null);
@@ -301,6 +306,7 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
       button_options: node.button_options || [],
       media_url: node.media_url || null,
       media_type: node.media_type || null,
+      appointment_settings: node.appointment_settings || defaultAppointmentSettings,
     });
     setShowAddForm(true);
   };
@@ -337,6 +343,8 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
         case 'message': return <ArrowRight className="h-4 w-4" />;
         case 'action': return node.action_type === 'escalate' 
           ? <User className="h-4 w-4" /> 
+          : node.action_type === 'schedule'
+          ? <CalendarDays className="h-4 w-4" />
           : <CircleStop className="h-4 w-4" />;
         default: return null;
       }
@@ -400,7 +408,7 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
               )}
               {node.action_type && (
                 <span className="text-xs px-2 py-0.5 bg-destructive/10 text-destructive rounded-full">
-                  {node.action_type === 'escalate' ? 'Escalar' : 'Finalizar'}
+                  {node.action_type === 'escalate' ? 'Escalar' : node.action_type === 'schedule' ? '📅 Agendar Cita' : 'Finalizar'}
                 </span>
               )}
             </div>
@@ -496,6 +504,7 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
               button_options: [],
               media_url: null,
               media_type: null,
+              appointment_settings: defaultAppointmentSettings,
             });
             setShowAddForm(true);
           }}>
@@ -668,10 +677,17 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
                       ) : (
                         <div className="flex items-center gap-2">
                           <Upload className="h-4 w-4" />
-                          Subir imagen, video, audio o documento
+                          Subir archivo desde dispositivo
                         </div>
                       )}
                     </Button>
+                    <div className="mt-2">
+                      <MediaCaptureButtons
+                        onMediaCaptured={(url, type) => setNewNode(prev => ({ ...prev, media_url: url, media_type: type }))}
+                        uploading={uploadingMedia}
+                        setUploading={setUploadingMedia}
+                      />
+                    </div>
                     <p className="text-xs text-muted-foreground mt-1">
                       El archivo se enviará junto con el mensaje de texto del nodo
                     </p>
@@ -825,9 +841,22 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
                     <SelectContent>
                       <SelectItem value="escalate">Escalar a Humano</SelectItem>
                       <SelectItem value="end">Finalizar Conversación</SelectItem>
+                      <SelectItem value="schedule">
+                        <div className="flex items-center gap-2">
+                          <CalendarDays className="h-4 w-4" />
+                          Agendar Cita
+                        </div>
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
+              )}
+
+              {newNode.node_type === 'action' && newNode.action_type === 'schedule' && (
+                <AppointmentConfig
+                  settings={newNode.appointment_settings}
+                  onChange={(settings) => setNewNode({ ...newNode, appointment_settings: settings })}
+                />
               )}
 
               <div className="flex justify-end gap-2">
