@@ -592,6 +592,80 @@ Deno.serve(async (req) => {
   }
 });
 
+// Helper: Send a single node's response (media + text/interactive)
+async function sendNodeResponse(
+  supabase: any,
+  node: FlowNode,
+  platformAccount: PlatformAccountData,
+  customerIdentifier: string,
+  conversation_id: string,
+  currentPlatform: string,
+  isExternal: boolean,
+  chatbotConfig: ChatbotConfig
+): Promise<void> {
+  // Send media first if the node has a media attachment
+  if (node.media_url && currentPlatform === 'whatsapp') {
+    try {
+      if (isExternal && platformAccount.external_service_url && platformAccount.external_api_key) {
+        await sendExternalWhatsAppMediaMessage(
+          platformAccount.external_service_url,
+          platformAccount.external_api_key,
+          customerIdentifier,
+          node.media_url
+        );
+      } else {
+        await sendWhatsAppMediaMessage(
+          platformAccount.phone_number_id!,
+          platformAccount.access_token!,
+          customerIdentifier,
+          node.media_url
+        );
+      }
+      await saveOutboundMessage(supabase, conversation_id, `[${node.media_type || 'media'}] ${node.media_url}`, node.media_type || 'image', node.media_url);
+      console.log('📎 Node media sent:', node.media_type, node.media_url);
+    } catch (mediaErr) {
+      console.error('Error sending node media:', mediaErr);
+    }
+  }
+
+  // Build interactive response if applicable
+  let interactiveResponse: ChatResponse['interactive'] | null = null;
+  if (node.interactive_type !== 'none' && 
+      node.button_options && node.button_options.length > 0 &&
+      currentPlatform === 'whatsapp') {
+    interactiveResponse = buildInteractiveResponse(node);
+  }
+
+  // Send the message
+  if (interactiveResponse && currentPlatform === 'whatsapp' && !isExternal) {
+    await sendWhatsAppInteractiveMessage(
+      platformAccount.phone_number_id!,
+      platformAccount.access_token!,
+      customerIdentifier,
+      interactiveResponse
+    );
+  } else if (interactiveResponse && currentPlatform === 'whatsapp' && isExternal) {
+    let textMessage = node.content;
+    if (interactiveResponse.type === 'button' && interactiveResponse.action?.buttons) {
+      textMessage += '\n\n';
+      interactiveResponse.action.buttons.forEach((btn, idx) => {
+        textMessage += `${idx + 1}. ${btn.reply.title}\n`;
+      });
+    } else if (interactiveResponse.type === 'list' && interactiveResponse.action?.sections) {
+      textMessage += '\n\n';
+      interactiveResponse.action.sections.forEach(section => {
+        section.rows.forEach((row, idx) => {
+          textMessage += `${idx + 1}. ${row.title}${row.description ? ' - ' + row.description : ''}\n`;
+        });
+      });
+    }
+    await sendPlatformMessage(platformAccount, customerIdentifier, textMessage);
+  } else {
+    await sendPlatformMessage(platformAccount, customerIdentifier, node.content);
+  }
+  await saveOutboundMessage(supabase, conversation_id, node.content);
+}
+
 // Build interactive response from flow node
 function buildInteractiveResponse(node: FlowNode): ChatResponse['interactive'] | null {
   if (!node.button_options || node.button_options.length === 0) {
