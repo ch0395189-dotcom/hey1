@@ -502,6 +502,7 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
               button_options: [],
               media_url: null,
               media_type: null,
+              appointment_settings: defaultAppointmentSettings,
             });
             setShowAddForm(true);
           }}>
