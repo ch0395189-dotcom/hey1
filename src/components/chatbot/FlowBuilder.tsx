@@ -343,6 +343,8 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
         case 'message': return <ArrowRight className="h-4 w-4" />;
         case 'action': return node.action_type === 'escalate' 
           ? <User className="h-4 w-4" /> 
+          : node.action_type === 'schedule'
+          ? <CalendarDays className="h-4 w-4" />
           : <CircleStop className="h-4 w-4" />;
         default: return null;
       }
@@ -406,7 +408,8 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
               )}
               {node.action_type && (
                 <span className="text-xs px-2 py-0.5 bg-destructive/10 text-destructive rounded-full">
-                  {node.action_type === 'escalate' ? 'Escalar' : 'Finalizar'}
+                  {node.action_type === 'escalate' ? 'Escalar' : node.action_type === 'schedule' ? '📅 Agendar Cita' : 'Finalizar'}
+                </span>
                 </span>
               )}
             </div>
