@@ -480,17 +480,77 @@ Deno.serve(async (req) => {
         }
       }
       
-      // Generate response from current node
+      // Generate response from current node - with auto-chaining support
       if (currentNode) {
-        responseMessage = currentNode.content;
+        const isExternal = platformAccount?.connection_type === 'external_qr' || platformAccount?.connection_type === 'z-api';
         
-        // Check if node has interactive elements
-        if (currentNode.interactive_type !== 'none' && 
-            currentNode.button_options && 
-            currentNode.button_options.length > 0 &&
-            currentPlatform === 'whatsapp') {
-          interactiveResponse = buildInteractiveResponse(currentNode);
+        // Send the current node's response
+        await sendNodeResponse(supabase, currentNode, platformAccount!, customerIdentifier, conversation_id, currentPlatform, isExternal, chatbotConfig);
+        
+        // Auto-chain: if current node has NO interactive elements, check for a single child node
+        // and automatically send it too (allows sequential message flows)
+        let chainNode = currentNode;
+        let chainCount = 0;
+        const MAX_CHAIN = 5; // Prevent infinite loops
+        
+        while (chainCount < MAX_CHAIN) {
+          // Only auto-chain if the node has NO interactive elements (no buttons/lists)
+          if (chainNode.interactive_type !== 'none' && 
+              chainNode.button_options && chainNode.button_options.length > 0) {
+            break; // Stop - this node expects user input
+          }
+          
+          // Find children of this node
+          const { data: nextChildren } = await supabase
+            .from('chatbot_flow_nodes')
+            .select('*')
+            .eq('parent_node_id', chainNode.id)
+            .eq('chatbot_config_id', chatbotConfig.id)
+            .order('position');
+          
+          if (!nextChildren || nextChildren.length === 0) {
+            // Leaf node - check auto_end_on_leaf
+            if (chatbotConfig.auto_end_on_leaf) {
+              await supabase
+                .from('chatbot_conversation_state')
+                .update({
+                  is_bot_active: false,
+                  escalated_at: new Date().toISOString(),
+                })
+                .eq('id', conversationState.id);
+              console.log('🔚 Auto-ended bot at leaf node:', chainNode.id);
+            }
+            break;
+          }
+          
+          if (nextChildren.length === 1) {
+            // Single child - auto-navigate to it
+            const nextNode = nextChildren[0] as FlowNode;
+            console.log('⏩ Auto-chaining to next node:', nextNode.id, nextNode.title);
+            
+            // Add a small delay for natural feel
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // Send the next node's content
+            await sendNodeResponse(supabase, nextNode, platformAccount!, customerIdentifier, conversation_id, currentPlatform, isExternal, chatbotConfig);
+            
+            // Update state to this node
+            await supabase
+              .from('chatbot_conversation_state')
+              .update({ current_node_id: nextNode.id })
+              .eq('id', conversationState.id);
+            
+            chainNode = nextNode;
+            chainCount++;
+          } else {
+            // Multiple children - stop, user needs to choose
+            break;
+          }
         }
+        
+        return new Response(JSON.stringify({ processed: true, response: currentNode.content }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
     }
 
@@ -514,60 +574,7 @@ Deno.serve(async (req) => {
     // Send response
     if (responseMessage) {
       const isExternal = platformAccount?.connection_type === 'external_qr' || platformAccount?.connection_type === 'z-api';
-      
-      // Send media first if the current node has a media attachment
-      if (currentNode?.media_url && currentPlatform === 'whatsapp') {
-        try {
-          if (isExternal && platformAccount?.external_service_url && platformAccount?.external_api_key) {
-            await sendExternalWhatsAppMediaMessage(
-              platformAccount.external_service_url,
-              platformAccount.external_api_key,
-              customerIdentifier,
-              currentNode.media_url
-            );
-          } else {
-            await sendWhatsAppMediaMessage(
-              platformAccount.phone_number_id!,
-              platformAccount.access_token!,
-              customerIdentifier,
-              currentNode.media_url
-            );
-          }
-          await saveOutboundMessage(supabase, conversation_id, `[${currentNode.media_type || 'media'}] ${currentNode.media_url}`, currentNode.media_type || 'image', currentNode.media_url);
-          console.log('📎 Node media sent:', currentNode.media_type, currentNode.media_url);
-        } catch (mediaErr) {
-          console.error('Error sending node media:', mediaErr);
-        }
-      }
-
-      if (interactiveResponse && currentPlatform === 'whatsapp' && !isExternal) {
-        // Send interactive message for WhatsApp (Meta API only)
-        await sendWhatsAppInteractiveMessage(
-          platformAccount.phone_number_id!,
-          platformAccount.access_token!,
-          customerIdentifier,
-          interactiveResponse
-        );
-      } else if (interactiveResponse && currentPlatform === 'whatsapp' && isExternal) {
-        // For external QR, convert interactive to text with numbered options
-        let textMessage = responseMessage;
-        if (interactiveResponse.type === 'button' && interactiveResponse.action?.buttons) {
-          textMessage += '\n\n';
-          interactiveResponse.action.buttons.forEach((btn, idx) => {
-            textMessage += `${idx + 1}. ${btn.reply.title}\n`;
-          });
-        } else if (interactiveResponse.type === 'list' && interactiveResponse.action?.sections) {
-          textMessage += '\n\n';
-          interactiveResponse.action.sections.forEach(section => {
-            section.rows.forEach((row, idx) => {
-              textMessage += `${idx + 1}. ${row.title}${row.description ? ' - ' + row.description : ''}\n`;
-            });
-          });
-        }
-        await sendPlatformMessage(platformAccount, customerIdentifier, textMessage);
-      } else {
-        await sendPlatformMessage(platformAccount, customerIdentifier, responseMessage);
-      }
+      await sendPlatformMessage(platformAccount!, customerIdentifier, responseMessage);
       await saveOutboundMessage(supabase, conversation_id, responseMessage);
     }
 
@@ -584,6 +591,80 @@ Deno.serve(async (req) => {
     });
   }
 });
+
+// Helper: Send a single node's response (media + text/interactive)
+async function sendNodeResponse(
+  supabase: any,
+  node: FlowNode,
+  platformAccount: PlatformAccountData,
+  customerIdentifier: string,
+  conversation_id: string,
+  currentPlatform: string,
+  isExternal: boolean,
+  chatbotConfig: ChatbotConfig
+): Promise<void> {
+  // Send media first if the node has a media attachment
+  if (node.media_url && currentPlatform === 'whatsapp') {
+    try {
+      if (isExternal && platformAccount.external_service_url && platformAccount.external_api_key) {
+        await sendExternalWhatsAppMediaMessage(
+          platformAccount.external_service_url,
+          platformAccount.external_api_key,
+          customerIdentifier,
+          node.media_url
+        );
+      } else {
+        await sendWhatsAppMediaMessage(
+          platformAccount.phone_number_id!,
+          platformAccount.access_token!,
+          customerIdentifier,
+          node.media_url
+        );
+      }
+      await saveOutboundMessage(supabase, conversation_id, `[${node.media_type || 'media'}] ${node.media_url}`, node.media_type || 'image', node.media_url);
+      console.log('📎 Node media sent:', node.media_type, node.media_url);
+    } catch (mediaErr) {
+      console.error('Error sending node media:', mediaErr);
+    }
+  }
+
+  // Build interactive response if applicable
+  let interactiveResponse: ChatResponse['interactive'] | null = null;
+  if (node.interactive_type !== 'none' && 
+      node.button_options && node.button_options.length > 0 &&
+      currentPlatform === 'whatsapp') {
+    interactiveResponse = buildInteractiveResponse(node);
+  }
+
+  // Send the message
+  if (interactiveResponse && currentPlatform === 'whatsapp' && !isExternal) {
+    await sendWhatsAppInteractiveMessage(
+      platformAccount.phone_number_id!,
+      platformAccount.access_token!,
+      customerIdentifier,
+      interactiveResponse
+    );
+  } else if (interactiveResponse && currentPlatform === 'whatsapp' && isExternal) {
+    let textMessage = node.content;
+    if (interactiveResponse.type === 'button' && interactiveResponse.action?.buttons) {
+      textMessage += '\n\n';
+      interactiveResponse.action.buttons.forEach((btn, idx) => {
+        textMessage += `${idx + 1}. ${btn.reply.title}\n`;
+      });
+    } else if (interactiveResponse.type === 'list' && interactiveResponse.action?.sections) {
+      textMessage += '\n\n';
+      interactiveResponse.action.sections.forEach(section => {
+        section.rows.forEach((row, idx) => {
+          textMessage += `${idx + 1}. ${row.title}${row.description ? ' - ' + row.description : ''}\n`;
+        });
+      });
+    }
+    await sendPlatformMessage(platformAccount, customerIdentifier, textMessage);
+  } else {
+    await sendPlatformMessage(platformAccount, customerIdentifier, node.content);
+  }
+  await saveOutboundMessage(supabase, conversation_id, node.content);
+}
 
 // Build interactive response from flow node
 function buildInteractiveResponse(node: FlowNode): ChatResponse['interactive'] | null {
@@ -772,11 +853,13 @@ async function sendWhatsAppMediaMessage(
   const lowerUrl = mediaUrl.toLowerCase();
   let mediaType: 'image' | 'video' | 'document' | 'audio' = 'image';
   
-  if (lowerUrl.includes('.mp4') || lowerUrl.includes('.mov') || lowerUrl.includes('video')) {
+  if (lowerUrl.includes('.mp4') || lowerUrl.includes('.mov') || lowerUrl.includes('.avi') || lowerUrl.includes('video')) {
     mediaType = 'video';
-  } else if (lowerUrl.includes('.pdf') || lowerUrl.includes('.doc') || lowerUrl.includes('document')) {
+  } else if (lowerUrl.includes('.pdf') || lowerUrl.includes('.doc') || lowerUrl.includes('.xlsx') || lowerUrl.includes('document')) {
     mediaType = 'document';
-  } else if (lowerUrl.includes('.mp3') || lowerUrl.includes('.ogg') || lowerUrl.includes('audio')) {
+  } else if (lowerUrl.includes('.mp3') || lowerUrl.includes('.ogg') || lowerUrl.includes('.m4a') || 
+             lowerUrl.includes('.wav') || lowerUrl.includes('.aac') || lowerUrl.includes('.amr') || 
+             lowerUrl.includes('.opus') || lowerUrl.includes('audio')) {
     mediaType = 'audio';
   }
 
