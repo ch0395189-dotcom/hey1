@@ -568,7 +568,7 @@ const Dashboard = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.2 }}
-            className={`flex-1 flex flex-col min-h-0 ${
+            className={`flex-1 flex flex-col min-h-0 chat-active ${
               selectedConversation ? 'flex' : 'hidden md:flex'
             }`}
           >
