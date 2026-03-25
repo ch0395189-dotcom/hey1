@@ -906,7 +906,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
   const messageGroups = groupMessagesByDate(messages);
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+    <div className="flex-1 min-h-0 flex flex-col overflow-hidden bg-background h-full">
       <ImagePreviewDialog url={previewImageUrl} onClose={() => setPreviewImageUrl(null)} />
       {/* Chat Header - WhatsApp Style */}
       <div className="h-14 md:h-14 px-2 md:px-4 border-b border-border flex items-center justify-between bg-primary text-primary-foreground safe-area-top">
