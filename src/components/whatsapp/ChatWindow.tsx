@@ -1264,8 +1264,8 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
       )}
 
       {/* Message Input - safe area bottom for iOS home indicator */}
-      <form onSubmit={handleSendMessage} className="p-2 md:p-4 border-t border-border bg-card safe-area-bottom">
-        <div className="max-w-3xl mx-auto flex items-center gap-1.5 md:gap-3">
+      <form onSubmit={handleSendMessage} className="p-1.5 md:p-4 border-t border-border bg-card safe-area-bottom">
+        <div className="max-w-3xl mx-auto flex items-center gap-1 md:gap-3">
           <input
             type="file"
             ref={fileInputRef}
@@ -1275,7 +1275,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
           />
           <Popover open={showEmojiPicker} onOpenChange={setShowEmojiPicker}>
             <PopoverTrigger asChild>
-              <Button type="button" variant="ghost" size="icon" className="shrink-0 h-9 w-9 md:h-10 md:w-10">
+              <Button type="button" variant="ghost" size="icon" className="shrink-0 h-8 w-8 md:h-10 md:w-10 hidden md:inline-flex">
                 <Smile className="w-5 h-5 text-muted-foreground" />
               </Button>
             </PopoverTrigger>
@@ -1291,7 +1291,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
             type="button" 
             variant="ghost" 
             size="icon" 
-            className="shrink-0 h-9 w-9 md:h-10 md:w-10"
+            className="shrink-0 h-8 w-8 md:h-10 md:w-10"
             onClick={() => fileInputRef.current?.click()}
           >
             <Paperclip className="w-5 h-5 text-muted-foreground" />
@@ -1301,7 +1301,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
               type="button" 
               variant="ghost" 
               size="icon" 
-              className="shrink-0 hidden md:inline-flex h-9 w-9 md:h-10 md:w-10"
+              className="shrink-0 hidden md:inline-flex h-8 w-8 md:h-10 md:w-10"
               onClick={() => setShowInteractiveDialog(true)}
               title="Mensaje con botones"
             >
