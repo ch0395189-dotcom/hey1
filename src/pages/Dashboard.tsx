@@ -294,7 +294,7 @@ const Dashboard = () => {
   // Show setup if no WhatsApp accounts
   if (hasWhatsAppAccount === false) {
     return (
-      <div className="h-screen flex bg-background">
+      <div className="h-[100dvh] flex bg-background">
         <motion.aside
           initial={{ x: -50, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
@@ -344,7 +344,7 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-background">
+    <div className="h-[100dvh] flex flex-col bg-background">
       {/* Banners */}
       <div className="px-4 py-2 space-y-2">
         <TrialBanner />
@@ -569,7 +569,7 @@ const Dashboard = () => {
             animate={{ opacity: 1 }}
             transition={{ delay: 0.2 }}
             className={`flex-1 flex flex-col min-h-0 chat-active ${
-              selectedConversation ? 'flex' : 'hidden md:flex'
+              selectedConversation ? 'fixed inset-0 z-[60] md:relative md:inset-auto md:z-auto' : 'hidden md:flex'
             }`}
           >
             <ChatWindow

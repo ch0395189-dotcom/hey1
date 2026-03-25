@@ -906,7 +906,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
   const messageGroups = groupMessagesByDate(messages);
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col">
+    <div className="flex-1 min-h-0 flex flex-col overflow-hidden bg-background h-full">
       <ImagePreviewDialog url={previewImageUrl} onClose={() => setPreviewImageUrl(null)} />
       {/* Chat Header - WhatsApp Style */}
       <div className="h-14 md:h-14 px-2 md:px-4 border-b border-border flex items-center justify-between bg-primary text-primary-foreground safe-area-top">
@@ -1264,8 +1264,8 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
       )}
 
       {/* Message Input - safe area bottom for iOS home indicator */}
-      <form onSubmit={handleSendMessage} className="p-1.5 md:p-4 border-t border-border bg-card safe-area-bottom">
-        <div className="max-w-3xl mx-auto flex items-center gap-1 md:gap-3">
+      <form onSubmit={handleSendMessage} className="shrink-0 p-2 md:p-4 border-t border-border bg-card safe-area-bottom">
+        <div className="max-w-3xl mx-auto flex items-center gap-1.5 md:gap-3">
           <input
             type="file"
             ref={fileInputRef}
