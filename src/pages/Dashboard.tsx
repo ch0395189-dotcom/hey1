@@ -568,7 +568,7 @@ const Dashboard = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.2 }}
-            className={`flex-1 flex flex-col min-h-0 ${
+            className={`flex-1 flex flex-col min-h-0 chat-active ${
               selectedConversation ? 'flex' : 'hidden md:flex'
             }`}
           >
@@ -614,7 +614,7 @@ const Dashboard = () => {
       )}
       </div>
 
-      {/* Mobile FAB - New Message */}
+      {/* Mobile FAB - New Message - hide when conversation is open */}
       {activeView === 'inbox' && !selectedConversation && (
         <button
           onClick={() => setShowMobileNewMessage(true)}
@@ -635,8 +635,8 @@ const Dashboard = () => {
         }}
       />
 
-      {/* Mobile Bottom Navigation - WhatsApp Style */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border flex items-center justify-around px-2 z-50" style={{ height: 'calc(3.5rem + env(safe-area-inset-bottom, 0px))', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+      {/* Mobile Bottom Navigation - WhatsApp Style - Hidden when chat is open */}
+      <nav className={`md:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border flex items-center justify-around px-2 z-50 ${selectedConversation ? 'hidden' : ''}`} style={{ height: 'calc(3.5rem + env(safe-area-inset-bottom, 0px))', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
         <button
           onClick={() => setActiveView('inbox')}
           className={`flex flex-col items-center gap-0.5 py-1.5 px-3 rounded-lg transition-colors ${
