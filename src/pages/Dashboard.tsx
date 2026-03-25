@@ -344,7 +344,7 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-background">
+    <div className="h-[100dvh] flex flex-col bg-background">
       {/* Banners */}
       <div className="px-4 py-2 space-y-2">
         <TrialBanner />

@@ -1264,8 +1264,8 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
       )}
 
       {/* Message Input - safe area bottom for iOS home indicator */}
-      <form onSubmit={handleSendMessage} className="p-1.5 md:p-4 border-t border-border bg-card safe-area-bottom">
-        <div className="max-w-3xl mx-auto flex items-center gap-1 md:gap-3">
+      <form onSubmit={handleSendMessage} className="shrink-0 p-2 md:p-4 border-t border-border bg-card safe-area-bottom">
+        <div className="max-w-3xl mx-auto flex items-center gap-1.5 md:gap-3">
           <input
             type="file"
             ref={fileInputRef}
