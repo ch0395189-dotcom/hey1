@@ -294,7 +294,7 @@ const Dashboard = () => {
   // Show setup if no WhatsApp accounts
   if (hasWhatsAppAccount === false) {
     return (
-      <div className="h-screen flex bg-background">
+      <div className="h-[100dvh] flex bg-background">
         <motion.aside
           initial={{ x: -50, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
