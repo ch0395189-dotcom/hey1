@@ -84,7 +84,9 @@ serve(async (req) => {
 
     const planDetails = PLAN_PRICES[plan];
     const userEmail = user.email || '';
-    const reference = `order_${userId}_${plan}_${Date.now()}`;
+    const shortId = userId.replace(/-/g, '').substring(0, 12);
+    const ts = Date.now().toString(36);
+    const reference = `o${shortId}${plan.substring(0, 4)}${ts}`;
     
     // Store pending payment in DB so webhook can look it up by reference
     const adminSupabase = createClient(
