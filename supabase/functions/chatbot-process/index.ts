@@ -461,38 +461,57 @@ Deno.serve(async (req) => {
               }
               
               if (!foundChild) {
-                for (const child of childNodes) {
-                  let matches = false;
-                  
-                  if (child.trigger_type === 'option' && child.trigger_value) {
-                    // Match by number directly (for text input like "1", "2")
-                    matches = lowerMessage.trim() === child.trigger_value.toLowerCase();
-                    
-                    // Fuzzy match: "precios" matches trigger_value "btn_precios"
-                    if (!matches) {
-                      matches = fuzzyMatchTrigger(lowerMessage.trim(), child.trigger_value);
-                    }
-                    
-                    // Also check if parent has buttons and user selected by ID/title (fuzzy)
-                    if (!matches && parentNode?.button_options) {
-                      const buttonMatch = parentNode.button_options.find(
-                        btn => fuzzyMatchButton(lowerMessage.trim(), btn)
-                      );
-                      if (buttonMatch) {
-                        const buttonIndex = parentNode.button_options.indexOf(buttonMatch);
-                        // Match child by index or by trigger_value matching button id
-                        matches = child.trigger_value === String(buttonIndex + 1) ||
-                                  child.trigger_value === buttonMatch.id;
-                      }
-                    }
-                  } else if (child.trigger_type === 'keyword' && child.trigger_value) {
-                    matches = lowerMessage.includes(child.trigger_value.toLowerCase());
+                // Check if user sent a number - map to button position
+                const inputNumber = parseInt(lowerMessage.trim());
+                const isNumericInput = !isNaN(inputNumber) && inputNumber > 0;
+                
+                // If numeric input and parent has buttons, find child by button position
+                if (isNumericInput && parentNode?.button_options && inputNumber <= parentNode.button_options.length) {
+                  const targetButton = parentNode.button_options[inputNumber - 1];
+                  // Find child that matches this button's id
+                  const matchingChild = childNodes.find(c => 
+                    c.trigger_type === 'option' && c.trigger_value === targetButton.id
+                  );
+                  if (matchingChild) {
+                    currentNode = matchingChild;
+                    foundChild = true;
+                    console.log('✅ Matched child by number input:', inputNumber, '→ button:', targetButton.id);
                   }
+                }
+                
+                if (!foundChild) {
+                  for (const child of childNodes) {
+                    let matches = false;
+                    
+                    if (child.trigger_type === 'option' && child.trigger_value) {
+                      // Match by trigger_value directly
+                      matches = lowerMessage.trim() === child.trigger_value.toLowerCase();
+                      
+                      // Fuzzy match: "precios" matches trigger_value "btn_precios"
+                      if (!matches) {
+                        matches = fuzzyMatchTrigger(lowerMessage.trim(), child.trigger_value);
+                      }
+                      
+                      // Also check if parent has buttons and user selected by ID/title (fuzzy)
+                      if (!matches && parentNode?.button_options) {
+                        const buttonMatch = parentNode.button_options.find(
+                          btn => fuzzyMatchButton(lowerMessage.trim(), btn)
+                        );
+                        if (buttonMatch) {
+                          const buttonIndex = parentNode.button_options.indexOf(buttonMatch);
+                          matches = child.trigger_value === String(buttonIndex + 1) ||
+                                    child.trigger_value === buttonMatch.id;
+                        }
+                      }
+                    } else if (child.trigger_type === 'keyword' && child.trigger_value) {
+                      matches = lowerMessage.includes(child.trigger_value.toLowerCase());
+                    }
 
-                  if (matches) {
-                    currentNode = child;
-                    console.log('✅ Matched child node:', child.id, 'trigger:', child.trigger_value);
-                    break;
+                    if (matches) {
+                      currentNode = child;
+                      console.log('✅ Matched child node:', child.id, 'trigger:', child.trigger_value);
+                      break;
+                    }
                   }
                 }
               }
