@@ -295,8 +295,29 @@ Deno.serve(async (req) => {
 
           // Check if this is a new conversation (no current node)
           if (!conversationState.current_node_id) {
-            // Find start node
-            const startNode = nodes.find(n => n.trigger_type === 'start');
+            // Find start node (trigger_type = 'start')
+            let startNode = nodes.find(n => n.trigger_type === 'start');
+            
+            // If no explicit start node, try to find a root keyword node that matches the message
+            if (!startNode) {
+              const rootNodes = nodes.filter(n => !n.parent_node_id);
+              for (const root of rootNodes) {
+                if (root.trigger_type === 'keyword' && root.trigger_value) {
+                  const keywords = root.trigger_value.split(',').map(k => k.trim().toLowerCase());
+                  if (keywords.some(k => lowerMessage.includes(k))) {
+                    startNode = root;
+                    console.log('✅ Matched root keyword node:', root.id, 'with keyword from:', root.trigger_value);
+                    break;
+                  }
+                }
+              }
+              // If still no match, use the first root node as fallback
+              if (!startNode && rootNodes.length > 0) {
+                startNode = rootNodes[0];
+                console.log('✅ Using first root node as fallback:', startNode.id);
+              }
+            }
+            
             if (startNode) {
               currentNode = startNode;
               await supabase
