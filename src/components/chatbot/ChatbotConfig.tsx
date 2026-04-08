@@ -117,7 +117,7 @@ export const ChatbotConfig = ({ whatsappAccountId, whatsappAccountName }: Chatbo
       toast.success('Configuración guardada correctamente');
     } catch (error: any) {
       console.error('Error saving config:', error);
-      toast.error('Error al guardar la configuración');
+      toast.error(`Error al guardar: ${error.message || 'Intenta de nuevo'}`);
     }
     setSaving(false);
   };
