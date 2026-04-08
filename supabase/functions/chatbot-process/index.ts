@@ -97,6 +97,43 @@ interface PlatformAccountData {
   tiktok_access_token?: string;
 }
 
+// Helper to strip emojis and extra whitespace for fuzzy text matching
+function stripEmojis(text: string): string {
+  return text.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE00}-\u{FE0F}\u{1F900}-\u{1F9FF}\u{200D}\u{20E3}\u{E0020}-\u{E007F}]/gu, '').trim().toLowerCase();
+}
+
+// Fuzzy match: checks if user input matches a button title (with or without emoji) or trigger value
+function fuzzyMatchButton(input: string, btn: ButtonOption): boolean {
+  const cleanInput = stripEmojis(input).toLowerCase();
+  if (!cleanInput) return false;
+  // Exact match on id or title
+  if (btn.id.toLowerCase() === cleanInput || btn.title.toLowerCase() === cleanInput) return true;
+  // Match title without emojis
+  if (stripEmojis(btn.title) === cleanInput) return true;
+  // Match btn_ prefix stripped: "btn_precios" -> "precios"
+  const idWithoutPrefix = btn.id.replace(/^btn_/i, '').toLowerCase();
+  if (idWithoutPrefix === cleanInput) return true;
+  // Partial: input is contained in the stripped title
+  const strippedTitle = stripEmojis(btn.title);
+  if (strippedTitle.includes(cleanInput) || cleanInput.includes(strippedTitle)) return true;
+  return false;
+}
+
+// Fuzzy match for child node trigger_value
+function fuzzyMatchTrigger(input: string, triggerValue: string): boolean {
+  const cleanInput = stripEmojis(input).toLowerCase();
+  if (!cleanInput) return false;
+  const cleanTrigger = triggerValue.toLowerCase();
+  // Direct match
+  if (cleanInput === cleanTrigger) return true;
+  // Strip btn_ prefix
+  const triggerWithoutPrefix = cleanTrigger.replace(/^btn_/i, '');
+  if (cleanInput === triggerWithoutPrefix) return true;
+  // Input contains trigger or vice versa
+  if (cleanInput.includes(triggerWithoutPrefix) || triggerWithoutPrefix.includes(cleanInput)) return true;
+  return false;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -343,8 +380,7 @@ Deno.serve(async (req) => {
             if (parentNode?.button_options && parentNode.button_options.length > 0) {
               for (let i = 0; i < parentNode.button_options.length; i++) {
                 const btn = parentNode.button_options[i];
-                if (btn.id.toLowerCase() === lowerMessage.trim() || 
-                    btn.title.toLowerCase() === lowerMessage.trim()) {
+                if (fuzzyMatchButton(lowerMessage.trim(), btn)) {
                   buttonDirectResponse = btn;
                   matchedButtonIndex = i;
                   break;
@@ -430,15 +466,21 @@ Deno.serve(async (req) => {
                     // Match by number directly (for text input like "1", "2")
                     matches = lowerMessage.trim() === child.trigger_value.toLowerCase();
                     
-                    // Also check if parent has buttons and user selected by ID/title
+                    // Fuzzy match: "precios" matches trigger_value "btn_precios"
+                    if (!matches) {
+                      matches = fuzzyMatchTrigger(lowerMessage.trim(), child.trigger_value);
+                    }
+                    
+                    // Also check if parent has buttons and user selected by ID/title (fuzzy)
                     if (!matches && parentNode?.button_options) {
                       const buttonMatch = parentNode.button_options.find(
-                        btn => btn.id.toLowerCase() === lowerMessage.trim() || 
-                               btn.title.toLowerCase() === lowerMessage.trim()
+                        btn => fuzzyMatchButton(lowerMessage.trim(), btn)
                       );
                       if (buttonMatch) {
                         const buttonIndex = parentNode.button_options.indexOf(buttonMatch);
-                        matches = child.trigger_value === String(buttonIndex + 1);
+                        // Match child by index or by trigger_value matching button id
+                        matches = child.trigger_value === String(buttonIndex + 1) ||
+                                  child.trigger_value === buttonMatch.id;
                       }
                     }
                   } else if (child.trigger_type === 'keyword' && child.trigger_value) {
