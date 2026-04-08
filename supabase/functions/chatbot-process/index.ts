@@ -380,7 +380,9 @@ Deno.serve(async (req) => {
             if (parentNode?.button_options && parentNode.button_options.length > 0) {
               for (let i = 0; i < parentNode.button_options.length; i++) {
                 const btn = parentNode.button_options[i];
-                if (fuzzyMatchButton(lowerMessage.trim(), btn)) {
+                // Match by fuzzy text OR by number (1-based position)
+                const isNumberMatch = lowerMessage.trim() === String(i + 1);
+                if (fuzzyMatchButton(lowerMessage.trim(), btn) || isNumberMatch) {
                   buttonDirectResponse = btn;
                   matchedButtonIndex = i;
                   break;
