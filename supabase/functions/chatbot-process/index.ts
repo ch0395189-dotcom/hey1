@@ -466,15 +466,21 @@ Deno.serve(async (req) => {
                     // Match by number directly (for text input like "1", "2")
                     matches = lowerMessage.trim() === child.trigger_value.toLowerCase();
                     
-                    // Also check if parent has buttons and user selected by ID/title
+                    // Fuzzy match: "precios" matches trigger_value "btn_precios"
+                    if (!matches) {
+                      matches = fuzzyMatchTrigger(lowerMessage.trim(), child.trigger_value);
+                    }
+                    
+                    // Also check if parent has buttons and user selected by ID/title (fuzzy)
                     if (!matches && parentNode?.button_options) {
                       const buttonMatch = parentNode.button_options.find(
-                        btn => btn.id.toLowerCase() === lowerMessage.trim() || 
-                               btn.title.toLowerCase() === lowerMessage.trim()
+                        btn => fuzzyMatchButton(lowerMessage.trim(), btn)
                       );
                       if (buttonMatch) {
                         const buttonIndex = parentNode.button_options.indexOf(buttonMatch);
-                        matches = child.trigger_value === String(buttonIndex + 1);
+                        // Match child by index or by trigger_value matching button id
+                        matches = child.trigger_value === String(buttonIndex + 1) ||
+                                  child.trigger_value === buttonMatch.id;
                       }
                     }
                   } else if (child.trigger_type === 'keyword' && child.trigger_value) {
