@@ -750,13 +750,12 @@ async function sendExternalWhatsAppMessage(
   
   console.log(`Sending external WhatsApp message to ${phone}`);
   
-  // Ensure we use the correct endpoint - append /send-text if not already in the URL
-  const cleanUrl = apiBaseUrl.replace(/\/+$/, '');
-  const sendUrl = cleanUrl.includes('/send-text') || cleanUrl.includes('/send-message') 
-    ? cleanUrl 
-    : `${cleanUrl}/send-text`;
+  // Use the URL as-is - it already contains the full endpoint path
+  const endpoint = apiBaseUrl.replace(/\/+$/, '');
   
-  const response = await fetch(sendUrl, {
+  console.log(`External send URL: ${endpoint}`);
+  
+  const response = await fetch(endpoint, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
