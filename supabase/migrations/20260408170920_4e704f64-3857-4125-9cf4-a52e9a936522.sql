@@ -1,0 +1,1 @@
+UPDATE chatbot_conversation_state SET is_bot_active = true, current_node_id = NULL WHERE conversation_id = '3c67f16b-32a1-4495-a710-d5777c726dbf';
