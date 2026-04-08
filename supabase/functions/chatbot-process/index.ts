@@ -786,11 +786,12 @@ async function sendExternalWhatsAppMediaMessage(
   
   console.log(`Sending external WhatsApp media to ${phone}: ${mediaUrl}`);
   
-  // Use send-media or send-image endpoint
-  const cleanUrl = apiBaseUrl.replace(/\/+$/, '').replace(/\/send-text$/, '').replace(/\/send-message$/, '');
-  const sendUrl = `${cleanUrl}/send-media`;
+  // Use the URL as-is - it already contains the full endpoint path
+  const endpoint = apiBaseUrl.replace(/\/+$/, '');
   
-  const response = await fetch(sendUrl, {
+  console.log(`External media send URL: ${endpoint}`);
+  
+  const response = await fetch(endpoint, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
