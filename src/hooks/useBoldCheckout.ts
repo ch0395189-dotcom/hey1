@@ -26,7 +26,7 @@ export const useBoldCheckout = () => {
       }
 
       const successUrl = `${window.location.origin}/dashboard?payment=success`;
-      const cancelUrl = `${window.location.origin}/pricing?payment=cancelled`;
+      const cancelUrl = `${window.location.origin}/dashboard?payment=cancelled`;
 
       const response = await supabase.functions.invoke('bold-checkout', {
         body: {
