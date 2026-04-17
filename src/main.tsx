@@ -30,8 +30,42 @@ if (isPreviewHost || isInIframe) {
 } else if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     navigator.serviceWorker
-      .register("/sw.js", { scope: "/" })
-      .then((reg) => console.log("[SW] Registered:", reg.scope))
+      .register("/sw.js", { scope: "/", updateViaCache: "none" })
+      .then((reg) => {
+        console.log("[SW] Registered:", reg.scope);
+
+        // Check for updates every time the app loads
+        reg.update().catch(() => {});
+
+        // Poll for updates every 60 seconds while app is open
+        setInterval(() => {
+          reg.update().catch(() => {});
+        }, 60_000);
+
+        // When a new SW takes over, reload the page once so users get fresh code
+        let refreshing = false;
+        navigator.serviceWorker.addEventListener("controllerchange", () => {
+          if (refreshing) return;
+          refreshing = true;
+          console.log("[SW] New version active — reloading");
+          window.location.reload();
+        });
+
+        // If a new SW is found and waiting, activate it immediately
+        reg.addEventListener("updatefound", () => {
+          const newWorker = reg.installing;
+          if (!newWorker) return;
+          newWorker.addEventListener("statechange", () => {
+            if (
+              newWorker.state === "installed" &&
+              navigator.serviceWorker.controller
+            ) {
+              console.log("[SW] New version installed — activating");
+              newWorker.postMessage({ type: "SKIP_WAITING" });
+            }
+          });
+        });
+      })
       .catch((err) => console.error("[SW] Registration failed:", err));
   });
 }
