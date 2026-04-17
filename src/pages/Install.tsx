@@ -147,11 +147,40 @@ const Install = () => {
           ) : (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground text-center">
-                Para instalar, abre el menú del navegador (⋮) y selecciona "Instalar app" o "Agregar a pantalla de inicio"
+                Para instalar en Android:
               </p>
-              <div className="p-4 bg-muted rounded-lg">
+              <div className="space-y-3">
+                <div className="flex items-start gap-3 p-3 bg-muted rounded-lg">
+                  <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0 font-bold text-primary text-sm">
+                    1
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm">Toca el menú del navegador (⋮)</p>
+                    <p className="text-xs text-muted-foreground">Esquina superior derecha de Chrome</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 p-3 bg-muted rounded-lg">
+                  <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0 font-bold text-primary text-sm">
+                    2
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm">Selecciona "Instalar app"</p>
+                    <p className="text-xs text-muted-foreground">O "Agregar a pantalla de inicio"</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 p-3 bg-muted rounded-lg">
+                  <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
+                    <Check className="w-4 h-4 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm">Confirma "Instalar"</p>
+                    <p className="text-xs text-muted-foreground">Aparecerá como una app más en tu celular</p>
+                  </div>
+                </div>
+              </div>
+              <div className="p-3 bg-muted/50 rounded-lg">
                 <p className="text-xs text-center text-muted-foreground">
-                  Compatible con Chrome, Edge, Samsung Internet y otros navegadores modernos
+                  Compatible con Chrome, Edge, Samsung Internet y Firefox
                 </p>
               </div>
             </div>
