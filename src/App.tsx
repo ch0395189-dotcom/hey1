@@ -17,6 +17,7 @@ import ResetPassword from "./pages/ResetPassword";
 import UpdatePassword from "./pages/UpdatePassword";
 import Install from "./pages/Install";
 import NotFound from "./pages/NotFound";
+import { InstallAppBanner } from "@/components/install/InstallAppBanner";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -56,6 +57,7 @@ const App = () => {
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
+          <InstallAppBanner />
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>

@@ -86,16 +86,23 @@ export const usePushNotifications = (): UsePushNotificationsReturn => {
       return;
     }
 
-    // Don't send notification if tab is focused
-    if (document.visibilityState === 'visible') {
-      console.log('[Push] Tab is visible, skipping notification');
+    // Detect if app is running as installed PWA (standalone mode).
+    // On installed PWA / mobile, we always deliver — the user explicitly
+    // installed the app and expects notifications even when in background.
+    const isStandalone =
+      window.matchMedia('(display-mode: standalone)').matches ||
+      // @ts-ignore — iOS Safari standalone flag
+      (window.navigator as any).standalone === true;
+
+    // Only suppress on desktop browsers when the tab is currently focused.
+    if (!isStandalone && document.visibilityState === 'visible') {
+      console.log('[Push] Tab visible (desktop), skipping notification');
       return;
     }
 
-    // Send message to service worker to show notification
     swRegistrationRef.current.active.postMessage({
       type: 'NEW_MESSAGE',
-      ...data
+      ...data,
     });
   }, []);
 
