@@ -1023,6 +1023,13 @@ export type Database = {
         Args: { p_credits: number; p_user_id: string }
         Returns: undefined
       }
+      clone_chatbot_to_account: {
+        Args: {
+          p_source_config_id: string
+          p_target_whatsapp_account_id: string
+        }
+        Returns: string
+      }
       deduct_credits: {
         Args: {
           p_credits: number
