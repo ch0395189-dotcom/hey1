@@ -1,9 +1,22 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, MessageCircle, Zap, Shield, BadgeCheck } from "lucide-react";
+import { ArrowRight, MessageCircle, Zap, Shield, BadgeCheck, Download, Smartphone } from "lucide-react";
+import { useInstallPrompt } from "@/hooks/useInstallPrompt";
 
 const Hero = () => {
+  const navigate = useNavigate();
+  const { canInstall, isStandalone, isIOS, promptInstall } = useInstallPrompt();
+  const showInstallButton = !isStandalone && (canInstall || isIOS);
+
+  const handleInstall = async () => {
+    if (canInstall) {
+      await promptInstall();
+    } else {
+      navigate("/install");
+    }
+  };
+
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20 md:pt-24 pb-8 md:pb-12">
       {/* Background Elements */}
@@ -72,6 +85,41 @@ const Hero = () => {
                 Ver Demo
               </Button>
             </div>
+
+            {/* Install App CTA — only shows on mobile when installable & not already installed */}
+            {showInstallButton && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 }}
+                className="mb-8 md:mb-12 -mt-2 md:-mt-4"
+              >
+                <div className="relative overflow-hidden rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-4 md:p-5 shadow-lg">
+                  <div className="absolute -top-6 -right-6 w-24 h-24 bg-primary/10 rounded-full blur-2xl" />
+                  <div className="relative flex items-center gap-3 md:gap-4">
+                    <div className="w-12 h-12 md:w-14 md:h-14 rounded-xl bg-primary flex items-center justify-center flex-shrink-0 shadow-md">
+                      <Smartphone className="w-6 h-6 md:w-7 md:h-7 text-primary-foreground" />
+                    </div>
+                    <div className="flex-1 min-w-0 text-left">
+                      <p className="font-display font-semibold text-sm md:text-base leading-tight">
+                        Instala Hey Hey en tu móvil
+                      </p>
+                      <p className="text-xs md:text-sm text-muted-foreground leading-tight mt-0.5">
+                        Acceso rápido + notificaciones en tu pantalla de inicio
+                      </p>
+                    </div>
+                    <Button
+                      onClick={handleInstall}
+                      size="lg"
+                      className="bg-gradient-hero hover:opacity-90 transition-opacity flex-shrink-0 h-11 md:h-12 px-4 md:px-5"
+                    >
+                      <Download className="w-4 h-4 md:w-5 md:h-5 mr-1.5" />
+                      {isIOS ? "Cómo" : "Instalar"}
+                    </Button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
 
             {/* Stats */}
             <div className="grid grid-cols-3 gap-4 md:gap-8">
