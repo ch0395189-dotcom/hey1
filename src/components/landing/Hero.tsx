@@ -7,11 +7,14 @@ import { useInstallPrompt } from "@/hooks/useInstallPrompt";
 const Hero = () => {
   const navigate = useNavigate();
   const { canInstall, isStandalone, isIOS, promptInstall } = useInstallPrompt();
-  const showInstallButton = !isStandalone && (canInstall || isIOS);
+  // Show install CTA whenever the app is NOT already installed (covers all browsers/OSes).
+  // If beforeinstallprompt didn't fire, we send users to /install with step-by-step instructions.
+  const showInstallButton = !isStandalone;
 
   const handleInstall = async () => {
     if (canInstall) {
-      await promptInstall();
+      const ok = await promptInstall();
+      if (!ok) navigate("/install");
     } else {
       navigate("/install");
     }
