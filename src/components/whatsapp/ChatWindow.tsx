@@ -909,7 +909,13 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
     <div className="flex-1 min-h-0 flex flex-col overflow-hidden bg-background h-full">
       <ImagePreviewDialog url={previewImageUrl} onClose={() => setPreviewImageUrl(null)} />
       {/* Chat Header - WhatsApp Style */}
-      <div className="h-14 md:h-14 px-2 md:px-4 border-b border-border flex items-center justify-between bg-primary text-primary-foreground safe-area-top">
+      <div
+        className="px-2 md:px-4 border-b border-border flex items-center justify-between bg-primary text-primary-foreground"
+        style={{
+          paddingTop: 'env(safe-area-inset-top, 0px)',
+          minHeight: 'calc(3.5rem + env(safe-area-inset-top, 0px))',
+        }}
+      >
         <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
           {onBack && (
             <button
