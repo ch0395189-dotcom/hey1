@@ -910,10 +910,10 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
       <ImagePreviewDialog url={previewImageUrl} onClose={() => setPreviewImageUrl(null)} />
       {/* Chat Header - WhatsApp Style */}
       <div
-        className="px-2 md:px-4 border-b border-border flex items-center justify-between bg-primary text-primary-foreground"
+        className="px-2 md:px-4 border-b border-border flex items-center justify-between bg-primary text-primary-foreground shrink-0"
         style={{
-          paddingTop: 'env(safe-area-inset-top, 0px)',
-          minHeight: 'calc(3.5rem + env(safe-area-inset-top, 0px))',
+          paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.5rem)',
+          paddingBottom: '0.5rem',
         }}
       >
         <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
@@ -922,11 +922,11 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
               className="md:hidden shrink-0 p-1.5 rounded-full hover:bg-primary-foreground/10 active:bg-primary-foreground/20 transition-colors"
               onClick={onBack}
             >
-              <ArrowLeft className="w-5 h-5" />
+              <ArrowLeft className="w-6 h-6" />
             </button>
           )}
           <div className="relative shrink-0">
-            <div className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-primary-foreground/20 flex items-center justify-center text-primary-foreground font-semibold text-sm">
+            <div className="w-10 h-10 md:w-11 md:h-11 rounded-full bg-primary-foreground/20 flex items-center justify-center text-primary-foreground font-semibold text-sm">
               {conversation.customer_profile_pic ? (
                 <img
                   src={conversation.customer_profile_pic}
@@ -953,13 +953,13 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
               }
               target="_blank"
               rel="noopener noreferrer"
-              className="font-medium text-sm md:text-base text-primary-foreground hover:underline transition-colors cursor-pointer truncate block"
+              className="font-semibold text-base md:text-base text-primary-foreground hover:underline transition-colors cursor-pointer truncate block leading-tight"
               title={`Abrir en ${getPlatformLabel(conversation.platform || 'whatsapp')}`}
             >
               {conversation.customer_name || conversation.customer_phone}
             </a>
-            <div className="flex items-center gap-1.5">
-              <p className="text-[11px] md:text-xs text-primary-foreground/70 truncate">
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <p className="text-sm md:text-sm text-primary-foreground/85 truncate font-medium">
                 {conversation.customer_phone}
               </p>
               {hasChatbotConfig && isBotActive && (
