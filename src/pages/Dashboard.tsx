@@ -40,6 +40,7 @@ import { PlatformSetup } from "@/components/platforms/PlatformSetup";
 import { ApiKeysSettings } from "@/components/settings/ApiKeysSettings";
 import { useAdminCheck } from "@/hooks/useAdminCheck";
 import { useSubscriptionGuard } from "@/hooks/useSubscriptionGuard";
+import { usePaymentSuccessHandler } from "@/hooks/usePaymentSuccessHandler";
 import { SuspendedServiceScreen } from "@/components/dashboard/SuspendedServiceScreen";
 import { NotificationSettingsPanel } from "@/components/notifications/NotificationSettingsPanel";
 import {
@@ -96,6 +97,9 @@ interface WhatsAppAccount {
 const Dashboard = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+
+  // Verify Bold payment when returning from checkout (?payment=success)
+  usePaymentSuccessHandler();
 
   // Persist activeView and selectedConversation in URL params
   const activeView = (searchParams.get('view') as ActiveView) || 'inbox';
