@@ -98,6 +98,9 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
+  // Verify Bold payment when returning from checkout (?payment=success)
+  usePaymentSuccessHandler();
+
   // Persist activeView and selectedConversation in URL params
   const activeView = (searchParams.get('view') as ActiveView) || 'inbox';
   const activePlatform = (searchParams.get('platform') as Platform) || 'all';
