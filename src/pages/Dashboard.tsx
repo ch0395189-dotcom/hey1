@@ -40,6 +40,7 @@ import { PlatformSetup } from "@/components/platforms/PlatformSetup";
 import { ApiKeysSettings } from "@/components/settings/ApiKeysSettings";
 import { useAdminCheck } from "@/hooks/useAdminCheck";
 import { useSubscriptionGuard } from "@/hooks/useSubscriptionGuard";
+import { usePaymentSuccessHandler } from "@/hooks/usePaymentSuccessHandler";
 import { SuspendedServiceScreen } from "@/components/dashboard/SuspendedServiceScreen";
 import { NotificationSettingsPanel } from "@/components/notifications/NotificationSettingsPanel";
 import {
