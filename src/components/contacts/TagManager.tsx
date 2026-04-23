@@ -47,6 +47,9 @@ export const TagManager = ({ conversationId, onTagsChange }: TagManagerProps) =>
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [open, setOpen] = useState(false);
+  const [editingTagId, setEditingTagId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editColor, setEditColor] = useState(TAG_COLORS[0]);
   const { toast } = useToast();
 
   useEffect(() => {
