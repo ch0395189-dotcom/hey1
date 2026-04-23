@@ -194,7 +194,7 @@ export const ConversationsList = ({
       supabase.removeChannel(conversationsChannel);
       supabase.removeChannel(messagesChannel);
     };
-  }, [whatsappAccountId, showArchived, fetchConversations]);
+  }, [whatsappAccountId, viewMode, fetchConversations]);
 
   const { enabled: autoRefreshEnabled, interval: autoRefreshInterval } = useAutoRefreshSettings();
   useAutoRefresh(fetchConversations, autoRefreshInterval, autoRefreshEnabled);
