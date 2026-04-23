@@ -197,6 +197,57 @@ export const TagManager = ({ conversationId, onTagsChange }: TagManagerProps) =>
     }
   };
 
+  const startEditTag = (tag: Tag, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingTagId(tag.id);
+    setEditName(tag.name);
+    setEditColor(tag.color);
+  };
+
+  const cancelEdit = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setEditingTagId(null);
+    setEditName("");
+  };
+
+  const saveEditTag = async (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    if (!editingTagId || !editName.trim()) return;
+
+    setSaving(true);
+    try {
+      const { data, error } = await supabase
+        .from('contact_tags')
+        .update({ name: editName.trim(), color: editColor })
+        .eq('id', editingTagId)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setAvailableTags(prev =>
+        prev.map(t => (t.id === editingTagId ? data : t)).sort((a, b) => a.name.localeCompare(b.name))
+      );
+      setEditingTagId(null);
+      onTagsChange?.();
+      toast({
+        title: "Etiqueta actualizada",
+        description: `La etiqueta "${data.name}" ha sido actualizada.`,
+      });
+    } catch (error: any) {
+      console.error('Error updating tag:', error);
+      toast({
+        title: "Error",
+        description: error.message?.includes('duplicate')
+          ? "Ya existe una etiqueta con ese nombre."
+          : "No se pudo actualizar la etiqueta.",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
