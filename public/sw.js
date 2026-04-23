@@ -96,6 +96,8 @@ self.addEventListener('push', (event) => {
     badge: data.badge || '/pwa-192x192.png',
     tag: data.tag || 'new-message',
     requireInteraction: true,
+    silent: false,
+    renotify: true,
     vibrate: [200, 100, 200],
     data: {
       url: '/dashboard',
@@ -152,6 +154,8 @@ self.addEventListener('message', (event) => {
       badge: '/pwa-192x192.png',
       tag: `message-${conversationId}`,
       requireInteraction: false,
+      silent: false,
+      renotify: true,
       vibrate: [200, 100, 200],
       data: { url: '/dashboard', conversationId, platform },
     });
