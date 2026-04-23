@@ -97,8 +97,13 @@ export const ConversationsList = ({
       let query = supabase
         .from('conversations')
         .select('*')
-        .eq('is_archived', showArchived)
         .order('last_message_at', { ascending: false });
+
+      if (viewMode === 'blocked') {
+        query = query.not('blocked_at', 'is', null);
+      } else {
+        query = query.is('blocked_at', null).eq('is_archived', viewMode === 'archived');
+      }
 
       if (platform && platform !== 'all') {
         query = query.eq('platform', platform);
@@ -133,7 +138,7 @@ export const ConversationsList = ({
     } finally {
       setLoading(false);
     }
-  }, [showArchived, platform, whatsappAccountId]);
+  }, [viewMode, platform, whatsappAccountId]);
 
   useEffect(() => {
     fetchConversations();
