@@ -174,7 +174,7 @@ Deno.serve(async (req) => {
           // Find or create conversation
           let { data: existingConversation } = await supabase
             .from('conversations')
-            .select('id')
+            .select('id, blocked_at')
             .eq('platform_account_id', platformAccount.id)
             .eq('customer_phone', senderId)
             .eq('platform', 'instagram')
@@ -204,6 +204,10 @@ Deno.serve(async (req) => {
             }
             conversationId = newConversation.id;
           } else {
+            if (existingConversation.blocked_at) {
+              console.log('Ignoring message from blocked Instagram contact:', senderId);
+              continue;
+            }
             conversationId = existingConversation.id;
             // Update conversation
             await supabase
