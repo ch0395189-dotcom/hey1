@@ -145,6 +145,30 @@ export const useNotificationSound = () => {
       triggerVibration(tone);
     }
 
+    // PRIMARY: try playing the WAV file (works reliably on mobile PWA)
+    try {
+      const el = getAudioElement(tone);
+      // Clone so overlapping plays don't cancel each other
+      const playable = el.cloneNode(true) as HTMLAudioElement;
+      playable.volume = Math.max(0, Math.min(1, volume));
+      const p = playable.play();
+      if (p && typeof p.then === 'function') {
+        p.then(() => {
+          console.log('[Sound] WAV played successfully');
+        }).catch((err) => {
+          console.warn('[Sound] WAV playback blocked, falling back to oscillator:', err);
+          playOscillatorFallback(volume, tone);
+        });
+      }
+      return;
+    } catch (err) {
+      console.warn('[Sound] WAV setup failed, using oscillator fallback:', err);
+    }
+
+    playOscillatorFallback(volume, tone);
+  }, [triggerVibration]);
+
+  const playOscillatorFallback = (volume: number, tone: NotificationTone) => {
     try {
       // Create new AudioContext each time to avoid suspension issues on mobile
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -193,11 +217,11 @@ export const useNotificationSound = () => {
         audioContext.close();
       }, 2000);
 
-      console.log('[Sound] Sound played successfully');
+      console.log('[Sound] Oscillator fallback played');
     } catch (error) {
       console.error('[Sound] Error playing notification sound:', error);
     }
-  }, [triggerVibration]);
+  };
 
   const playPreview = useCallback((volume: number, tone: NotificationTone) => {
     // Reset last played to allow immediate preview
