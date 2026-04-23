@@ -279,31 +279,87 @@ export const TagManager = ({ conversationId, onTagsChange }: TagManagerProps) =>
                   </p>
                 ) : (
                   availableTags.map(tag => (
-                    <div
-                      key={tag.id}
-                      onClick={() => toggleTag(tag.id)}
-                      className="flex items-center justify-between p-2 rounded-md hover:bg-secondary/50 cursor-pointer group"
-                    >
-                      <div className="flex items-center gap-2">
+                    <div key={tag.id} className="rounded-md hover:bg-secondary/50 group">
+                      {editingTagId === tag.id ? (
+                        <div className="p-2 space-y-2" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex gap-2">
+                            <Input
+                              value={editName}
+                              onChange={(e) => setEditName(e.target.value)}
+                              className="h-8 text-sm"
+                              autoFocus
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') saveEditTag();
+                                if (e.key === 'Escape') cancelEdit();
+                              }}
+                            />
+                            <Button
+                              size="sm"
+                              className="h-8 px-2"
+                              onClick={saveEditTag}
+                              disabled={!editName.trim() || saving}
+                            >
+                              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 px-2"
+                              onClick={cancelEdit}
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </div>
+                          <div className="flex gap-1.5 flex-wrap">
+                            {TAG_COLORS.map(color => (
+                              <button
+                                key={color}
+                                onClick={() => setEditColor(color)}
+                                className={`w-5 h-5 rounded-full transition-transform ${
+                                  editColor === color ? 'ring-2 ring-primary ring-offset-2 scale-110' : ''
+                                }`}
+                                style={{ backgroundColor: color }}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
                         <div
-                          className="w-3 h-3 rounded-full"
-                          style={{ backgroundColor: tag.color }}
-                        />
-                        <span className="text-sm">{tag.name}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        {assignedTagIds.has(tag.id) && (
-                          <Check className="w-4 h-4 text-primary" />
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="w-6 h-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={(e) => deleteTag(tag.id, e)}
+                          onClick={() => toggleTag(tag.id)}
+                          className="flex items-center justify-between p-2 cursor-pointer"
                         >
-                          <X className="w-3.5 h-3.5 text-destructive" />
-                        </Button>
-                      </div>
+                          <div className="flex items-center gap-2">
+                            <div
+                              className="w-3 h-3 rounded-full"
+                              style={{ backgroundColor: tag.color }}
+                            />
+                            <span className="text-sm">{tag.name}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            {assignedTagIds.has(tag.id) && (
+                              <Check className="w-4 h-4 text-primary" />
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="w-6 h-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                              onClick={(e) => startEditTag(tag, e)}
+                              title="Editar etiqueta"
+                            >
+                              <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="w-6 h-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                              onClick={(e) => deleteTag(tag.id, e)}
+                              title="Eliminar etiqueta"
+                            >
+                              <X className="w-3.5 h-3.5 text-destructive" />
+                            </Button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))
                 )}
