@@ -207,20 +207,32 @@ serve(async (req) => {
 
         console.log(`✅ Subscription activated for user ${userId}: plan=${plan}, expires=${periodEnd.toISOString()}`);
 
-        // Mark pending payment_alerts as paid
+        // Remove all pending payment alerts for this user now that payment is confirmed
         const { error: alertError } = await supabase
           .from('payment_alerts')
-          .update({ status: 'paid', paid_at: now.toISOString() })
+          .delete()
           .eq('user_id', userId)
           .eq('status', 'pending');
 
         if (alertError) {
-          console.error('Error updating payment alerts:', alertError);
+          console.error('Error deleting payment alerts:', alertError);
         } else {
-          console.log(`Payment alerts marked as paid for user ${userId}`);
+          console.log(`Pending payment alerts deleted for user ${userId}`);
         }
 
-        // Update the pending bold_payment record to mark as completed
+        // Mark every pending payment attempt for this user/plan as completed to avoid
+        // leaving stale pending rows that can confuse the fallback verifier.
+        const { error: completeError } = await supabase
+          .from('bold_payments')
+          .update({ event_type: 'completed' })
+          .eq('user_id', userId)
+          .eq('plan', plan)
+          .eq('event_type', 'pending');
+
+        if (completeError) {
+          console.error('Error completing pending payment rows:', completeError);
+        }
+
         if (reference) {
           await supabase
             .from('bold_payments')
