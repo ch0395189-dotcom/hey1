@@ -57,6 +57,7 @@ import { FaWhatsapp, FaFacebookMessenger, FaInstagram, FaTiktok } from "react-ic
 import { ImagePreviewDialog } from "@/components/whatsapp/ImagePreviewDialog";
 import { InteractiveMessageDialog, InteractiveMessageData } from "@/components/whatsapp/InteractiveMessageDialog";
 import { TagManager } from "@/components/contacts/TagManager";
+import { AssignAgentMenu } from "@/components/team/AssignAgentMenu";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -92,6 +93,7 @@ interface Conversation {
   platform: string;
   platform_account_id: string | null;
   whatsapp_account_id: string;
+  assigned_to?: string | null;
 }
 
 interface ChatWindowProps {
@@ -1067,6 +1069,13 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
           </DropdownMenu>
           <div className="ml-1">
             <TagManager conversationId={conversation.id} onTagsChange={onConversationUpdated} />
+          </div>
+          <div className="ml-1">
+            <AssignAgentMenu
+              conversationId={conversation.id}
+              currentAssignee={conversation.assigned_to ?? null}
+              onAssigned={onConversationUpdated}
+            />
           </div>
         </div>
       </div>
