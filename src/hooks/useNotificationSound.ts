@@ -1,6 +1,17 @@
 import { useCallback, useRef } from 'react';
 import { NotificationTone } from './useNotificationSettings';
 
+// Map every tone to a real audio file (works on iOS / Android PWA where
+// Web Audio oscillators are unreliable in background or after lock).
+const toneFileMap: Record<NotificationTone, string> = {
+  chime: '/notification-tones/chime.wav',
+  ping: '/notification-tones/ping.wav',
+  bubble: '/notification-tones/bubble.wav',
+  bell: '/notification-tones/bell.wav',
+  soft: '/notification-tones/soft.wav',
+  alarm: '/notification-tones/alarm.wav',
+};
+
 interface ToneConfig {
   frequencies: number[];
   durations: number[];
@@ -39,6 +50,59 @@ const toneConfigs: Record<NotificationTone, ToneConfig> = {
     type: 'square',
   },
 };
+
+// Module-level singleton: track audio unlock across the whole app.
+let audioUnlocked = false;
+const audioElementCache = new Map<NotificationTone, HTMLAudioElement>();
+
+const getAudioElement = (tone: NotificationTone): HTMLAudioElement => {
+  let el = audioElementCache.get(tone);
+  if (!el) {
+    el = new Audio(toneFileMap[tone]);
+    el.preload = 'auto';
+    audioElementCache.set(tone, el);
+  }
+  return el;
+};
+
+// Unlock audio on the first user gesture. Required by iOS Safari and
+// Chrome on Android — without a gesture, audio playback is blocked.
+const setupAudioUnlock = () => {
+  if (typeof window === 'undefined' || audioUnlocked) return;
+
+  const unlock = () => {
+    if (audioUnlocked) return;
+    try {
+      // Touch every cached element + a silent play of the bell to "warm" them
+      const el = getAudioElement('bell');
+      el.muted = true;
+      const p = el.play();
+      if (p && typeof p.then === 'function') {
+        p.then(() => {
+          el.pause();
+          el.currentTime = 0;
+          el.muted = false;
+          audioUnlocked = true;
+          console.log('[Sound] Audio unlocked by user gesture');
+        }).catch((err) => {
+          console.warn('[Sound] Audio unlock failed (will retry):', err);
+        });
+      } else {
+        el.muted = false;
+        audioUnlocked = true;
+      }
+    } catch (err) {
+      console.warn('[Sound] Unlock error:', err);
+    }
+  };
+
+  const events = ['pointerdown', 'touchstart', 'click', 'keydown'];
+  events.forEach((e) => window.addEventListener(e, unlock, { once: false, passive: true }));
+};
+
+if (typeof window !== 'undefined') {
+  setupAudioUnlock();
+}
 
 export const useNotificationSound = () => {
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -81,6 +145,30 @@ export const useNotificationSound = () => {
       triggerVibration(tone);
     }
 
+    // PRIMARY: try playing the WAV file (works reliably on mobile PWA)
+    try {
+      const el = getAudioElement(tone);
+      // Clone so overlapping plays don't cancel each other
+      const playable = el.cloneNode(true) as HTMLAudioElement;
+      playable.volume = Math.max(0, Math.min(1, volume));
+      const p = playable.play();
+      if (p && typeof p.then === 'function') {
+        p.then(() => {
+          console.log('[Sound] WAV played successfully');
+        }).catch((err) => {
+          console.warn('[Sound] WAV playback blocked, falling back to oscillator:', err);
+          playOscillatorFallback(volume, tone);
+        });
+      }
+      return;
+    } catch (err) {
+      console.warn('[Sound] WAV setup failed, using oscillator fallback:', err);
+    }
+
+    playOscillatorFallback(volume, tone);
+  }, [triggerVibration]);
+
+  const playOscillatorFallback = (volume: number, tone: NotificationTone) => {
     try {
       // Create new AudioContext each time to avoid suspension issues on mobile
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -129,11 +217,11 @@ export const useNotificationSound = () => {
         audioContext.close();
       }, 2000);
 
-      console.log('[Sound] Sound played successfully');
+      console.log('[Sound] Oscillator fallback played');
     } catch (error) {
       console.error('[Sound] Error playing notification sound:', error);
     }
-  }, [triggerVibration]);
+  };
 
   const playPreview = useCallback((volume: number, tone: NotificationTone) => {
     // Reset last played to allow immediate preview
