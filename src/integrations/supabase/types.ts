@@ -873,6 +873,39 @@ export type Database = {
         }
         Relationships: []
       }
+      team_agents: {
+        Row: {
+          agent_email: string
+          agent_name: string | null
+          agent_user_id: string
+          created_at: string
+          id: string
+          is_active: boolean
+          owner_id: string
+          updated_at: string
+        }
+        Insert: {
+          agent_email: string
+          agent_name?: string | null
+          agent_user_id: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          owner_id: string
+          updated_at?: string
+        }
+        Update: {
+          agent_email?: string
+          agent_name?: string | null
+          agent_user_id?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          owner_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_api_keys: {
         Row: {
           api_key: string
@@ -1023,6 +1056,10 @@ export type Database = {
         Args: { p_credits: number; p_user_id: string }
         Returns: undefined
       }
+      assign_conversation: {
+        Args: { p_agent_user_id: string; p_conversation_id: string }
+        Returns: undefined
+      }
       clone_chatbot_to_account: {
         Args: {
           p_source_config_id: string
@@ -1040,6 +1077,8 @@ export type Database = {
         }
         Returns: boolean
       }
+      get_agent_limit: { Args: { _user_id: string }; Returns: number }
+      get_my_owner_id: { Args: never; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1047,6 +1086,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_agent_of: { Args: { _owner_id: string }; Returns: boolean }
       is_conversation_blocked: { Args: { conv_id: string }; Returns: boolean }
       user_owns_chatbot_config: {
         Args: { config_id: string }

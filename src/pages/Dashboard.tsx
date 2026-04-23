@@ -38,6 +38,7 @@ import { PaymentAlertBanner } from "@/components/dashboard/PaymentAlertBanner";
 import { PlatformSidebar, Platform } from "@/components/dashboard/PlatformSidebar";
 import { PlatformSetup } from "@/components/platforms/PlatformSetup";
 import { ApiKeysSettings } from "@/components/settings/ApiKeysSettings";
+import { TeamManagement } from "@/components/team/TeamManagement";
 import { useAdminCheck } from "@/hooks/useAdminCheck";
 import { useSubscriptionGuard } from "@/hooks/useSubscriptionGuard";
 import { usePaymentSuccessHandler } from "@/hooks/usePaymentSuccessHandler";
@@ -75,7 +76,7 @@ import {
 } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-type ActiveView = 'inbox' | 'contacts' | 'statistics';
+type ActiveView = 'inbox' | 'contacts' | 'statistics' | 'team';
 
 interface Conversation {
   id: string;
@@ -86,6 +87,7 @@ interface Conversation {
   whatsapp_account_id: string;
   platform: string;
   platform_account_id: string | null;
+  assigned_to?: string | null;
 }
 
 interface WhatsAppAccount {
@@ -158,7 +160,7 @@ const Dashboard = () => {
       const restoreConversation = async () => {
         const { data } = await supabase
           .from('conversations')
-          .select('id, customer_name, customer_phone, customer_profile_pic, is_archived, whatsapp_account_id, platform, platform_account_id')
+          .select('id, customer_name, customer_phone, customer_profile_pic, is_archived, whatsapp_account_id, platform, platform_account_id, assigned_to')
           .eq('id', conversationIdFromUrl)
           .single();
         if (data) {
@@ -398,6 +400,15 @@ const Dashboard = () => {
           <Button 
             variant="ghost" 
             size="icon" 
+            className={`w-10 h-10 rounded-xl ${activeView === 'team' ? 'bg-primary-foreground/20 text-primary-foreground' : 'text-primary-foreground/70 hover:bg-primary-foreground/10 hover:text-primary-foreground'}`}
+            onClick={() => setActiveView('team')}
+            title="Equipo"
+          >
+            <Users className="w-5 h-5" />
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="icon" 
             className="w-10 h-10 rounded-xl text-primary-foreground/70 hover:bg-primary-foreground/10 hover:text-primary-foreground"
             onClick={() => setShowChatbot(true)}
             title="Chatbot"
@@ -613,6 +624,21 @@ const Dashboard = () => {
           </div>
           <div className="flex-1 min-h-0 overflow-auto">
             <StatisticsPanel />
+          </div>
+        </motion.div>
+      )}
+
+      {activeView === 'team' && (
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="flex-1 flex flex-col bg-background"
+        >
+          <div className="h-14 px-4 bg-primary flex items-center">
+            <h1 className="text-primary-foreground font-semibold text-lg">Equipo</h1>
+          </div>
+          <div className="flex-1 min-h-0 overflow-auto">
+            <TeamManagement />
           </div>
         </motion.div>
       )}
