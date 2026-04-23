@@ -788,6 +788,34 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
     }
   };
 
+  const handleToggleBlock = async () => {
+    if (!conversation) return;
+    const isBlocked = !!conversation.blocked_at;
+    try {
+      const { error } = await supabase
+        .from('conversations')
+        .update({ blocked_at: isBlocked ? null : new Date().toISOString() })
+        .eq('id', conversation.id);
+
+      if (error) throw error;
+
+      toast({
+        title: isBlocked ? "Contacto desbloqueado" : "Contacto bloqueado",
+        description: isBlocked
+          ? "Ahora podrás recibir mensajes nuevamente."
+          : "Los mensajes entrantes serán ignorados y el bot no responderá.",
+      });
+      onConversationUpdated?.();
+    } catch (error) {
+      console.error('Error toggling block:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar el bloqueo.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleDelete = async () => {
     if (!conversation) return;
 
