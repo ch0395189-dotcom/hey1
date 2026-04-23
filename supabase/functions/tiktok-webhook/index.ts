@@ -110,7 +110,7 @@ Deno.serve(async (req) => {
       // Find or create conversation
       let { data: existingConversation } = await supabase
         .from('conversations')
-        .select('id')
+        .select('id, blocked_at')
         .eq('platform_account_id', platformAccount.id)
         .eq('customer_phone', senderOpenId)
         .eq('platform', 'tiktok')
@@ -140,6 +140,10 @@ Deno.serve(async (req) => {
         }
         conversationId = newConversation.id;
       } else {
+        if (existingConversation.blocked_at) {
+          console.log('Ignoring message from blocked TikTok contact:', senderOpenId);
+          return new Response('OK', { status: 200 });
+        }
         conversationId = existingConversation.id;
         // Update conversation
         await supabase

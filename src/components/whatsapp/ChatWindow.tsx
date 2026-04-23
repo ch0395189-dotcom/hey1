@@ -32,6 +32,8 @@ import {
   Tag,
   Bot,
   User,
+  Ban,
+  ShieldOff,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -86,6 +88,7 @@ interface Conversation {
   customer_phone: string;
   customer_profile_pic: string | null;
   is_archived: boolean;
+  blocked_at?: string | null;
   platform: string;
   platform_account_id: string | null;
   whatsapp_account_id: string;
@@ -785,6 +788,34 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
     }
   };
 
+  const handleToggleBlock = async () => {
+    if (!conversation) return;
+    const isBlocked = !!conversation.blocked_at;
+    try {
+      const { error } = await supabase
+        .from('conversations')
+        .update({ blocked_at: isBlocked ? null : new Date().toISOString() })
+        .eq('id', conversation.id);
+
+      if (error) throw error;
+
+      toast({
+        title: isBlocked ? "Contacto desbloqueado" : "Contacto bloqueado",
+        description: isBlocked
+          ? "Ahora podrás recibir mensajes nuevamente."
+          : "Los mensajes entrantes serán ignorados y el bot no responderá.",
+      });
+      onConversationUpdated?.();
+    } catch (error) {
+      console.error('Error toggling block:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar el bloqueo.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleDelete = async () => {
     if (!conversation) return;
 
@@ -968,6 +999,12 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                   Bot
                 </span>
               )}
+              {conversation.blocked_at && (
+                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-destructive/30 text-[10px] text-primary-foreground shrink-0">
+                  <Ban className="w-2.5 h-2.5" />
+                  Bloqueado
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -1006,13 +1043,31 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                 <Archive className="w-4 h-4 mr-2" />
                 {conversation.is_archived ? 'Restaurar' : 'Archivar'}
               </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={handleToggleBlock}
+                className={conversation.blocked_at ? '' : 'text-destructive focus:text-destructive'}
+              >
+                {conversation.blocked_at ? (
+                  <>
+                    <ShieldOff className="w-4 h-4 mr-2" />
+                    Desbloquear contacto
+                  </>
+                ) : (
+                  <>
+                    <Ban className="w-4 h-4 mr-2" />
+                    Bloquear contacto
+                  </>
+                )}
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setShowDeleteDialog(true)} className="text-destructive focus:text-destructive">
                 <Trash2 className="w-4 h-4 mr-2" />
                 Eliminar
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <TagManager conversationId={conversation.id} onTagsChange={onConversationUpdated} />
+          <div className="ml-1">
+            <TagManager conversationId={conversation.id} onTagsChange={onConversationUpdated} />
+          </div>
         </div>
       </div>
 

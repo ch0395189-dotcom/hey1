@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Search, Plus, Archive, Inbox, MessageCircle, RefreshCw, CheckSquare, Trash2, X } from "lucide-react";
+import { Search, Plus, Archive, Inbox, MessageCircle, RefreshCw, CheckSquare, Trash2, X, Ban } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
@@ -61,7 +61,7 @@ export const ConversationsList = ({
 }: ConversationsListProps) => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [showArchived, setShowArchived] = useState(false);
+  const [viewMode, setViewMode] = useState<'active' | 'archived' | 'blocked'>('active');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showNewMessageDialog, setShowNewMessageDialog] = useState(false);
@@ -97,8 +97,13 @@ export const ConversationsList = ({
       let query = supabase
         .from('conversations')
         .select('*')
-        .eq('is_archived', showArchived)
         .order('last_message_at', { ascending: false });
+
+      if (viewMode === 'blocked') {
+        query = query.not('blocked_at', 'is', null);
+      } else {
+        query = query.is('blocked_at', null).eq('is_archived', viewMode === 'archived');
+      }
 
       if (platform && platform !== 'all') {
         query = query.eq('platform', platform);
@@ -133,7 +138,7 @@ export const ConversationsList = ({
     } finally {
       setLoading(false);
     }
-  }, [showArchived, platform, whatsappAccountId]);
+  }, [viewMode, platform, whatsappAccountId]);
 
   useEffect(() => {
     fetchConversations();
@@ -189,7 +194,7 @@ export const ConversationsList = ({
       supabase.removeChannel(conversationsChannel);
       supabase.removeChannel(messagesChannel);
     };
-  }, [whatsappAccountId, showArchived, fetchConversations]);
+  }, [whatsappAccountId, viewMode, fetchConversations]);
 
   const { enabled: autoRefreshEnabled, interval: autoRefreshInterval } = useAutoRefreshSettings();
   useAutoRefresh(fetchConversations, autoRefreshInterval, autoRefreshEnabled);
@@ -243,7 +248,7 @@ export const ConversationsList = ({
     if (selectedIds.size === 0) return;
     setBulkLoading(true);
     try {
-      const newArchived = !showArchived;
+      const newArchived = viewMode !== 'archived';
       const { error } = await supabase
         .from('conversations')
         .update({ is_archived: newArchived })
@@ -256,6 +261,30 @@ export const ConversationsList = ({
     } catch (error) {
       console.error('Error archiving:', error);
       toast.error('Error al archivar conversaciones');
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const handleBulkBlock = async () => {
+    if (selectedIds.size === 0) return;
+    setBulkLoading(true);
+    try {
+      const isUnblocking = viewMode === 'blocked';
+      const { error } = await supabase
+        .from('conversations')
+        .update({ blocked_at: isUnblocking ? null : new Date().toISOString() })
+        .in('id', Array.from(selectedIds));
+
+      if (error) throw error;
+      toast.success(
+        `${selectedIds.size} contacto(s) ${isUnblocking ? 'desbloqueado(s)' : 'bloqueado(s)'}`
+      );
+      exitSelectMode();
+      fetchConversations();
+    } catch (error) {
+      console.error('Error blocking contacts:', error);
+      toast.error('Error al actualizar el bloqueo');
     } finally {
       setBulkLoading(false);
     }
@@ -317,12 +346,21 @@ export const ConversationsList = ({
             </Button>
             <Button
               size="icon"
-              variant={showArchived ? "secondary" : "ghost"}
+              variant={viewMode === 'archived' ? "secondary" : "ghost"}
               className="w-8 h-8"
-              onClick={() => setShowArchived(!showArchived)}
-              title={showArchived ? "Ver activas" : "Ver archivadas"}
+              onClick={() => setViewMode(viewMode === 'archived' ? 'active' : 'archived')}
+              title={viewMode === 'archived' ? "Ver activas" : "Ver archivadas"}
             >
-              {showArchived ? <Inbox className="w-4 h-4" /> : <Archive className="w-4 h-4" />}
+              {viewMode === 'archived' ? <Inbox className="w-4 h-4" /> : <Archive className="w-4 h-4" />}
+            </Button>
+            <Button
+              size="icon"
+              variant={viewMode === 'blocked' ? "destructive" : "ghost"}
+              className="w-8 h-8"
+              onClick={() => setViewMode(viewMode === 'blocked' ? 'active' : 'blocked')}
+              title={viewMode === 'blocked' ? "Ver activas" : "Ver bloqueados"}
+            >
+              <Ban className="w-4 h-4" />
             </Button>
             <Button 
               size="icon" 
@@ -352,7 +390,16 @@ export const ConversationsList = ({
               disabled={selectedIds.size === 0 || bulkLoading}
             >
               <Archive className="w-3.5 h-3.5 mr-1" />
-              {showArchived ? 'Desarchivar' : 'Archivar'}
+              {viewMode === 'archived' ? 'Desarchivar' : 'Archivar'}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleBulkBlock}
+              disabled={selectedIds.size === 0 || bulkLoading}
+            >
+              <Ban className="w-3.5 h-3.5 mr-1" />
+              {viewMode === 'blocked' ? 'Desbloquear' : 'Bloquear'}
             </Button>
             <Button 
               variant="destructive" 
@@ -377,11 +424,16 @@ export const ConversationsList = ({
         </div>
       </div>
 
-      {/* Archived indicator */}
-      {showArchived && (
+      {viewMode === 'archived' && (
         <div className="px-4 py-2 bg-muted/50 text-sm text-muted-foreground flex items-center gap-2">
           <Archive className="w-4 h-4" />
           Mostrando conversaciones archivadas
+        </div>
+      )}
+      {viewMode === 'blocked' && (
+        <div className="px-4 py-2 bg-destructive/10 text-sm text-destructive flex items-center gap-2">
+          <Ban className="w-4 h-4" />
+          Mostrando contactos bloqueados
         </div>
       )}
 
@@ -455,6 +507,12 @@ export const ConversationsList = ({
                     <span className="font-medium truncate">
                       {conversation.customer_name || conversation.customer_phone}
                     </span>
+                    {conversation.blocked_at && (
+                      <Badge variant="destructive" className="h-4 px-1.5 text-[10px] gap-0.5">
+                        <Ban className="w-2.5 h-2.5" />
+                        Bloqueado
+                      </Badge>
+                    )}
                   </div>
                   <span className="text-xs text-muted-foreground">
                     {formatTime(conversation.last_message_at)}
