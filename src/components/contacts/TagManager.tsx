@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { Plus, X, Check, Loader2 } from "lucide-react";
+import { Plus, X, Check, Loader2, Pencil } from "lucide-react";
 import {
   Popover,
   PopoverContent,
