@@ -346,12 +346,21 @@ export const ConversationsList = ({
             </Button>
             <Button
               size="icon"
-              variant={showArchived ? "secondary" : "ghost"}
+              variant={viewMode === 'archived' ? "secondary" : "ghost"}
               className="w-8 h-8"
-              onClick={() => setShowArchived(!showArchived)}
-              title={showArchived ? "Ver activas" : "Ver archivadas"}
+              onClick={() => setViewMode(viewMode === 'archived' ? 'active' : 'archived')}
+              title={viewMode === 'archived' ? "Ver activas" : "Ver archivadas"}
             >
-              {showArchived ? <Inbox className="w-4 h-4" /> : <Archive className="w-4 h-4" />}
+              {viewMode === 'archived' ? <Inbox className="w-4 h-4" /> : <Archive className="w-4 h-4" />}
+            </Button>
+            <Button
+              size="icon"
+              variant={viewMode === 'blocked' ? "destructive" : "ghost"}
+              className="w-8 h-8"
+              onClick={() => setViewMode(viewMode === 'blocked' ? 'active' : 'blocked')}
+              title={viewMode === 'blocked' ? "Ver activas" : "Ver bloqueados"}
+            >
+              <Ban className="w-4 h-4" />
             </Button>
             <Button 
               size="icon" 
