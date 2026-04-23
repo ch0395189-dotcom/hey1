@@ -248,7 +248,7 @@ export const ConversationsList = ({
     if (selectedIds.size === 0) return;
     setBulkLoading(true);
     try {
-      const newArchived = !showArchived;
+      const newArchived = viewMode !== 'archived';
       const { error } = await supabase
         .from('conversations')
         .update({ is_archived: newArchived })
@@ -261,6 +261,30 @@ export const ConversationsList = ({
     } catch (error) {
       console.error('Error archiving:', error);
       toast.error('Error al archivar conversaciones');
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const handleBulkBlock = async () => {
+    if (selectedIds.size === 0) return;
+    setBulkLoading(true);
+    try {
+      const isUnblocking = viewMode === 'blocked';
+      const { error } = await supabase
+        .from('conversations')
+        .update({ blocked_at: isUnblocking ? null : new Date().toISOString() })
+        .in('id', Array.from(selectedIds));
+
+      if (error) throw error;
+      toast.success(
+        `${selectedIds.size} contacto(s) ${isUnblocking ? 'desbloqueado(s)' : 'bloqueado(s)'}`
+      );
+      exitSelectMode();
+      fetchConversations();
+    } catch (error) {
+      console.error('Error blocking contacts:', error);
+      toast.error('Error al actualizar el bloqueo');
     } finally {
       setBulkLoading(false);
     }
