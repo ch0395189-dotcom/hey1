@@ -88,6 +88,7 @@ interface Conversation {
   customer_phone: string;
   customer_profile_pic: string | null;
   is_archived: boolean;
+  blocked_at?: string | null;
   platform: string;
   platform_account_id: string | null;
   whatsapp_account_id: string;
