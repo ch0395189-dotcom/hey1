@@ -390,7 +390,16 @@ export const ConversationsList = ({
               disabled={selectedIds.size === 0 || bulkLoading}
             >
               <Archive className="w-3.5 h-3.5 mr-1" />
-              {showArchived ? 'Desarchivar' : 'Archivar'}
+              {viewMode === 'archived' ? 'Desarchivar' : 'Archivar'}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleBulkBlock}
+              disabled={selectedIds.size === 0 || bulkLoading}
+            >
+              <Ban className="w-3.5 h-3.5 mr-1" />
+              {viewMode === 'blocked' ? 'Desbloquear' : 'Bloquear'}
             </Button>
             <Button 
               variant="destructive" 
@@ -415,11 +424,16 @@ export const ConversationsList = ({
         </div>
       </div>
 
-      {/* Archived indicator */}
-      {showArchived && (
+      {viewMode === 'archived' && (
         <div className="px-4 py-2 bg-muted/50 text-sm text-muted-foreground flex items-center gap-2">
           <Archive className="w-4 h-4" />
           Mostrando conversaciones archivadas
+        </div>
+      )}
+      {viewMode === 'blocked' && (
+        <div className="px-4 py-2 bg-destructive/10 text-sm text-destructive flex items-center gap-2">
+          <Ban className="w-4 h-4" />
+          Mostrando contactos bloqueados
         </div>
       )}
 
