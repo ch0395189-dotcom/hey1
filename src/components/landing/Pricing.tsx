@@ -29,7 +29,7 @@ const plans: Array<{
     features: [
       "1 número de WhatsApp",
       "1,000 mensajes/mes",
-      "2 agentes",
+      "1 agente / subcuenta",
       "Historial 30 días",
       "Soporte por email"
     ],
@@ -45,7 +45,7 @@ const plans: Array<{
     features: [
       "3 números de WhatsApp",
       "10,000 mensajes/mes",
-      "10 agentes",
+      "3 agentes / subcuentas",
       "Historial ilimitado",
       "Respuestas rápidas",
       "Analíticas avanzadas",
@@ -63,7 +63,7 @@ const plans: Array<{
     features: [
       "Números ilimitados",
       "Mensajes ilimitados",
-      "Agentes ilimitados",
+      "10 agentes / subcuentas",
       "API personalizada",
       "Automatizaciones",
       "Integraciones CRM",
@@ -81,6 +81,7 @@ const plans: Array<{
     description: "Número blindado contra bloqueos",
     features: [
       "Número blindado anti-bloqueo",
+      "5 agentes / subcuentas",
       "1 Agente de voz IA",
       "1 Bot automatizado",
       "Soporte premium vía WhatsApp",
