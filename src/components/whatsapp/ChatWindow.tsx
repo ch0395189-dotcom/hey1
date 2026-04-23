@@ -32,6 +32,8 @@ import {
   Tag,
   Bot,
   User,
+  Ban,
+  ShieldOff,
 } from "lucide-react";
 import {
   DropdownMenu,
