@@ -999,6 +999,12 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                   Bot
                 </span>
               )}
+              {conversation.blocked_at && (
+                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-destructive/30 text-[10px] text-primary-foreground shrink-0">
+                  <Ban className="w-2.5 h-2.5" />
+                  Bloqueado
+                </span>
+              )}
             </div>
           </div>
         </div>
