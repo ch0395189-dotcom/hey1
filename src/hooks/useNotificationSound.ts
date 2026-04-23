@@ -1,6 +1,17 @@
 import { useCallback, useRef } from 'react';
 import { NotificationTone } from './useNotificationSettings';
 
+// Map every tone to a real audio file (works on iOS / Android PWA where
+// Web Audio oscillators are unreliable in background or after lock).
+const toneFileMap: Record<NotificationTone, string> = {
+  chime: '/notification-tones/chime.wav',
+  ping: '/notification-tones/ping.wav',
+  bubble: '/notification-tones/bubble.wav',
+  bell: '/notification-tones/bell.wav',
+  soft: '/notification-tones/soft.wav',
+  alarm: '/notification-tones/alarm.wav',
+};
+
 interface ToneConfig {
   frequencies: number[];
   durations: number[];
@@ -39,6 +50,59 @@ const toneConfigs: Record<NotificationTone, ToneConfig> = {
     type: 'square',
   },
 };
+
+// Module-level singleton: track audio unlock across the whole app.
+let audioUnlocked = false;
+const audioElementCache = new Map<NotificationTone, HTMLAudioElement>();
+
+const getAudioElement = (tone: NotificationTone): HTMLAudioElement => {
+  let el = audioElementCache.get(tone);
+  if (!el) {
+    el = new Audio(toneFileMap[tone]);
+    el.preload = 'auto';
+    audioElementCache.set(tone, el);
+  }
+  return el;
+};
+
+// Unlock audio on the first user gesture. Required by iOS Safari and
+// Chrome on Android — without a gesture, audio playback is blocked.
+const setupAudioUnlock = () => {
+  if (typeof window === 'undefined' || audioUnlocked) return;
+
+  const unlock = () => {
+    if (audioUnlocked) return;
+    try {
+      // Touch every cached element + a silent play of the bell to "warm" them
+      const el = getAudioElement('bell');
+      el.muted = true;
+      const p = el.play();
+      if (p && typeof p.then === 'function') {
+        p.then(() => {
+          el.pause();
+          el.currentTime = 0;
+          el.muted = false;
+          audioUnlocked = true;
+          console.log('[Sound] Audio unlocked by user gesture');
+        }).catch((err) => {
+          console.warn('[Sound] Audio unlock failed (will retry):', err);
+        });
+      } else {
+        el.muted = false;
+        audioUnlocked = true;
+      }
+    } catch (err) {
+      console.warn('[Sound] Unlock error:', err);
+    }
+  };
+
+  const events = ['pointerdown', 'touchstart', 'click', 'keydown'];
+  events.forEach((e) => window.addEventListener(e, unlock, { once: false, passive: true }));
+};
+
+if (typeof window !== 'undefined') {
+  setupAudioUnlock();
+}
 
 export const useNotificationSound = () => {
   const audioContextRef = useRef<AudioContext | null>(null);
