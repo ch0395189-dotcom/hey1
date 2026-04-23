@@ -90,14 +90,29 @@ serve(async (req) => {
       };
     }));
 
+    const filteredEvents = processedEvents.filter((event) => {
+      const userData = event.user_data || {};
+      const hasStrongIdentifier = Boolean(
+        userData.em || userData.ph || userData.fbc || userData.fbp || userData.client_ip_address
+      );
+      return hasStrongIdentifier;
+    });
+
+    if (filteredEvents.length === 0) {
+      return new Response(
+        JSON.stringify({ success: true, skipped: true, reason: 'insufficient_user_data' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const payload = {
-      data: processedEvents,
+      data: filteredEvents,
       access_token: ACCESS_TOKEN,
     };
 
     console.log('Sending to Meta Conversions API:', JSON.stringify({ 
-      event_count: processedEvents.length,
-      events: processedEvents.map(e => e.event_name) 
+      event_count: filteredEvents.length,
+      events: filteredEvents.map(e => e.event_name) 
     }));
 
     const response = await fetch(META_API_URL, {
@@ -111,8 +126,8 @@ serve(async (req) => {
 
     if (!response.ok) {
       return new Response(
-        JSON.stringify({ error: 'Meta API error', details: result }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ success: false, skipped: true, error: 'Meta API error', details: result }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -124,8 +139,8 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error:', error);
     return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ success: false, skipped: true, error: 'Internal server error' }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
