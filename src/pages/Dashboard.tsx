@@ -38,6 +38,7 @@ import { PaymentAlertBanner } from "@/components/dashboard/PaymentAlertBanner";
 import { PlatformSidebar, Platform } from "@/components/dashboard/PlatformSidebar";
 import { PlatformSetup } from "@/components/platforms/PlatformSetup";
 import { ApiKeysSettings } from "@/components/settings/ApiKeysSettings";
+import { TeamManagement } from "@/components/team/TeamManagement";
 import { useAdminCheck } from "@/hooks/useAdminCheck";
 import { useSubscriptionGuard } from "@/hooks/useSubscriptionGuard";
 import { usePaymentSuccessHandler } from "@/hooks/usePaymentSuccessHandler";
@@ -75,7 +76,7 @@ import {
 } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-type ActiveView = 'inbox' | 'contacts' | 'statistics';
+type ActiveView = 'inbox' | 'contacts' | 'statistics' | 'team';
 
 interface Conversation {
   id: string;
@@ -86,6 +87,7 @@ interface Conversation {
   whatsapp_account_id: string;
   platform: string;
   platform_account_id: string | null;
+  assigned_to?: string | null;
 }
 
 interface WhatsAppAccount {
@@ -158,7 +160,7 @@ const Dashboard = () => {
       const restoreConversation = async () => {
         const { data } = await supabase
           .from('conversations')
-          .select('id, customer_name, customer_phone, customer_profile_pic, is_archived, whatsapp_account_id, platform, platform_account_id')
+          .select('id, customer_name, customer_phone, customer_profile_pic, is_archived, whatsapp_account_id, platform, platform_account_id, assigned_to')
           .eq('id', conversationIdFromUrl)
           .single();
         if (data) {
