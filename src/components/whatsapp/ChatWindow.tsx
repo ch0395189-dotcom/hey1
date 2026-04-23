@@ -1065,7 +1065,9 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <TagManager conversationId={conversation.id} onTagsChange={onConversationUpdated} />
+          <div className="ml-1">
+            <TagManager conversationId={conversation.id} onTagsChange={onConversationUpdated} />
+          </div>
         </div>
       </div>
 
