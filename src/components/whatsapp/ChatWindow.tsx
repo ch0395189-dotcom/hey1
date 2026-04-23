@@ -1037,6 +1037,22 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                 <Archive className="w-4 h-4 mr-2" />
                 {conversation.is_archived ? 'Restaurar' : 'Archivar'}
               </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={handleToggleBlock}
+                className={conversation.blocked_at ? '' : 'text-destructive focus:text-destructive'}
+              >
+                {conversation.blocked_at ? (
+                  <>
+                    <ShieldOff className="w-4 h-4 mr-2" />
+                    Desbloquear contacto
+                  </>
+                ) : (
+                  <>
+                    <Ban className="w-4 h-4 mr-2" />
+                    Bloquear contacto
+                  </>
+                )}
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setShowDeleteDialog(true)} className="text-destructive focus:text-destructive">
                 <Trash2 className="w-4 h-4 mr-2" />
                 Eliminar
