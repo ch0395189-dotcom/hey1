@@ -507,6 +507,12 @@ export const ConversationsList = ({
                     <span className="font-medium truncate">
                       {conversation.customer_name || conversation.customer_phone}
                     </span>
+                    {conversation.blocked_at && (
+                      <Badge variant="destructive" className="h-4 px-1.5 text-[10px] gap-0.5">
+                        <Ban className="w-2.5 h-2.5" />
+                        Bloqueado
+                      </Badge>
+                    )}
                   </div>
                   <span className="text-xs text-muted-foreground">
                     {formatTime(conversation.last_message_at)}
