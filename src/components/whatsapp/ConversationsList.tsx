@@ -119,16 +119,27 @@ export const ConversationsList = ({
 
       const conversationsWithMessages = await Promise.all(
         (data || []).map(async (conv) => {
-          const { data: messages } = await supabase
-            .from('messages')
-            .select('content, direction')
-            .eq('conversation_id', conv.id)
-            .order('created_at', { ascending: false })
-            .limit(1);
+          const [messagesRes, tagsRes] = await Promise.all([
+            supabase
+              .from('messages')
+              .select('content, direction')
+              .eq('conversation_id', conv.id)
+              .order('created_at', { ascending: false })
+              .limit(1),
+            supabase
+              .from('conversation_tags')
+              .select('tag:contact_tags(id, name, color)')
+              .eq('conversation_id', conv.id),
+          ]);
+
+          const tags = (tagsRes.data || [])
+            .map((row: any) => row.tag)
+            .filter(Boolean) as { id: string; name: string; color: string }[];
 
           return {
             ...conv,
-            last_message: messages?.[0] || null,
+            last_message: messagesRes.data?.[0] || null,
+            tags,
           };
         })
       );
