@@ -40,6 +40,7 @@ export interface Conversation {
     content: string | null;
     direction: string;
   };
+  tags?: { id: string; name: string; color: string }[];
 }
 
 export type Platform = 'whatsapp' | 'messenger' | 'instagram' | 'tiktok' | 'all';
@@ -118,16 +119,27 @@ export const ConversationsList = ({
 
       const conversationsWithMessages = await Promise.all(
         (data || []).map(async (conv) => {
-          const { data: messages } = await supabase
-            .from('messages')
-            .select('content, direction')
-            .eq('conversation_id', conv.id)
-            .order('created_at', { ascending: false })
-            .limit(1);
+          const [messagesRes, tagsRes] = await Promise.all([
+            supabase
+              .from('messages')
+              .select('content, direction')
+              .eq('conversation_id', conv.id)
+              .order('created_at', { ascending: false })
+              .limit(1),
+            supabase
+              .from('conversation_tags')
+              .select('tag:contact_tags(id, name, color)')
+              .eq('conversation_id', conv.id),
+          ]);
+
+          const tags = (tagsRes.data || [])
+            .map((row: any) => row.tag)
+            .filter(Boolean) as { id: string; name: string; color: string }[];
 
           return {
             ...conv,
-            last_message: messages?.[0] || null,
+            last_message: messagesRes.data?.[0] || null,
+            tags,
           };
         })
       );
@@ -190,9 +202,25 @@ export const ConversationsList = ({
       )
       .subscribe();
 
+    const tagsChannelId = `conversation-tags-${Date.now()}`;
+    const tagsChannel = supabase
+      .channel(tagsChannelId)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'conversation_tags' },
+        () => { fetchConversations(); }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'contact_tags' },
+        () => { fetchConversations(); }
+      )
+      .subscribe();
+
     return () => {
       supabase.removeChannel(conversationsChannel);
       supabase.removeChannel(messagesChannel);
+      supabase.removeChannel(tagsChannel);
     };
   }, [whatsappAccountId, viewMode, fetchConversations]);
 
@@ -503,7 +531,7 @@ export const ConversationsList = ({
               {/* Content */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1.5 min-w-0">
                     <span className="font-medium truncate">
                       {conversation.customer_name || conversation.customer_phone}
                     </span>
@@ -512,6 +540,29 @@ export const ConversationsList = ({
                         <Ban className="w-2.5 h-2.5" />
                         Bloqueado
                       </Badge>
+                    )}
+                    {conversation.tags && conversation.tags.length > 0 && (
+                      <div className="flex items-center gap-1 shrink-0">
+                        {conversation.tags.slice(0, 3).map((tag) => (
+                          <span
+                            key={tag.id}
+                            title={tag.name}
+                            className="inline-flex items-center gap-1 h-4 px-1.5 rounded-full text-[10px] font-medium text-white max-w-[80px] truncate"
+                            style={{ backgroundColor: tag.color }}
+                          >
+                            <span
+                              className="w-1.5 h-1.5 rounded-full bg-white/80 shrink-0"
+                              aria-hidden="true"
+                            />
+                            <span className="truncate">{tag.name}</span>
+                          </span>
+                        ))}
+                        {conversation.tags.length > 3 && (
+                          <span className="text-[10px] text-muted-foreground">
+                            +{conversation.tags.length - 3}
+                          </span>
+                        )}
+                      </div>
                     )}
                   </div>
                   <span className="text-xs text-muted-foreground">
