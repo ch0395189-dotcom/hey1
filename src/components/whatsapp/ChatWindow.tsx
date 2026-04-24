@@ -39,6 +39,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -1039,12 +1040,9 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                       Transferir al bot
                     </DropdownMenuItem>
                   )}
+                  <DropdownMenuSeparator />
                 </>
               )}
-              <DropdownMenuItem onClick={handleArchive}>
-                <Archive className="w-4 h-4 mr-2" />
-                {conversation.is_archived ? 'Restaurar' : 'Archivar'}
-              </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={handleToggleBlock}
                 className={conversation.blocked_at ? '' : 'text-destructive focus:text-destructive'}
@@ -1061,6 +1059,11 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                   </>
                 )}
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleArchive}>
+                <Archive className="w-4 h-4 mr-2" />
+                {conversation.is_archived ? 'Restaurar' : 'Archivar'}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => setShowDeleteDialog(true)} className="text-destructive focus:text-destructive">
                 <Trash2 className="w-4 h-4 mr-2" />
                 Eliminar
