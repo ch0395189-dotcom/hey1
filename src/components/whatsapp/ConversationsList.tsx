@@ -202,9 +202,25 @@ export const ConversationsList = ({
       )
       .subscribe();
 
+    const tagsChannelId = `conversation-tags-${Date.now()}`;
+    const tagsChannel = supabase
+      .channel(tagsChannelId)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'conversation_tags' },
+        () => { fetchConversations(); }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'contact_tags' },
+        () => { fetchConversations(); }
+      )
+      .subscribe();
+
     return () => {
       supabase.removeChannel(conversationsChannel);
       supabase.removeChannel(messagesChannel);
+      supabase.removeChannel(tagsChannel);
     };
   }, [whatsappAccountId, viewMode, fetchConversations]);
 
