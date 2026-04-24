@@ -40,6 +40,7 @@ export interface Conversation {
     content: string | null;
     direction: string;
   };
+  tags?: { id: string; name: string; color: string }[];
 }
 
 export type Platform = 'whatsapp' | 'messenger' | 'instagram' | 'tiktok' | 'all';
