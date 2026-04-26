@@ -18,6 +18,7 @@ import UpdatePassword from "./pages/UpdatePassword";
 import Install from "./pages/Install";
 import NotFound from "./pages/NotFound";
 import { InstallAppBanner } from "@/components/install/InstallAppBanner";
+import { UpdateBanner } from "@/components/UpdateBanner";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -42,6 +43,7 @@ const App = () => {
         <Sonner />
         <MetaPixelProvider />
         <BrowserRouter>
+          <UpdateBanner />
           <Routes>
             <Route path="/" element={<Landing />} />
             <Route path="/login" element={<Login />} />
