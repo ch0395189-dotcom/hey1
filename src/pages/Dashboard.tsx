@@ -178,7 +178,9 @@ const Dashboard = () => {
   const { isAdmin } = useAdminCheck();
   const { isRegistered, registerServiceWorker, sendNotification: sendPushNotification } = usePushNotifications();
   const { isSuspended, loading: suspendedLoading, plan: suspendedPlan, daysExpired, reason: suspendedReason } = useSubscriptionGuard();
-  const { isAgent } = useTeam();
+  const { isAgent, myPermissions } = useTeam();
+  const canViewContacts = !isAgent || myPermissions.view_contacts;
+  const canViewStatistics = !isAgent || myPermissions.view_statistics;
 
   // Register service worker on mount for push notifications
   useEffect(() => {
@@ -383,6 +385,7 @@ const Dashboard = () => {
           >
             <MessageCircle className="w-5 h-5" />
           </Button>
+          {canViewContacts && (
           <Button 
             variant="ghost" 
             size="icon" 
@@ -392,6 +395,8 @@ const Dashboard = () => {
           >
             <Users className="w-5 h-5" />
           </Button>
+          )}
+          {canViewStatistics && (
           <Button 
             variant="ghost" 
             size="icon" 
@@ -401,6 +406,8 @@ const Dashboard = () => {
           >
             <BarChart3 className="w-5 h-5" />
           </Button>
+          )}
+          {!isAgent && (
           <Button 
             variant="ghost" 
             size="icon" 
@@ -410,6 +417,7 @@ const Dashboard = () => {
           >
             <Users className="w-5 h-5" />
           </Button>
+          )}
           <Button 
             variant="ghost" 
             size="icon" 
@@ -680,6 +688,7 @@ const Dashboard = () => {
           <MessageCircle className="w-5 h-5" />
           <span className="text-[10px] font-medium">Chats</span>
         </button>
+        {canViewContacts && (
         <button
           onClick={() => setActiveView('contacts')}
           className={`flex flex-col items-center gap-0.5 py-1.5 px-3 rounded-lg transition-colors ${
@@ -689,6 +698,8 @@ const Dashboard = () => {
           <Users className="w-5 h-5" />
           <span className="text-[10px] font-medium">Contactos</span>
         </button>
+        )}
+        {canViewStatistics && (
         <button
           onClick={() => setActiveView('statistics')}
           className={`flex flex-col items-center gap-0.5 py-1.5 px-3 rounded-lg transition-colors ${
@@ -698,6 +709,7 @@ const Dashboard = () => {
           <BarChart3 className="w-5 h-5" />
           <span className="text-[10px] font-medium">Stats</span>
         </button>
+        )}
         <button
           onClick={() => setShowMobileMenu(true)}
           className="flex flex-col items-center gap-0.5 py-1.5 px-3 rounded-lg transition-colors text-muted-foreground"

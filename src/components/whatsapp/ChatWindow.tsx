@@ -66,6 +66,7 @@ import { ImagePreviewDialog } from "@/components/whatsapp/ImagePreviewDialog";
 import { InteractiveMessageDialog, InteractiveMessageData } from "@/components/whatsapp/InteractiveMessageDialog";
 import { TagManager } from "@/components/contacts/TagManager";
 import { AssignAgentMenu } from "@/components/team/AssignAgentMenu";
+import { useTeam } from "@/hooks/useTeam";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -119,6 +120,10 @@ interface AttachedFile {
 export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: ChatWindowProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
+  const { isAgent, myPermissions } = useTeam();
+  const canTag = !isAgent || myPermissions.tag_contacts;
+  const canBlock = !isAgent || myPermissions.block_contacts;
+  const canArchive = !isAgent || myPermissions.archive_conversations;
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -1105,6 +1110,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                   <DropdownMenuSeparator />
                 </>
               )}
+              {canTag && (
               <DropdownMenuSub>
                 <DropdownMenuSubTrigger>
                   <TagIcon className="w-4 h-4 mr-2" />
@@ -1148,7 +1154,9 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                   </DropdownMenuSubContent>
                 </DropdownMenuPortal>
               </DropdownMenuSub>
-              <DropdownMenuSeparator />
+              )}
+              {(canTag && (canBlock || canArchive)) && <DropdownMenuSeparator />}
+              {canBlock && (
               <DropdownMenuItem
                 onClick={handleToggleBlock}
                 className={conversation.blocked_at ? '' : 'text-destructive focus:text-destructive'}
@@ -1165,27 +1173,36 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                   </>
                 )}
               </DropdownMenuItem>
+              )}
+              {canArchive && (
               <DropdownMenuItem onClick={handleArchive}>
                 <Archive className="w-4 h-4 mr-2" />
                 {conversation.is_archived ? 'Restaurar' : 'Archivar'}
               </DropdownMenuItem>
-              <DropdownMenuSeparator />
+              )}
+              {!isAgent && <DropdownMenuSeparator />}
+              {!isAgent && (
               <DropdownMenuItem onClick={() => setShowDeleteDialog(true)} className="text-destructive focus:text-destructive">
                 <Trash2 className="w-4 h-4 mr-2" />
                 Eliminar
               </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
-          <div className="ml-1">
-            <TagManager conversationId={conversation.id} onTagsChange={onConversationUpdated} />
-          </div>
-          <div className="ml-1">
-            <AssignAgentMenu
-              conversationId={conversation.id}
-              currentAssignee={conversation.assigned_to ?? null}
-              onAssigned={onConversationUpdated}
-            />
-          </div>
+          {canTag && (
+            <div className="ml-1">
+              <TagManager conversationId={conversation.id} onTagsChange={onConversationUpdated} />
+            </div>
+          )}
+          {!isAgent && (
+            <div className="ml-1">
+              <AssignAgentMenu
+                conversationId={conversation.id}
+                currentAssignee={conversation.assigned_to ?? null}
+                onAssigned={onConversationUpdated}
+              />
+            </div>
+          )}
         </div>
       </div>
 

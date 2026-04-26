@@ -7,6 +7,22 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const PERMISSION_KEYS = [
+  "block_contacts",
+  "tag_contacts",
+  "create_tags",
+  "archive_conversations",
+  "view_contacts",
+  "view_statistics",
+] as const;
+
+function sanitizePermissions(input: unknown): Record<string, boolean> {
+  const out: Record<string, boolean> = {};
+  const obj = (input && typeof input === "object") ? (input as Record<string, unknown>) : {};
+  for (const k of PERMISSION_KEYS) out[k] = Boolean(obj[k]);
+  return out;
+}
+
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
     status,
@@ -45,6 +61,7 @@ serve(async (req) => {
       const email = String(body.email || "").trim().toLowerCase();
       const name = String(body.name || "").trim();
       const password = String(body.password || "");
+      const permissions = sanitizePermissions(body.permissions);
       if (!email || !password || password.length < 6) {
         return json({ error: "Email y contraseña (mín 6) requeridos" }, 200);
       }
@@ -78,6 +95,7 @@ serve(async (req) => {
         agent_email: email,
         agent_name: name || null,
         is_active: true,
+        permissions,
       });
       if (linkErr) {
         await admin.auth.admin.deleteUser(newUserId);
@@ -124,6 +142,27 @@ serve(async (req) => {
       if (!link) return json({ error: "Agente no encontrado" }, 200);
 
       const { error } = await admin.auth.admin.updateUserById(agentUserId, { password });
+      if (error) return json({ error: error.message }, 200);
+      return json({ ok: true });
+    }
+
+    if (action === "update_permissions") {
+      const agentUserId = String(body.agent_user_id || "");
+      if (!agentUserId) return json({ error: "agent_user_id requerido" }, 200);
+      const permissions = sanitizePermissions(body.permissions);
+
+      const { data: link } = await admin
+        .from("team_agents")
+        .select("id")
+        .eq("owner_id", ownerId)
+        .eq("agent_user_id", agentUserId)
+        .maybeSingle();
+      if (!link) return json({ error: "Agente no encontrado" }, 200);
+
+      const { error } = await admin
+        .from("team_agents")
+        .update({ permissions, updated_at: new Date().toISOString() })
+        .eq("id", link.id);
       if (error) return json({ error: error.message }, 200);
       return json({ ok: true });
     }

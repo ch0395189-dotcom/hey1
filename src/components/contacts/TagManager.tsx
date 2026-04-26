@@ -11,6 +11,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
+import { useTeam } from "@/hooks/useTeam";
 
 interface Tag {
   id: string;
@@ -40,6 +41,8 @@ const TAG_COLORS = [
 ];
 
 export const TagManager = ({ conversationId, onTagsChange }: TagManagerProps) => {
+  const { isAgent, ownerId, myPermissions } = useTeam();
+  const canManageTags = !isAgent || myPermissions.create_tags;
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
   const [assignedTagIds, setAssignedTagIds] = useState<Set<string>>(new Set());
   const [newTagName, setNewTagName] = useState("");
@@ -93,10 +96,13 @@ export const TagManager = ({ conversationId, onTagsChange }: TagManagerProps) =>
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("No user");
 
+      // Tags belong to the owner so the whole team shares them
+      const tagOwner = ownerId ?? user.id;
+
       const { data, error } = await supabase
         .from('contact_tags')
         .insert({
-          user_id: user.id,
+          user_id: tagOwner,
           name: newTagName.trim(),
           color: newTagColor,
         })
@@ -341,7 +347,7 @@ export const TagManager = ({ conversationId, onTagsChange }: TagManagerProps) =>
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="w-6 h-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                              className={`w-6 h-6 opacity-0 group-hover:opacity-100 transition-opacity ${canManageTags ? '' : 'hidden'}`}
                               onClick={(e) => startEditTag(tag, e)}
                               title="Editar etiqueta"
                             >
@@ -350,7 +356,7 @@ export const TagManager = ({ conversationId, onTagsChange }: TagManagerProps) =>
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="w-6 h-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                              className={`w-6 h-6 opacity-0 group-hover:opacity-100 transition-opacity ${canManageTags ? '' : 'hidden'}`}
                               onClick={(e) => deleteTag(tag.id, e)}
                               title="Eliminar etiqueta"
                             >
@@ -364,7 +370,8 @@ export const TagManager = ({ conversationId, onTagsChange }: TagManagerProps) =>
                 )}
               </div>
 
-              {/* Create new tag */}
+              {/* Create new tag (hidden for agents without permission) */}
+              {canManageTags && (
               <div className="border-t pt-3 space-y-2">
                 <Label className="text-xs text-muted-foreground">Nueva etiqueta</Label>
                 <div className="flex gap-2">
@@ -399,6 +406,7 @@ export const TagManager = ({ conversationId, onTagsChange }: TagManagerProps) =>
                   ))}
                 </div>
               </div>
+              )}
             </>
           )}
         </div>
