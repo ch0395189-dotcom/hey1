@@ -246,7 +246,7 @@ export const ConversationsList = ({
       supabase.removeChannel(messagesChannel);
       supabase.removeChannel(tagsChannel);
     };
-  }, [whatsappAccountId, viewMode, fetchConversations]);
+  }, [whatsappAccountId, viewMode, fetchConversations, fetchAllTags]);
 
   const { enabled: autoRefreshEnabled, interval: autoRefreshInterval } = useAutoRefreshSettings();
   useAutoRefresh(fetchConversations, autoRefreshInterval, autoRefreshEnabled);
