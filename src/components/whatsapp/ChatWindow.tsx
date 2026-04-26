@@ -1105,6 +1105,50 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                   <DropdownMenuSeparator />
                 </>
               )}
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
+                  <TagIcon className="w-4 h-4 mr-2" />
+                  Etiquetar contacto
+                  {assignedTagIds.size > 0 && (
+                    <span className="ml-auto text-xs text-muted-foreground">
+                      {assignedTagIds.size}
+                    </span>
+                  )}
+                </DropdownMenuSubTrigger>
+                <DropdownMenuPortal>
+                  <DropdownMenuSubContent className="bg-popover max-h-72 overflow-y-auto w-60">
+                    {availableTags.length === 0 ? (
+                      <div className="px-2 py-3 text-xs text-muted-foreground text-center">
+                        Aún no tienes etiquetas.
+                        <br />
+                        Crea una desde el botón "Etiquetas".
+                      </div>
+                    ) : (
+                      availableTags.map(tag => {
+                        const isAssigned = assignedTagIds.has(tag.id);
+                        return (
+                          <DropdownMenuItem
+                            key={tag.id}
+                            onSelect={(e) => {
+                              e.preventDefault();
+                              toggleTagFromMenu(tag.id);
+                            }}
+                            className="flex items-center gap-2"
+                          >
+                            <div
+                              className="w-3 h-3 rounded-full shrink-0"
+                              style={{ backgroundColor: tag.color }}
+                            />
+                            <span className="flex-1 truncate">{tag.name}</span>
+                            {isAssigned && <CheckIcon className="w-4 h-4 text-primary shrink-0" />}
+                          </DropdownMenuItem>
+                        );
+                      })
+                    )}
+                  </DropdownMenuSubContent>
+                </DropdownMenuPortal>
+              </DropdownMenuSub>
+              <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={handleToggleBlock}
                 className={conversation.blocked_at ? '' : 'text-destructive focus:text-destructive'}
