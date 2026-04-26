@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Search, Plus, Archive, Inbox, MessageCircle, RefreshCw, CheckSquare, Trash2, X, Ban } from "lucide-react";
+import { Tag as TagIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
@@ -13,6 +14,11 @@ import { useAutoRefresh, useAutoRefreshSettings } from "@/hooks/useAutoRefresh";
 import { PullToRefreshContainer } from "@/components/ui/PullToRefreshContainer";
 import { NewMessageDialog } from "./NewMessageDialog";
 import { toast } from "sonner";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -72,6 +78,11 @@ export const ConversationsList = ({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [bulkLoading, setBulkLoading] = useState(false);
+
+  // Tag filter state
+  const [allTags, setAllTags] = useState<{ id: string; name: string; color: string }[]>([]);
+  const [selectedTagIds, setSelectedTagIds] = useState<Set<string>>(new Set());
+  const [tagFilterOpen, setTagFilterOpen] = useState(false);
   
   const onNewMessageRef = useRef(onNewMessage);
   useEffect(() => {
@@ -152,6 +163,19 @@ export const ConversationsList = ({
     }
   }, [viewMode, platform, whatsappAccountId]);
 
+  // Load all available tags for the filter
+  const fetchAllTags = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('contact_tags')
+      .select('id, name, color')
+      .order('name');
+    if (!error && data) setAllTags(data);
+  }, []);
+
+  useEffect(() => {
+    fetchAllTags();
+  }, [fetchAllTags]);
+
   useEffect(() => {
     fetchConversations();
     
@@ -213,7 +237,7 @@ export const ConversationsList = ({
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'contact_tags' },
-        () => { fetchConversations(); }
+        () => { fetchConversations(); fetchAllTags(); }
       )
       .subscribe();
 
@@ -229,8 +253,27 @@ export const ConversationsList = ({
 
   const filteredConversations = conversations.filter((conv) => {
     const name = conv.customer_name || conv.customer_phone;
-    return name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = name.toLowerCase().includes(searchQuery.toLowerCase());
+    if (!matchesSearch) return false;
+    if (selectedTagIds.size === 0) return true;
+    // Show conversations that have AT LEAST ONE of the selected tags
+    const convTagIds = new Set((conv.tags || []).map(t => t.id));
+    for (const tid of selectedTagIds) {
+      if (convTagIds.has(tid)) return true;
+    }
+    return false;
   });
+
+  const toggleTagFilter = (tagId: string) => {
+    setSelectedTagIds(prev => {
+      const next = new Set(prev);
+      if (next.has(tagId)) next.delete(tagId);
+      else next.add(tagId);
+      return next;
+    });
+  };
+
+  const clearTagFilters = () => setSelectedTagIds(new Set());
 
   const getInitials = (name: string | null, phone: string) => {
     if (name) {
@@ -390,6 +433,74 @@ export const ConversationsList = ({
             >
               <Ban className="w-4 h-4" />
             </Button>
+            <Popover open={tagFilterOpen} onOpenChange={setTagFilterOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  size="icon"
+                  variant={selectedTagIds.size > 0 ? "secondary" : "ghost"}
+                  className="w-8 h-8 relative"
+                  title="Filtrar por etiqueta"
+                >
+                  <TagIcon className="w-4 h-4" />
+                  {selectedTagIds.size > 0 && (
+                    <span className="absolute -top-1 -right-1 h-4 min-w-[16px] px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
+                      {selectedTagIds.size}
+                    </span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64 p-3 bg-popover" align="end">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="font-medium text-sm">Filtrar por etiqueta</div>
+                    {selectedTagIds.size > 0 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-2 text-xs"
+                        onClick={clearTagFilters}
+                      >
+                        Limpiar
+                      </Button>
+                    )}
+                  </div>
+                  {allTags.length === 0 ? (
+                    <p className="text-xs text-muted-foreground py-2 text-center">
+                      No tienes etiquetas creadas. Crea etiquetas desde un chat.
+                    </p>
+                  ) : (
+                    <div className="max-h-64 overflow-y-auto space-y-1">
+                      {allTags.map(tag => {
+                        const isSelected = selectedTagIds.has(tag.id);
+                        return (
+                          <button
+                            key={tag.id}
+                            onClick={() => toggleTagFilter(tag.id)}
+                            className={`w-full flex items-center justify-between gap-2 p-2 rounded-md text-left transition-colors ${
+                              isSelected ? 'bg-primary/10' : 'hover:bg-secondary/50'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <div
+                                className="w-3 h-3 rounded-full shrink-0"
+                                style={{ backgroundColor: tag.color }}
+                              />
+                              <span className="text-sm truncate">{tag.name}</span>
+                            </div>
+                            {isSelected && <CheckSquare className="w-4 h-4 text-primary shrink-0" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {selectedTagIds.size > 1 && (
+                    <p className="text-[11px] text-muted-foreground pt-1 border-t">
+                      Mostrando contactos que tienen al menos una de las etiquetas seleccionadas.
+                    </p>
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
             <Button 
               size="icon" 
               variant="ghost" 
@@ -462,6 +573,34 @@ export const ConversationsList = ({
         <div className="px-4 py-2 bg-destructive/10 text-sm text-destructive flex items-center gap-2">
           <Ban className="w-4 h-4" />
           Mostrando contactos bloqueados
+        </div>
+      )}
+
+      {/* Active tag filters chips */}
+      {selectedTagIds.size > 0 && (
+        <div className="px-4 py-2 bg-muted/30 border-b border-border flex items-center gap-2 flex-wrap">
+          <TagIcon className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+          {Array.from(selectedTagIds).map(tagId => {
+            const tag = allTags.find(t => t.id === tagId);
+            if (!tag) return null;
+            return (
+              <button
+                key={tag.id}
+                onClick={() => toggleTagFilter(tag.id)}
+                className="inline-flex items-center gap-1 h-6 px-2 rounded-full text-[11px] font-medium text-white hover:opacity-80 transition-opacity"
+                style={{ backgroundColor: tag.color }}
+              >
+                {tag.name}
+                <X className="w-3 h-3" />
+              </button>
+            );
+          })}
+          <button
+            onClick={clearTagFilters}
+            className="text-[11px] text-muted-foreground hover:text-foreground underline ml-auto"
+          >
+            Limpiar
+          </button>
         </div>
       )}
 
