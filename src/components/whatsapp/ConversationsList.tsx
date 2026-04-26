@@ -14,6 +14,7 @@ import { useAutoRefresh, useAutoRefreshSettings } from "@/hooks/useAutoRefresh";
 import { PullToRefreshContainer } from "@/components/ui/PullToRefreshContainer";
 import { NewMessageDialog } from "./NewMessageDialog";
 import { toast } from "sonner";
+import { useTeam } from "@/hooks/useTeam";
 import {
   Popover,
   PopoverContent,
@@ -67,6 +68,9 @@ export const ConversationsList = ({
   onNewMessage,
 }: ConversationsListProps) => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const { isAgent, myPermissions } = useTeam();
+  const canArchive = !isAgent || myPermissions.archive_conversations;
+  const canBlock = !isAgent || myPermissions.block_contacts;
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<'active' | 'archived' | 'blocked'>('active');
   const [loading, setLoading] = useState(true);
