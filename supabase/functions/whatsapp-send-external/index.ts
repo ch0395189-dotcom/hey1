@@ -83,10 +83,21 @@ Deno.serve(async (req) => {
     }
 
     if (account.user_id !== userId) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized: You do not own this account' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      // Allow active team agents of the owner
+      const { data: agentRow } = await supabase
+        .from('team_agents')
+        .select('id')
+        .eq('owner_id', account.user_id)
+        .eq('agent_user_id', userId)
+        .eq('is_active', true)
+        .maybeSingle();
+
+      if (!agentRow) {
+        return new Response(
+          JSON.stringify({ error: 'Unauthorized: You do not own this account' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     const apiBaseUrl = account.external_service_url;
