@@ -66,6 +66,7 @@ import { ImagePreviewDialog } from "@/components/whatsapp/ImagePreviewDialog";
 import { InteractiveMessageDialog, InteractiveMessageData } from "@/components/whatsapp/InteractiveMessageDialog";
 import { TagManager } from "@/components/contacts/TagManager";
 import { AssignAgentMenu } from "@/components/team/AssignAgentMenu";
+import { useTeam } from "@/hooks/useTeam";
 import {
   AlertDialog,
   AlertDialogAction,
