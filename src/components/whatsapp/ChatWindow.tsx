@@ -1171,12 +1171,12 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                 onTagsChange={onConversationUpdated}
                 open={tagManagerOpen}
                 onOpenChange={setTagManagerOpen}
-                hideTrigger={isMobile}
+                hideTrigger={false}
               />
             </div>
           )}
           {!isAgent && (
-            <div className="ml-1 hidden md:block">
+            <div className="ml-1">
               <AssignAgentMenu
                 conversationId={conversation.id}
                 currentAssignee={conversation.assigned_to ?? null}
