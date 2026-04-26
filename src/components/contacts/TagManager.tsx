@@ -366,9 +366,15 @@ export const TagManager = ({ conversationId, onTagsChange, open: controlledOpen,
                               style={{ backgroundColor: tag.color }}
                             />
                             <span className="text-sm">{tag.name}</span>
+                            {togglingTagIds.has(tag.id) && (
+                              <span className="flex items-center gap-1 text-xs text-muted-foreground ml-1">
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                                guardando…
+                              </span>
+                            )}
                           </div>
                           <div className="flex items-center gap-1">
-                            {assignedTagIds.has(tag.id) && (
+                            {assignedTagIds.has(tag.id) && !togglingTagIds.has(tag.id) && (
                               <Check className="w-4 h-4 text-primary" />
                             )}
                             <Button
