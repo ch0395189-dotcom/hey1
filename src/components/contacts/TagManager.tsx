@@ -28,6 +28,9 @@ interface ConversationTag {
 interface TagManagerProps {
   conversationId: string;
   onTagsChange?: () => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  hideTrigger?: boolean;
 }
 
 const TAG_COLORS = [
@@ -41,7 +44,7 @@ const TAG_COLORS = [
   "#f97316", // orange
 ];
 
-export const TagManager = ({ conversationId, onTagsChange }: TagManagerProps) => {
+export const TagManager = ({ conversationId, onTagsChange, open: controlledOpen, onOpenChange, hideTrigger }: TagManagerProps) => {
   const { isAgent, ownerId, myPermissions } = useTeam();
   const canManageTags = !isAgent || myPermissions.create_tags;
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
@@ -50,7 +53,12 @@ export const TagManager = ({ conversationId, onTagsChange }: TagManagerProps) =>
   const [newTagColor, setNewTagColor] = useState(TAG_COLORS[0]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
+  const setOpen = (v: boolean) => {
+    if (onOpenChange) onOpenChange(v);
+    if (controlledOpen === undefined) setInternalOpen(v);
+  };
   const [editingTagId, setEditingTagId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editColor, setEditColor] = useState(TAG_COLORS[0]);
@@ -257,6 +265,7 @@ export const TagManager = ({ conversationId, onTagsChange }: TagManagerProps) =>
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
+      {!hideTrigger && (
       <PopoverTrigger asChild>
         <Button
           variant="ghost"
@@ -267,6 +276,7 @@ export const TagManager = ({ conversationId, onTagsChange }: TagManagerProps) =>
           <TagIcon className="w-4 h-4" />
         </Button>
       </PopoverTrigger>
+      )}
       <PopoverContent className="w-72 p-3 bg-popover" align="start">
         <div className="space-y-3">
           <div className="font-medium text-sm">Gestionar etiquetas</div>
