@@ -304,7 +304,7 @@ export const TagManager = ({ conversationId, onTagsChange, open: controlledOpen,
           ) : (
             <>
               {/* Available tags */}
-              <div className="space-y-1.5 max-h-[50vh] sm:max-h-40 overflow-y-auto">
+              <div className="space-y-1.5 max-h-[35vh] sm:max-h-40 overflow-y-auto">
                 {availableTags.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-2">
                     No hay etiquetas. Crea una nueva.
@@ -405,36 +405,41 @@ export const TagManager = ({ conversationId, onTagsChange, open: controlledOpen,
 
               {/* Create new tag (hidden for agents without permission) */}
               {canManageTags && (
-              <div className="border-t pt-3 space-y-2">
-                <Label className="text-xs text-muted-foreground">Nueva etiqueta</Label>
+              <div className="border-t pt-3 space-y-2 sticky bottom-0 bg-popover">
+                <Label className="text-xs font-medium text-foreground">
+                  + Crear nueva etiqueta
+                </Label>
                 <div className="flex gap-2">
                   <Input
                     value={newTagName}
                     onChange={(e) => setNewTagName(e.target.value)}
-                    placeholder="Nombre..."
-                    className="h-9 text-sm"
+                    placeholder="Nombre de la etiqueta..."
+                    /* text-base (16px) evita el auto-zoom en iOS */
+                    className="h-11 md:h-9 text-base md:text-sm"
                     onKeyDown={(e) => e.key === 'Enter' && createTag()}
                   />
                   <Button
                     size="sm"
-                    className="h-9 px-3"
+                    className="h-11 md:h-9 px-4 shrink-0"
                     onClick={createTag}
                     disabled={!newTagName.trim() || saving}
                   >
                     {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
                   </Button>
                 </div>
-                
+
                 {/* Color picker */}
                 <div className="flex gap-2 flex-wrap">
                   {TAG_COLORS.map(color => (
                     <button
                       key={color}
+                      type="button"
                       onClick={() => setNewTagColor(color)}
-                      className={`w-7 h-7 md:w-5 md:h-5 rounded-full transition-transform ${
+                      className={`w-8 h-8 md:w-5 md:h-5 rounded-full transition-transform ${
                         newTagColor === color ? 'ring-2 ring-primary ring-offset-2 scale-110' : ''
                       }`}
                       style={{ backgroundColor: color }}
+                      aria-label={`Color ${color}`}
                     />
                   ))}
                 </div>
