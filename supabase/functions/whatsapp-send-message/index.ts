@@ -163,11 +163,29 @@ Deno.serve(async (req) => {
         .eq('id', body.whatsapp_account_id)
         .single();
 
-      if (accError || !account || account.user_id !== userData.user.id) {
+      if (accError || !account) {
         return new Response(
           JSON.stringify({ error: 'Unauthorized: account not found or not owned' }),
           { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
+      }
+
+      // Allow owner OR active team agent of the owner
+      if (account.user_id !== userData.user.id) {
+        const { data: agentRow } = await supabaseAdmin
+          .from('team_agents')
+          .select('id')
+          .eq('owner_id', account.user_id)
+          .eq('agent_user_id', userData.user.id)
+          .eq('is_active', true)
+          .maybeSingle();
+
+        if (!agentRow) {
+          return new Response(
+            JSON.stringify({ error: 'Unauthorized: account not found or not owned' }),
+            { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
       }
 
       // Find existing conversation
