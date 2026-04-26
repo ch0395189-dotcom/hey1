@@ -304,7 +304,7 @@ export const TagManager = ({ conversationId, onTagsChange, open: controlledOpen,
           ) : (
             <>
               {/* Available tags */}
-              <div className="space-y-1.5 max-h-[50vh] sm:max-h-40 overflow-y-auto">
+              <div className="space-y-1.5 max-h-[35vh] sm:max-h-40 overflow-y-auto">
                 {availableTags.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-2">
                     No hay etiquetas. Crea una nueva.
