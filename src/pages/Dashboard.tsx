@@ -41,6 +41,7 @@ import { ApiKeysSettings } from "@/components/settings/ApiKeysSettings";
 import { TeamManagement } from "@/components/team/TeamManagement";
 import { useAdminCheck } from "@/hooks/useAdminCheck";
 import { useSubscriptionGuard } from "@/hooks/useSubscriptionGuard";
+import { useTeam } from "@/hooks/useTeam";
 import { usePaymentSuccessHandler } from "@/hooks/usePaymentSuccessHandler";
 import { SuspendedServiceScreen } from "@/components/dashboard/SuspendedServiceScreen";
 import { NotificationSettingsPanel } from "@/components/notifications/NotificationSettingsPanel";
@@ -177,6 +178,7 @@ const Dashboard = () => {
   const { isAdmin } = useAdminCheck();
   const { isRegistered, registerServiceWorker, sendNotification: sendPushNotification } = usePushNotifications();
   const { isSuspended, loading: suspendedLoading, plan: suspendedPlan, daysExpired, reason: suspendedReason } = useSubscriptionGuard();
+  const { isAgent } = useTeam();
 
   // Register service worker on mount for push notifications
   useEffect(() => {
@@ -352,11 +354,13 @@ const Dashboard = () => {
   return (
     <div className="h-[100dvh] flex flex-col bg-background">
       {/* Banners */}
-      <div className="px-4 py-2 space-y-2">
-        <TrialBanner />
-        <RenewalBanner />
-        <PaymentAlertBanner />
-      </div>
+      {!isAgent && (
+        <div className="px-4 py-2 space-y-2">
+          <TrialBanner />
+          <RenewalBanner />
+          <PaymentAlertBanner />
+        </div>
+      )}
       
       <div className="flex-1 min-h-0 flex overflow-hidden dashboard-content-mobile">
       {/* Desktop Sidebar - WhatsApp Green Style */}
