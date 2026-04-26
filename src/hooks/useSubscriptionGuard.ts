@@ -39,6 +39,19 @@ export const useSubscriptionGuard = () => {
         return;
       }
 
+      // Agents inherit access from their owner — never show suspension/trial banners
+      const { data: agentRow } = await supabase
+        .from('team_agents')
+        .select('owner_id')
+        .eq('agent_user_id', session.user.id)
+        .eq('is_active', true)
+        .maybeSingle();
+
+      if (agentRow) {
+        setState(prev => ({ ...prev, loading: false, isSuspended: false }));
+        return;
+      }
+
       const { data, error } = await supabase
         .from('subscriptions')
         .select('plan, status, trial_end, current_period_end')
