@@ -1,11 +1,13 @@
 import { useState } from "react";
-import { useTeam } from "@/hooks/useTeam";
+import { useTeam, AgentPermissions, DEFAULT_PERMISSIONS, TeamAgent } from "@/hooks/useTeam";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Separator } from "@/components/ui/separator";
 import {
   Dialog,
   DialogContent,
@@ -25,7 +27,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { UserPlus, Trash2, KeyRound, Users, Loader2 } from "lucide-react";
+import { UserPlus, Trash2, KeyRound, Users, Loader2, ShieldCheck } from "lucide-react";
 
 const PLAN_LABEL: Record<string, string> = {
   starter: "Starter",
@@ -33,6 +35,42 @@ const PLAN_LABEL: Record<string, string> = {
   enterprise: "Enterprise",
   esoterico_pro: "Nichos Difíciles",
 };
+
+const PERMISSION_LABELS: { key: keyof AgentPermissions; title: string; description: string }[] = [
+  { key: "block_contacts", title: "Bloquear contactos", description: "Bloquear o desbloquear conversaciones." },
+  { key: "tag_contacts", title: "Etiquetar contactos", description: "Aplicar y quitar etiquetas en sus chats." },
+  { key: "create_tags", title: "Crear etiquetas nuevas", description: "Puede crear etiquetas además de aplicarlas." },
+  { key: "archive_conversations", title: "Archivar conversaciones", description: "Archivar y desarchivar sus chats asignados." },
+  { key: "view_contacts", title: "Ver Contactos", description: "Acceso a la sección de Contactos." },
+  { key: "view_statistics", title: "Ver Estadísticas", description: "Acceso a la sección de Estadísticas." },
+];
+
+const PermissionsForm = ({
+  value,
+  onChange,
+}: {
+  value: AgentPermissions;
+  onChange: (next: AgentPermissions) => void;
+}) => (
+  <div className="space-y-2">
+    {PERMISSION_LABELS.map((p) => (
+      <label
+        key={p.key}
+        className="flex items-start gap-3 p-2 rounded-md border bg-card hover:bg-accent/30 cursor-pointer transition-colors"
+      >
+        <Checkbox
+          checked={value[p.key]}
+          onCheckedChange={(checked) => onChange({ ...value, [p.key]: Boolean(checked) })}
+          className="mt-0.5"
+        />
+        <div className="min-w-0">
+          <p className="text-sm font-medium leading-tight">{p.title}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">{p.description}</p>
+        </div>
+      </label>
+    ))}
+  </div>
+);
 
 export const TeamManagement = () => {
   const { agents, loading, plan, limit, refresh, isAgent } = useTeam();
@@ -42,9 +80,12 @@ export const TeamManagement = () => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [newPermissions, setNewPermissions] = useState<AgentPermissions>(DEFAULT_PERMISSIONS);
   const [removeId, setRemoveId] = useState<string | null>(null);
   const [resetTarget, setResetTarget] = useState<string | null>(null);
   const [resetPwd, setResetPwd] = useState("");
+  const [permsTarget, setPermsTarget] = useState<TeamAgent | null>(null);
+  const [permsDraft, setPermsDraft] = useState<AgentPermissions>(DEFAULT_PERMISSIONS);
 
   const canAdd = agents.filter(a => a.is_active).length < limit;
 
@@ -69,7 +110,7 @@ export const TeamManagement = () => {
     }
     setSubmitting(true);
     const { data, error } = await supabase.functions.invoke("team-invite-agent", {
-      body: { action: "invite", email: email.trim(), name: name.trim(), password },
+      body: { action: "invite", email: email.trim(), name: name.trim(), password, permissions: newPermissions },
     });
     setSubmitting(false);
     if (error || (data as any)?.error) {
@@ -78,7 +119,7 @@ export const TeamManagement = () => {
     }
     toast({ title: "Agente creado", description: `${email} ya puede iniciar sesión.` });
     setOpen(false);
-    setName(""); setEmail(""); setPassword("");
+    setName(""); setEmail(""); setPassword(""); setNewPermissions(DEFAULT_PERMISSIONS);
     refresh();
   };
 
@@ -112,6 +153,22 @@ export const TeamManagement = () => {
       return;
     }
     toast({ title: "Contraseña actualizada" });
+  };
+
+  const savePermissions = async () => {
+    if (!permsTarget) return;
+    setSubmitting(true);
+    const { data, error } = await supabase.functions.invoke("team-invite-agent", {
+      body: { action: "update_permissions", agent_user_id: permsTarget.agent_user_id, permissions: permsDraft },
+    });
+    setSubmitting(false);
+    if (error || (data as any)?.error) {
+      toast({ title: "Error", description: (data as any)?.error || error?.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Permisos actualizados" });
+    setPermsTarget(null);
+    refresh();
   };
 
   return (
@@ -165,6 +222,9 @@ export const TeamManagement = () => {
                 <p className="text-sm text-muted-foreground truncate">{a.agent_email}</p>
               </div>
               <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => { setPermsTarget(a); setPermsDraft(a.permissions); }}>
+                  <ShieldCheck className="w-4 h-4" />
+                </Button>
                 <Button variant="outline" size="sm" onClick={() => setResetTarget(a.agent_user_id)}>
                   <KeyRound className="w-4 h-4" />
                 </Button>
@@ -179,7 +239,7 @@ export const TeamManagement = () => {
 
       {/* Invite dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Añadir agente</DialogTitle>
             <DialogDescription>
@@ -200,12 +260,40 @@ export const TeamManagement = () => {
               <Input type="text" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Mínimo 6 caracteres" />
               <p className="text-xs text-muted-foreground mt-1">Compártela con tu agente. Podrá cambiarla después.</p>
             </div>
+            <Separator className="my-2" />
+            <div>
+              <Label className="text-sm">Permisos</Label>
+              <p className="text-xs text-muted-foreground mb-2">
+                El agente siempre puede ver y responder mensajes en sus conversaciones asignadas.
+              </p>
+              <PermissionsForm value={newPermissions} onChange={setNewPermissions} />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)} disabled={submitting}>Cancelar</Button>
             <Button onClick={invite} disabled={submitting}>
               {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Crear agente
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit permissions dialog */}
+      <Dialog open={!!permsTarget} onOpenChange={(o) => { if (!o) setPermsTarget(null); }}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Permisos del agente</DialogTitle>
+            <DialogDescription>
+              {permsTarget?.agent_name || permsTarget?.agent_email}
+            </DialogDescription>
+          </DialogHeader>
+          <PermissionsForm value={permsDraft} onChange={setPermsDraft} />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPermsTarget(null)} disabled={submitting}>Cancelar</Button>
+            <Button onClick={savePermissions} disabled={submitting}>
+              {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Guardar permisos
             </Button>
           </DialogFooter>
         </DialogContent>
