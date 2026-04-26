@@ -531,7 +531,7 @@ const Dashboard = () => {
             initial={{ x: -30, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             transition={{ delay: 0.1 }}
-            className={`w-full md:w-72 bg-card border-r border-border flex flex-col min-h-0 ${
+            className={`w-full md:w-80 lg:w-96 bg-card border-r border-border flex flex-col min-h-0 ${
               selectedConversation ? 'hidden md:flex' : 'flex'
             }`}
           >
