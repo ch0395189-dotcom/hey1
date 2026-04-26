@@ -192,6 +192,59 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
     fetchBotState();
   }, [fetchBotState]);
 
+  // Load tags (available + assigned to this conversation) for the dropdown menu
+  const fetchTagsForMenu = useCallback(async () => {
+    if (!conversation?.id) return;
+    try {
+      const [tagsRes, convTagsRes] = await Promise.all([
+        supabase.from('contact_tags').select('id, name, color').order('name'),
+        supabase.from('conversation_tags').select('tag_id').eq('conversation_id', conversation.id),
+      ]);
+      setAvailableTags(tagsRes.data || []);
+      setAssignedTagIds(new Set((convTagsRes.data || []).map((r: any) => r.tag_id)));
+    } catch (err) {
+      console.error('Error loading tags for menu:', err);
+    }
+  }, [conversation?.id]);
+
+  useEffect(() => {
+    fetchTagsForMenu();
+  }, [fetchTagsForMenu]);
+
+  const toggleTagFromMenu = async (tagId: string) => {
+    if (!conversation?.id) return;
+    const isAssigned = assignedTagIds.has(tagId);
+    try {
+      if (isAssigned) {
+        const { error } = await supabase
+          .from('conversation_tags')
+          .delete()
+          .eq('conversation_id', conversation.id)
+          .eq('tag_id', tagId);
+        if (error) throw error;
+        setAssignedTagIds(prev => {
+          const next = new Set(prev);
+          next.delete(tagId);
+          return next;
+        });
+      } else {
+        const { error } = await supabase
+          .from('conversation_tags')
+          .insert({ conversation_id: conversation.id, tag_id: tagId });
+        if (error) throw error;
+        setAssignedTagIds(prev => new Set([...prev, tagId]));
+      }
+      onConversationUpdated?.();
+    } catch (err) {
+      console.error('Error toggling tag from menu:', err);
+      toast({
+        title: 'Error',
+        description: 'No se pudo actualizar la etiqueta.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const handleToggleBot = async (activate: boolean) => {
     if (!conversation) return;
     
