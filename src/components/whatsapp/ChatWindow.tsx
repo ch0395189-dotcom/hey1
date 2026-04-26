@@ -122,6 +122,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const { isAgent, myPermissions } = useTeam();
+  const isMobile = useIsMobile();
   const canTag = !isAgent || myPermissions.tag_contacts;
   const canBlock = !isAgent || myPermissions.block_contacts;
   const canArchive = !isAgent || myPermissions.archive_conversations;
