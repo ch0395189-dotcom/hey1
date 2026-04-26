@@ -393,11 +393,12 @@ export const ConversationsList = ({
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="p-4 border-b border-border">
-        <div className="flex items-center justify-between gap-2 mb-4">
-          <h2 className="font-display font-semibold text-base sm:text-lg shrink-0 truncate">
+        <div className="mb-3">
+          <h2 className="font-display font-semibold text-base sm:text-lg truncate">
             Conversaciones
           </h2>
-          <div className="flex items-center gap-0.5 shrink-0">
+        </div>
+        <div className="flex items-center flex-wrap gap-1 mb-3">
             <Button
               size="icon"
               variant={selectMode ? "secondary" : "ghost"}
@@ -512,7 +513,6 @@ export const ConversationsList = ({
             >
               <Plus className="w-4 h-4" />
             </Button>
-          </div>
         </div>
 
         {/* Bulk action bar */}
