@@ -34,6 +34,9 @@ import {
   User,
   Ban,
   ShieldOff,
+  Tag as TagIcon,
+  Check as CheckIcon,
+  Plus,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -41,6 +44,10 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+  DropdownMenuPortal,
 } from "@/components/ui/dropdown-menu";
 import {
   Popover,
