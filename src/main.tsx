@@ -42,6 +42,17 @@ if (isPreviewHost || isInIframe) {
           reg.update().catch(() => {});
         }, 60_000);
 
+        // Also check immediately when user returns to the tab/PWA
+        // (covers cases where the app was backgrounded for a long time)
+        document.addEventListener("visibilitychange", () => {
+          if (document.visibilityState === "visible") {
+            reg.update().catch(() => {});
+          }
+        });
+        window.addEventListener("focus", () => {
+          reg.update().catch(() => {});
+        });
+
         // When a new SW takes over, reload the page once so users get fresh code
         let refreshing = false;
         navigator.serviceWorker.addEventListener("controllerchange", () => {
