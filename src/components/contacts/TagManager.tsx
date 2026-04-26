@@ -469,7 +469,6 @@ export const TagManager = ({ conversationId, onTagsChange, open: controlledOpen,
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogContent
             className="max-w-[92vw] sm:max-w-md bg-popover z-[80]"
-            overlayClassName="z-[75]"
           >
             <DialogHeader>
               <DialogTitle>Gestionar etiquetas</DialogTitle>
