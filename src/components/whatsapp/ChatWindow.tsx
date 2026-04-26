@@ -1165,24 +1165,13 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
             </DropdownMenuContent>
           </DropdownMenu>
           {canTag && (
-            <div className="ml-1 hidden md:block">
+            <div className={isMobile ? "" : "ml-1"}>
               <TagManager
                 conversationId={conversation.id}
                 onTagsChange={onConversationUpdated}
                 open={tagManagerOpen}
                 onOpenChange={setTagManagerOpen}
-              />
-            </div>
-          )}
-          {/* Hidden TagManager on mobile, controlled programmatically from dropdown */}
-          {canTag && (
-            <div className="md:hidden">
-              <TagManager
-                conversationId={conversation.id}
-                onTagsChange={onConversationUpdated}
-                open={tagManagerOpen}
-                onOpenChange={setTagManagerOpen}
-                hideTrigger
+                hideTrigger={isMobile}
               />
             </div>
           )}
