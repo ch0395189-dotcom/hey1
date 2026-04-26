@@ -11,8 +11,15 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useTeam } from "@/hooks/useTeam";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface Tag {
   id: string;
@@ -46,6 +53,7 @@ const TAG_COLORS = [
 
 export const TagManager = ({ conversationId, onTagsChange, open: controlledOpen, onOpenChange, hideTrigger }: TagManagerProps) => {
   const { isAgent, ownerId, myPermissions } = useTeam();
+  const isMobile = useIsMobile();
   const canManageTags = !isAgent || myPermissions.create_tags;
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
   const [assignedTagIds, setAssignedTagIds] = useState<Set<string>>(new Set());
@@ -263,45 +271,23 @@ export const TagManager = ({ conversationId, onTagsChange, open: controlledOpen,
     }
   };
 
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        {hideTrigger ? (
-          <button
-            aria-hidden="true"
-            tabIndex={-1}
-            className="sr-only"
-          />
-        ) : (
-        <Button
-          variant="ghost"
-          size="icon"
-          className="w-9 h-9 text-primary-foreground hover:bg-primary-foreground/10"
-          title="Gestionar etiquetas"
-        >
-          <TagIcon className="w-4 h-4" />
-        </Button>
-        )}
-      </PopoverTrigger>
-      <PopoverContent className="w-72 p-3 bg-popover" align="start">
-        <div className="space-y-3">
-          <div className="font-medium text-sm">Gestionar etiquetas</div>
-          
-          {loading ? (
+  const tagManagerBody = (
+    <div className="space-y-3">
+      {loading ? (
             <div className="flex items-center justify-center py-4">
               <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
             </div>
           ) : (
             <>
               {/* Available tags */}
-              <div className="space-y-1.5 max-h-40 overflow-y-auto">
+              <div className="space-y-1.5 max-h-[50vh] sm:max-h-40 overflow-y-auto">
                 {availableTags.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-2">
                     No hay etiquetas. Crea una nueva.
                   </p>
                 ) : (
                   availableTags.map(tag => (
-                    <div key={tag.id} className="rounded-md hover:bg-secondary/50 group">
+                    <div key={tag.id} className="rounded-md hover:bg-secondary/50 group active:bg-secondary/70">
                       {editingTagId === tag.id ? (
                         <div className="p-2 space-y-2" onClick={(e) => e.stopPropagation()}>
                           <div className="flex gap-2">
@@ -348,7 +334,7 @@ export const TagManager = ({ conversationId, onTagsChange, open: controlledOpen,
                       ) : (
                         <div
                           onClick={() => toggleTag(tag.id)}
-                          className="flex items-center justify-between p-2 cursor-pointer"
+                          className="flex items-center justify-between p-2 cursor-pointer min-h-[44px]"
                         >
                           <div className="flex items-center gap-2">
                             <div
@@ -364,7 +350,7 @@ export const TagManager = ({ conversationId, onTagsChange, open: controlledOpen,
                             <Button
                               variant="ghost"
                               size="icon"
-                              className={`w-6 h-6 opacity-0 group-hover:opacity-100 transition-opacity ${canManageTags ? '' : 'hidden'}`}
+                              className={`w-8 h-8 md:w-6 md:h-6 md:opacity-0 md:group-hover:opacity-100 transition-opacity ${canManageTags ? '' : 'hidden'}`}
                               onClick={(e) => startEditTag(tag, e)}
                               title="Editar etiqueta"
                             >
@@ -373,7 +359,7 @@ export const TagManager = ({ conversationId, onTagsChange, open: controlledOpen,
                             <Button
                               variant="ghost"
                               size="icon"
-                              className={`w-6 h-6 opacity-0 group-hover:opacity-100 transition-opacity ${canManageTags ? '' : 'hidden'}`}
+                              className={`w-8 h-8 md:w-6 md:h-6 md:opacity-0 md:group-hover:opacity-100 transition-opacity ${canManageTags ? '' : 'hidden'}`}
                               onClick={(e) => deleteTag(tag.id, e)}
                               title="Eliminar etiqueta"
                             >
@@ -396,12 +382,12 @@ export const TagManager = ({ conversationId, onTagsChange, open: controlledOpen,
                     value={newTagName}
                     onChange={(e) => setNewTagName(e.target.value)}
                     placeholder="Nombre..."
-                    className="h-8 text-sm"
+                    className="h-9 text-sm"
                     onKeyDown={(e) => e.key === 'Enter' && createTag()}
                   />
                   <Button
                     size="sm"
-                    className="h-8 px-2"
+                    className="h-9 px-3"
                     onClick={createTag}
                     disabled={!newTagName.trim() || saving}
                   >
@@ -410,12 +396,12 @@ export const TagManager = ({ conversationId, onTagsChange, open: controlledOpen,
                 </div>
                 
                 {/* Color picker */}
-                <div className="flex gap-1.5 flex-wrap">
+                <div className="flex gap-2 flex-wrap">
                   {TAG_COLORS.map(color => (
                     <button
                       key={color}
                       onClick={() => setNewTagColor(color)}
-                      className={`w-5 h-5 rounded-full transition-transform ${
+                      className={`w-7 h-7 md:w-5 md:h-5 rounded-full transition-transform ${
                         newTagColor === color ? 'ring-2 ring-primary ring-offset-2 scale-110' : ''
                       }`}
                       style={{ backgroundColor: color }}
@@ -426,7 +412,60 @@ export const TagManager = ({ conversationId, onTagsChange, open: controlledOpen,
               )}
             </>
           )}
-        </div>
+    </div>
+  );
+
+  // On mobile, render as a Dialog (full centered modal) for better UX.
+  // On desktop, keep the Popover anchored to the trigger button.
+  if (isMobile) {
+    return (
+      <>
+        {!hideTrigger && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="w-9 h-9 text-primary-foreground hover:bg-primary-foreground/10"
+            title="Gestionar etiquetas"
+            onClick={() => setOpen(true)}
+          >
+            <TagIcon className="w-4 h-4" />
+          </Button>
+        )}
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogContent className="max-w-[92vw] sm:max-w-md bg-popover">
+            <DialogHeader>
+              <DialogTitle>Gestionar etiquetas</DialogTitle>
+            </DialogHeader>
+            {tagManagerBody}
+          </DialogContent>
+        </Dialog>
+      </>
+    );
+  }
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        {hideTrigger ? (
+          <button
+            aria-hidden="true"
+            tabIndex={-1}
+            className="sr-only"
+          />
+        ) : (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="w-9 h-9 text-primary-foreground hover:bg-primary-foreground/10"
+            title="Gestionar etiquetas"
+          >
+            <TagIcon className="w-4 h-4" />
+          </Button>
+        )}
+      </PopoverTrigger>
+      <PopoverContent className="w-72 p-3 bg-popover" align="start">
+        <div className="font-medium text-sm mb-3">Gestionar etiquetas</div>
+        {tagManagerBody}
       </PopoverContent>
     </Popover>
   );
