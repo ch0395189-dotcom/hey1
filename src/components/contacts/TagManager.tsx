@@ -265,8 +265,14 @@ export const TagManager = ({ conversationId, onTagsChange, open: controlledOpen,
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      {!hideTrigger && (
       <PopoverTrigger asChild>
+        {hideTrigger ? (
+          <button
+            aria-hidden="true"
+            tabIndex={-1}
+            className="sr-only"
+          />
+        ) : (
         <Button
           variant="ghost"
           size="icon"
@@ -275,8 +281,8 @@ export const TagManager = ({ conversationId, onTagsChange, open: controlledOpen,
         >
           <TagIcon className="w-4 h-4" />
         </Button>
+        )}
       </PopoverTrigger>
-      )}
       <PopoverContent className="w-72 p-3 bg-popover" align="start">
         <div className="space-y-3">
           <div className="font-medium text-sm">Gestionar etiquetas</div>
