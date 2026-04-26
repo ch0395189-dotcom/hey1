@@ -393,13 +393,15 @@ export const ConversationsList = ({
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="p-4 border-b border-border">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="font-display font-semibold text-lg">Conversaciones</h2>
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between gap-2 mb-4">
+          <h2 className="font-display font-semibold text-base sm:text-lg shrink-0 truncate">
+            Conversaciones
+          </h2>
+          <div className="flex items-center gap-0.5 shrink-0">
             <Button
               size="icon"
               variant={selectMode ? "secondary" : "ghost"}
-              className="w-8 h-8"
+              className="w-8 h-8 shrink-0"
               onClick={() => selectMode ? exitSelectMode() : setSelectMode(true)}
               title={selectMode ? "Cancelar selección" : "Seleccionar"}
             >
@@ -408,7 +410,7 @@ export const ConversationsList = ({
             <Button
               size="icon"
               variant="ghost"
-              className="w-8 h-8"
+              className="w-8 h-8 shrink-0"
               onClick={handleRefresh}
               disabled={refreshing}
               title="Actualizar"
@@ -418,7 +420,7 @@ export const ConversationsList = ({
             <Button
               size="icon"
               variant={viewMode === 'archived' ? "secondary" : "ghost"}
-              className="w-8 h-8"
+              className="w-8 h-8 shrink-0"
               onClick={() => setViewMode(viewMode === 'archived' ? 'active' : 'archived')}
               title={viewMode === 'archived' ? "Ver activas" : "Ver archivadas"}
             >
@@ -427,7 +429,7 @@ export const ConversationsList = ({
             <Button
               size="icon"
               variant={viewMode === 'blocked' ? "destructive" : "ghost"}
-              className="w-8 h-8"
+              className="w-8 h-8 shrink-0"
               onClick={() => setViewMode(viewMode === 'blocked' ? 'active' : 'blocked')}
               title={viewMode === 'blocked' ? "Ver activas" : "Ver bloqueados"}
             >
@@ -438,7 +440,7 @@ export const ConversationsList = ({
                 <Button
                   size="icon"
                   variant={selectedTagIds.size > 0 ? "secondary" : "ghost"}
-                  className="w-8 h-8 relative"
+                  className="w-8 h-8 shrink-0 relative"
                   title="Filtrar por etiqueta"
                 >
                   <TagIcon className="w-4 h-4" />
@@ -504,7 +506,7 @@ export const ConversationsList = ({
             <Button 
               size="icon" 
               variant="ghost" 
-              className="w-8 h-8"
+              className="w-8 h-8 shrink-0"
               onClick={() => setShowNewMessageDialog(true)}
               title="Nuevo mensaje"
             >

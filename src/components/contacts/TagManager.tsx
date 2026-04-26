@@ -253,12 +253,11 @@ export const TagManager = ({ conversationId, onTagsChange }: TagManagerProps) =>
       <PopoverTrigger asChild>
         <Button
           variant="ghost"
-          size="sm"
-          className="gap-1.5 h-9 px-2 text-primary-foreground hover:bg-primary-foreground/10"
+          size="icon"
+          className="w-9 h-9 text-primary-foreground hover:bg-primary-foreground/10"
           title="Gestionar etiquetas"
         >
           <Plus className="w-4 h-4" />
-          Etiquetas
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-72 p-3 bg-popover" align="start">
