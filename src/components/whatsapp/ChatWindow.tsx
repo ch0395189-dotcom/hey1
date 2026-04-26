@@ -67,6 +67,7 @@ import { InteractiveMessageDialog, InteractiveMessageData } from "@/components/w
 import { TagManager } from "@/components/contacts/TagManager";
 import { AssignAgentMenu } from "@/components/team/AssignAgentMenu";
 import { useTeam } from "@/hooks/useTeam";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -121,6 +122,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const { isAgent, myPermissions } = useTeam();
+  const isMobile = useIsMobile();
   const canTag = !isAgent || myPermissions.tag_contacts;
   const canBlock = !isAgent || myPermissions.block_contacts;
   const canArchive = !isAgent || myPermissions.archive_conversations;
@@ -1163,24 +1165,13 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
             </DropdownMenuContent>
           </DropdownMenu>
           {canTag && (
-            <div className="ml-1 hidden md:block">
+            <div className={isMobile ? "" : "ml-1"}>
               <TagManager
                 conversationId={conversation.id}
                 onTagsChange={onConversationUpdated}
                 open={tagManagerOpen}
                 onOpenChange={setTagManagerOpen}
-              />
-            </div>
-          )}
-          {/* Hidden TagManager on mobile, controlled programmatically from dropdown */}
-          {canTag && (
-            <div className="md:hidden">
-              <TagManager
-                conversationId={conversation.id}
-                onTagsChange={onConversationUpdated}
-                open={tagManagerOpen}
-                onOpenChange={setTagManagerOpen}
-                hideTrigger
+                hideTrigger={isMobile}
               />
             </div>
           )}
