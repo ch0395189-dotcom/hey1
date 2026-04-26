@@ -70,6 +70,7 @@ export const TagManager = ({ conversationId, onTagsChange, open: controlledOpen,
   const [editingTagId, setEditingTagId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editColor, setEditColor] = useState(TAG_COLORS[0]);
+  const [togglingTagIds, setTogglingTagIds] = useState<Set<string>>(new Set());
   const { toast } = useToast();
 
   useEffect(() => {
@@ -160,6 +161,8 @@ export const TagManager = ({ conversationId, onTagsChange, open: controlledOpen,
       else next.add(tagId);
       return next;
     });
+    // Marcamos esta etiqueta como "guardando" para mostrar el spinner.
+    setTogglingTagIds(prev => new Set(prev).add(tagId));
 
     try {
       if (isAssigned) {
@@ -198,6 +201,12 @@ export const TagManager = ({ conversationId, onTagsChange, open: controlledOpen,
         title: "Error",
         description: "No se pudo actualizar la etiqueta.",
         variant: "destructive",
+      });
+    } finally {
+      setTogglingTagIds(prev => {
+        const next = new Set(prev);
+        next.delete(tagId);
+        return next;
       });
     }
   };
@@ -357,9 +366,15 @@ export const TagManager = ({ conversationId, onTagsChange, open: controlledOpen,
                               style={{ backgroundColor: tag.color }}
                             />
                             <span className="text-sm">{tag.name}</span>
+                            {togglingTagIds.has(tag.id) && (
+                              <span className="flex items-center gap-1 text-xs text-muted-foreground ml-1">
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                                guardando…
+                              </span>
+                            )}
                           </div>
                           <div className="flex items-center gap-1">
-                            {assignedTagIds.has(tag.id) && (
+                            {assignedTagIds.has(tag.id) && !togglingTagIds.has(tag.id) && (
                               <Check className="w-4 h-4 text-primary" />
                             )}
                             <Button
