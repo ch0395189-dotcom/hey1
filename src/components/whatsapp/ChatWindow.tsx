@@ -1113,49 +1113,20 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                 </>
               )}
               {canTag && (
-              <DropdownMenuSub>
-                <DropdownMenuSubTrigger>
-                  <TagIcon className="w-4 h-4 mr-2" />
-                  Etiquetar contacto
-                  {assignedTagIds.size > 0 && (
-                    <span className="ml-auto text-xs text-muted-foreground">
-                      {assignedTagIds.size}
-                    </span>
-                  )}
-                </DropdownMenuSubTrigger>
-                <DropdownMenuPortal>
-                  <DropdownMenuSubContent className="bg-popover max-h-72 overflow-y-auto w-60">
-                    {availableTags.length === 0 ? (
-                      <div className="px-2 py-3 text-xs text-muted-foreground text-center">
-                        Aún no tienes etiquetas.
-                        <br />
-                        Crea una desde el botón "Etiquetas".
-                      </div>
-                    ) : (
-                      availableTags.map(tag => {
-                        const isAssigned = assignedTagIds.has(tag.id);
-                        return (
-                          <DropdownMenuItem
-                            key={tag.id}
-                            onSelect={(e) => {
-                              e.preventDefault();
-                              toggleTagFromMenu(tag.id);
-                            }}
-                            className="flex items-center gap-2"
-                          >
-                            <div
-                              className="w-3 h-3 rounded-full shrink-0"
-                              style={{ backgroundColor: tag.color }}
-                            />
-                            <span className="flex-1 truncate">{tag.name}</span>
-                            {isAssigned && <CheckIcon className="w-4 h-4 text-primary shrink-0" />}
-                          </DropdownMenuItem>
-                        );
-                      })
-                    )}
-                  </DropdownMenuSubContent>
-                </DropdownMenuPortal>
-              </DropdownMenuSub>
+              <DropdownMenuItem
+                onSelect={(e) => {
+                  e.preventDefault();
+                  setTimeout(() => setTagManagerOpen(true), 50);
+                }}
+              >
+                <TagIcon className="w-4 h-4 mr-2" />
+                Gestionar etiquetas
+                {assignedTagIds.size > 0 && (
+                  <span className="ml-auto text-xs text-muted-foreground">
+                    {assignedTagIds.size}
+                  </span>
+                )}
+              </DropdownMenuItem>
               )}
               {(canTag && (canBlock || canArchive)) && <DropdownMenuSeparator />}
               {canBlock && (
@@ -1192,12 +1163,29 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
             </DropdownMenuContent>
           </DropdownMenu>
           {canTag && (
-            <div className="ml-1">
-              <TagManager conversationId={conversation.id} onTagsChange={onConversationUpdated} />
+            <div className="ml-1 hidden md:block">
+              <TagManager
+                conversationId={conversation.id}
+                onTagsChange={onConversationUpdated}
+                open={tagManagerOpen}
+                onOpenChange={setTagManagerOpen}
+              />
+            </div>
+          )}
+          {/* Hidden TagManager on mobile, controlled programmatically from dropdown */}
+          {canTag && (
+            <div className="md:hidden">
+              <TagManager
+                conversationId={conversation.id}
+                onTagsChange={onConversationUpdated}
+                open={tagManagerOpen}
+                onOpenChange={setTagManagerOpen}
+                hideTrigger
+              />
             </div>
           )}
           {!isAgent && (
-            <div className="ml-1">
+            <div className="ml-1 hidden md:block">
               <AssignAgentMenu
                 conversationId={conversation.id}
                 currentAssignee={conversation.assigned_to ?? null}
