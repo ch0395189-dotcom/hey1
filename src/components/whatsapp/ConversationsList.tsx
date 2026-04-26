@@ -422,6 +422,7 @@ export const ConversationsList = ({
             >
               <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
             </Button>
+            {canArchive && (
             <Button
               size="icon"
               variant={viewMode === 'archived' ? "secondary" : "ghost"}
@@ -431,6 +432,8 @@ export const ConversationsList = ({
             >
               {viewMode === 'archived' ? <Inbox className="w-4 h-4" /> : <Archive className="w-4 h-4" />}
             </Button>
+            )}
+            {canBlock && (
             <Button
               size="icon"
               variant={viewMode === 'blocked' ? "destructive" : "ghost"}
@@ -440,6 +443,7 @@ export const ConversationsList = ({
             >
               <Ban className="w-4 h-4" />
             </Button>
+            )}
             <Popover open={tagFilterOpen} onOpenChange={setTagFilterOpen}>
               <PopoverTrigger asChild>
                 <Button
@@ -528,6 +532,7 @@ export const ConversationsList = ({
             <span className="text-xs text-muted-foreground flex-1">
               {selectedIds.size} seleccionada(s)
             </span>
+            {canArchive && (
             <Button 
               variant="outline" 
               size="sm" 
@@ -537,6 +542,8 @@ export const ConversationsList = ({
               <Archive className="w-3.5 h-3.5 mr-1" />
               {viewMode === 'archived' ? 'Desarchivar' : 'Archivar'}
             </Button>
+            )}
+            {canBlock && (
             <Button
               variant="outline"
               size="sm"
@@ -546,6 +553,8 @@ export const ConversationsList = ({
               <Ban className="w-3.5 h-3.5 mr-1" />
               {viewMode === 'blocked' ? 'Desbloquear' : 'Bloquear'}
             </Button>
+            )}
+            {!isAgent && (
             <Button 
               variant="destructive" 
               size="sm" 
@@ -555,6 +564,7 @@ export const ConversationsList = ({
               <Trash2 className="w-3.5 h-3.5 mr-1" />
               Eliminar
             </Button>
+            )}
           </div>
         )}
 
