@@ -385,6 +385,7 @@ const Dashboard = () => {
           >
             <MessageCircle className="w-5 h-5" />
           </Button>
+          {canViewContacts && (
           <Button 
             variant="ghost" 
             size="icon" 
@@ -394,6 +395,8 @@ const Dashboard = () => {
           >
             <Users className="w-5 h-5" />
           </Button>
+          )}
+          {canViewStatistics && (
           <Button 
             variant="ghost" 
             size="icon" 
@@ -403,6 +406,8 @@ const Dashboard = () => {
           >
             <BarChart3 className="w-5 h-5" />
           </Button>
+          )}
+          {!isAgent && (
           <Button 
             variant="ghost" 
             size="icon" 
@@ -412,6 +417,7 @@ const Dashboard = () => {
           >
             <Users className="w-5 h-5" />
           </Button>
+          )}
           <Button 
             variant="ghost" 
             size="icon" 
@@ -682,6 +688,7 @@ const Dashboard = () => {
           <MessageCircle className="w-5 h-5" />
           <span className="text-[10px] font-medium">Chats</span>
         </button>
+        {canViewContacts && (
         <button
           onClick={() => setActiveView('contacts')}
           className={`flex flex-col items-center gap-0.5 py-1.5 px-3 rounded-lg transition-colors ${
@@ -691,6 +698,8 @@ const Dashboard = () => {
           <Users className="w-5 h-5" />
           <span className="text-[10px] font-medium">Contactos</span>
         </button>
+        )}
+        {canViewStatistics && (
         <button
           onClick={() => setActiveView('statistics')}
           className={`flex flex-col items-center gap-0.5 py-1.5 px-3 rounded-lg transition-colors ${
@@ -700,6 +709,7 @@ const Dashboard = () => {
           <BarChart3 className="w-5 h-5" />
           <span className="text-[10px] font-medium">Stats</span>
         </button>
+        )}
         <button
           onClick={() => setShowMobileMenu(true)}
           className="flex flex-col items-center gap-0.5 py-1.5 px-3 rounded-lg transition-colors text-muted-foreground"
