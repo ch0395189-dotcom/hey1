@@ -150,7 +150,17 @@ export const TagManager = ({ conversationId, onTagsChange, open: controlledOpen,
 
   const toggleTag = async (tagId: string) => {
     const isAssigned = assignedTagIds.has(tagId);
-    
+    const tag = availableTags.find(t => t.id === tagId);
+
+    // Optimistic update: cambiamos el estado YA, antes de esperar a la red.
+    // Si falla, revertimos.
+    setAssignedTagIds(prev => {
+      const next = new Set(prev);
+      if (isAssigned) next.delete(tagId);
+      else next.add(tagId);
+      return next;
+    });
+
     try {
       if (isAssigned) {
         const { error } = await supabase
@@ -160,11 +170,6 @@ export const TagManager = ({ conversationId, onTagsChange, open: controlledOpen,
           .eq('tag_id', tagId);
 
         if (error) throw error;
-        setAssignedTagIds(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(tagId);
-          return newSet;
-        });
       } else {
         const { error } = await supabase
           .from('conversation_tags')
@@ -174,11 +179,21 @@ export const TagManager = ({ conversationId, onTagsChange, open: controlledOpen,
           });
 
         if (error) throw error;
-        setAssignedTagIds(prev => new Set([...prev, tagId]));
       }
       onTagsChange?.();
+      toast({
+        title: isAssigned ? "Etiqueta quitada" : "Etiqueta asignada",
+        description: tag ? `"${tag.name}"` : undefined,
+      });
     } catch (error) {
       console.error('Error toggling tag:', error);
+      // Revertir el cambio optimista
+      setAssignedTagIds(prev => {
+        const next = new Set(prev);
+        if (isAssigned) next.add(tagId);
+        else next.delete(tagId);
+        return next;
+      });
       toast({
         title: "Error",
         description: "No se pudo actualizar la etiqueta.",
