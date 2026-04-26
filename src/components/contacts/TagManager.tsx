@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Plus, X, Check, Loader2, Pencil } from "lucide-react";
+import { Tag as TagIcon } from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -263,7 +264,7 @@ export const TagManager = ({ conversationId, onTagsChange }: TagManagerProps) =>
           className="w-9 h-9 text-primary-foreground hover:bg-primary-foreground/10"
           title="Gestionar etiquetas"
         >
-          <Plus className="w-4 h-4" />
+          <TagIcon className="w-4 h-4" />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-72 p-3 bg-popover" align="start">
