@@ -53,7 +53,7 @@ if (isPreviewHost || isInIframe) {
           reg.update().catch(() => {});
         });
 
-        // When a new SW takes over, reload the page once so users get fresh code
+        // When a new SW takes over (after user clicks "Actualizar"), reload once
         let refreshing = false;
         navigator.serviceWorker.addEventListener("controllerchange", () => {
           if (refreshing) return;
@@ -62,7 +62,9 @@ if (isPreviewHost || isInIframe) {
           window.location.reload();
         });
 
-        // If a new SW is found and waiting, activate it immediately
+        // If a new SW is found and waiting, notify the UI via a custom event.
+        // The UpdateBanner component listens for this and lets the user decide
+        // when to apply the update (so they don't lose what they're typing).
         reg.addEventListener("updatefound", () => {
           const newWorker = reg.installing;
           if (!newWorker) return;
@@ -71,8 +73,12 @@ if (isPreviewHost || isInIframe) {
               newWorker.state === "installed" &&
               navigator.serviceWorker.controller
             ) {
-              console.log("[SW] New version installed — activating");
-              newWorker.postMessage({ type: "SKIP_WAITING" });
+              console.log("[SW] New version installed — waiting for user");
+              window.dispatchEvent(
+                new CustomEvent("sw-update-available", {
+                  detail: { worker: newWorker },
+                })
+              );
             }
           });
         });
