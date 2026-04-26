@@ -120,6 +120,10 @@ interface AttachedFile {
 export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: ChatWindowProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
+  const { isAgent, myPermissions } = useTeam();
+  const canTag = !isAgent || myPermissions.tag_contacts;
+  const canBlock = !isAgent || myPermissions.block_contacts;
+  const canArchive = !isAgent || myPermissions.archive_conversations;
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
