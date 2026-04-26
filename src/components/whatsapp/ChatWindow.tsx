@@ -34,6 +34,9 @@ import {
   User,
   Ban,
   ShieldOff,
+  Tag as TagIcon,
+  Check as CheckIcon,
+  Plus,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -41,6 +44,10 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+  DropdownMenuPortal,
 } from "@/components/ui/dropdown-menu";
 import {
   Popover,
@@ -126,6 +133,8 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
   const [accountConnectionType, setAccountConnectionType] = useState<string | null>(null);
   const [isBotActive, setIsBotActive] = useState<boolean | null>(null);
   const [hasChatbotConfig, setHasChatbotConfig] = useState(false);
+  const [availableTags, setAvailableTags] = useState<{ id: string; name: string; color: string }[]>([]);
+  const [assignedTagIds, setAssignedTagIds] = useState<Set<string>>(new Set());
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -182,6 +191,59 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
   useEffect(() => {
     fetchBotState();
   }, [fetchBotState]);
+
+  // Load tags (available + assigned to this conversation) for the dropdown menu
+  const fetchTagsForMenu = useCallback(async () => {
+    if (!conversation?.id) return;
+    try {
+      const [tagsRes, convTagsRes] = await Promise.all([
+        supabase.from('contact_tags').select('id, name, color').order('name'),
+        supabase.from('conversation_tags').select('tag_id').eq('conversation_id', conversation.id),
+      ]);
+      setAvailableTags(tagsRes.data || []);
+      setAssignedTagIds(new Set((convTagsRes.data || []).map((r: any) => r.tag_id)));
+    } catch (err) {
+      console.error('Error loading tags for menu:', err);
+    }
+  }, [conversation?.id]);
+
+  useEffect(() => {
+    fetchTagsForMenu();
+  }, [fetchTagsForMenu]);
+
+  const toggleTagFromMenu = async (tagId: string) => {
+    if (!conversation?.id) return;
+    const isAssigned = assignedTagIds.has(tagId);
+    try {
+      if (isAssigned) {
+        const { error } = await supabase
+          .from('conversation_tags')
+          .delete()
+          .eq('conversation_id', conversation.id)
+          .eq('tag_id', tagId);
+        if (error) throw error;
+        setAssignedTagIds(prev => {
+          const next = new Set(prev);
+          next.delete(tagId);
+          return next;
+        });
+      } else {
+        const { error } = await supabase
+          .from('conversation_tags')
+          .insert({ conversation_id: conversation.id, tag_id: tagId });
+        if (error) throw error;
+        setAssignedTagIds(prev => new Set([...prev, tagId]));
+      }
+      onConversationUpdated?.();
+    } catch (err) {
+      console.error('Error toggling tag from menu:', err);
+      toast({
+        title: 'Error',
+        description: 'No se pudo actualizar la etiqueta.',
+        variant: 'destructive',
+      });
+    }
+  };
 
   const handleToggleBot = async (activate: boolean) => {
     if (!conversation) return;
@@ -1043,6 +1105,50 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                   <DropdownMenuSeparator />
                 </>
               )}
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
+                  <TagIcon className="w-4 h-4 mr-2" />
+                  Etiquetar contacto
+                  {assignedTagIds.size > 0 && (
+                    <span className="ml-auto text-xs text-muted-foreground">
+                      {assignedTagIds.size}
+                    </span>
+                  )}
+                </DropdownMenuSubTrigger>
+                <DropdownMenuPortal>
+                  <DropdownMenuSubContent className="bg-popover max-h-72 overflow-y-auto w-60">
+                    {availableTags.length === 0 ? (
+                      <div className="px-2 py-3 text-xs text-muted-foreground text-center">
+                        Aún no tienes etiquetas.
+                        <br />
+                        Crea una desde el botón "Etiquetas".
+                      </div>
+                    ) : (
+                      availableTags.map(tag => {
+                        const isAssigned = assignedTagIds.has(tag.id);
+                        return (
+                          <DropdownMenuItem
+                            key={tag.id}
+                            onSelect={(e) => {
+                              e.preventDefault();
+                              toggleTagFromMenu(tag.id);
+                            }}
+                            className="flex items-center gap-2"
+                          >
+                            <div
+                              className="w-3 h-3 rounded-full shrink-0"
+                              style={{ backgroundColor: tag.color }}
+                            />
+                            <span className="flex-1 truncate">{tag.name}</span>
+                            {isAssigned && <CheckIcon className="w-4 h-4 text-primary shrink-0" />}
+                          </DropdownMenuItem>
+                        );
+                      })
+                    )}
+                  </DropdownMenuSubContent>
+                </DropdownMenuPortal>
+              </DropdownMenuSub>
+              <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={handleToggleBlock}
                 className={conversation.blocked_at ? '' : 'text-destructive focus:text-destructive'}
