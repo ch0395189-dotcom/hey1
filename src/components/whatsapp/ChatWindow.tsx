@@ -1110,6 +1110,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                   <DropdownMenuSeparator />
                 </>
               )}
+              {canTag && (
               <DropdownMenuSub>
                 <DropdownMenuSubTrigger>
                   <TagIcon className="w-4 h-4 mr-2" />
@@ -1153,7 +1154,9 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                   </DropdownMenuSubContent>
                 </DropdownMenuPortal>
               </DropdownMenuSub>
-              <DropdownMenuSeparator />
+              )}
+              {(canTag && (canBlock || canArchive)) && <DropdownMenuSeparator />}
+              {canBlock && (
               <DropdownMenuItem
                 onClick={handleToggleBlock}
                 className={conversation.blocked_at ? '' : 'text-destructive focus:text-destructive'}
@@ -1170,27 +1173,36 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                   </>
                 )}
               </DropdownMenuItem>
+              )}
+              {canArchive && (
               <DropdownMenuItem onClick={handleArchive}>
                 <Archive className="w-4 h-4 mr-2" />
                 {conversation.is_archived ? 'Restaurar' : 'Archivar'}
               </DropdownMenuItem>
-              <DropdownMenuSeparator />
+              )}
+              {!isAgent && <DropdownMenuSeparator />}
+              {!isAgent && (
               <DropdownMenuItem onClick={() => setShowDeleteDialog(true)} className="text-destructive focus:text-destructive">
                 <Trash2 className="w-4 h-4 mr-2" />
                 Eliminar
               </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
-          <div className="ml-1">
-            <TagManager conversationId={conversation.id} onTagsChange={onConversationUpdated} />
-          </div>
-          <div className="ml-1">
-            <AssignAgentMenu
-              conversationId={conversation.id}
-              currentAssignee={conversation.assigned_to ?? null}
-              onAssigned={onConversationUpdated}
-            />
-          </div>
+          {canTag && (
+            <div className="ml-1">
+              <TagManager conversationId={conversation.id} onTagsChange={onConversationUpdated} />
+            </div>
+          )}
+          {!isAgent && (
+            <div className="ml-1">
+              <AssignAgentMenu
+                conversationId={conversation.id}
+                currentAssignee={conversation.assigned_to ?? null}
+                onAssigned={onConversationUpdated}
+              />
+            </div>
+          )}
         </div>
       </div>
 
