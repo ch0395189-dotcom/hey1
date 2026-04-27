@@ -64,6 +64,7 @@ serve(async (req) => {
           },
         });
         const boldData = await boldRes.json();
+        console.log(`Bold response for ${reference}:`, JSON.stringify(boldData));
         const status =
           boldData?.payload?.status ||
           boldData?.payload?.payment_status ||
