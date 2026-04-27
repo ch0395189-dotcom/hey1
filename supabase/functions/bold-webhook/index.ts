@@ -14,6 +14,15 @@ function arrayBufferToHex(buffer: ArrayBuffer): string {
     .join('');
 }
 
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+
 async function verifySignature(body: string, signature: string | null): Promise<boolean> {
   if (!signature || !BOLD_SECRET_KEY) {
     console.error('Missing signature or secret key');
@@ -36,18 +45,11 @@ async function verifySignature(body: string, signature: string | null): Promise<
       encoder.encode(body)
     );
 
-    const computedSignature = arrayBufferToHex(signatureBuffer);
-    
-    if (computedSignature.length !== signature.length) {
-      return false;
-    }
-    
-    let result = 0;
-    for (let i = 0; i < computedSignature.length; i++) {
-      result |= computedSignature.charCodeAt(i) ^ signature.charCodeAt(i);
-    }
-    
-    return result === 0;
+    const hex = arrayBufferToHex(signatureBuffer);
+    const b64 = arrayBufferToBase64(signatureBuffer);
+
+    // Bold may send the signature in either hex or base64 format
+    return signature === hex || signature === b64;
   } catch (error) {
     console.error('Error verifying signature:', error);
     return false;
