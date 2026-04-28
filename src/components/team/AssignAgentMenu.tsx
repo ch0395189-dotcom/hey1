@@ -32,6 +32,7 @@ export const AssignAgentMenu = ({ conversationId, currentAssignee, onAssigned }:
   const [me, setMe] = useState<string | null>(null);
   const [isOwner, setIsOwner] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -73,17 +74,24 @@ export const AssignAgentMenu = ({ conversationId, currentAssignee, onAssigned }:
       return;
     }
     toast({ title: agentId ? "Conversación asignada" : "Asignación removida" });
+    setMenuOpen(false);
     onAssigned?.();
   };
 
   return (
-    <DropdownMenu>
+    <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen} modal={false}>
       <DropdownMenuTrigger asChild>
         <Button
           type="button"
           variant="ghost"
           size="icon"
           className="h-9 w-9 text-primary-foreground hover:bg-primary-foreground/10 touch-manipulation"
+          onPointerDown={(event) => {
+            if (event.pointerType !== "mouse") {
+              event.preventDefault();
+              setMenuOpen((open) => !open);
+            }
+          }}
           title="Asignar agente"
         >
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserCog className="w-4 h-4" />}
