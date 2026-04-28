@@ -98,8 +98,19 @@ export const AssignAgentMenu = ({ conversationId, currentAssignee, onAssigned, o
               handleOpenChange(!menuOpen);
             }
           }}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              handleOpenChange(!menuOpen);
+            } else if (event.key === "Escape" && menuOpen) {
+              event.preventDefault();
+              handleOpenChange(false);
+            }
+          }}
           title="Asignar agente"
           aria-label="Asignar agente"
+          aria-haspopup="menu"
+          aria-expanded={menuOpen}
         >
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserCog className="w-4 h-4" />}
         </Button>
