@@ -13,3 +13,6 @@ Object.defineProperty(window, "matchMedia", {
     dispatchEvent: () => {},
   }),
 });
+
+window.PointerEvent = window.PointerEvent || (MouseEvent as unknown as typeof PointerEvent);
+HTMLElement.prototype.scrollIntoView = HTMLElement.prototype.scrollIntoView || (() => {});
