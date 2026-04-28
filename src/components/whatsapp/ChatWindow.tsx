@@ -143,7 +143,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
   const [availableTags, setAvailableTags] = useState<{ id: string; name: string; color: string }[]>([]);
   const [assignedTagIds, setAssignedTagIds] = useState<Set<string>>(new Set());
   const [tagManagerOpen, setTagManagerOpen] = useState(false);
-  const [assignMenuOpen, setAssignMenuOpen] = useState(false);
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -1092,11 +1092,17 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
           >
             <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
           </button>
-          <DropdownMenu>
+          <DropdownMenu open={moreMenuOpen} onOpenChange={setMoreMenuOpen} modal={false}>
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
                 className="p-2 rounded-full hover:bg-primary-foreground/10 active:bg-primary-foreground/20 transition-colors touch-manipulation"
+                onPointerDown={(event) => {
+                  if (event.pointerType !== "mouse") {
+                    event.preventDefault();
+                    setMoreMenuOpen((open) => !open);
+                  }
+                }}
                 title="Más opciones"
               >
                 <MoreVertical className="w-4 h-4" />
