@@ -806,7 +806,7 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
                 <div className="space-y-3">
                   <Button 
                     onClick={handleEmbeddedSignup} 
-                    disabled={connecting || !fbLoaded}
+                    disabled={connecting || !fbLoaded || !planLimits.canAddWhatsAppAccount}
                     className="w-full bg-gradient-hero hover:opacity-90"
                     size="lg"
                   >
