@@ -24,5 +24,11 @@ class ResizeObserverMock {
 }
 
 window.ResizeObserver = window.ResizeObserver || ResizeObserverMock;
-HTMLMediaElement.prototype.play = HTMLMediaElement.prototype.play || (() => Promise.resolve());
-HTMLMediaElement.prototype.pause = HTMLMediaElement.prototype.pause || (() => {});
+Object.defineProperty(HTMLMediaElement.prototype, "play", {
+  configurable: true,
+  value: () => Promise.resolve(),
+});
+Object.defineProperty(HTMLMediaElement.prototype, "pause", {
+  configurable: true,
+  value: () => {},
+});
