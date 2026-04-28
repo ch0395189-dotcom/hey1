@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { UserCog, Check, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
 
 interface Props {
   conversationId: string;
@@ -26,6 +27,7 @@ interface AgentOption {
 
 export const AssignAgentMenu = ({ conversationId, currentAssignee, onAssigned }: Props) => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [agents, setAgents] = useState<AgentOption[]>([]);
   const [me, setMe] = useState<string | null>(null);
   const [isOwner, setIsOwner] = useState(false);
@@ -58,7 +60,6 @@ export const AssignAgentMenu = ({ conversationId, currentAssignee, onAssigned }:
   }, []);
 
   if (!isOwner) return null;
-  if (agents.length === 0) return null; // No agents to assign to
 
   const assign = async (agentId: string | null) => {
     setLoading(true);
@@ -79,9 +80,10 @@ export const AssignAgentMenu = ({ conversationId, currentAssignee, onAssigned }:
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
+          type="button"
           variant="ghost"
           size="icon"
-          className="h-9 w-9 text-primary-foreground hover:bg-primary-foreground/10"
+          className="h-9 w-9 text-primary-foreground hover:bg-primary-foreground/10 touch-manipulation"
           title="Asignar agente"
         >
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserCog className="w-4 h-4" />}
@@ -102,6 +104,14 @@ export const AssignAgentMenu = ({ conversationId, currentAssignee, onAssigned }:
             </span>
           </DropdownMenuItem>
         ))}
+        {agents.length === 0 && (
+          <DropdownMenuItem
+            onClick={() => navigate("/dashboard?view=team")}
+            className="text-primary"
+          >
+            + Invitar agentes
+          </DropdownMenuItem>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => assign(null)} className="text-muted-foreground">
           Sin asignar
