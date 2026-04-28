@@ -702,6 +702,43 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
       )}
 
       {/* Connect New Account with Tabs */}
+      {/* Plan limit banner */}
+      {!planLimits.loading && (
+        <div
+          className={`rounded-lg border p-4 flex items-start gap-3 ${
+            planLimits.canAddWhatsAppAccount
+              ? "bg-muted/40 border-border"
+              : "bg-destructive/10 border-destructive/30"
+          }`}
+        >
+          <AlertCircle
+            className={`w-5 h-5 mt-0.5 shrink-0 ${
+              planLimits.canAddWhatsAppAccount ? "text-muted-foreground" : "text-destructive"
+            }`}
+          />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium">
+              Plan {planLimits.planLabel}: {planLimits.currentCount} / {planLimits.whatsappLimit} cuentas de WhatsApp
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {planLimits.canAddWhatsAppAccount
+                ? `Puedes conectar ${planLimits.whatsappLimit - planLimits.currentCount} cuenta(s) más en este plan.`
+                : "Has alcanzado el límite de tu plan. Mejora tu plan para conectar más cuentas."}
+            </p>
+          </div>
+          {!planLimits.canAddWhatsAppAccount && (
+            <Button
+              size="sm"
+              variant="default"
+              onClick={() => navigate("/#pricing")}
+              className="shrink-0"
+            >
+              Mejorar plan
+            </Button>
+          )}
+        </div>
+      )}
+
       <Tabs defaultValue="automatic" className="w-full">
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="automatic" className="flex items-center gap-2">
