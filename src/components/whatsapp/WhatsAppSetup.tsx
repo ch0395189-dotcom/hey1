@@ -268,6 +268,14 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
   };
 
   const handleEmbeddedSignup = async () => {
+    if (!planLimits.canAddWhatsAppAccount) {
+      toast({
+        title: "Límite alcanzado",
+        description: `Tu plan ${planLimits.planLabel} permite ${planLimits.whatsappLimit} cuenta(s) de WhatsApp. Mejora tu plan para agregar más.`,
+        variant: "destructive",
+      });
+      return;
+    }
     if (!window.FB) {
       toast({
         title: "Error",
