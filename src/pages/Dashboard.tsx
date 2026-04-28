@@ -656,14 +656,19 @@ const Dashboard = () => {
       )}
       </div>
 
-      {/* Mobile FAB - New Message - hide when conversation is open */}
+      {/* Mobile FAB - Support - hide when conversation is open */}
       {activeView === 'inbox' && !selectedConversation && (
         <button
-          onClick={() => setShowMobileNewMessage(true)}
-          className="md:hidden fixed bottom-20 right-4 z-50 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:bg-primary/90 active:scale-95 transition-all"
-          aria-label="Nuevo mensaje"
+          onClick={() => {
+            const phone = "573238261825";
+            const msg = encodeURIComponent("Hola, necesito soporte con HeyHey");
+            window.open(`https://wa.me/${phone}?text=${msg}`, "_blank");
+          }}
+          className="md:hidden fixed bottom-20 right-4 z-50 h-14 px-5 rounded-full bg-[#25D366] text-white shadow-lg flex items-center gap-2 hover:bg-[#25D366]/90 active:scale-95 transition-all"
+          aria-label="Contactar soporte por WhatsApp"
         >
-          <Send className="w-6 h-6" />
+          <MessageCircle className="w-5 h-5" />
+          <span className="text-sm font-semibold">Soporte</span>
         </button>
       )}
 
