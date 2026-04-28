@@ -94,6 +94,22 @@ export const ExternalWhatsAppSetup = ({ onAccountConnected }: ExternalWhatsAppSe
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('No authenticated user');
 
+      // Enforce plan limit
+      const [{ count: currentCount }, { data: limit }] = await Promise.all([
+        supabase.from('whatsapp_accounts').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
+        supabase.rpc('get_whatsapp_account_limit', { _user_id: user.id }),
+      ]);
+      const maxAllowed = (limit as number) ?? 1;
+      if ((currentCount ?? 0) >= maxAllowed) {
+        toast({
+          title: "Límite alcanzado",
+          description: `Tu plan permite ${maxAllowed} cuenta(s) de WhatsApp. Mejora tu plan para conectar más.`,
+          variant: "destructive",
+        });
+        setSaving(false);
+        return;
+      }
+
       // Build the full API URL with the instance ID
       const fullApiUrl = `${WUZAPI_API_URL}/v1/api/external/${formData.instanceId}`;
 

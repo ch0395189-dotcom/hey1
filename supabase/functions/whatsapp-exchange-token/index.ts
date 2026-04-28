@@ -260,6 +260,37 @@ Deno.serve(async (req) => {
     // Step 6: Generate a unique webhook verify token
     const webhookVerifyToken = crypto.randomUUID();
 
+    // Step 6.5: Enforce plan limit (only for NEW accounts, not updates)
+    const { data: existingAccount } = await supabase
+      .from('whatsapp_accounts')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('phone_number_id', phoneNumberId)
+      .maybeSingle();
+
+    if (!existingAccount) {
+      const [{ count: currentCount }, { data: limitData }] = await Promise.all([
+        supabase
+          .from('whatsapp_accounts')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', userId),
+        supabase.rpc('get_whatsapp_account_limit', { _user_id: userId }),
+      ]);
+      const limit = (limitData as number) ?? 1;
+      if ((currentCount ?? 0) >= limit) {
+        console.warn(`User ${userId} reached WhatsApp account limit (${currentCount}/${limit})`);
+        return new Response(
+          JSON.stringify({
+            error: 'plan_limit_reached',
+            message: `Tu plan permite ${limit} cuenta(s) de WhatsApp. Mejora tu plan para conectar más.`,
+            limit,
+            current: currentCount,
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
     // Step 7: Save or update the WhatsApp account (upsert to handle duplicates)
     const { data: whatsappAccount, error: upsertError } = await supabase
       .from('whatsapp_accounts')

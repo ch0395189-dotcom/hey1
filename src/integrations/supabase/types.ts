@@ -1082,6 +1082,10 @@ export type Database = {
       }
       get_agent_limit: { Args: { _user_id: string }; Returns: number }
       get_my_owner_id: { Args: never; Returns: string }
+      get_whatsapp_account_limit: {
+        Args: { _user_id: string }
+        Returns: number
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

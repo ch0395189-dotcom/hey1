@@ -29,6 +29,8 @@ import { WhatsAppDiagnostics } from "./WhatsAppDiagnostics";
 import { ConnectionVerification } from "./ConnectionVerification";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
+import { useNavigate } from "react-router-dom";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -99,6 +101,8 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
   const [accountToDelete, setAccountToDelete] = useState<WhatsAppAccount | null>(null);
   const [verifyingAccount, setVerifyingAccount] = useState<WhatsAppAccount | null>(null);
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const planLimits = usePlanLimits();
 
   const FB_LOGIN_TIMEOUT_MS = 30000; // 30 seconds - extended to avoid false positives
 
@@ -150,11 +154,13 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
 
       if (error) throw error;
       setAccounts(data || []);
+      planLimits.refresh();
     } catch (error: any) {
       console.error('Error fetching accounts:', error);
     } finally {
       setLoading(false);
     }
+   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -262,6 +268,14 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
   };
 
   const handleEmbeddedSignup = async () => {
+    if (!planLimits.canAddWhatsAppAccount) {
+      toast({
+        title: "Límite alcanzado",
+        description: `Tu plan ${planLimits.planLabel} permite ${planLimits.whatsappLimit} cuenta(s) de WhatsApp. Mejora tu plan para agregar más.`,
+        variant: "destructive",
+      });
+      return;
+    }
     if (!window.FB) {
       toast({
         title: "Error",
@@ -688,6 +702,43 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
       )}
 
       {/* Connect New Account with Tabs */}
+      {/* Plan limit banner */}
+      {!planLimits.loading && (
+        <div
+          className={`rounded-lg border p-4 flex items-start gap-3 ${
+            planLimits.canAddWhatsAppAccount
+              ? "bg-muted/40 border-border"
+              : "bg-destructive/10 border-destructive/30"
+          }`}
+        >
+          <AlertCircle
+            className={`w-5 h-5 mt-0.5 shrink-0 ${
+              planLimits.canAddWhatsAppAccount ? "text-muted-foreground" : "text-destructive"
+            }`}
+          />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium">
+              Plan {planLimits.planLabel}: {planLimits.currentCount} / {planLimits.whatsappLimit} cuentas de WhatsApp
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {planLimits.canAddWhatsAppAccount
+                ? `Puedes conectar ${planLimits.whatsappLimit - planLimits.currentCount} cuenta(s) más en este plan.`
+                : "Has alcanzado el límite de tu plan. Mejora tu plan para conectar más cuentas."}
+            </p>
+          </div>
+          {!planLimits.canAddWhatsAppAccount && (
+            <Button
+              size="sm"
+              variant="default"
+              onClick={() => navigate("/#pricing")}
+              className="shrink-0"
+            >
+              Mejorar plan
+            </Button>
+          )}
+        </div>
+      )}
+
       <Tabs defaultValue="automatic" className="w-full">
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="automatic" className="flex items-center gap-2">
@@ -755,7 +806,7 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
                 <div className="space-y-3">
                   <Button 
                     onClick={handleEmbeddedSignup} 
-                    disabled={connecting || !fbLoaded}
+                    disabled={connecting || !fbLoaded || !planLimits.canAddWhatsAppAccount}
                     className="w-full bg-gradient-hero hover:opacity-90"
                     size="lg"
                   >
