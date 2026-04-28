@@ -747,6 +747,15 @@ const Dashboard = () => {
               <Bot className="w-6 h-6 text-muted-foreground" />
               <span className="text-xs font-medium">Chatbot</span>
             </button>
+            {!isAgent && (
+              <button
+                onClick={() => { setShowMobileMenu(false); setActiveView('team'); }}
+                className="flex flex-col items-center gap-2 p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
+              >
+                <Users className="w-6 h-6 text-muted-foreground" />
+                <span className="text-xs font-medium">Equipo</span>
+              </button>
+            )}
             <button
               onClick={() => { setShowMobileMenu(false); setShowPlatformSetup(true); }}
               className="flex flex-col items-center gap-2 p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
