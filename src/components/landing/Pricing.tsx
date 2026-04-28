@@ -61,7 +61,7 @@ const plans: Array<{
     period: "mes",
     description: "Para grandes empresas",
     features: [
-      "Números ilimitados",
+      "10 números de WhatsApp",
       "Mensajes ilimitados",
       "10 agentes / subcuentas",
       "API personalizada",
@@ -80,7 +80,7 @@ const plans: Array<{
     period: "mes",
     description: "Número blindado contra bloqueos",
     features: [
-      "Número blindado anti-bloqueo",
+      "1 número blindado anti-bloqueo",
       "5 agentes / subcuentas",
       "1 Agente de voz IA",
       "1 Bot automatizado",
