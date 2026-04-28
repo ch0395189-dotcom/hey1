@@ -101,6 +101,8 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
   const [accountToDelete, setAccountToDelete] = useState<WhatsAppAccount | null>(null);
   const [verifyingAccount, setVerifyingAccount] = useState<WhatsAppAccount | null>(null);
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const planLimits = usePlanLimits();
 
   const FB_LOGIN_TIMEOUT_MS = 30000; // 30 seconds - extended to avoid false positives
 
@@ -152,11 +154,13 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
 
       if (error) throw error;
       setAccounts(data || []);
+      planLimits.refresh();
     } catch (error: any) {
       console.error('Error fetching accounts:', error);
     } finally {
       setLoading(false);
     }
+   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
