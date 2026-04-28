@@ -17,6 +17,7 @@ interface Props {
   conversationId: string;
   currentAssignee: string | null;
   onAssigned?: () => void;
+  onOpenChange?: (open: boolean) => void;
 }
 
 interface AgentOption {
@@ -25,7 +26,7 @@ interface AgentOption {
   agent_name: string | null;
 }
 
-export const AssignAgentMenu = ({ conversationId, currentAssignee, onAssigned }: Props) => {
+export const AssignAgentMenu = ({ conversationId, currentAssignee, onAssigned, onOpenChange }: Props) => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [agents, setAgents] = useState<AgentOption[]>([]);
@@ -62,6 +63,11 @@ export const AssignAgentMenu = ({ conversationId, currentAssignee, onAssigned }:
 
   if (!isOwner) return null;
 
+  const handleOpenChange = (open: boolean) => {
+    setMenuOpen(open);
+    onOpenChange?.(open);
+  };
+
   const assign = async (agentId: string | null) => {
     setLoading(true);
     const { error } = await supabase.rpc("assign_conversation", {
@@ -74,12 +80,12 @@ export const AssignAgentMenu = ({ conversationId, currentAssignee, onAssigned }:
       return;
     }
     toast({ title: agentId ? "Conversación asignada" : "Asignación removida" });
-    setMenuOpen(false);
+    handleOpenChange(false);
     onAssigned?.();
   };
 
   return (
-    <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen} modal={false}>
+    <DropdownMenu open={menuOpen} onOpenChange={handleOpenChange} modal={false}>
       <DropdownMenuTrigger asChild>
         <Button
           type="button"
@@ -89,10 +95,11 @@ export const AssignAgentMenu = ({ conversationId, currentAssignee, onAssigned }:
           onPointerDown={(event) => {
             if (event.pointerType !== "mouse") {
               event.preventDefault();
-              setMenuOpen((open) => !open);
+              handleOpenChange(!menuOpen);
             }
           }}
           title="Asignar agente"
+          aria-label="Asignar agente"
         >
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserCog className="w-4 h-4" />}
         </Button>
