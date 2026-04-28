@@ -1084,7 +1084,8 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
         </div>
         <div className="flex items-center shrink-0">
           <button
-            className="p-2 rounded-full hover:bg-primary-foreground/10 transition-colors"
+            type="button"
+            className="p-2 rounded-full hover:bg-primary-foreground/10 active:bg-primary-foreground/20 transition-colors touch-manipulation"
             onClick={handleRefresh}
             disabled={refreshing}
             title="Actualizar mensajes"
@@ -1093,7 +1094,11 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
           </button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="p-2 rounded-full hover:bg-primary-foreground/10 transition-colors">
+              <button
+                type="button"
+                className="p-2 rounded-full hover:bg-primary-foreground/10 active:bg-primary-foreground/20 transition-colors touch-manipulation"
+                title="Más opciones"
+              >
                 <MoreVertical className="w-4 h-4" />
               </button>
             </DropdownMenuTrigger>
