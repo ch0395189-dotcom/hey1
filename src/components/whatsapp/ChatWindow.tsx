@@ -1103,8 +1103,19 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                     setMoreMenuOpen((open) => !open);
                   }
                 }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    setMoreMenuOpen((open) => !open);
+                  } else if (event.key === "Escape" && moreMenuOpen) {
+                    event.preventDefault();
+                    setMoreMenuOpen(false);
+                  }
+                }}
                 title="Más opciones"
                 aria-label="Más opciones"
+                aria-haspopup="menu"
+                aria-expanded={moreMenuOpen}
               >
                 <MoreVertical className="w-4 h-4" />
               </button>
