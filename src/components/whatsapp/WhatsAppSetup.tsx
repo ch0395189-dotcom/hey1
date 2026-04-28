@@ -29,6 +29,8 @@ import { WhatsAppDiagnostics } from "./WhatsAppDiagnostics";
 import { ConnectionVerification } from "./ConnectionVerification";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
+import { useNavigate } from "react-router-dom";
 import {
   AlertDialog,
   AlertDialogAction,
