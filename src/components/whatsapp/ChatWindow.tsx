@@ -1104,6 +1104,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                   }
                 }}
                 title="Más opciones"
+                aria-label="Más opciones"
               >
                 <MoreVertical className="w-4 h-4" />
               </button>
@@ -1192,6 +1193,9 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                 conversationId={conversation.id}
                 currentAssignee={conversation.assigned_to ?? null}
                 onAssigned={onConversationUpdated}
+                onOpenChange={(open) => {
+                  if (open) setMoreMenuOpen(false);
+                }}
               />
             </div>
           )}
