@@ -4,9 +4,11 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { ChatWindow } from "./ChatWindow";
 
-const mockNavigate = vi.fn();
-const mockToast = vi.fn();
-const mockRpc = vi.fn();
+const { mockNavigate, mockToast, mockRpc } = vi.hoisted(() => ({
+  mockNavigate: vi.fn(),
+  mockToast: vi.fn(),
+  mockRpc: vi.fn(),
+}));
 
 vi.mock("react-router-dom", async () => {
   const actual = await vi.importActual<typeof import("react-router-dom")>("react-router-dom");
