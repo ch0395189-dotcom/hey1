@@ -46,6 +46,8 @@ export interface Conversation {
   last_message?: {
     content: string | null;
     direction: string;
+    message_type?: string | null;
+    media_url?: string | null;
   };
   tags?: { id: string; name: string; color: string }[];
 }
@@ -108,6 +110,28 @@ export const ConversationsList = ({
     }
   };
 
+  // Returns a friendly preview for the conversation list. Many WhatsApp messages
+  // (audio, image, video, sticker, document, location, contacts) arrive without
+  // textual `content`, so we fall back to a label based on `message_type`.
+  const getMessagePreview = (msg?: { content: string | null; message_type?: string | null; media_url?: string | null } | null): string => {
+    if (!msg) return 'Sin mensajes';
+    if (msg.content && msg.content.trim().length > 0) return msg.content;
+    switch (msg.message_type) {
+      case 'audio': return '🎤 Audio';
+      case 'image': return '📷 Foto';
+      case 'video': return '🎥 Video';
+      case 'sticker': return '💟 Sticker';
+      case 'document': return '📄 Documento';
+      case 'location': return '📍 Ubicación';
+      case 'contacts': return '👤 Contacto';
+      case 'reaction': return '👍 Reacción';
+      case 'interactive': return 'Mensaje interactivo';
+      case 'unsupported': return 'Mensaje no soportado';
+      default:
+        return msg.media_url ? '📎 Archivo adjunto' : 'Mensaje';
+    }
+  };
+
   const fetchConversations = useCallback(async () => {
     try {
       let query = supabase
@@ -137,7 +161,7 @@ export const ConversationsList = ({
           const [messagesRes, tagsRes] = await Promise.all([
             supabase
               .from('messages')
-              .select('content, direction')
+              .select('content, direction, message_type, media_url')
               .eq('conversation_id', conv.id)
               .order('created_at', { ascending: false })
               .limit(1),
@@ -750,7 +774,7 @@ export const ConversationsList = ({
                   {conversation.last_message?.direction === 'outbound' && (
                     <span className="text-primary">Tú: </span>
                   )}
-                  {conversation.last_message?.content || 'Sin mensajes'}
+                  {getMessagePreview(conversation.last_message)}
                 </p>
               </div>
 
@@ -782,7 +806,7 @@ export const ConversationsList = ({
             if (data) {
               const { data: messages } = await supabase
                 .from('messages')
-                .select('content, direction')
+                .select('content, direction, message_type, media_url')
                 .eq('conversation_id', data.id)
                 .order('created_at', { ascending: false })
                 .limit(1);
