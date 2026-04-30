@@ -60,7 +60,7 @@ export const CreditPackages = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {packages.map((pkg) => {
+        {packages.filter((p) => (p.package_type ?? 'credits') === 'credits').map((pkg) => {
           const Icon = packageIcons[pkg.name as keyof typeof packageIcons] || Coins;
           const aiMessages = Math.floor(pkg.credits / CREDIT_COSTS.ai_message);
           const voiceMinutes = Math.floor(pkg.credits / CREDIT_COSTS.voice_minute);
