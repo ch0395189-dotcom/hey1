@@ -774,7 +774,7 @@ export const ConversationsList = ({
                   {conversation.last_message?.direction === 'outbound' && (
                     <span className="text-primary">Tú: </span>
                   )}
-                  {conversation.last_message?.content || 'Sin mensajes'}
+                  {getMessagePreview(conversation.last_message)}
                 </p>
               </div>
 
