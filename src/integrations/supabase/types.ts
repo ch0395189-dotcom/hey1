@@ -1063,6 +1063,7 @@ export type Database = {
         Args: { p_agent_user_id: string; p_conversation_id: string }
         Returns: undefined
       }
+      cleanup_old_messages: { Args: { p_days?: number }; Returns: number }
       clone_chatbot_to_account: {
         Args: {
           p_source_config_id: string
