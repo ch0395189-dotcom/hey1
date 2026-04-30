@@ -4,6 +4,69 @@ import "./index.css";
 
 createRoot(document.getElementById("root")!).render(<App />);
 
+// ============================================================
+//  Build-version poller — surfaces the "Update available" banner
+//  whenever a new build is deployed, even if the Service Worker
+//  itself hasn't changed. Reads /version.json (emitted by the
+//  build-version Vite plugin) every 30s and on focus/visibility.
+// ============================================================
+(() => {
+  if (typeof window === "undefined") return;
+
+  const inIframe = (() => {
+    try {
+      return window.self !== window.top;
+    } catch {
+      return true;
+    }
+  })();
+  if (inIframe) return;
+
+  const initialBuildId =
+    document
+      .querySelector('meta[name="app-build-id"]')
+      ?.getAttribute("content") || "";
+
+  let notified = false;
+
+  const checkVersion = async () => {
+    if (notified) return;
+    try {
+      const res = await fetch(`/version.json?t=${Date.now()}`, {
+        cache: "no-store",
+      });
+      if (!res.ok) return;
+      const data = (await res.json()) as { buildId?: string };
+      const remote = data?.buildId;
+      if (!remote) return;
+      if (initialBuildId && remote !== initialBuildId) {
+        notified = true;
+        console.log(
+          "[Version] New build detected:",
+          initialBuildId,
+          "→",
+          remote
+        );
+        window.dispatchEvent(new CustomEvent("sw-update-available"));
+      }
+    } catch {
+      // Network errors are fine — we'll retry on next tick.
+    }
+  };
+
+  // Poll every 30s
+  setInterval(checkVersion, 30_000);
+
+  // Check immediately on focus / visibility change
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") checkVersion();
+  });
+  window.addEventListener("focus", checkVersion);
+
+  // First check shortly after load
+  setTimeout(checkVersion, 5_000);
+})();
+
 // Register service worker for PWA / push notifications.
 // IMPORTANT: skip registration inside Lovable preview iframes — service workers
 // in iframes cause stale content and break preview routing.
