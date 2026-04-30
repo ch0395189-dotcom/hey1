@@ -52,12 +52,11 @@ createRoot(document.getElementById("root")!).render(<App />);
           remote,
           data?.forceLogout ? "(force logout)" : ""
         );
-        // If the new build asks for a global logout, do it NOW — don't wait
-        // for the user to click "Actualizar". Then redirect to /login.
-        if (data?.forceLogout) {
-          forceLogoutAndRedirect(remote).catch(() => {});
-          return;
-        }
+        // SAFETY: even if the build asks for a global logout, we only show
+        // the update banner. Forcing logout silently has caused users to be
+        // kicked out unexpectedly. The banner lets them save their work and
+        // re-authenticate intentionally. (forceLogoutAndRedirect is kept for
+        // future manual triggers if ever needed.)
         window.dispatchEvent(new CustomEvent("sw-update-available"));
       }
     } catch {
