@@ -239,12 +239,43 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
             break;
             
           case 'SIGNED_OUT':
-            // Only redirect if session was valid before (prevents double redirect)
-            if (sessionValidRef.current && initialCheckDoneRef.current) {
-              console.log('[Session] User signed out');
-              sessionValidRef.current = false;
-              onSessionLostRef.current?.();
-              navigate(redirectOnLost);
+            // SIGNED_OUT ahora dispara también cuando el refresh token expira
+            // por inactividad. Para que la sesión "nunca se cierre sola",
+            // sólo redirigimos a /login si fue un signOut EXPLÍCITO del
+            // usuario (marcado en sessionStorage por el botón "Cerrar sesión").
+            // En cualquier otro caso intentamos recuperar silenciosamente.
+            {
+              const explicit =
+                typeof window !== 'undefined' &&
+                window.sessionStorage.getItem('heyhey-explicit-logout') === 'true';
+
+              if (explicit) {
+                console.log('[Session] Explicit user sign out');
+                try {
+                  window.sessionStorage.removeItem('heyhey-explicit-logout');
+                } catch {}
+                sessionValidRef.current = false;
+                onSessionLostRef.current?.();
+                navigate(redirectOnLost);
+              } else {
+                console.log(
+                  '[Session] SIGNED_OUT recibido sin acción del usuario — intentando recuperar sesión silenciosamente'
+                );
+                // Intento de recuperación: si Supabase aún tiene la sesión
+                // en localStorage (refresh token válido) la restablecerá.
+                (async () => {
+                  await new Promise((r) => setTimeout(r, 500));
+                  const s = await checkSession();
+                  if (s?.user) {
+                    console.log('[Session] Sesión recuperada tras SIGNED_OUT espurio');
+                    sessionValidRef.current = true;
+                    onSessionRestoredRef.current?.(s.user);
+                  }
+                  // Si no se pudo, NO redirigimos. La app seguirá funcionando
+                  // con caché y al próximo refresh manual / reload el usuario
+                  // verá login si realmente perdió credenciales.
+                })();
+              }
             }
             break;
         }

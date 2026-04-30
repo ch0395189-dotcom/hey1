@@ -82,6 +82,9 @@ export const SuspendedServiceScreen = ({ plan, daysExpired, reason }: SuspendedS
   const [loadingPlan, setLoadingPlan] = useState<PlanKey | null>(null);
 
   const handleLogout = async () => {
+    try {
+      window.sessionStorage.setItem('heyhey-explicit-logout', 'true');
+    } catch {}
     await supabase.auth.signOut();
     toast({ title: "Sesión cerrada" });
     navigate("/");
