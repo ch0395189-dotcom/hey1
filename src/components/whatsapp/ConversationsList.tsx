@@ -807,12 +807,36 @@ export const ConversationsList = ({
                     {formatTime(conversation.last_message_at)}
                   </span>
                 </div>
-                <p className="text-sm text-muted-foreground truncate">
-                  {conversation.last_message?.direction === 'outbound' && (
-                    <span className="text-primary">Tú: </span>
-                  )}
-                  {getMessagePreview(conversation.last_message)}
-                </p>
+                {(() => {
+                  const preview = getMessagePreview(conversation.last_message);
+                  return (
+                    <div className="flex items-center gap-1.5 text-sm text-muted-foreground min-w-0">
+                      {preview.thumbnail && (
+                        <div className="shrink-0 w-8 h-8 rounded overflow-hidden bg-muted relative">
+                          <img
+                            src={preview.thumbnail}
+                            alt=""
+                            className="w-full h-full object-cover"
+                            loading="lazy"
+                            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                          />
+                          {preview.thumbnailType === 'video' && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                              <Video className="w-3 h-3 text-white" />
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      <p className="truncate flex items-center gap-1 min-w-0">
+                        {conversation.last_message?.direction === 'outbound' && (
+                          <span className="text-primary shrink-0">Tú:</span>
+                        )}
+                        {preview.icon}
+                        <span className="truncate">{preview.label}</span>
+                      </p>
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Unread badge */}
