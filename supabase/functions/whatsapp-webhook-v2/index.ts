@@ -144,15 +144,24 @@ Deno.serve(async (req) => {
 
   // Handle incoming messages
   if (req.method === 'POST') {
+    let payload: WhatsAppWebhookPayload;
     try {
-      const payload = await req.json() as WhatsAppWebhookPayload;
+      payload = await req.json() as WhatsAppWebhookPayload;
+    } catch (e) {
+      console.error('Invalid JSON payload:', e);
+      return new Response('OK', {
+        status: 200,
+        headers: withCors({ 'Content-Type': 'text/plain' }),
+      });
+    }
+
+    // Background processor — Meta requires fast 200 OK to avoid webhook deactivation
+    const processWebhook = async () => {
+     try {
       console.log('Webhook payload:', JSON.stringify(payload, null, 2));
 
       if (payload.object !== 'whatsapp_business_account') {
-        return new Response('OK', {
-          status: 200,
-          headers: withCors({ 'Content-Type': 'text/plain' }),
-        });
+        return;
       }
 
       for (const entry of payload.entry) {
@@ -523,18 +532,25 @@ Deno.serve(async (req) => {
           }
         }
       }
+     } catch (error) {
+       console.error('Webhook background error:', error);
+     }
+    };
 
-      return new Response('OK', {
-        status: 200,
-        headers: withCors({ 'Content-Type': 'text/plain' }),
-      });
-    } catch (error) {
-      console.error('Webhook error:', error);
-      return new Response('Internal Server Error', {
-        status: 500,
-        headers: withCors({ 'Content-Type': 'text/plain' }),
-      });
+    // @ts-ignore - EdgeRuntime is provided by Supabase Edge Runtime
+    if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime.waitUntil) {
+      // @ts-ignore
+      EdgeRuntime.waitUntil(processWebhook());
+    } else {
+      // Fallback: fire and forget (still resolves quickly)
+      processWebhook().catch((e) => console.error('processWebhook fallback error:', e));
     }
+
+    // Always respond 200 OK immediately to Meta
+    return new Response('OK', {
+      status: 200,
+      headers: withCors({ 'Content-Type': 'text/plain' }),
+    });
   }
 
   return new Response('Method Not Allowed', {
