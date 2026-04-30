@@ -704,21 +704,21 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
         description: "Preparando el audio para WhatsApp.",
       });
 
-      // Prepare audio for WhatsApp (handles format conversion if needed)
-      const { blob, extension, contentType, isCompatible } = await prepareAudioForUpload(audioBlob);
-      
-      if (!isCompatible) {
-        console.warn('Audio format may not be fully compatible with WhatsApp');
-      }
-      
-      // Upload audio to storage
-      const fileName = `audio_${Date.now()}.${extension}`;
+      // Prepare audio for WhatsApp - force OGG container/content-type so Meta accepts it.
+      // Browsers (Chrome/Android) record audio/webm with Opus codec; WhatsApp rejects audio/webm.
+      // We re-wrap the blob as audio/ogg (same Opus payload) so the public URL serves the
+      // correct Content-Type that Meta validates.
+      const prepared = await prepareAudioForUpload(audioBlob);
+      const oggBlob = new Blob([prepared.blob], { type: 'audio/ogg; codecs=opus' });
+      const fileName = `audio_${Date.now()}.ogg`;
       const filePath = `${conversation.id}/${fileName}`;
-      
+
+      console.log('[Audio] Original type:', audioBlob.type, 'size:', audioBlob.size);
+
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('media')
-        .upload(filePath, blob, {
-          contentType,
+        .upload(filePath, oggBlob, {
+          contentType: 'audio/ogg',
           upsert: false,
         });
 
