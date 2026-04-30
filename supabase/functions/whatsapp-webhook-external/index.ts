@@ -80,13 +80,31 @@ Deno.serve(async (req) => {
 
     const messages = Array.isArray(payload) ? payload : [payload];
 
+    // Regla 4: cortar eventos no-Message ANTES de tocar la base de datos.
+    // WuzAPI/HeyHey envían 'sended', 'ack', 'presence', etc. que no necesitamos procesar.
+    const relevantMessages = messages.filter((m: any) => {
+      const ev = m?.event;
+      if (ev && ev !== 'Message') return false;
+      const msgData: any = m?.data ?? m;
+      if (msgData?.fromMe) return false;
+      return true;
+    });
+
+    if (relevantMessages.length === 0) {
+      console.log('⏭️ Webhook ignorado (sin mensajes entrantes relevantes)');
+      return new Response(
+        JSON.stringify({ success: true, processed: 0, skipped: messages.length }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const results = [];
 
-    for (const msg of messages) {
+    for (const msg of relevantMessages) {
       // HeyHey y WuzAPI no comparten exactamente el mismo formato.
       // Usamos `any` para tolerar ambos payloads sin romper el build por typings.
       const msgData: any = (msg as any).data ?? msg;
