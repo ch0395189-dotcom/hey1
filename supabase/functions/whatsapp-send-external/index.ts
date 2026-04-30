@@ -110,6 +110,19 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Verificar límite mensual de mensajes ANTES de enviar
+    const { data: limitCheck } = await supabase.rpc('check_message_limit', { _user_id: account.user_id });
+    if (limitCheck && limitCheck.allowed === false) {
+      return new Response(
+        JSON.stringify({
+          error: 'message_limit_reached',
+          message: 'Has alcanzado el límite mensual de mensajes de tu plan.',
+          usage: limitCheck,
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const phone = to.replace(/\D/g, '');
 
     console.log(`📱 Sending to ${phone} via HeyHey API`);
@@ -196,6 +209,13 @@ Deno.serve(async (req) => {
     const messageId = result.id || result.messageId || result.message_id || `heyhey_out_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
     console.log(`✅ Message sent. ID: ${messageId}`);
+
+    // Incrementar contador mensual del dueño de la cuenta
+    try {
+      await supabase.rpc('increment_outbound_message', { _user_id: account.user_id });
+    } catch (e) {
+      console.error('⚠️ No se pudo incrementar contador:', e);
+    }
 
     // Create or update conversation and save message
     let savedConversationId = conversationId;

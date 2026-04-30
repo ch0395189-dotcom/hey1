@@ -651,6 +651,36 @@ export type Database = {
         }
         Relationships: []
       }
+      monthly_message_usage: {
+        Row: {
+          created_at: string
+          extra_messages_purchased: number
+          id: string
+          messages_sent: number
+          period_month: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          extra_messages_purchased?: number
+          id?: string
+          messages_sent?: number
+          period_month: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          extra_messages_purchased?: number
+          id?: string
+          messages_sent?: number
+          period_month?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       payment_alerts: {
         Row: {
           admin_id: string
@@ -1059,10 +1089,15 @@ export type Database = {
         Args: { p_credits: number; p_user_id: string }
         Returns: undefined
       }
+      add_extra_messages: {
+        Args: { _amount: number; _user_id: string }
+        Returns: undefined
+      }
       assign_conversation: {
         Args: { p_agent_user_id: string; p_conversation_id: string }
         Returns: undefined
       }
+      check_message_limit: { Args: { _user_id: string }; Returns: Json }
       clone_chatbot_to_account: {
         Args: {
           p_source_config_id: string
@@ -1081,6 +1116,18 @@ export type Database = {
         Returns: boolean
       }
       get_agent_limit: { Args: { _user_id: string }; Returns: number }
+      get_message_limit: { Args: { _user_id: string }; Returns: number }
+      get_my_message_usage: {
+        Args: never
+        Returns: {
+          base_limit: number
+          extra_messages: number
+          messages_sent: number
+          percentage: number
+          period_month: string
+          total_limit: number
+        }[]
+      }
       get_my_owner_id: { Args: never; Returns: string }
       get_whatsapp_account_limit: {
         Args: { _user_id: string }
@@ -1093,6 +1140,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_outbound_message: { Args: { _user_id: string }; Returns: Json }
       is_agent_of: { Args: { _owner_id: string }; Returns: boolean }
       is_conversation_blocked: { Args: { conv_id: string }; Returns: boolean }
       user_owns_chatbot_config: {
