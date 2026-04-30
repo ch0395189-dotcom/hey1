@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Search, Plus, Archive, Inbox, MessageCircle, RefreshCw, CheckSquare, Trash2, X, Ban } from "lucide-react";
+import { Search, Plus, Archive, Inbox, MessageCircle, RefreshCw, CheckSquare, Trash2, X, Ban, Mic, Image as ImageIcon, Video, FileText, MapPin, User as UserIcon, Smile, Sticker as StickerIcon, Paperclip, ListChecks, ThumbsUp } from "lucide-react";
 import { Tag as TagIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
@@ -110,25 +110,62 @@ export const ConversationsList = ({
     }
   };
 
-  // Returns a friendly preview for the conversation list. Many WhatsApp messages
-  // (audio, image, video, sticker, document, location, contacts) arrive without
-  // textual `content`, so we fall back to a label based on `message_type`.
-  const getMessagePreview = (msg?: { content: string | null; message_type?: string | null; media_url?: string | null } | null): string => {
-    if (!msg) return 'Sin mensajes';
-    if (msg.content && msg.content.trim().length > 0) return msg.content;
+  // Returns icon + label (and optional thumbnail) for the conversation list
+  // preview. Many WhatsApp messages (audio, image, video, sticker, document,
+  // location, contacts) arrive without textual `content`, so we render a
+  // type-aware preview.
+  type PreviewMsg = {
+    content: string | null;
+    message_type?: string | null;
+    media_url?: string | null;
+  };
+  const getMessagePreview = (
+    msg?: PreviewMsg | null
+  ): { icon: JSX.Element | null; label: string; thumbnail?: string | null; thumbnailType?: 'image' | 'video' } => {
+    if (!msg) return { icon: null, label: 'Sin mensajes' };
+    const hasText = !!(msg.content && msg.content.trim().length > 0);
+    const iconClass = "w-3.5 h-3.5 shrink-0 text-muted-foreground";
     switch (msg.message_type) {
-      case 'audio': return '🎤 Audio';
-      case 'image': return '📷 Foto';
-      case 'video': return '🎥 Video';
-      case 'sticker': return '💟 Sticker';
-      case 'document': return '📄 Documento';
-      case 'location': return '📍 Ubicación';
-      case 'contacts': return '👤 Contacto';
-      case 'reaction': return '👍 Reacción';
-      case 'interactive': return 'Mensaje interactivo';
-      case 'unsupported': return 'Mensaje no soportado';
+      case 'audio':
+        return { icon: <Mic className={iconClass} />, label: hasText ? msg.content! : 'Mensaje de voz' };
+      case 'image':
+        return {
+          icon: <ImageIcon className={iconClass} />,
+          label: hasText ? msg.content! : 'Foto',
+          thumbnail: msg.media_url || null,
+          thumbnailType: 'image',
+        };
+      case 'video':
+        return {
+          icon: <Video className={iconClass} />,
+          label: hasText ? msg.content! : 'Video',
+          thumbnail: msg.media_url || null,
+          thumbnailType: 'video',
+        };
+      case 'sticker':
+        return {
+          icon: <StickerIcon className={iconClass} />,
+          label: 'Sticker',
+          thumbnail: msg.media_url || null,
+          thumbnailType: 'image',
+        };
+      case 'document':
+        return { icon: <FileText className={iconClass} />, label: hasText ? msg.content! : 'Documento' };
+      case 'location':
+        return { icon: <MapPin className={iconClass} />, label: 'Ubicación' };
+      case 'contacts':
+        return { icon: <UserIcon className={iconClass} />, label: 'Contacto' };
+      case 'reaction':
+        return { icon: <ThumbsUp className={iconClass} />, label: hasText ? msg.content! : 'Reacción' };
+      case 'interactive':
+        return { icon: <ListChecks className={iconClass} />, label: hasText ? msg.content! : 'Mensaje interactivo' };
+      case 'unsupported':
+        return { icon: <MessageCircle className={iconClass} />, label: 'Mensaje no soportado' };
+      case 'text':
       default:
-        return msg.media_url ? '📎 Archivo adjunto' : 'Mensaje';
+        if (hasText) return { icon: null, label: msg.content! };
+        if (msg.media_url) return { icon: <Paperclip className={iconClass} />, label: 'Archivo adjunto' };
+        return { icon: null, label: 'Mensaje' };
     }
   };
 
