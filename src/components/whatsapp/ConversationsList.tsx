@@ -110,6 +110,28 @@ export const ConversationsList = ({
     }
   };
 
+  // Returns a friendly preview for the conversation list. Many WhatsApp messages
+  // (audio, image, video, sticker, document, location, contacts) arrive without
+  // textual `content`, so we fall back to a label based on `message_type`.
+  const getMessagePreview = (msg?: { content: string | null; message_type?: string | null; media_url?: string | null } | null): string => {
+    if (!msg) return 'Sin mensajes';
+    if (msg.content && msg.content.trim().length > 0) return msg.content;
+    switch (msg.message_type) {
+      case 'audio': return '🎤 Audio';
+      case 'image': return '📷 Foto';
+      case 'video': return '🎥 Video';
+      case 'sticker': return '💟 Sticker';
+      case 'document': return '📄 Documento';
+      case 'location': return '📍 Ubicación';
+      case 'contacts': return '👤 Contacto';
+      case 'reaction': return '👍 Reacción';
+      case 'interactive': return 'Mensaje interactivo';
+      case 'unsupported': return 'Mensaje no soportado';
+      default:
+        return msg.media_url ? '📎 Archivo adjunto' : 'Mensaje';
+    }
+  };
+
   const fetchConversations = useCallback(async () => {
     try {
       let query = supabase
