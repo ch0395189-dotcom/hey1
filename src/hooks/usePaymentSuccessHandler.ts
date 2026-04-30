@@ -25,10 +25,16 @@ export const usePaymentSuccessHandler = () => {
         description: 'Estamos activando tu plan, esto puede tardar unos segundos.',
       });
 
-      const maxAttempts = 12; // ~24s
-      const intervalMs = 2000;
+      // Poll aggressively at first (every 1s for 10s) then back off to
+      // every 3s up to ~60s total. This gives both the Bold webhook
+      // and the reconcile cron time to finish without making the user
+      // wait too long when activation is fast.
+      const schedule: number[] = [
+        ...Array(10).fill(1000),
+        ...Array(17).fill(3000),
+      ]; // 10s + 51s = ~61s total, 27 attempts
 
-      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      for (let attempt = 0; attempt < schedule.length; attempt++) {
         try {
           const { data, error } = await supabase.functions.invoke('bold-verify-payment');
           if (!error && data?.activated) {
@@ -47,7 +53,7 @@ export const usePaymentSuccessHandler = () => {
         } catch (e) {
           console.error('verify-payment attempt failed:', e);
         }
-        await new Promise((r) => setTimeout(r, intervalMs));
+        await new Promise((r) => setTimeout(r, schedule[attempt]));
       }
 
       toast({

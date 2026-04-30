@@ -148,6 +148,26 @@ serve(async (req) => {
       );
     }
 
+    // Store the real Bold payment_link id so we can later poll Bold's
+    // /online/link/v1/{id} endpoint for the actual payment status.
+    const boldPaymentLink = boldData.payload?.payment_link as string | undefined;
+    if (boldPaymentLink) {
+      await adminSupabase
+        .from('bold_payments')
+        .update({
+          metadata: {
+            reference,
+            plan,
+            successUrl,
+            cancelUrl,
+            payment_link: boldPaymentLink,
+            url: boldData.payload?.url,
+          },
+        })
+        .eq('bold_transaction_id', reference)
+        .eq('event_type', 'pending');
+    }
+
     return new Response(
       JSON.stringify({ 
         paymentUrl: boldData.payload?.url,

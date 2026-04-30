@@ -31,7 +31,7 @@ serve(async (req) => {
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
     const { data: pending, error: pendingError } = await admin
       .from('bold_payments')
-      .select('id, user_id, plan, bold_transaction_id, amount, currency, created_at')
+      .select('id, user_id, plan, bold_transaction_id, amount, currency, created_at, metadata')
       .eq('event_type', 'pending')
       .gte('created_at', sevenDaysAgo)
       .order('created_at', { ascending: false })
@@ -50,13 +50,17 @@ serve(async (req) => {
 
     for (const p of pending || []) {
       const reference = p.bold_transaction_id;
-      if (!reference || !p.user_id || !p.plan) {
+      const paymentLink = (p as any).metadata?.payment_link as string | undefined;
+      // Bold's lookup endpoint expects the payment_link id (LNK_XXXX),
+      // NOT the merchant reference. Fall back to reference for legacy rows.
+      const lookupId = paymentLink || reference;
+      if (!lookupId || !p.user_id || !p.plan) {
         results.push({ reference, skipped: 'missing data' });
         continue;
       }
 
       try {
-        const boldRes = await fetch(`${BOLD_API_URL}/online/link/v1/${reference}`, {
+        const boldRes = await fetch(`${BOLD_API_URL}/online/link/v1/${lookupId}`, {
           method: 'GET',
           headers: {
             'Authorization': `x-api-key ${BOLD_API_KEY}`,
@@ -64,7 +68,7 @@ serve(async (req) => {
           },
         });
         const boldData = await boldRes.json();
-        console.log(`Bold response for ${reference}:`, JSON.stringify(boldData));
+        console.log(`Bold response for ${lookupId} (ref=${reference}):`, JSON.stringify(boldData));
         const status =
           boldData?.payload?.status ||
           boldData?.payload?.payment_status ||
