@@ -13,9 +13,5 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     storage: localStorage,
     persistSession: true,
     autoRefreshToken: true,
-    // Mantener la sesión viva incluso entre pestañas y tras cerrar el navegador.
-    detectSessionInUrl: true,
-    flowType: 'pkce',
-    storageKey: 'sb-auth-token',
   }
 });
