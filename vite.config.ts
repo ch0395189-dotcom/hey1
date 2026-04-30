@@ -1,4 +1,4 @@
-import { defineConfig } from "vite";
+import { defineConfig, type PluginOption } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
@@ -8,7 +8,7 @@ import fs from "fs";
 // Plugin: emit /version.json with a unique build ID on every build so the
 // client can poll it and surface an "Update available" banner whenever a new
 // version ships (even without a Service Worker change).
-function buildVersionPlugin() {
+function buildVersionPlugin(): PluginOption {
   const buildId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   return {
     name: "build-version",
@@ -21,7 +21,7 @@ function buildVersionPlugin() {
         },
       ];
     },
-    generateBundle() {
+    generateBundle(this: any) {
       this.emitFile({
         type: "asset",
         fileName: "version.json",
