@@ -5,6 +5,10 @@
 // Bump CACHE_VERSION on every release to force old caches to be cleared.
 const CACHE_VERSION = 'heyhey-v6';
 
+// Set to true to force a full logout on every release (clears Supabase auth
+// tokens too). Leave false to preserve sessions across updates.
+const FORCE_LOGOUT_ON_UPDATE = false;
+
 // Install: activate immediately, don't wait
 self.addEventListener('install', (event) => {
   console.log('[SW] Installing', CACHE_VERSION);
@@ -36,6 +40,7 @@ self.addEventListener('activate', (event) => {
           type: 'SW_UPDATED',
           version: CACHE_VERSION,
           clearStorage: true,
+          forceLogout: FORCE_LOGOUT_ON_UPDATE,
         });
       });
     })()
