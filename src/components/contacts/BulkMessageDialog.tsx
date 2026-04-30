@@ -465,9 +465,16 @@ export const BulkMessageDialog = ({
                     onChange={(e) => setMessage(e.target.value)}
                     disabled={sending}
                     className="min-h-[100px] resize-none"
-                    maxLength={4096}
+                    maxLength={65000}
                   />
-                  <p className="text-xs text-muted-foreground text-right">{message.length}/4096</p>
+                  <p className="text-xs text-muted-foreground text-right">
+                    {message.length} caracteres
+                    {message.length > 4096 && (
+                      <span className="ml-2 text-amber-600 dark:text-amber-400">
+                        · se enviará en {Math.ceil(message.length / 4096)} mensajes
+                      </span>
+                    )}
+                  </p>
                 </TabsContent>
 
                 <TabsContent value="bot" className="space-y-3">
