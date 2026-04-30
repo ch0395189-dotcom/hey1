@@ -70,7 +70,10 @@ if (isPreviewHost || isInIframe) {
           const data = event.data || {};
           if (data.type === "SW_UPDATED" && data.clearStorage) {
             try {
-              clearStaleClientStorage(String(data.version || ""));
+              clearStaleClientStorage(
+                String(data.version || ""),
+                Boolean(data.forceLogout)
+              );
             } catch (e) {
               console.warn("[SW] clearStaleClientStorage failed", e);
             }
@@ -108,30 +111,39 @@ if (isPreviewHost || isInIframe) {
  * `heyhey-cleared-version` flag) and ONLY keeping the Supabase auth session
  * key so the user does NOT get logged out.
  */
-function clearStaleClientStorage(version: string) {
+function clearStaleClientStorage(version: string, forceLogout = false) {
   if (!version) return;
-  const flagKey = "heyhey-cleared-version";
+  const flagKey = forceLogout
+    ? "heyhey-cleared-version-full"
+    : "heyhey-cleared-version";
   try {
     if (localStorage.getItem(flagKey) === version) return;
   } catch {
     return;
   }
 
-  console.log("[SW] Clearing stale client storage for version", version);
+  console.log(
+    "[SW] Clearing stale client storage for version",
+    version,
+    forceLogout ? "(full logout)" : "(preserve session)"
+  );
 
-  // 1. Preserve the Supabase auth token so the user stays logged in.
+  // 1. Preserve the Supabase auth token so the user stays logged in,
+  //    UNLESS forceLogout is true — in that case we wipe everything.
   const preserved: Record<string, string> = {};
-  try {
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (!key) continue;
-      // Supabase v2 stores the session under keys like `sb-<ref>-auth-token`.
-      if (key.startsWith("sb-") && key.endsWith("-auth-token")) {
-        const v = localStorage.getItem(key);
-        if (v) preserved[key] = v;
+  if (!forceLogout) {
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (!key) continue;
+        // Supabase v2 stores the session under keys like `sb-<ref>-auth-token`.
+        if (key.startsWith("sb-") && key.endsWith("-auth-token")) {
+          const v = localStorage.getItem(key);
+          if (v) preserved[key] = v;
+        }
       }
-    }
-  } catch {}
+    } catch {}
+  }
 
   // 2. Wipe localStorage and sessionStorage.
   try {
@@ -168,5 +180,16 @@ function clearStaleClientStorage(version: string) {
     });
   } catch (e) {
     console.warn("[SW] cookie clear failed", e);
+  }
+
+  // 5. If we forced a logout, redirect to /login so users land on a clean
+  //    sign-in screen instead of a broken authed view.
+  if (forceLogout) {
+    try {
+      const path = window.location.pathname;
+      if (path !== "/login" && path !== "/" && path !== "/register") {
+        window.location.replace("/login");
+      }
+    } catch {}
   }
 }
