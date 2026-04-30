@@ -362,6 +362,7 @@ const Dashboard = () => {
           <TrialBanner />
           <RenewalBanner />
           <PaymentAlertBanner />
+          <MessageLimitBanner />
         </div>
       )}
       
