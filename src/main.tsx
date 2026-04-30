@@ -1,6 +1,7 @@
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
+import { supabase } from "@/integrations/supabase/client";
 
 createRoot(document.getElementById("root")!).render(<App />);
 
@@ -36,7 +37,10 @@ createRoot(document.getElementById("root")!).render(<App />);
         cache: "no-store",
       });
       if (!res.ok) return;
-      const data = (await res.json()) as { buildId?: string };
+      const data = (await res.json()) as {
+        buildId?: string;
+        forceLogout?: boolean;
+      };
       const remote = data?.buildId;
       if (!remote) return;
       if (initialBuildId && remote !== initialBuildId) {
@@ -45,8 +49,15 @@ createRoot(document.getElementById("root")!).render(<App />);
           "[Version] New build detected:",
           initialBuildId,
           "→",
-          remote
+          remote,
+          data?.forceLogout ? "(force logout)" : ""
         );
+        // If the new build asks for a global logout, do it NOW — don't wait
+        // for the user to click "Actualizar". Then redirect to /login.
+        if (data?.forceLogout) {
+          forceLogoutAndRedirect(remote).catch(() => {});
+          return;
+        }
         window.dispatchEvent(new CustomEvent("sw-update-available"));
       }
     } catch {
@@ -66,6 +77,77 @@ createRoot(document.getElementById("root")!).render(<App />);
   // First check shortly after load
   setTimeout(checkVersion, 5_000);
 })();
+
+/**
+ * Force-logout flow triggered by `forceLogout: true` in /version.json.
+ * Signs out from Supabase, wipes storage + cookies, and redirects to /login.
+ * Guarded by a localStorage flag so it only runs once per buildId.
+ */
+async function forceLogoutAndRedirect(buildId: string) {
+  const flagKey = "heyhey-forced-logout-build";
+  try {
+    if (localStorage.getItem(flagKey) === buildId) return;
+    localStorage.setItem(flagKey, buildId);
+  } catch {}
+
+  console.log("[Version] Forcing global logout for build", buildId);
+
+  // 1. Sign out from Supabase (revokes refresh token server-side too).
+  try {
+    await supabase.auth.signOut({ scope: "global" });
+  } catch (e) {
+    console.warn("[Version] supabase signOut failed", e);
+  }
+
+  // 2. Wipe ALL localStorage + sessionStorage (no preservation this time).
+  try {
+    localStorage.clear();
+  } catch {}
+  try {
+    sessionStorage.clear();
+  } catch {}
+  // Re-set the flag AFTER clear so we don't re-loop.
+  try {
+    localStorage.setItem(flagKey, buildId);
+  } catch {}
+
+  // 3. Clear same-site cookies (host + parent domain, common paths).
+  try {
+    const host = window.location.hostname;
+    const parts = host.split(".");
+    const domains = [
+      host,
+      parts.length > 2 ? "." + parts.slice(-2).join(".") : "." + host,
+    ];
+    const paths = ["/", window.location.pathname];
+    document.cookie.split(";").forEach((c) => {
+      const eq = c.indexOf("=");
+      const name = (eq > -1 ? c.substring(0, eq) : c).trim();
+      if (!name) return;
+      for (const d of domains) {
+        for (const p of paths) {
+          document.cookie = `${name}=; Max-Age=0; path=${p}; domain=${d}`;
+        }
+        document.cookie = `${name}=; Max-Age=0; path=/`;
+      }
+    });
+  } catch {}
+
+  // 4. Unregister the Service Worker so the next load fetches fresh assets.
+  try {
+    if ("serviceWorker" in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map((r) => r.unregister()));
+    }
+  } catch {}
+
+  // 5. Hard redirect to /login with a cache-buster.
+  try {
+    window.location.replace(`/login?reauth=${Date.now()}`);
+  } catch {
+    window.location.reload();
+  }
+}
 
 // Register service worker for PWA / push notifications.
 // IMPORTANT: skip registration inside Lovable preview iframes — service workers

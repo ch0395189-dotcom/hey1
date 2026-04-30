@@ -10,6 +10,15 @@ import fs from "fs";
 // version ships (even without a Service Worker change).
 function buildVersionPlugin(): PluginOption {
   const buildId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  // Set FORCE_LOGOUT_ON_DEPLOY=true in the build env to make every active
+  // client log out and clear cookies/storage when this build ships.
+  const forceLogout =
+    String(process.env.FORCE_LOGOUT_ON_DEPLOY || "").toLowerCase() === "true";
+  const payload = JSON.stringify({
+    buildId,
+    builtAt: new Date().toISOString(),
+    forceLogout,
+  });
   return {
     name: "build-version",
     transformIndexHtml() {
@@ -25,7 +34,7 @@ function buildVersionPlugin(): PluginOption {
       this.emitFile({
         type: "asset",
         fileName: "version.json",
-        source: JSON.stringify({ buildId, builtAt: new Date().toISOString() }),
+        source: payload,
       });
     },
     configureServer(server: any) {
@@ -33,7 +42,7 @@ function buildVersionPlugin(): PluginOption {
       server.middlewares.use("/version.json", (_req: any, res: any) => {
         res.setHeader("Content-Type", "application/json");
         res.setHeader("Cache-Control", "no-store");
-        res.end(JSON.stringify({ buildId, builtAt: new Date().toISOString() }));
+        res.end(payload);
       });
     },
   };
