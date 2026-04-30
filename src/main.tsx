@@ -62,6 +62,21 @@ if (isPreviewHost || isInIframe) {
           window.location.reload();
         });
 
+        // Listen for SW activation messages so we can clear stale client-side
+        // storage / cookies whenever the app updates. We deliberately preserve
+        // the Supabase auth session so users are not forced to re-login on
+        // every release.
+        navigator.serviceWorker.addEventListener("message", (event) => {
+          const data = event.data || {};
+          if (data.type === "SW_UPDATED" && data.clearStorage) {
+            try {
+              clearStaleClientStorage(String(data.version || ""));
+            } catch (e) {
+              console.warn("[SW] clearStaleClientStorage failed", e);
+            }
+          }
+        });
+
         // If a new SW is found and waiting, notify the UI via a custom event.
         // The UpdateBanner component listens for this and lets the user decide
         // when to apply the update (so they don't lose what they're typing).
@@ -85,4 +100,73 @@ if (isPreviewHost || isInIframe) {
       })
       .catch((err) => console.error("[SW] Registration failed:", err));
   });
+}
+
+/**
+ * Clears localStorage, sessionStorage and same-site cookies when a new SW
+ * version activates — but ONLY once per version (tracked by the
+ * `heyhey-cleared-version` flag) and ONLY keeping the Supabase auth session
+ * key so the user does NOT get logged out.
+ */
+function clearStaleClientStorage(version: string) {
+  if (!version) return;
+  const flagKey = "heyhey-cleared-version";
+  try {
+    if (localStorage.getItem(flagKey) === version) return;
+  } catch {
+    return;
+  }
+
+  console.log("[SW] Clearing stale client storage for version", version);
+
+  // 1. Preserve the Supabase auth token so the user stays logged in.
+  const preserved: Record<string, string> = {};
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key) continue;
+      // Supabase v2 stores the session under keys like `sb-<ref>-auth-token`.
+      if (key.startsWith("sb-") && key.endsWith("-auth-token")) {
+        const v = localStorage.getItem(key);
+        if (v) preserved[key] = v;
+      }
+    }
+  } catch {}
+
+  // 2. Wipe localStorage and sessionStorage.
+  try {
+    localStorage.clear();
+  } catch {}
+  try {
+    sessionStorage.clear();
+  } catch {}
+
+  // 3. Restore preserved auth keys + new version flag.
+  try {
+    for (const [k, v] of Object.entries(preserved)) {
+      localStorage.setItem(k, v);
+    }
+    localStorage.setItem(flagKey, version);
+  } catch {}
+
+  // 4. Clear all same-site cookies for this domain (and parent domain).
+  try {
+    const host = window.location.hostname;
+    const parts = host.split(".");
+    const domains = [host, parts.length > 2 ? "." + parts.slice(-2).join(".") : "." + host];
+    const paths = ["/", window.location.pathname];
+    document.cookie.split(";").forEach((c) => {
+      const eq = c.indexOf("=");
+      const name = (eq > -1 ? c.substring(0, eq) : c).trim();
+      if (!name) return;
+      for (const d of domains) {
+        for (const p of paths) {
+          document.cookie = `${name}=; Max-Age=0; path=${p}; domain=${d}`;
+        }
+        document.cookie = `${name}=; Max-Age=0; path=/`;
+      }
+    });
+  } catch (e) {
+    console.warn("[SW] cookie clear failed", e);
+  }
 }
