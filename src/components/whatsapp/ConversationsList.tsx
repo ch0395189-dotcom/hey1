@@ -228,7 +228,9 @@ export const ConversationsList = ({
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('[Realtime][messages] status:', status);
+      });
 
     const tagsChannelId = `conversation-tags-${Date.now()}`;
     const tagsChannel = supabase
@@ -245,10 +247,30 @@ export const ConversationsList = ({
       )
       .subscribe();
 
+    // Fallback polling: even if Realtime WebSocket dies silently (network drop,
+    // background tab, mobile suspend), refresh conversations every 15s so new
+    // inbound WhatsApp messages always show up.
+    const pollId = window.setInterval(() => {
+      fetchConversations();
+    }, 15000);
+
+    // Also refresh immediately when the tab regains focus / connectivity
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') fetchConversations();
+    };
+    const onOnline = () => fetchConversations();
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
+    window.addEventListener('online', onOnline);
+
     return () => {
       supabase.removeChannel(conversationsChannel);
       supabase.removeChannel(messagesChannel);
       supabase.removeChannel(tagsChannel);
+      window.clearInterval(pollId);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onVisible);
+      window.removeEventListener('online', onOnline);
     };
   }, [whatsappAccountId, viewMode, fetchConversations, fetchAllTags]);
 
