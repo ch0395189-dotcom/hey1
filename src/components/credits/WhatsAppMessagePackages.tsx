@@ -1,22 +1,24 @@
 import { useState } from 'react';
-import { Coins, Sparkles, Zap, Building2, Check } from 'lucide-react';
+import { MessageSquare, Sparkles, Zap, Building2, Check } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { useCredits, CREDIT_COSTS } from '@/hooks/useCredits';
+import { useCredits } from '@/hooks/useCredits';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 
-const packageIcons = {
-  'Básico': Coins,
-  'Popular': Sparkles,
-  'Pro': Zap,
-  'Empresarial': Building2,
+const iconForSize = (n: number) => {
+  if (n >= 25000) return Building2;
+  if (n >= 10000) return Zap;
+  if (n >= 5000) return Sparkles;
+  return MessageSquare;
 };
 
-export const CreditPackages = () => {
+export const WhatsAppMessagePackages = () => {
   const { packages, loading, purchaseCredits } = useCredits();
   const [purchasing, setPurchasing] = useState<string | null>(null);
+
+  const waPackages = packages.filter((p) => p.package_type === 'whatsapp_messages');
 
   const handlePurchase = async (packageId: string) => {
     setPurchasing(packageId);
@@ -24,7 +26,7 @@ export const CreditPackages = () => {
       const purchase = await purchaseCredits(packageId);
       if (purchase) {
         toast.success('Solicitud de compra creada', {
-          description: 'Un administrador procesará tu pago pronto.',
+          description: 'Un administrador la aprobará y los mensajes extra se sumarán al mes en curso.',
         });
       }
     } finally {
@@ -35,7 +37,7 @@ export const CreditPackages = () => {
   if (loading) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {[1, 2, 3, 4].map(i => (
+        {[1, 2, 3, 4].map((i) => (
           <Card key={i}>
             <CardHeader>
               <Skeleton className="h-6 w-24" />
@@ -50,24 +52,29 @@ export const CreditPackages = () => {
     );
   }
 
+  if (waPackages.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground text-center py-8">
+        No hay paquetes de mensajes disponibles por ahora.
+      </p>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-semibold mb-2">Paquetes de Créditos</h3>
+        <h3 className="text-lg font-semibold mb-2">Paquetes de mensajes WhatsApp</h3>
         <p className="text-sm text-muted-foreground">
-          Compra créditos para usar servicios de IA y voz
+          Aumenta tu cupo mensual de mensajes enviados. Los mensajes se suman al mes en curso.
         </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {packages.filter((p) => (p.package_type ?? 'credits') === 'credits').map((pkg) => {
-          const Icon = packageIcons[pkg.name as keyof typeof packageIcons] || Coins;
-          const aiMessages = Math.floor(pkg.credits / CREDIT_COSTS.ai_message);
-          const voiceMinutes = Math.floor(pkg.credits / CREDIT_COSTS.voice_minute);
-
+        {waPackages.map((pkg) => {
+          const Icon = iconForSize(pkg.extra_messages ?? 0);
           return (
-            <Card 
-              key={pkg.id} 
+            <Card
+              key={pkg.id}
               className={`relative transition-all hover:shadow-lg ${
                 pkg.is_popular ? 'border-primary ring-2 ring-primary/20' : ''
               }`}
@@ -84,9 +91,9 @@ export const CreditPackages = () => {
                 <CardTitle className="text-xl">{pkg.name}</CardTitle>
                 <CardDescription>
                   <span className="text-3xl font-bold text-foreground">
-                    {pkg.credits.toLocaleString()}
+                    {(pkg.extra_messages ?? 0).toLocaleString()}
                   </span>
-                  <span className="text-muted-foreground ml-1">créditos</span>
+                  <span className="text-muted-foreground ml-1">mensajes</span>
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -96,20 +103,18 @@ export const CreditPackages = () => {
                   </p>
                   <p className="text-xs text-muted-foreground">COP</p>
                   {pkg.price_usd && (
-                    <p className="text-xs text-muted-foreground">
-                      ≈ ${pkg.price_usd} USD
-                    </p>
+                    <p className="text-xs text-muted-foreground">≈ ${pkg.price_usd} USD</p>
                   )}
                 </div>
 
                 <div className="space-y-2 text-sm">
                   <div className="flex items-center gap-2">
                     <Check className="h-4 w-4 text-green-500" />
-                    <span>~{aiMessages} mensajes IA</span>
+                    <span>+{(pkg.extra_messages ?? 0).toLocaleString()} mensajes extra este mes</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Check className="h-4 w-4 text-green-500" />
-                    <span>~{voiceMinutes} min de voz</span>
+                    <span>Se suma a tu plan actual</span>
                   </div>
                 </div>
 
@@ -126,18 +131,6 @@ export const CreditPackages = () => {
           );
         })}
       </div>
-
-      <Card className="bg-muted/50">
-        <CardContent className="p-4">
-          <h4 className="font-medium mb-2">¿Cómo funcionan los créditos?</h4>
-          <ul className="text-sm text-muted-foreground space-y-1">
-            <li>• <strong>Mensajes IA:</strong> {CREDIT_COSTS.ai_message} créditos por mensaje</li>
-            <li>• <strong>Voz (TTS):</strong> {CREDIT_COSTS.voice_minute} créditos por minuto</li>
-            <li>• <strong>Agente de Voz:</strong> {CREDIT_COSTS.voice_agent} créditos por minuto</li>
-            <li>• Los créditos no expiran mientras tu cuenta esté activa</li>
-          </ul>
-        </CardContent>
-      </Card>
     </div>
   );
 };

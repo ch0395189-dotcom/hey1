@@ -18,7 +18,11 @@ interface CreditPurchase {
   status: string;
   created_at: string;
   payment_reference: string | null;
+  package_id: string | null;
   user_email?: string;
+  package_name?: string;
+  package_type?: string;
+  extra_messages?: number;
 }
 
 export const CreditPurchasesManager = () => {
@@ -45,22 +49,35 @@ export const CreditPurchasesManager = () => {
 
     // Get user emails from profiles
     const userIds = [...new Set(purchaseData?.map(p => p.user_id) || [])];
-    
-    if (userIds.length > 0) {
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('user_id, full_name')
-        .in('user_id', userIds);
+    const packageIds = [...new Set((purchaseData?.map(p => p.package_id).filter(Boolean) as string[]) || [])];
 
-      const profileMap = new Map(profiles?.map(p => [p.user_id, p.full_name]) || []);
+    const [{ data: profiles }, { data: pkgs }] = await Promise.all([
+      userIds.length
+        ? supabase.from('profiles').select('user_id, full_name').in('user_id', userIds)
+        : Promise.resolve({ data: [] as any[] }),
+      packageIds.length
+        ? supabase
+            .from('credit_packages')
+            .select('id, name, package_type, extra_messages')
+            .in('id', packageIds)
+        : Promise.resolve({ data: [] as any[] }),
+    ]);
 
-      setPurchases(purchaseData?.map(p => ({
-        ...p,
-        user_email: profileMap.get(p.user_id) || p.user_id.substring(0, 8)
-      })) || []);
-    } else {
-      setPurchases(purchaseData || []);
-    }
+    const profileMap = new Map((profiles || []).map((p: any) => [p.user_id, p.full_name]));
+    const pkgMap = new Map((pkgs || []).map((p: any) => [p.id, p]));
+
+    setPurchases(
+      (purchaseData || []).map((p: any) => {
+        const pkg = p.package_id ? pkgMap.get(p.package_id) : null;
+        return {
+          ...p,
+          user_email: profileMap.get(p.user_id) || p.user_id.substring(0, 8),
+          package_name: pkg?.name,
+          package_type: pkg?.package_type ?? 'credits',
+          extra_messages: pkg?.extra_messages ?? 0,
+        };
+      })
+    );
 
     setLoading(false);
   };
@@ -73,23 +90,20 @@ export const CreditPurchasesManager = () => {
     setProcessing(purchase.id);
     
     try {
-      // Call the add_credits function using RPC
-      const { error: creditsError } = await supabase.rpc('add_credits', {
-        p_user_id: purchase.user_id,
-        p_credits: purchase.credits
+      // Llamar a la RPC unificada que distingue tipo de paquete
+      const { error } = await supabase.rpc('approve_credit_purchase', {
+        p_purchase_id: purchase.id,
       });
 
-      if (creditsError) throw creditsError;
+      if (error) throw error;
 
-      // Update purchase status
-      const { error: updateError } = await supabase
-        .from('credit_purchases')
-        .update({ status: 'completed' })
-        .eq('id', purchase.id);
-
-      if (updateError) throw updateError;
-
-      toast.success(`${purchase.credits} créditos agregados exitosamente`);
+      if (purchase.package_type === 'whatsapp_messages') {
+        toast.success(
+          `+${(purchase.extra_messages ?? 0).toLocaleString()} mensajes WhatsApp agregados`
+        );
+      } else {
+        toast.success(`${purchase.credits.toLocaleString()} créditos agregados`);
+      }
       fetchPurchases();
     } catch (error) {
       console.error('Error approving purchase:', error);
@@ -155,7 +169,7 @@ export const CreditPurchasesManager = () => {
             <TableHeader>
               <TableRow>
                 <TableHead>Usuario</TableHead>
-                <TableHead>Créditos</TableHead>
+                <TableHead>Paquete</TableHead>
                 <TableHead>Monto</TableHead>
                 <TableHead>Estado</TableHead>
                 <TableHead>Fecha</TableHead>
@@ -168,7 +182,19 @@ export const CreditPurchasesManager = () => {
                   <TableCell className="font-medium">
                     {purchase.user_email}
                   </TableCell>
-                  <TableCell>{purchase.credits.toLocaleString()}</TableCell>
+                  <TableCell>
+                    {purchase.package_type === 'whatsapp_messages' ? (
+                      <span>
+                        <Badge variant="outline" className="mr-2">WhatsApp</Badge>
+                        +{(purchase.extra_messages ?? 0).toLocaleString()} msgs
+                      </span>
+                    ) : (
+                      <span>
+                        <Badge variant="outline" className="mr-2">Créditos</Badge>
+                        {purchase.credits.toLocaleString()}
+                      </span>
+                    )}
+                  </TableCell>
                   <TableCell>
                     ${purchase.amount.toLocaleString()} {purchase.currency}
                   </TableCell>

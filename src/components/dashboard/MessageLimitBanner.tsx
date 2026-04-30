@@ -4,7 +4,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { CreditPackages } from "@/components/credits/CreditPackages";
+import { WhatsAppMessagePackages } from "@/components/credits/WhatsAppMessagePackages";
 import { useMessageLimit } from "@/hooks/useMessageLimit";
 
 export function MessageLimitBanner() {
@@ -72,7 +72,7 @@ function PackagesDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (
             Adquiere mensajes adicionales para este mes. Un administrador procesará tu pago.
           </DialogDescription>
         </DialogHeader>
-        <CreditPackages />
+        <WhatsAppMessagePackages />
       </DialogContent>
     </Dialog>
   );

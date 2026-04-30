@@ -438,30 +438,36 @@ export type Database = {
         Row: {
           created_at: string
           credits: number
+          extra_messages: number
           id: string
           is_active: boolean
           is_popular: boolean
           name: string
+          package_type: string
           price_cop: number
           price_usd: number | null
         }
         Insert: {
           created_at?: string
           credits: number
+          extra_messages?: number
           id?: string
           is_active?: boolean
           is_popular?: boolean
           name: string
+          package_type?: string
           price_cop: number
           price_usd?: number | null
         }
         Update: {
           created_at?: string
           credits?: number
+          extra_messages?: number
           id?: string
           is_active?: boolean
           is_popular?: boolean
           name?: string
+          package_type?: string
           price_cop?: number
           price_usd?: number | null
         }
@@ -1092,6 +1098,10 @@ export type Database = {
       add_extra_messages: {
         Args: { _amount: number; _user_id: string }
         Returns: undefined
+      }
+      approve_credit_purchase: {
+        Args: { p_purchase_id: string }
+        Returns: Json
       }
       assign_conversation: {
         Args: { p_agent_user_id: string; p_conversation_id: string }
