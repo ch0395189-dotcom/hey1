@@ -399,6 +399,13 @@ Deno.serve(async (req) => {
 
     const whatsappMessageId = whatsappData.messages?.[0]?.id;
 
+    // Incrementar contador mensual del dueño de la cuenta
+    try {
+      await supabaseAdmin.rpc('increment_outbound_message', { _user_id: whatsappAccount.user_id });
+    } catch (e) {
+      console.error('⚠️ No se pudo incrementar contador:', e);
+    }
+
     // Save message to database
     const { data: savedMessage, error: msgError } = await supabaseAdmin
       .from('messages')
