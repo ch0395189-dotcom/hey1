@@ -166,7 +166,7 @@ Deno.serve(async (req) => {
       if (accError || !account) {
         return new Response(
           JSON.stringify({ error: 'Unauthorized: account not found or not owned' }),
-          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
@@ -183,7 +183,7 @@ Deno.serve(async (req) => {
         if (!agentRow) {
           return new Response(
             JSON.stringify({ error: 'Unauthorized: account not found or not owned' }),
-            { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
       }
@@ -216,7 +216,7 @@ Deno.serve(async (req) => {
           console.error('Error creating conversation:', convError);
           return new Response(
             JSON.stringify({ error: 'Failed to create conversation', details: convError.message }),
-            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
         conversation_id = newConv.id;
@@ -227,7 +227,7 @@ Deno.serve(async (req) => {
     if (!conversation_id || (!message && !media_url && !interactive)) {
       return new Response(
         JSON.stringify({ error: 'conversation_id (or phone_number+whatsapp_account_id) and (message, media_url, or interactive) are required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -251,7 +251,7 @@ Deno.serve(async (req) => {
     if (convError || !conversation) {
       return new Response(
         JSON.stringify({ error: 'Conversation not found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -259,7 +259,7 @@ Deno.serve(async (req) => {
     if (!whatsappAccount) {
       return new Response(
         JSON.stringify({ error: 'WhatsApp account not found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -449,7 +449,7 @@ Deno.serve(async (req) => {
     const message = error instanceof Error ? error.message : 'Unknown error';
     return new Response(
       JSON.stringify({ error: 'Internal server error', details: message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
