@@ -127,10 +127,17 @@ export default defineConfig(({ mode }) => ({
             method: "POST",
           },
           {
-            urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
+            // CRITICAL: never cache ANY auth endpoint — caching 401s here is
+            // what was logging users out spuriously when their network was flaky.
+            urlPattern: /^https:\/\/.*\.supabase\.co\/auth\/.*/i,
+            handler: "NetworkOnly",
+          },
+          {
+            // Only cache REST/storage GETs, never auth.
+            urlPattern: /^https:\/\/.*\.supabase\.co\/(rest|storage)\/.*/i,
             handler: "NetworkFirst",
             options: {
-              cacheName: "supabase-cache-v2",
+              cacheName: "supabase-cache-v3",
               expiration: {
                 maxEntries: 50,
                 maxAgeSeconds: 60 * 60,

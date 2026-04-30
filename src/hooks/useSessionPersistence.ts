@@ -201,9 +201,14 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
               }, 0);
             } else {
               console.log('[Session] No initial session, trying to recover...');
-              // Try to recover session with retries
+              // Try to recover session with retries. CRITICAL: do NOT redirect
+              // to /login from here — the absence of an INITIAL_SESSION can be
+              // caused by a flaky network on cold mobile starts. We only flip
+              // to "logged out" via the explicit SIGNED_OUT event. The route
+              // guards (useSessionPersistence consumers) are responsible for
+              // showing the login UI when there's truly no session.
               (async () => {
-                const delays = [100, 300, 600, 1000, 2000];
+                const delays = [100, 300, 600, 1000, 2000, 4000];
 
                 for (const delay of delays) {
                   if (!mounted || bootstrapCancelled) return;
@@ -222,12 +227,13 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
 
                 if (!mounted || bootstrapCancelled) return;
 
-                console.log('[Session] No session after retries, redirecting');
+                console.log('[Session] No session after retries — letting route guard decide');
                 initialCheckDoneRef.current = true;
                 setIsInitializing(false);
-                sessionValidRef.current = false;
-                onSessionLostRef.current?.();
-                navigate(redirectOnLost);
+                // Do NOT call onSessionLost / navigate here. If the user was
+                // never logged in, the page they land on already shows login.
+                // If they WERE logged in, Supabase will fire SIGNED_OUT only
+                // when it actually invalidates the token.
               })();
             }
             break;
