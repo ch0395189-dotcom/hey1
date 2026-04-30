@@ -115,14 +115,40 @@ serve(async (req) => {
     const event = payload.event || payload.type;
     const data = payload.data || payload;
 
-    if (event === 'payment.approved' || event === 'APPROVED') {
+    // Detect approval from any of the formats Bold uses across integrations.
+    const rawStatus =
+      data?.status ||
+      data?.payment_status ||
+      payload?.status ||
+      payload?.payment_status ||
+      event ||
+      '';
+    const statusUpper = String(rawStatus).toUpperCase();
+    const isApproved =
+      event === 'payment.approved' ||
+      event === 'APPROVED' ||
+      event === 'SALE_APPROVED' ||
+      statusUpper === 'APPROVED' ||
+      statusUpper === 'PAID' ||
+      statusUpper === 'COMPLETED' ||
+      statusUpper === 'SUCCESS';
+
+    console.log(`Bold webhook event=${event} status=${rawStatus} approved=${isApproved}`);
+
+    if (isApproved) {
       // Try multiple ways to get userId and plan
       const metadata = data.metadata || {};
       let userId = metadata.user_id;
       let plan = metadata.plan;
       const transactionAmount = data.amount?.total_amount || data.amount || metadata.amount || 0;
       const transactionId = data.transaction_id || data.id || null;
-      const reference = data.reference || data.order_id || metadata.reference || '';
+      const reference =
+        data.reference ||
+        data.order_id ||
+        data.payment_link ||
+        metadata.reference ||
+        payload.reference ||
+        '';
 
       // If no userId/plan from metadata, try parsing the reference
       if (!userId || !plan) {
