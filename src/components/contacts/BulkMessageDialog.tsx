@@ -277,39 +277,74 @@ export const BulkMessageDialog = ({
       }
     }
 
+    // WhatsApp text limit is 4096 chars per message. Split long texts into
+    // ordered chunks so the user can paste long copy without losing content.
+    const MAX_LEN = 4096;
+    const splitMessage = (text: string): string[] => {
+      if (!text) return [];
+      if (text.length <= MAX_LEN) return [text];
+      const chunks: string[] = [];
+      let remaining = text;
+      while (remaining.length > MAX_LEN) {
+        // Try to break on the nearest newline or space before the limit.
+        let cut = remaining.lastIndexOf("\n", MAX_LEN);
+        if (cut < MAX_LEN * 0.5) cut = remaining.lastIndexOf(" ", MAX_LEN);
+        if (cut < MAX_LEN * 0.5) cut = MAX_LEN;
+        chunks.push(remaining.slice(0, cut).trim());
+        remaining = remaining.slice(cut).trim();
+      }
+      if (remaining) chunks.push(remaining);
+      return chunks;
+    };
+    const messageChunks = splitMessage(effectiveMessage || "");
+
     const sendResults: SendResult[] = [];
     const totalContacts = selectedContacts.length;
 
     for (let i = 0; i < totalContacts; i++) {
       const contact = selectedContacts[i];
-      
-      try {
-        let data, error;
-        
-        if (isExternal) {
-          ({ data, error } = await supabase.functions.invoke('whatsapp-send-external', {
-            body: {
-              accountId: selectedAccountId,
-              to: contact.customer_phone.replace(/[\s+\-()]/g, ''),
-              message: effectiveMessage || undefined,
-              mediaUrl,
-              mediaType,
-              createConversation: true,
-            },
-          }));
-        } else {
-          ({ data, error } = await supabase.functions.invoke('whatsapp-send-message', {
-            body: {
-              conversation_id: contact.id,
-              message: effectiveMessage || undefined,
-              media_url: mediaUrl,
-              media_type: mediaType,
-            },
-          }));
-        }
 
-        if (error) throw error;
-        if (data && !data.success) throw new Error(data.error || 'Error de WhatsApp API');
+      try {
+        // For text we send each chunk sequentially. Media (if any) goes with
+        // the first chunk only so it isn't duplicated.
+        const parts = messageChunks.length > 0 ? messageChunks : [undefined];
+        let lastData: any = null;
+        for (let p = 0; p < parts.length; p++) {
+          const isFirst = p === 0;
+          const partMessage = parts[p];
+          let data, error;
+
+          if (isExternal) {
+            ({ data, error } = await supabase.functions.invoke('whatsapp-send-external', {
+              body: {
+                accountId: selectedAccountId,
+                to: contact.customer_phone.replace(/[\s+\-()]/g, ''),
+                message: partMessage || undefined,
+                mediaUrl: isFirst ? mediaUrl : undefined,
+                mediaType: isFirst ? mediaType : undefined,
+                createConversation: true,
+              },
+            }));
+          } else {
+            ({ data, error } = await supabase.functions.invoke('whatsapp-send-message', {
+              body: {
+                conversation_id: contact.id,
+                message: partMessage || undefined,
+                media_url: isFirst ? mediaUrl : undefined,
+                media_type: isFirst ? mediaType : undefined,
+              },
+            }));
+          }
+
+          if (error) throw error;
+          if (data && !data.success) throw new Error(data.error || 'Error de WhatsApp API');
+          lastData = data;
+
+          // Small gap between chunks so WhatsApp keeps order.
+          if (p < parts.length - 1) {
+            await new Promise((r) => setTimeout(r, 400));
+          }
+        }
 
         sendResults.push({
           contactId: contact.id,
@@ -430,9 +465,16 @@ export const BulkMessageDialog = ({
                     onChange={(e) => setMessage(e.target.value)}
                     disabled={sending}
                     className="min-h-[100px] resize-none"
-                    maxLength={4096}
+                    maxLength={65000}
                   />
-                  <p className="text-xs text-muted-foreground text-right">{message.length}/4096</p>
+                  <p className="text-xs text-muted-foreground text-right">
+                    {message.length} caracteres
+                    {message.length > 4096 && (
+                      <span className="ml-2 text-amber-600 dark:text-amber-400">
+                        · se enviará en {Math.ceil(message.length / 4096)} mensajes
+                      </span>
+                    )}
+                  </p>
                 </TabsContent>
 
                 <TabsContent value="bot" className="space-y-3">

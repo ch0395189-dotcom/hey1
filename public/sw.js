@@ -3,7 +3,7 @@
 // Service Worker for Hey Hey - Push Notifications
 // IMPORTANT: This SW does NOT cache HTML/JS/CSS to avoid stale content issues.
 // Bump CACHE_VERSION on every release to force old caches to be cleared.
-const CACHE_VERSION = 'heyhey-v5';
+const CACHE_VERSION = 'heyhey-v6';
 
 // Install: activate immediately, don't wait
 self.addEventListener('install', (event) => {
@@ -29,9 +29,14 @@ self.addEventListener('activate', (event) => {
       // Take control of all open clients immediately
       await self.clients.claim();
       // Notify all clients there's a new SW active so they can reload
+      // and trigger client-side storage/cookie cleanup for the new version.
       const clients = await self.clients.matchAll({ type: 'window' });
       clients.forEach((client) => {
-        client.postMessage({ type: 'SW_UPDATED', version: CACHE_VERSION });
+        client.postMessage({
+          type: 'SW_UPDATED',
+          version: CACHE_VERSION,
+          clearStorage: true,
+        });
       });
     })()
   );
