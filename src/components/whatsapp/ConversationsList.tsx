@@ -784,7 +784,7 @@ export const ConversationsList = ({
             if (data) {
               const { data: messages } = await supabase
                 .from('messages')
-                .select('content, direction')
+                .select('content, direction, message_type, media_url')
                 .eq('conversation_id', data.id)
                 .order('created_at', { ascending: false })
                 .limit(1);
