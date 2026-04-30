@@ -607,6 +607,9 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
             },
           });
           if (error) throw error;
+          if (data?.error === 'message_limit_reached') {
+            throw new Error(data.message || 'Has alcanzado el límite mensual de mensajes de tu plan.');
+          }
           if (data?.error) throw new Error(data.details || data.error);
           
           // Refresh messages to show the newly sent message immediately
@@ -623,6 +626,12 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
             },
           });
           if (error) throw error;
+          if (data?.error === 'message_limit_reached') {
+            throw new Error(data.message || 'Has alcanzado el límite mensual de mensajes de tu plan.');
+          }
+          if (data?.success === false && data?.error) {
+            throw new Error(data.message || data.error);
+          }
         }
       } else {
         // For Messenger, Instagram, TikTok - use platform-specific send functions
