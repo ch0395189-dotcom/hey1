@@ -409,8 +409,20 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
           console.log('📡 Realtime subscription status:', status);
         });
 
+      // Fallback: refresh on visibility / online to catch missed events
+      const onVisible = () => {
+        if (document.visibilityState === 'visible') fetchMessages();
+      };
+      const onOnline = () => fetchMessages();
+      document.addEventListener('visibilitychange', onVisible);
+      window.addEventListener('focus', onVisible);
+      window.addEventListener('online', onOnline);
+
       return () => {
         supabase.removeChannel(channel);
+        document.removeEventListener('visibilitychange', onVisible);
+        window.removeEventListener('focus', onVisible);
+        window.removeEventListener('online', onOnline);
       };
     }
   }, [conversation?.id]);
