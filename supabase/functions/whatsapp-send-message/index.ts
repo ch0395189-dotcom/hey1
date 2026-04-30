@@ -241,7 +241,8 @@ Deno.serve(async (req) => {
         whatsapp_accounts (
           id,
           phone_number_id,
-          access_token
+          access_token,
+          user_id
         )
       `)
       .eq('id', conversation_id)
@@ -259,6 +260,20 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ error: 'WhatsApp account not found' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Verificar límite mensual de mensajes ANTES de enviar
+    const { data: limitCheck } = await supabaseAdmin.rpc('check_message_limit', { _user_id: whatsappAccount.user_id });
+    if (limitCheck && limitCheck.allowed === false) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'message_limit_reached',
+          message: 'Has alcanzado el límite mensual de mensajes de tu plan.',
+          usage: limitCheck,
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
