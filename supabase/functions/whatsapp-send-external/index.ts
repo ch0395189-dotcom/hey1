@@ -210,6 +210,13 @@ Deno.serve(async (req) => {
 
     console.log(`✅ Message sent. ID: ${messageId}`);
 
+    // Incrementar contador mensual del dueño de la cuenta
+    try {
+      await supabase.rpc('increment_outbound_message', { _user_id: account.user_id });
+    } catch (e) {
+      console.error('⚠️ No se pudo incrementar contador:', e);
+    }
+
     // Create or update conversation and save message
     let savedConversationId = conversationId;
     let savedMessageId = null;
