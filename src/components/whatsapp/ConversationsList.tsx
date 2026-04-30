@@ -139,7 +139,7 @@ export const ConversationsList = ({
           const [messagesRes, tagsRes] = await Promise.all([
             supabase
               .from('messages')
-              .select('content, direction')
+              .select('content, direction, message_type, media_url')
               .eq('conversation_id', conv.id)
               .order('created_at', { ascending: false })
               .limit(1),
