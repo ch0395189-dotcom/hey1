@@ -9,6 +9,8 @@ interface CreditPackage {
   price_cop: number;
   price_usd: number | null;
   is_popular: boolean;
+  package_type?: string;
+  extra_messages?: number;
 }
 
 interface UserCredits {
