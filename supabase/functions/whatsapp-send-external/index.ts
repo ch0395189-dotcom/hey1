@@ -30,7 +30,7 @@ Deno.serve(async (req) => {
     if (!authHeader?.startsWith('Bearer ')) {
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -50,7 +50,7 @@ Deno.serve(async (req) => {
     if (authError || !claims?.user) {
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -63,7 +63,7 @@ Deno.serve(async (req) => {
     if (!accountId || !to) {
       return new Response(
         JSON.stringify({ error: 'Missing required fields: accountId and to' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -78,7 +78,7 @@ Deno.serve(async (req) => {
       console.error('❌ Account error:', accountError);
       return new Response(
         JSON.stringify({ error: 'Account not found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -95,7 +95,7 @@ Deno.serve(async (req) => {
       if (!agentRow) {
         return new Response(
           JSON.stringify({ error: 'Unauthorized: You do not own this account' }),
-          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
     }
@@ -106,7 +106,7 @@ Deno.serve(async (req) => {
     if (!apiBaseUrl || !apiToken) {
       return new Response(
         JSON.stringify({ error: 'API configuration missing. Please reconfigure the account.' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -305,7 +305,7 @@ Deno.serve(async (req) => {
     console.error('❌ Error:', error);
     return new Response(
       JSON.stringify({ error: error.message || 'Internal server error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
