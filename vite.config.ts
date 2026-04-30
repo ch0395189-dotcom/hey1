@@ -3,6 +3,41 @@ import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 import { VitePWA } from "vite-plugin-pwa";
+import fs from "fs";
+
+// Plugin: emit /version.json with a unique build ID on every build so the
+// client can poll it and surface an "Update available" banner whenever a new
+// version ships (even without a Service Worker change).
+function buildVersionPlugin() {
+  const buildId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return {
+    name: "build-version",
+    transformIndexHtml() {
+      return [
+        {
+          tag: "meta",
+          attrs: { name: "app-build-id", content: buildId },
+          injectTo: "head" as const,
+        },
+      ];
+    },
+    generateBundle() {
+      this.emitFile({
+        type: "asset",
+        fileName: "version.json",
+        source: JSON.stringify({ buildId, builtAt: new Date().toISOString() }),
+      });
+    },
+    configureServer(server: any) {
+      // Serve /version.json in dev too
+      server.middlewares.use("/version.json", (_req: any, res: any) => {
+        res.setHeader("Content-Type", "application/json");
+        res.setHeader("Cache-Control", "no-store");
+        res.end(JSON.stringify({ buildId, builtAt: new Date().toISOString() }));
+      });
+    },
+  };
+}
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
@@ -29,6 +64,7 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     mode === "development" && componentTagger(),
+    buildVersionPlugin(),
     VitePWA({
       registerType: "autoUpdate",
       includeAssets: ["favicon.ico", "robots.txt", "sw.js"],
