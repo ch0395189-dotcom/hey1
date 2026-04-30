@@ -84,7 +84,7 @@ serve(async (req) => {
     // Check recent pending payments until one is confirmed.
     const { data: pendingPayments } = await admin
       .from('bold_payments')
-      .select('id, plan, bold_transaction_id, amount, currency, created_at')
+      .select('id, plan, bold_transaction_id, amount, currency, created_at, metadata')
       .eq('user_id', user.id)
       .eq('event_type', 'pending')
       .order('created_at', { ascending: false })
@@ -102,10 +102,12 @@ serve(async (req) => {
 
     for (const pending of pendingPayments) {
       const reference = pending.bold_transaction_id;
-      if (!reference) continue;
+      const paymentLink = (pending as any).metadata?.payment_link as string | undefined;
+      const lookupId = paymentLink || reference;
+      if (!lookupId) continue;
 
       try {
-        const boldRes = await fetch(`${BOLD_API_URL}/online/link/v1/${reference}`, {
+        const boldRes = await fetch(`${BOLD_API_URL}/online/link/v1/${lookupId}`, {
           method: 'GET',
           headers: {
             'Authorization': `x-api-key ${BOLD_API_KEY}`,
@@ -113,7 +115,7 @@ serve(async (req) => {
           },
         });
         const boldData = await boldRes.json();
-        console.log(`Bold lookup for ${reference}:`, JSON.stringify(boldData));
+        console.log(`Bold lookup for ${lookupId} (ref=${reference}):`, JSON.stringify(boldData));
 
         paymentStatus =
           boldData?.payload?.status ||
