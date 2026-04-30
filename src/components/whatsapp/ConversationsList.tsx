@@ -46,6 +46,8 @@ export interface Conversation {
   last_message?: {
     content: string | null;
     direction: string;
+    message_type?: string | null;
+    media_url?: string | null;
   };
   tags?: { id: string; name: string; color: string }[];
 }
