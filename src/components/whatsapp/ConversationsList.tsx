@@ -262,7 +262,7 @@ export const ConversationsList = ({
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages' },
         (payload) => {
-          const newMessage = payload.new as { direction: string; content: string | null; conversation_id: string };
+          const newMessage = payload.new as { direction: string; content: string | null; conversation_id: string; message_type?: string | null };
           fetchConversations();
           
           if (newMessage.direction === 'inbound' && onNewMessageRef.current) {
@@ -279,7 +279,8 @@ export const ConversationsList = ({
                     conv.customer_name || conv.customer_phone,
                     newMessage.content || 'Mensaje multimedia',
                     newMessage.conversation_id,
-                    conv.platform || 'whatsapp'
+                    conv.platform || 'whatsapp',
+                    newMessage.message_type || 'text'
                   );
                 }
               } catch (err) {
