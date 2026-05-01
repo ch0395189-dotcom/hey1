@@ -59,7 +59,7 @@ interface ConversationsListProps {
   onSelectConversation: (conversation: Conversation) => void;
   whatsappAccountId?: string;
   platform?: Platform;
-  onNewMessage?: (customerName: string, content: string, conversationId: string, platform: string) => void;
+  onNewMessage?: (customerName: string, content: string, conversationId: string, platform: string, messageType?: string) => void;
 }
 
 export const ConversationsList = ({
