@@ -865,7 +865,7 @@ const Dashboard = () => {
             <DialogTitle>Configuración</DialogTitle>
           </DialogHeader>
           
-          <Tabs value={settingsTab} onValueChange={(v) => setSettingsTab(v as any)}>
+          <Tabs value={settingsTab} onValueChange={(v) => setSettingsTab(v as 'whatsapp' | 'apikeys')}>
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="whatsapp" className="gap-2">
                 <MessageCircle className="h-4 w-4" />
