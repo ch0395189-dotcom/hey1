@@ -93,7 +93,17 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
       console.log('[Session] App became visible, checking session...');
       
       try {
-        const session = await checkSession();
+        let session = await checkSession();
+
+        // Si no hay sesión local pero localStorage aún tiene el refresh token,
+        // intentamos un refresh silencioso antes de asumir que está cerrada.
+        if (!session?.user) {
+          console.log('[Session] Sin sesión activa al volver visible — intentando refresh silencioso');
+          const refreshed = await safeRefreshSession();
+          if (refreshed?.user) {
+            session = refreshed;
+          }
+        }
 
         if (session?.user) {
           console.log('[Session] Session found, user:', session.user.email);
@@ -116,9 +126,8 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
             onSessionRestoredRef.current?.(session.user);
           }
         } else {
-          console.log('[Session] No session found on visibility change');
-          // Don't redirect immediately - could be network issue
-          // Let the auth state change listener handle this
+          console.log('[Session] No session found on visibility change — manteniendo estado actual');
+          // No redirigimos: si Supabase realmente perdió credenciales emitirá SIGNED_OUT.
         }
       } catch (err) {
         console.error('[Session] Visibility check error:', err);
