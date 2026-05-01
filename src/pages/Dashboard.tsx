@@ -27,6 +27,7 @@ import { useNotificationSound } from "@/hooks/useNotificationSound";
 import { useNotificationSettings } from "@/hooks/useNotificationSettings";
 import { useSessionPersistence } from "@/hooks/useSessionPersistence";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
+import type { User } from "@supabase/supabase-js";
 import { ConversationsList } from "@/components/whatsapp/ConversationsList";
 import { ChatWindow } from "@/components/whatsapp/ChatWindow";
 import { WhatsAppSetup } from "@/components/whatsapp/WhatsAppSetup";
@@ -131,7 +132,7 @@ const Dashboard = () => {
   }, [setSearchParams]);
 
   const [selectedConversation, setSelectedConversationState] = useState<Conversation | null>(null);
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showChatbot, setShowChatbot] = useState(false);
   const [showPlatformSetup, setShowPlatformSetup] = useState(false);
@@ -282,7 +283,7 @@ const Dashboard = () => {
   }, [selectedAccountId]);
 
   // Use session persistence hook for mobile app stability
-  const handleSessionRestored = useCallback((restoredUser: any) => {
+  const handleSessionRestored = useCallback((restoredUser: User) => {
     setUser(restoredUser);
     checkWhatsAppAccounts();
   }, [checkWhatsAppAccounts]);
@@ -312,7 +313,9 @@ const Dashboard = () => {
   const handleLogout = async () => {
     try {
       window.sessionStorage.setItem('heyhey-explicit-logout', 'true');
-    } catch {}
+    } catch {
+      console.warn('[Dashboard] No se pudo marcar el cierre de sesión explícito');
+    }
     await supabase.auth.signOut();
     toast({
       title: "Sesión cerrada",
