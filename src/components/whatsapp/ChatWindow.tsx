@@ -1118,21 +1118,6 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
               <button
                 type="button"
                 className="p-2 rounded-full hover:bg-primary-foreground/10 active:bg-primary-foreground/20 transition-colors touch-manipulation"
-                onPointerDown={(event) => {
-                  if (event.pointerType !== "mouse") {
-                    event.preventDefault();
-                    setMoreMenuOpen((open) => !open);
-                  }
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    setMoreMenuOpen((open) => !open);
-                  } else if (event.key === "Escape" && moreMenuOpen) {
-                    event.preventDefault();
-                    setMoreMenuOpen(false);
-                  }
-                }}
                 title="Más opciones"
                 aria-label="Más opciones"
                 aria-haspopup="menu"

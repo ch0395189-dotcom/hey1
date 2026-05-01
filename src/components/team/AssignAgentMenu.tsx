@@ -92,21 +92,6 @@ export const AssignAgentMenu = ({ conversationId, currentAssignee, onAssigned, o
           variant="ghost"
           size="icon"
           className="h-9 w-9 text-primary-foreground hover:bg-primary-foreground/10 touch-manipulation"
-          onPointerDown={(event) => {
-            if (event.pointerType !== "mouse") {
-              event.preventDefault();
-              handleOpenChange(!menuOpen);
-            }
-          }}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" || event.key === " ") {
-              event.preventDefault();
-              handleOpenChange(!menuOpen);
-            } else if (event.key === "Escape" && menuOpen) {
-              event.preventDefault();
-              handleOpenChange(false);
-            }
-          }}
           title="Asignar agente"
           aria-label="Asignar agente"
           aria-haspopup="menu"
