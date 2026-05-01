@@ -1,9 +1,13 @@
 import { useEffect, useCallback, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import type { User } from '@supabase/supabase-js';
+
+const MIN_REFRESH_INTERVAL_MS = 30000;
+const REFRESH_THRESHOLD_MS = 10 * 60 * 1000;
 
 interface UseSessionPersistenceOptions {
-  onSessionRestored?: (user: any) => void;
+  onSessionRestored?: (user: User) => void;
   onSessionLost?: () => void;
   redirectOnLost?: string;
 }
@@ -16,7 +20,6 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
   const sessionValidRef = useRef(true);
   const initialCheckDoneRef = useRef(false);
   const [isInitializing, setIsInitializing] = useState(true);
-  const minRefreshInterval = 30000; // 30 seconds minimum between refreshes
 
   // Store callbacks in refs to prevent unnecessary re-subscriptions
   const onSessionRestoredRef = useRef(onSessionRestored);
@@ -32,7 +35,7 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
     const now = Date.now();
     
     // Prevent concurrent refreshes and rate limit
-    if (refreshInProgressRef.current || (now - lastRefreshRef.current) < minRefreshInterval) {
+    if (refreshInProgressRef.current || (now - lastRefreshRef.current) < MIN_REFRESH_INTERVAL_MS) {
       console.log('[Session] Refresh skipped - already in progress or rate limited');
       return null;
     }
@@ -135,7 +138,10 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
     
     if (session?.user) {
       sessionValidRef.current = true;
-      await safeRefreshSession();
+      const expiresAt = session.expires_at ? session.expires_at * 1000 : 0;
+      if (expiresAt - Date.now() < REFRESH_THRESHOLD_MS) {
+        await safeRefreshSession();
+      }
       onSessionRestoredRef.current?.(session.user);
     }
   }, [checkSession, safeRefreshSession]);
@@ -253,7 +259,9 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
                 console.log('[Session] Explicit user sign out');
                 try {
                   window.sessionStorage.removeItem('heyhey-explicit-logout');
-                } catch {}
+                } catch {
+                  console.warn('[Session] Could not clear explicit logout marker');
+                }
                 sessionValidRef.current = false;
                 onSessionLostRef.current?.();
                 navigate(redirectOnLost);
@@ -288,10 +296,16 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
     window.addEventListener('beforeunload', handleBeforeUnload);
     window.addEventListener('pageshow', handlePageShow);
 
-    // Set up periodic session check every 5 minutes (only when visible)
-    const intervalId = setInterval(() => {
+    // Set up periodic session check every 5 minutes (only refresh near expiry).
+    // Supabase already auto-refreshes tokens; forcing refreshes too often can
+    // rotate tokens from multiple tabs and cause unexpected SIGNED_OUT events.
+    const intervalId = setInterval(async () => {
       if (document.visibilityState === 'visible' && sessionValidRef.current && initialCheckDoneRef.current) {
-        safeRefreshSession();
+        const session = await checkSession();
+        const expiresAt = session?.expires_at ? session.expires_at * 1000 : 0;
+        if (session?.user && expiresAt - Date.now() < REFRESH_THRESHOLD_MS) {
+          safeRefreshSession();
+        }
       }
     }, 5 * 60 * 1000);
 

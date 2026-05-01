@@ -16,7 +16,8 @@ import {
   ArrowLeft,
   Key,
   Menu,
-  Send
+  Send,
+  Loader2
 } from "lucide-react";
 import { NewMessageDialog } from "@/components/whatsapp/NewMessageDialog";
 import { supabase } from "@/integrations/supabase/client";
@@ -26,6 +27,7 @@ import { useNotificationSound } from "@/hooks/useNotificationSound";
 import { useNotificationSettings } from "@/hooks/useNotificationSettings";
 import { useSessionPersistence } from "@/hooks/useSessionPersistence";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
+import type { User } from "@supabase/supabase-js";
 import { ConversationsList } from "@/components/whatsapp/ConversationsList";
 import { ChatWindow } from "@/components/whatsapp/ChatWindow";
 import { WhatsAppSetup } from "@/components/whatsapp/WhatsAppSetup";
@@ -130,7 +132,7 @@ const Dashboard = () => {
   }, [setSearchParams]);
 
   const [selectedConversation, setSelectedConversationState] = useState<Conversation | null>(null);
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showChatbot, setShowChatbot] = useState(false);
   const [showPlatformSetup, setShowPlatformSetup] = useState(false);
@@ -244,17 +246,53 @@ const Dashboard = () => {
     });
   }, [soundEnabled, volume, desktopEnabled, getToneForPlatform, playNotificationSound, showNotification, sendPushNotification]);
 
+  const checkWhatsAppAccounts = useCallback(async () => {
+    const delays = [0, 250, 750, 1500];
+    let activeSession: Awaited<ReturnType<typeof supabase.auth.getSession>>["data"]["session"] = null;
+
+    for (const delay of delays) {
+      if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        activeSession = session;
+        break;
+      }
+    }
+
+    if (!activeSession?.user) {
+      console.warn('[Dashboard] Sesión no lista; se evita marcar cuentas como vacías');
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from('whatsapp_accounts')
+      .select('id, display_name, phone_number')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('[Dashboard] Error loading WhatsApp accounts:', error);
+      return;
+    }
+
+    const accounts = (data || []) as WhatsAppAccount[];
+    setWhatsappAccounts(accounts);
+    setHasWhatsAppAccount(accounts.length > 0);
+    if (accounts.length > 0 && !selectedAccountId) {
+      setSelectedAccountId(accounts[0].id);
+    }
+  }, [selectedAccountId]);
+
   // Use session persistence hook for mobile app stability
-  const handleSessionRestored = useCallback((restoredUser: any) => {
+  const handleSessionRestored = useCallback((restoredUser: User) => {
     setUser(restoredUser);
     checkWhatsAppAccounts();
-  }, []);
+  }, [checkWhatsAppAccounts]);
 
   const handleSessionLost = useCallback(() => {
     setUser(null);
   }, []);
 
-  useSessionPersistence({
+  const { isInitializing } = useSessionPersistence({
     onSessionRestored: handleSessionRestored,
     onSessionLost: handleSessionLost,
     redirectOnLost: '/login',
@@ -272,26 +310,12 @@ const Dashboard = () => {
     }
   }, [searchParams]);
 
-  const checkWhatsAppAccounts = async () => {
-    const { data, error } = await supabase
-      .from('whatsapp_accounts')
-      .select('id, display_name, phone_number');
-
-    if (data && data.length > 0) {
-      setHasWhatsAppAccount(true);
-      setWhatsappAccounts(data as WhatsAppAccount[]);
-      if (!selectedAccountId) {
-        setSelectedAccountId(data[0].id);
-      }
-    } else {
-      setHasWhatsAppAccount(false);
-    }
-  };
-
   const handleLogout = async () => {
     try {
       window.sessionStorage.setItem('heyhey-explicit-logout', 'true');
-    } catch {}
+    } catch {
+      console.warn('[Dashboard] No se pudo marcar el cierre de sesión explícito');
+    }
     await supabase.auth.signOut();
     toast({
       title: "Sesión cerrada",
@@ -299,6 +323,14 @@ const Dashboard = () => {
     });
     navigate("/");
   };
+
+  if (isInitializing || hasWhatsAppAccount === null) {
+    return (
+      <div className="h-[100dvh] flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   // Show suspended screen if subscription expired
   if (!suspendedLoading && isSuspended) {
@@ -833,7 +865,7 @@ const Dashboard = () => {
             <DialogTitle>Configuración</DialogTitle>
           </DialogHeader>
           
-          <Tabs value={settingsTab} onValueChange={(v) => setSettingsTab(v as any)}>
+          <Tabs value={settingsTab} onValueChange={(v) => setSettingsTab(v as 'whatsapp' | 'apikeys')}>
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="whatsapp" className="gap-2">
                 <MessageCircle className="h-4 w-4" />
