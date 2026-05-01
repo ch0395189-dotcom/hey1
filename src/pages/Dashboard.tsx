@@ -321,6 +321,14 @@ const Dashboard = () => {
     navigate("/");
   };
 
+  if (isInitializing || hasWhatsAppAccount === null) {
+    return (
+      <div className="h-[100dvh] flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   // Show suspended screen if subscription expired
   if (!suspendedLoading && isSuspended) {
     return <SuspendedServiceScreen plan={suspendedPlan} daysExpired={daysExpired} reason={suspendedReason} />;
