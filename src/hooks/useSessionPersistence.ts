@@ -35,7 +35,7 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
     const now = Date.now();
     
     // Prevent concurrent refreshes and rate limit
-    if (refreshInProgressRef.current || (now - lastRefreshRef.current) < minRefreshInterval) {
+    if (refreshInProgressRef.current || (now - lastRefreshRef.current) < MIN_REFRESH_INTERVAL_MS) {
       console.log('[Session] Refresh skipped - already in progress or rate limited');
       return null;
     }
@@ -139,7 +139,7 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
     if (session?.user) {
       sessionValidRef.current = true;
       const expiresAt = session.expires_at ? session.expires_at * 1000 : 0;
-      if (expiresAt - Date.now() < refreshThresholdMs) {
+      if (expiresAt - Date.now() < REFRESH_THRESHOLD_MS) {
         await safeRefreshSession();
       }
       onSessionRestoredRef.current?.(session.user);
@@ -301,7 +301,7 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
       if (document.visibilityState === 'visible' && sessionValidRef.current && initialCheckDoneRef.current) {
         const session = await checkSession();
         const expiresAt = session?.expires_at ? session.expires_at * 1000 : 0;
-        if (session?.user && expiresAt - Date.now() < refreshThresholdMs) {
+        if (session?.user && expiresAt - Date.now() < REFRESH_THRESHOLD_MS) {
           safeRefreshSession();
         }
       }
