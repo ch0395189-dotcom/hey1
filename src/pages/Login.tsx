@@ -17,6 +17,32 @@ const Login = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  const getFriendlyLoginMessage = (message?: string) => {
+    const normalized = (message || "").toLowerCase();
+
+    if (normalized.includes("invalid login credentials")) {
+      return "El correo o la contraseña no coinciden. Verifica los datos e intenta nuevamente.";
+    }
+
+    if (normalized.includes("email not confirmed")) {
+      return "Tu correo aún no está confirmado. Revisa tu bandeja de entrada antes de iniciar sesión.";
+    }
+
+    if (
+      normalized.includes("refresh token") ||
+      normalized.includes("jwt") ||
+      normalized.includes("session")
+    ) {
+      return "Tu sesión anterior expiró. Intenta iniciar sesión nuevamente con tu correo y contraseña.";
+    }
+
+    if (normalized.includes("network") || normalized.includes("fetch") || normalized.includes("failed")) {
+      return "No pudimos conectar con el servidor. Revisa tu internet e intenta otra vez.";
+    }
+
+    return "No pudimos iniciar sesión. Revisa tus datos e intenta nuevamente.";
+  };
+
   // Check for existing session on mount
   useEffect(() => {
     const checkExistingSession = async () => {
@@ -64,9 +90,8 @@ const Login = () => {
       navigate("/dashboard");
     } catch (error: any) {
       toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message || "Error al iniciar sesión.",
+        title: "No se pudo iniciar sesión",
+        description: getFriendlyLoginMessage(error?.message),
       });
     } finally {
       setLoading(false);
