@@ -259,7 +259,9 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
                 console.log('[Session] Explicit user sign out');
                 try {
                   window.sessionStorage.removeItem('heyhey-explicit-logout');
-                } catch {}
+                } catch {
+                  console.warn('[Session] Could not clear explicit logout marker');
+                }
                 sessionValidRef.current = false;
                 onSessionLostRef.current?.();
                 navigate(redirectOnLost);
