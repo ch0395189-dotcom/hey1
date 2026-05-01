@@ -260,18 +260,57 @@ const Dashboard = () => {
     }
 
     if (!activeSession?.user) {
-      console.warn('[Dashboard] Sesión no lista; se evita marcar cuentas como vacías');
-      return;
+      console.warn('[Dashboard] Sesión no lista; intentando refresh silencioso...');
+      try {
+        const { data: refreshed } = await supabase.auth.refreshSession();
+        if (refreshed?.session?.user) {
+          activeSession = refreshed.session;
+          console.log('[Dashboard] Sesión recuperada vía refreshSession');
+        }
+      } catch (err) {
+        console.warn('[Dashboard] refreshSession falló:', err);
+      }
+      if (!activeSession?.user) {
+        // No marcamos cuentas como vacías; reintentaremos cuando vuelva la sesión
+        return;
+      }
     }
 
-    const { data, error } = await supabase
-      .from('whatsapp_accounts')
-      .select('id, display_name, phone_number')
-      .order('created_at', { ascending: false });
+    // Query helper con auto-retry si el JWT expiró entre la verificación y la consulta
+    const fetchAccounts = async () => {
+      return await supabase
+        .from('whatsapp_accounts')
+        .select('id, display_name, phone_number')
+        .order('created_at', { ascending: false });
+    };
+
+    let { data, error } = await fetchAccounts();
 
     if (error) {
-      console.error('[Dashboard] Error loading WhatsApp accounts:', error);
-      return;
+      const msg = (error.message || '').toLowerCase();
+      const isJwtError =
+        msg.includes('jwt') ||
+        msg.includes('expired') ||
+        msg.includes('invalid token') ||
+        (error as { code?: string }).code === 'PGRST301';
+
+      if (isJwtError) {
+        console.warn('[Dashboard] JWT expirado al cargar cuentas; intentando refresh...');
+        try {
+          const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession();
+          if (!refreshError && refreshed?.session) {
+            console.log('[Dashboard] Sesión refrescada, reintentando consulta...');
+            ({ data, error } = await fetchAccounts());
+          }
+        } catch (err) {
+          console.error('[Dashboard] Refresh fallido tras JWT expirado:', err);
+        }
+      }
+
+      if (error) {
+        console.error('[Dashboard] Error loading WhatsApp accounts:', error);
+        return;
+      }
     }
 
     const accounts = (data || []) as WhatsAppAccount[];
