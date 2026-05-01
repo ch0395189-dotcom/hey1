@@ -208,14 +208,28 @@ const Dashboard = () => {
     }
   };
 
-  const handleNewMessage = useCallback((customerName: string, content: string, conversationId: string, platform: string = 'whatsapp') => {
-    console.log('[Dashboard] handleNewMessage called:', { customerName, content, platform, soundEnabled, volume });
+  const handleNewMessage = useCallback((customerName: string, content: string, conversationId: string, platform: string = 'whatsapp', messageType: string = 'text') => {
+    console.log('[Dashboard] handleNewMessage called:', { customerName, content, platform, messageType, soundEnabled, volume });
     
     const platformLabel = platform === 'whatsapp' ? 'WhatsApp' 
       : platform === 'messenger' ? 'Messenger' 
       : platform === 'instagram' ? 'Instagram' 
       : platform === 'tiktok' ? 'TikTok' 
       : 'Mensaje';
+
+    // Build a friendly preview body for non-text messages
+    const hasText = !!(content && content.trim().length > 0);
+    const typePreview: Record<string, string> = {
+      audio: '🎤 Mensaje de voz',
+      voice: '🎤 Mensaje de voz',
+      image: '📷 Foto',
+      video: '🎥 Video',
+      sticker: '💟 Sticker',
+      document: '📄 Documento',
+      location: '📍 Ubicación',
+      contacts: '👤 Contacto',
+    };
+    const bodyText = hasText ? content : (typePreview[messageType] || 'Mensaje multimedia recibido');
     
     // Play notification sound if enabled with platform-specific tone
     if (soundEnabled) {
@@ -230,7 +244,7 @@ const Dashboard = () => {
     if (desktopEnabled) {
       showNotification({
         title: `${platformLabel}: ${customerName || 'Nuevo mensaje'}`,
-        body: content || 'Mensaje multimedia recibido',
+        body: bodyText,
         onClick: () => {
           setActiveView('inbox');
         },
@@ -240,7 +254,7 @@ const Dashboard = () => {
     // Send push notification via service worker (works when app is closed)
     sendPushNotification({
       title: `${platformLabel}: ${customerName || 'Nuevo mensaje'}`,
-      body: content || 'Mensaje multimedia recibido',
+      body: bodyText,
       conversationId,
       platform
     });
