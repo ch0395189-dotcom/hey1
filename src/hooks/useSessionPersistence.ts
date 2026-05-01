@@ -17,6 +17,7 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
   const initialCheckDoneRef = useRef(false);
   const [isInitializing, setIsInitializing] = useState(true);
   const minRefreshInterval = 30000; // 30 seconds minimum between refreshes
+  const refreshThresholdMs = 10 * 60 * 1000;
 
   // Store callbacks in refs to prevent unnecessary re-subscriptions
   const onSessionRestoredRef = useRef(onSessionRestored);
@@ -135,7 +136,10 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
     
     if (session?.user) {
       sessionValidRef.current = true;
-      await safeRefreshSession();
+      const expiresAt = session.expires_at ? session.expires_at * 1000 : 0;
+      if (expiresAt - Date.now() < refreshThresholdMs) {
+        await safeRefreshSession();
+      }
       onSessionRestoredRef.current?.(session.user);
     }
   }, [checkSession, safeRefreshSession]);
@@ -288,10 +292,16 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
     window.addEventListener('beforeunload', handleBeforeUnload);
     window.addEventListener('pageshow', handlePageShow);
 
-    // Set up periodic session check every 5 minutes (only when visible)
-    const intervalId = setInterval(() => {
+    // Set up periodic session check every 5 minutes (only refresh near expiry).
+    // Supabase already auto-refreshes tokens; forcing refreshes too often can
+    // rotate tokens from multiple tabs and cause unexpected SIGNED_OUT events.
+    const intervalId = setInterval(async () => {
       if (document.visibilityState === 'visible' && sessionValidRef.current && initialCheckDoneRef.current) {
-        safeRefreshSession();
+        const session = await checkSession();
+        const expiresAt = session?.expires_at ? session.expires_at * 1000 : 0;
+        if (session?.user && expiresAt - Date.now() < refreshThresholdMs) {
+          safeRefreshSession();
+        }
       }
     }, 5 * 60 * 1000);
 
