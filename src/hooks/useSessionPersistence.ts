@@ -1,9 +1,13 @@
 import { useEffect, useCallback, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import type { User } from '@supabase/supabase-js';
+
+const MIN_REFRESH_INTERVAL_MS = 30000;
+const REFRESH_THRESHOLD_MS = 10 * 60 * 1000;
 
 interface UseSessionPersistenceOptions {
-  onSessionRestored?: (user: any) => void;
+  onSessionRestored?: (user: User) => void;
   onSessionLost?: () => void;
   redirectOnLost?: string;
 }
@@ -16,8 +20,6 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
   const sessionValidRef = useRef(true);
   const initialCheckDoneRef = useRef(false);
   const [isInitializing, setIsInitializing] = useState(true);
-  const minRefreshInterval = 30000; // 30 seconds minimum between refreshes
-  const refreshThresholdMs = 10 * 60 * 1000;
 
   // Store callbacks in refs to prevent unnecessary re-subscriptions
   const onSessionRestoredRef = useRef(onSessionRestored);
