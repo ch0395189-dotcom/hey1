@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Check, X, Search, RefreshCw, Trash2, CalendarDays, Plus, CreditCard } from 'lucide-react';
+import { Check, X, Search, RefreshCw, Trash2, CalendarDays, Plus, CreditCard, Ban } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Calendar } from '@/components/ui/calendar';
@@ -46,6 +46,8 @@ export const UsersTable = () => {
   const [renewalDate, setRenewalDate] = useState<Date | undefined>(undefined);
   const [submitting, setSubmitting] = useState(false);
   const [userPendingAlerts, setUserPendingAlerts] = useState<{ id: string; amount: number; message: string | null; sent_at: string }[]>([]);
+  const [manageMethod, setManageMethod] = useState('');
+  const [manageAmount, setManageAmount] = useState('');
 
   // Manual charge dialog
   const [chargeDialogOpen, setChargeDialogOpen] = useState(false);
@@ -53,6 +55,9 @@ export const UsersTable = () => {
   const [chargeMethod, setChargeMethod] = useState('');
   const [chargeReference, setChargeReference] = useState('');
   const [chargeNotes, setChargeNotes] = useState('');
+
+  // Deactivate confirmation
+  const [deactivateUser, setDeactivateUser] = useState<UserWithSubscription | null>(null);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -185,6 +190,10 @@ export const UsersTable = () => {
 
   const handleAddDays = async () => {
     if (!selectedUser || !addDays) return;
+    if (!manageMethod) {
+      toast.error('Selecciona el método de pago');
+      return;
+    }
     setSubmitting(true);
     try {
       const days = parseInt(addDays);
@@ -206,6 +215,20 @@ export const UsersTable = () => {
         .eq('user_id', selectedUser.user_id);
 
       if (error) throw error;
+
+      // Log payment method (and amount if provided) to manual_payments
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        await supabase.from('manual_payments').insert({
+          user_id: selectedUser.user_id,
+          admin_id: session.user.id,
+          amount: manageAmount ? parseInt(manageAmount) : 0,
+          currency: 'COP',
+          payment_method: manageMethod,
+          notes: `Activación manual: +${days} días`,
+        });
+      }
+
       toast.success(`Se agregaron ${days} días a ${selectedUser.full_name || selectedUser.email}`);
       setManageDialogOpen(false);
       fetchUsers();
@@ -219,6 +242,10 @@ export const UsersTable = () => {
 
   const handleSetRenewalDate = async () => {
     if (!selectedUser || !renewalDate) return;
+    if (!manageMethod) {
+      toast.error('Selecciona el método de pago');
+      return;
+    }
     setSubmitting(true);
     try {
       const { error } = await supabase
@@ -231,6 +258,19 @@ export const UsersTable = () => {
         .eq('user_id', selectedUser.user_id);
 
       if (error) throw error;
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        await supabase.from('manual_payments').insert({
+          user_id: selectedUser.user_id,
+          admin_id: session.user.id,
+          amount: manageAmount ? parseInt(manageAmount) : 0,
+          currency: 'COP',
+          payment_method: manageMethod,
+          notes: `Activación manual: fecha ${format(renewalDate, 'dd MMM yyyy', { locale: es })}`,
+        });
+      }
+
       toast.success(`Fecha de renovación actualizada para ${selectedUser.full_name || selectedUser.email}`);
       setManageDialogOpen(false);
       fetchUsers();
@@ -308,6 +348,8 @@ export const UsersTable = () => {
     setSelectedUser(user);
     setAddDays('30');
     setRenewalDate(user.subscription?.current_period_end ? new Date(user.subscription.current_period_end) : undefined);
+    setManageMethod('');
+    setManageAmount('');
     setManageDialogOpen(true);
 
     // Fetch pending alerts for this user
@@ -396,6 +438,29 @@ export const UsersTable = () => {
     setChargeReference('');
     setChargeNotes('');
     setChargeDialogOpen(true);
+  };
+
+  const handleDeactivate = async () => {
+    if (!deactivateUser) return;
+    setSubmitting(true);
+    try {
+      const { error } = await supabase
+        .from('subscriptions')
+        .update({
+          status: 'canceled',
+          current_period_end: new Date().toISOString(),
+        })
+        .eq('user_id', deactivateUser.user_id);
+      if (error) throw error;
+      toast.success(`Suscripción desactivada para ${deactivateUser.full_name || deactivateUser.email}`);
+      setDeactivateUser(null);
+      fetchUsers();
+    } catch (error) {
+      console.error('Error deactivating:', error);
+      toast.error('Error al desactivar suscripción');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -534,6 +599,15 @@ export const UsersTable = () => {
                       >
                         <CreditCard className="h-4 w-4" />
                       </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setDeactivateUser(user)}
+                        disabled={user.subscription?.status === 'canceled'}
+                        title="Desactivar suscripción"
+                      >
+                        <Ban className="h-4 w-4 text-destructive" />
+                      </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button size="sm" variant="destructive" title="Eliminar">
@@ -609,6 +683,33 @@ export const UsersTable = () => {
                 <div className="border-t" />
               </div>
             )}
+
+            {/* Payment Method (required for activation) */}
+            <div className="space-y-3">
+              <Label className="text-sm font-semibold">Método de pago usado *</Label>
+              <Select value={manageMethod} onValueChange={setManageMethod}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona método de pago" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="transferencia">Transferencia Bancaria</SelectItem>
+                  <SelectItem value="nequi">Nequi</SelectItem>
+                  <SelectItem value="daviplata">Daviplata</SelectItem>
+                  <SelectItem value="efectivo">Efectivo</SelectItem>
+                  <SelectItem value="bold">Bold</SelectItem>
+                  <SelectItem value="cortesia">Cortesía / Sin cobro</SelectItem>
+                  <SelectItem value="otro">Otro</SelectItem>
+                </SelectContent>
+              </Select>
+              <Input
+                type="number"
+                placeholder="Monto (COP) — opcional"
+                value={manageAmount}
+                onChange={(e) => setManageAmount(e.target.value)}
+              />
+            </div>
+
+            <div className="border-t" />
 
             {/* Add Days */}
             <div className="space-y-3">
@@ -735,6 +836,28 @@ export const UsersTable = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Deactivate subscription confirmation */}
+      <AlertDialog open={!!deactivateUser} onOpenChange={(o) => !o && setDeactivateUser(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Desactivar suscripción?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se cancelará la suscripción de <strong>{deactivateUser?.full_name || deactivateUser?.email}</strong> y perderá el acceso al servicio. El usuario no será eliminado.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={submitting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeactivate}
+              disabled={submitting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Desactivar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
