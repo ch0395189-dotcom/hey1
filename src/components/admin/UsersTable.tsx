@@ -601,12 +601,13 @@ export const UsersTable = () => {
                       </Button>
                       <Button
                         size="sm"
-                        variant="outline"
+                        variant="destructive"
                         onClick={() => setDeactivateUser(user)}
                         disabled={user.subscription?.status === 'canceled'}
                         title="Desactivar suscripción"
                       >
-                        <Ban className="h-4 w-4 text-destructive" />
+                        <Ban className="h-4 w-4 mr-1" />
+                        <span className="text-xs">Desactivar</span>
                       </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
