@@ -16,6 +16,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
+import { useAdminCheck } from '@/hooks/useAdminCheck';
 
 interface UserWithSubscription {
   user_id: string;
@@ -35,6 +36,7 @@ interface UserWithSubscription {
 }
 
 export const UsersTable = () => {
+  const { isAdmin } = useAdminCheck();
   const [users, setUsers] = useState<UserWithSubscription[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -599,16 +601,18 @@ export const UsersTable = () => {
                       >
                         <CreditCard className="h-4 w-4" />
                       </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => setDeactivateUser(user)}
-                        disabled={user.subscription?.status === 'canceled'}
-                        title="Desactivar suscripción"
-                      >
-                        <Ban className="h-4 w-4 mr-1" />
-                        <span className="text-xs">Desactivar</span>
-                      </Button>
+                      {isAdmin && (
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => setDeactivateUser(user)}
+                          disabled={user.subscription?.status === 'canceled'}
+                          title="Desactivar suscripción"
+                        >
+                          <Ban className="h-4 w-4 mr-1" />
+                          <span className="text-xs">Desactivar</span>
+                        </Button>
+                      )}
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button size="sm" variant="destructive" title="Eliminar">
