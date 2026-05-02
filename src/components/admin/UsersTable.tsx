@@ -836,6 +836,28 @@ export const UsersTable = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Deactivate subscription confirmation */}
+      <AlertDialog open={!!deactivateUser} onOpenChange={(o) => !o && setDeactivateUser(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Desactivar suscripción?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se cancelará la suscripción de <strong>{deactivateUser?.full_name || deactivateUser?.email}</strong> y perderá el acceso al servicio. El usuario no será eliminado.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={submitting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeactivate}
+              disabled={submitting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Desactivar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
