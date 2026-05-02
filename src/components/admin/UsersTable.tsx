@@ -684,6 +684,33 @@ export const UsersTable = () => {
               </div>
             )}
 
+            {/* Payment Method (required for activation) */}
+            <div className="space-y-3">
+              <Label className="text-sm font-semibold">Método de pago usado *</Label>
+              <Select value={manageMethod} onValueChange={setManageMethod}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona método de pago" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="transferencia">Transferencia Bancaria</SelectItem>
+                  <SelectItem value="nequi">Nequi</SelectItem>
+                  <SelectItem value="daviplata">Daviplata</SelectItem>
+                  <SelectItem value="efectivo">Efectivo</SelectItem>
+                  <SelectItem value="bold">Bold</SelectItem>
+                  <SelectItem value="cortesia">Cortesía / Sin cobro</SelectItem>
+                  <SelectItem value="otro">Otro</SelectItem>
+                </SelectContent>
+              </Select>
+              <Input
+                type="number"
+                placeholder="Monto (COP) — opcional"
+                value={manageAmount}
+                onChange={(e) => setManageAmount(e.target.value)}
+              />
+            </div>
+
+            <div className="border-t" />
+
             {/* Add Days */}
             <div className="space-y-3">
               <Label className="text-sm font-semibold">Agregar días</Label>
