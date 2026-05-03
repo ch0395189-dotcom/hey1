@@ -36,7 +36,7 @@ interface UserWithSubscription {
 }
 
 export const UsersTable = () => {
-  const { isAdmin } = useAdminCheck();
+  const { isAdmin, loading: adminLoading } = useAdminCheck();
   const [users, setUsers] = useState<UserWithSubscription[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -601,7 +601,17 @@ export const UsersTable = () => {
                       >
                         <CreditCard className="h-4 w-4" />
                       </Button>
-                      {isAdmin && (
+                      {adminLoading ? (
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          disabled
+                          title="Verificando permisos..."
+                        >
+                          <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
+                          <span className="text-xs">Cargando...</span>
+                        </Button>
+                      ) : isAdmin && (
                         <Button
                           size="sm"
                           variant="destructive"
