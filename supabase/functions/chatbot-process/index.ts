@@ -299,6 +299,23 @@ Deno.serve(async (req) => {
     let currentNode: FlowNode | null = null;
     let interactiveResponse: ChatResponse['interactive'] | null = null;
     if (chatbotConfig.mode === 'manual' || chatbotConfig.mode === 'hybrid') {
+      // Global "back to main menu" handler — works from any node
+      const backToMenuKeywords = [
+        'menu', 'menú', 'inicio', 'volver', 'volver al menu', 'volver al menú',
+        'menu principal', 'menú principal', 'back', 'home', 'reiniciar', 'start',
+        'opt_back_menu', 'btn_back_menu',
+      ];
+      const trimmed = lowerMessage.trim();
+      const isBackToMenu = backToMenuKeywords.some(k => trimmed === k || trimmed === `⬅️ ${k}` || trimmed.includes(k));
+      if (isBackToMenu) {
+        console.log('🔁 Back-to-menu trigger detected:', trimmed);
+        await supabase
+          .from('chatbot_conversation_state')
+          .update({ current_node_id: null })
+          .eq('id', conversationState.id);
+        conversationState.current_node_id = null;
+      }
+
       // Try keyword matching first
       const { data: keywords } = await supabase
         .from('chatbot_keywords')
