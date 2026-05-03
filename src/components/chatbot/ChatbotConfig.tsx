@@ -16,6 +16,7 @@ import { FlowBuilder } from './FlowBuilder';
 import { KnowledgeBase } from './KnowledgeBase';
 import { AIConfig } from './AIConfig';
 import { VoiceAgent } from './VoiceAgent';
+import { ConsentDialog } from './ConsentDialog';
 
 interface ChatbotConfigProps {
   whatsappAccountId: string;
@@ -39,6 +40,9 @@ interface ChatbotConfigData {
 export const ChatbotConfig = ({ whatsappAccountId, whatsappAccountName }: ChatbotConfigProps) => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [consentConfirmed, setConsentConfirmed] = useState(false);
+  const [consentOpen, setConsentOpen] = useState(false);
+  const [accountPhone, setAccountPhone] = useState<string | undefined>(undefined);
   const [config, setConfig] = useState<ChatbotConfigData>({
     whatsapp_account_id: whatsappAccountId,
     name: 'Mi Chatbot',
@@ -56,6 +60,7 @@ export const ChatbotConfig = ({ whatsappAccountId, whatsappAccountName }: Chatbo
 
   useEffect(() => {
     fetchConfig();
+    fetchConsent();
   }, [whatsappAccountId]);
 
   const fetchConfig = async () => {
@@ -70,6 +75,30 @@ export const ChatbotConfig = ({ whatsappAccountId, whatsappAccountName }: Chatbo
       setConfig(data as ChatbotConfigData);
     }
     setLoading(false);
+  };
+
+  const fetchConsent = async () => {
+    const { data: consent } = await supabase
+      .from('chatbot_consents')
+      .select('confirmed_at')
+      .eq('whatsapp_account_id', whatsappAccountId)
+      .maybeSingle();
+    setConsentConfirmed(!!consent?.confirmed_at);
+
+    const { data: acc } = await supabase
+      .from('whatsapp_accounts')
+      .select('phone_number')
+      .eq('id', whatsappAccountId)
+      .maybeSingle();
+    setAccountPhone(acc?.phone_number);
+  };
+
+  const handleToggleEnabled = (checked: boolean) => {
+    if (checked && !consentConfirmed) {
+      setConsentOpen(true);
+      return;
+    }
+    setConfig({ ...config, is_enabled: checked });
   };
 
   const saveConfig = async () => {
@@ -163,7 +192,7 @@ export const ChatbotConfig = ({ whatsappAccountId, whatsappAccountName }: Chatbo
           <div className="flex items-center gap-2">
             <Switch
               checked={config.is_enabled}
-              onCheckedChange={(checked) => setConfig({ ...config, is_enabled: checked })}
+              onCheckedChange={handleToggleEnabled}
               id="bot-enabled"
             />
             <Label htmlFor="bot-enabled" className="font-medium">
@@ -176,6 +205,17 @@ export const ChatbotConfig = ({ whatsappAccountId, whatsappAccountName }: Chatbo
           </Button>
         </div>
       </div>
+
+      <ConsentDialog
+        open={consentOpen}
+        onOpenChange={setConsentOpen}
+        whatsappAccountId={whatsappAccountId}
+        whatsappPhone={accountPhone}
+        onConfirmed={() => {
+          setConsentConfirmed(true);
+          setConfig((c) => ({ ...c, is_enabled: true }));
+        }}
+      />
 
       <Tabs defaultValue="general" className="space-y-4">
         <TabsList className="flex w-full overflow-x-auto gap-1 p-1">
