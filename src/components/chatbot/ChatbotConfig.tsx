@@ -94,10 +94,6 @@ export const ChatbotConfig = ({ whatsappAccountId, whatsappAccountName }: Chatbo
   };
 
   const handleToggleEnabled = (checked: boolean) => {
-    if (checked && !consentConfirmed) {
-      setConsentOpen(true);
-      return;
-    }
     setConfig({ ...config, is_enabled: checked });
   };
 
