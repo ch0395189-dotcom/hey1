@@ -106,6 +106,57 @@ export type Database = {
           },
         ]
       }
+      chatbot_consents: {
+        Row: {
+          accepted_auto_reply: boolean
+          accepted_read_messages: boolean
+          accepted_terms: boolean
+          confirmed_at: string | null
+          created_at: string
+          id: string
+          ip_address: string | null
+          otp_attempts: number
+          otp_code: string | null
+          otp_sent_at: string | null
+          updated_at: string
+          user_agent: string | null
+          user_id: string
+          whatsapp_account_id: string
+        }
+        Insert: {
+          accepted_auto_reply?: boolean
+          accepted_read_messages?: boolean
+          accepted_terms?: boolean
+          confirmed_at?: string | null
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          otp_attempts?: number
+          otp_code?: string | null
+          otp_sent_at?: string | null
+          updated_at?: string
+          user_agent?: string | null
+          user_id: string
+          whatsapp_account_id: string
+        }
+        Update: {
+          accepted_auto_reply?: boolean
+          accepted_read_messages?: boolean
+          accepted_terms?: boolean
+          confirmed_at?: string | null
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          otp_attempts?: number
+          otp_code?: string | null
+          otp_sent_at?: string | null
+          updated_at?: string
+          user_agent?: string | null
+          user_id?: string
+          whatsapp_account_id?: string
+        }
+        Relationships: []
+      }
       chatbot_conversation_state: {
         Row: {
           context: Json | null
