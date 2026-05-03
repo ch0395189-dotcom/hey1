@@ -31,6 +31,7 @@ export const usePlanLimits = (): PlanLimits => {
   const [loading, setLoading] = useState(true);
   const [plan, setPlan] = useState<PlanKey | null>(null);
   const [currentCount, setCurrentCount] = useState(0);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -42,7 +43,7 @@ export const usePlanLimits = (): PlanLimits => {
         return;
       }
 
-      const [{ data: sub }, { count }] = await Promise.all([
+      const [{ data: sub }, { count }, { data: isAdminData }] = await Promise.all([
         supabase
           .from("subscriptions")
           .select("plan")
@@ -52,10 +53,12 @@ export const usePlanLimits = (): PlanLimits => {
           .from("whatsapp_accounts")
           .select("id", { count: "exact", head: true })
           .eq("user_id", user.id),
+        supabase.rpc("has_role", { _user_id: user.id, _role: "admin" }),
       ]);
 
       setPlan((sub?.plan as PlanKey) ?? "starter");
       setCurrentCount(count ?? 0);
+      setIsAdmin(!!isAdminData);
     } catch (err) {
       console.error("[usePlanLimits] Error:", err);
     } finally {
@@ -68,7 +71,7 @@ export const usePlanLimits = (): PlanLimits => {
   }, [load]);
 
   const planKey = (plan ?? "starter") as PlanKey;
-  const whatsappLimit = WHATSAPP_LIMITS[planKey] ?? 1;
+  const whatsappLimit = isAdmin ? Infinity : (WHATSAPP_LIMITS[planKey] ?? 1);
 
   return {
     loading,
@@ -76,7 +79,7 @@ export const usePlanLimits = (): PlanLimits => {
     planLabel: PLAN_LABELS[planKey] ?? "Starter",
     whatsappLimit,
     currentCount,
-    canAddWhatsAppAccount: currentCount < whatsappLimit,
+    canAddWhatsAppAccount: isAdmin || currentCount < whatsappLimit,
     refresh: load,
   };
 };
