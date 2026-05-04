@@ -87,13 +87,17 @@ const Login = () => {
         title: "¡Bienvenido!",
         description: "Has iniciado sesión correctamente.",
       });
-      navigate("/dashboard");
+      setLoading(false);
+      // Hard redirect to ensure session is picked up everywhere and avoid
+      // the spinner getting stuck if React Router navigation races with
+      // the auth state change listener.
+      window.location.replace("/dashboard");
+      return;
     } catch (error: any) {
       toast({
         title: "No se pudo iniciar sesión",
         description: getFriendlyLoginMessage(error?.message),
       });
-    } finally {
       setLoading(false);
     }
   };
