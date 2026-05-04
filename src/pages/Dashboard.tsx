@@ -459,7 +459,7 @@ const Dashboard = () => {
       <motion.aside
         initial={{ x: -50, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
-        className="hidden md:flex w-16 bg-primary flex-col items-center py-4"
+        className="hidden lg:flex w-16 bg-primary flex-col items-center py-4"
       >
         <div className="w-10 h-10 rounded-full bg-primary-foreground/20 flex items-center justify-center mb-6">
           <MessageCircle className="w-5 h-5 text-primary-foreground" />
@@ -620,7 +620,7 @@ const Dashboard = () => {
             initial={{ x: -30, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             transition={{ delay: 0.05 }}
-            className="hidden md:flex"
+            className="hidden lg:flex"
           >
             <PlatformSidebar 
               activePlatform={activePlatform} 
@@ -633,8 +633,8 @@ const Dashboard = () => {
             initial={{ x: -30, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             transition={{ delay: 0.1 }}
-            className={`w-full md:w-80 lg:w-96 bg-card border-r border-border flex flex-col min-h-0 ${
-              selectedConversation ? 'hidden md:flex' : 'flex'
+            className={`w-full lg:w-80 xl:w-96 bg-card border-r border-border flex flex-col min-h-0 ${
+              selectedConversation ? 'hidden lg:flex' : 'flex'
             }`}
           >
             {/* Header with platform name */}
@@ -648,7 +648,7 @@ const Dashboard = () => {
             </div>
             
             {/* Mobile Platform Filter */}
-            <div className="md:hidden flex items-center gap-1 px-2 py-2 border-b border-border overflow-x-auto scrollbar-whatsapp">
+            <div className="lg:hidden flex items-center gap-1 px-2 py-2 border-b border-border overflow-x-auto scrollbar-whatsapp">
               {([
                 { id: 'all' as Platform, label: 'Todos' },
                 { id: 'whatsapp' as Platform, label: 'WhatsApp' },
@@ -686,7 +686,7 @@ const Dashboard = () => {
             animate={{ opacity: 1 }}
             transition={{ delay: 0.2 }}
             className={`flex-1 flex flex-col min-h-0 chat-active ${
-              selectedConversation ? 'fixed inset-0 z-[60] md:relative md:inset-auto md:z-auto' : 'hidden md:flex'
+              selectedConversation ? 'fixed inset-0 z-[60] lg:relative lg:inset-auto lg:z-auto' : 'hidden lg:flex'
             }`}
           >
             <ChatWindow
@@ -754,7 +754,7 @@ const Dashboard = () => {
             const msg = encodeURIComponent("Hola, necesito soporte con HeyHey");
             window.open(`https://wa.me/${phone}?text=${msg}`, "_blank");
           }}
-          className="md:hidden fixed bottom-20 right-4 z-50 h-14 px-5 rounded-full bg-[#25D366] text-white shadow-lg flex items-center gap-2 hover:bg-[#25D366]/90 active:scale-95 transition-all"
+          className="lg:hidden fixed bottom-20 right-4 z-50 h-14 px-5 rounded-full bg-[#25D366] text-white shadow-lg flex items-center gap-2 hover:bg-[#25D366]/90 active:scale-95 transition-all"
           aria-label="Contactar soporte por WhatsApp"
         >
           <MessageCircle className="w-5 h-5" />
@@ -773,7 +773,7 @@ const Dashboard = () => {
       />
 
       {/* Mobile Bottom Navigation - WhatsApp Style - Hidden when chat is open */}
-      <nav className={`md:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border flex items-center justify-around px-2 z-50 ${selectedConversation ? 'hidden' : ''}`} style={{ height: 'calc(3.5rem + env(safe-area-inset-bottom, 0px))', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+      <nav className={`lg:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border flex items-center justify-around px-2 z-50 ${selectedConversation ? 'hidden' : ''}`} style={{ height: 'calc(3.5rem + env(safe-area-inset-bottom, 0px))', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
         <button
           onClick={() => setActiveView('inbox')}
           className={`flex flex-col items-center gap-0.5 py-1.5 px-3 rounded-lg transition-colors ${
