@@ -363,6 +363,15 @@ const Dashboard = () => {
     }
   }, [searchParams]);
 
+  // Si terminó la inicialización de sesión y no hay usuario, redirige a login.
+  // Evita que el spinner se quede para siempre cuando llegamos al /dashboard
+  // sin sesión (p. ej. tras un hard-redirect desde Login en frío).
+  useEffect(() => {
+    if (!isInitializing && !user) {
+      navigate('/login', { replace: true });
+    }
+  }, [isInitializing, user, navigate]);
+
   const handleLogout = async () => {
     try {
       window.sessionStorage.setItem('heyhey-explicit-logout', 'true');
