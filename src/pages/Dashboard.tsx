@@ -373,9 +373,37 @@ const Dashboard = () => {
   // Evita que el spinner se quede para siempre cuando llegamos al /dashboard
   // sin sesión (p. ej. tras un hard-redirect desde Login en frío).
   useEffect(() => {
-    if (!isInitializing && !user) {
-      navigate('/login', { replace: true });
-    }
+    if (isInitializing || user) return;
+
+    // En móvil, INITIAL_SESSION puede llegar sin sesión aunque el
+    // localStorage tenga un refresh token válido. Antes de redirigir,
+    // hacemos una última verificación directa con getSession + un retry
+    // con refreshSession para evitar el loop /login <-> /dashboard.
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (cancelled) return;
+        if (session?.user) {
+          setUser(session.user);
+          checkWhatsAppAccounts();
+          return;
+        }
+        const { data: refreshed } = await supabase.auth.refreshSession();
+        if (cancelled) return;
+        if (refreshed?.session?.user) {
+          setUser(refreshed.session.user);
+          checkWhatsAppAccounts();
+          return;
+        }
+        navigate('/login', { replace: true });
+      } catch {
+        if (!cancelled) navigate('/login', { replace: true });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [isInitializing, user, navigate]);
 
   const handleLogout = async () => {
