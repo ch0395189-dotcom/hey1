@@ -143,6 +143,7 @@ const Dashboard = () => {
   const [showMobileNotifications, setShowMobileNotifications] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showMobileNewMessage, setShowMobileNewMessage] = useState(false);
+  const [accountCheckFinished, setAccountCheckFinished] = useState(false);
 
   // Wrap setSelectedConversation to also update URL
   const setSelectedConversation = useCallback((conv: Conversation | null) => {
@@ -261,6 +262,7 @@ const Dashboard = () => {
   }, [soundEnabled, volume, desktopEnabled, getToneForPlatform, playNotificationSound, showNotification, sendPushNotification]);
 
   const checkWhatsAppAccounts = useCallback(async () => {
+    setAccountCheckFinished(false);
     const delays = [0, 250, 750, 1500];
     let activeSession: Awaited<ReturnType<typeof supabase.auth.getSession>>["data"]["session"] = null;
 
@@ -285,7 +287,8 @@ const Dashboard = () => {
         console.warn('[Dashboard] refreshSession falló:', err);
       }
       if (!activeSession?.user) {
-        // No marcamos cuentas como vacías; reintentaremos cuando vuelva la sesión
+        setHasWhatsAppAccount(false);
+        setAccountCheckFinished(true);
         return;
       }
     }
@@ -323,6 +326,8 @@ const Dashboard = () => {
 
       if (error) {
         console.error('[Dashboard] Error loading WhatsApp accounts:', error);
+        setHasWhatsAppAccount(false);
+        setAccountCheckFinished(true);
         return;
       }
     }
@@ -333,6 +338,7 @@ const Dashboard = () => {
     if (accounts.length > 0 && !selectedAccountId) {
       setSelectedAccountId(accounts[0].id);
     }
+    setAccountCheckFinished(true);
   }, [selectedAccountId]);
 
   // Use session persistence hook for mobile app stability
@@ -386,7 +392,7 @@ const Dashboard = () => {
     navigate("/");
   };
 
-  if (isInitializing || hasWhatsAppAccount === null) {
+  if (isInitializing || (!accountCheckFinished && hasWhatsAppAccount === null)) {
     return (
       <div className="h-[100dvh] flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

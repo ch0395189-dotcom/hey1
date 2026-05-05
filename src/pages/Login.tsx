@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,7 +14,6 @@ const Login = () => {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
-  const navigate = useNavigate();
   const { toast } = useToast();
 
   const getFriendlyLoginMessage = (message?: string) => {
@@ -50,7 +49,7 @@ const Login = () => {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
           console.log('[Login] Existing session found, redirecting to dashboard');
-          navigate('/dashboard', { replace: true });
+          window.location.replace('/dashboard');
           return;
         }
       } catch (error) {
@@ -64,12 +63,12 @@ const Login = () => {
     // Also listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' && session?.user) {
-        navigate('/dashboard', { replace: true });
+        window.location.replace('/dashboard');
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
