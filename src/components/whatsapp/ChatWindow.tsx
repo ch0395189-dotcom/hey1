@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { prepareAudioForUpload } from "@/utils/audioConverter";
 import { compressMediaIfNeeded, formatFileSize, exceedsWhatsAppLimit } from "@/utils/mediaCompressor";
+import { getFriendlyWhatsappError } from "@/lib/whatsappErrors";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -622,7 +623,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
           if (data?.error === 'message_limit_reached') {
             throw new Error(data.message || 'Has alcanzado el límite mensual de mensajes de tu plan.');
           }
-          if (data?.error) throw new Error(data.details || data.error);
+          if (data?.error) throw new Error(getFriendlyWhatsappError(data));
           
           // Refresh messages to show the newly sent message immediately
           // (in case realtime is slow or fails)
@@ -642,7 +643,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
             throw new Error(data.message || 'Has alcanzado el límite mensual de mensajes de tu plan.');
           }
           if (data?.success === false && data?.error) {
-            throw new Error(data.message || data.error);
+            throw new Error(getFriendlyWhatsappError(data));
           }
         }
       } else {
@@ -742,7 +743,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
           },
         });
         if (error) throw error;
-        if (data?.error) throw new Error(data.details || data.error);
+        if (data?.error) throw new Error(getFriendlyWhatsappError(data));
       } else {
         // Use Meta API for audio
         const { data, error } = await supabase.functions.invoke('whatsapp-send-message', {
@@ -753,7 +754,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
           },
         });
         if (error) throw error;
-        if (data?.error) throw new Error(data.details || data.error);
+        if (data?.error) throw new Error(getFriendlyWhatsappError(data));
       }
 
       clearRecording();
@@ -821,7 +822,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
           },
         });
         if (error) throw error;
-        if (result?.error) throw new Error(result.details || result.error);
+        if (result?.error) throw new Error(getFriendlyWhatsappError(result));
         
         setTimeout(() => fetchMessages(), 500);
       } else {
@@ -834,7 +835,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
         });
 
         if (error) throw error;
-        if (result?.error) throw new Error(result.details || result.error);
+        if (result?.error) throw new Error(getFriendlyWhatsappError(result));
       }
 
       toast({

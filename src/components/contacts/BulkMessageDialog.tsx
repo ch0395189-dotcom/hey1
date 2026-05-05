@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { getFriendlyWhatsappError } from "@/lib/whatsappErrors";
 import {
   Dialog,
   DialogContent,
@@ -337,7 +338,7 @@ export const BulkMessageDialog = ({
           }
 
           if (error) throw error;
-          if (data && !data.success) throw new Error(data.error || 'Error de WhatsApp API');
+          if (data && !data.success) throw new Error(getFriendlyWhatsappError(data));
           lastData = data;
 
           // Small gap between chunks so WhatsApp keeps order.
