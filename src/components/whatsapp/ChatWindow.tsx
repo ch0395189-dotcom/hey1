@@ -623,7 +623,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
           if (data?.error === 'message_limit_reached') {
             throw new Error(data.message || 'Has alcanzado el límite mensual de mensajes de tu plan.');
           }
-          if (data?.error) throw new Error(data.details || data.error);
+          if (data?.error) throw new Error(getFriendlyWhatsappError(data));
           
           // Refresh messages to show the newly sent message immediately
           // (in case realtime is slow or fails)
@@ -743,7 +743,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
           },
         });
         if (error) throw error;
-        if (data?.error) throw new Error(data.details || data.error);
+        if (data?.error) throw new Error(getFriendlyWhatsappError(data));
       } else {
         // Use Meta API for audio
         const { data, error } = await supabase.functions.invoke('whatsapp-send-message', {
