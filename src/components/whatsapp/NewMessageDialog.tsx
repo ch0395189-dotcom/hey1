@@ -153,7 +153,7 @@ export const NewMessageDialog = ({
         );
 
         if (error) throw error;
-        if (data?.error) throw new Error(data.details || data.error);
+        if (data?.error) throw new Error(getFriendlyWhatsappError(data));
         conversationId = data?.conversationId;
       } else {
         // Use Meta API - edge function handles conversation creation
@@ -170,7 +170,7 @@ export const NewMessageDialog = ({
         );
 
         if (error) throw error;
-        if (data?.error) throw new Error(data.details || data.error);
+        if (data?.error) throw new Error(getFriendlyWhatsappError(data));
         conversationId = data?.conversationId;
       }
 
