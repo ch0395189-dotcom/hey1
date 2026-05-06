@@ -156,6 +156,22 @@ serve(async (req) => {
           
           console.log(`Reminder sent to ${user.email} for subscription ${subscription.id}`);
           results.sent.push(user.email);
+
+          // Also send web push notification (mobile)
+          try {
+            await supabase.functions.invoke('send-push-notification', {
+              body: {
+                userId: subscription.user_id,
+                title: isTrialEnding ? '⏰ Tu prueba termina pronto' : '💳 Tu suscripción vence pronto',
+                body: `Te quedan ${daysUntilExpiry} día${daysUntilExpiry > 1 ? 's' : ''}. Renueva para no perder el servicio.`,
+                url: '/dashboard?renew=true',
+                platform: 'billing',
+                tag: `renewal-${subscription.id}`,
+              },
+            });
+          } catch (pushErr) {
+            console.error('Push reminder error:', pushErr);
+          }
         } catch (emailError) {
           console.error(`Error sending email to ${user.email}:`, emailError);
           results.errors.push(user.email);

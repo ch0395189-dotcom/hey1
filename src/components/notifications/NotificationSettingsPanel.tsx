@@ -9,11 +9,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Volume2, Bell, Play, MessageCircle, RefreshCw } from "lucide-react";
+import { Volume2, Bell, Play, MessageCircle, RefreshCw, Smartphone, Loader2 } from "lucide-react";
 import { NotificationTone, Platform } from "@/hooks/useNotificationSettings";
 import { useNotificationSound } from "@/hooks/useNotificationSound";
 import { FaWhatsapp, FaFacebookMessenger, FaInstagram, FaTiktok } from "react-icons/fa";
 import { useAutoRefreshSettings, intervalOptions, RefreshInterval } from "@/hooks/useAutoRefresh";
+import { useWebPush } from "@/hooks/useWebPush";
+import { toast } from "sonner";
 
 interface PlatformTones {
   whatsapp: NotificationTone;
@@ -68,6 +70,7 @@ export const NotificationSettingsPanel = ({
   onRequestDesktopPermission,
 }: NotificationSettingsPanelProps) => {
   const { playPreview } = useNotificationSound();
+  const { status: pushStatus, loading: pushLoading, subscribe: pushSubscribe, unsubscribe: pushUnsubscribe } = useWebPush();
   const { 
     enabled: autoRefreshEnabled, 
     interval: autoRefreshInterval, 
@@ -77,6 +80,15 @@ export const NotificationSettingsPanel = ({
 
   const handlePreview = (selectedTone: NotificationTone) => {
     playPreview(volume, selectedTone);
+  };
+
+  const handleEnablePush = async () => {
+    try {
+      await pushSubscribe();
+      toast.success("Notificaciones push activadas en este dispositivo");
+    } catch (e: any) {
+      toast.error(e?.message || "No se pudo activar");
+    }
   };
 
   return (
@@ -198,6 +210,39 @@ export const NotificationSettingsPanel = ({
       </div>
 
       {/* Auto-refresh Settings */}
+      {/* Mobile Push Notifications (Web Push real con app cerrada) */}
+      <div className="space-y-3 pt-4 border-t">
+        <div className="flex items-center gap-2 text-sm font-medium">
+          <Smartphone className="w-4 h-4" />
+          Notificaciones móviles (app cerrada)
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Recibe avisos en tu celular incluso con la app cerrada. En iPhone, instala primero la app a la pantalla de inicio.
+        </p>
+        {pushStatus === "unsupported" && (
+          <p className="text-xs text-destructive">Tu navegador no soporta notificaciones push.</p>
+        )}
+        {pushStatus === "denied" && (
+          <p className="text-xs text-destructive">
+            Has bloqueado las notificaciones. Habilítalas en los ajustes del navegador y recarga.
+          </p>
+        )}
+        {(pushStatus === "default" || pushStatus === "granted-no-sub") && (
+          <Button variant="outline" size="sm" className="w-full" onClick={handleEnablePush} disabled={pushLoading}>
+            {pushLoading && <Loader2 className="w-3 h-3 mr-2 animate-spin" />}
+            Activar en este dispositivo
+          </Button>
+        )}
+        {pushStatus === "subscribed" && (
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs text-green-600 font-medium">✓ Activadas en este dispositivo</span>
+            <Button variant="ghost" size="sm" onClick={() => pushUnsubscribe()} disabled={pushLoading}>
+              Desactivar
+            </Button>
+          </div>
+        )}
+      </div>
+
       <div className="space-y-4 pt-4 border-t">
         <div className="flex items-center gap-2 text-sm font-medium">
           <RefreshCw className="w-4 h-4" />
