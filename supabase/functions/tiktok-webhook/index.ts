@@ -251,6 +251,24 @@ Deno.serve(async (req) => {
       } else {
         console.log('TikTok message saved successfully for conversation:', conversationId);
 
+        try {
+          if (platformAccount.user_id) {
+            await supabase.functions.invoke('send-push-notification', {
+              body: {
+                userId: platformAccount.user_id,
+                title: `🎵 ${customerName}`,
+                body: (content || `[${messageType}]`).slice(0, 140),
+                url: `/dashboard?view=messages&platform=tiktok&conv=${conversationId}`,
+                conversationId,
+                platform: 'tiktok',
+                tag: `conv-${conversationId}`,
+              },
+            });
+          }
+        } catch (pushErr) {
+          console.error('Push error:', pushErr);
+        }
+
         // Check if chatbot is enabled and should process this message
         const { data: chatbotConfig } = await supabase
           .from('chatbot_configs')
