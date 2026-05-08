@@ -1046,10 +1046,11 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
         <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
           {onBack && (
             <button
-              className="md:hidden shrink-0 p-1.5 rounded-full hover:bg-primary-foreground/10 active:bg-primary-foreground/20 transition-colors"
+              className="md:hidden shrink-0 p-3 -ml-1 rounded-full hover:bg-primary-foreground/10 active:bg-primary-foreground/20 transition-colors self-center"
               onClick={onBack}
+              aria-label="Volver"
             >
-              <ArrowLeft className="w-6 h-6" />
+              <ArrowLeft className="w-7 h-7" />
             </button>
           )}
           <div className="relative shrink-0">
