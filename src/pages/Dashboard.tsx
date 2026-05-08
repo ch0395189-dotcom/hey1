@@ -1011,15 +1011,15 @@ const Dashboard = () => {
           className="fixed inset-0 z-50 bg-background flex flex-col"
         >
           {/* Header */}
-          <div className="h-16 px-2 sm:px-4 bg-primary flex items-center gap-2 sm:gap-3 shrink-0">
+          <div className="h-20 px-1 sm:px-3 bg-primary flex items-center gap-2 sm:gap-3 shrink-0">
             <Button
               variant="ghost"
               size="icon"
               aria-label="Volver"
-              className="text-primary-foreground hover:bg-primary-foreground/10 h-12 w-12 -ml-1"
+              className="text-primary-foreground hover:bg-primary-foreground/10 h-16 w-16 -ml-1 rounded-full"
               onClick={() => setShowChatbot(false)}
             >
-              <ArrowLeft className="!w-7 !h-7" />
+              <ArrowLeft className="!w-9 !h-9" />
             </Button>
             <Bot className="w-5 h-5 text-primary-foreground shrink-0" />
             <h1 className="text-primary-foreground font-semibold text-lg truncate">Configuración del Chatbot</h1>
