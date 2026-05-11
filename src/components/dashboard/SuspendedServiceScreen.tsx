@@ -24,18 +24,6 @@ const plans: Array<{
   popular: boolean;
 }> = [
   {
-    name: "Starter",
-    key: "starter",
-    price: "49.000",
-    features: [
-      "1 número de WhatsApp",
-      "1,000 mensajes/mes",
-      "2 agentes",
-      "Soporte por email",
-    ],
-    popular: false,
-  },
-  {
     name: "Professional",
     key: "professional",
     price: "149.000",
