@@ -20,22 +20,6 @@ const plans: Array<{
   noTrial?: boolean;
 }> = [
   {
-    name: "Starter",
-    key: "starter",
-    price: "49.000",
-    currency: "COP",
-    period: "mes",
-    description: "Perfecto para pequeños negocios",
-    features: [
-      "1 número de WhatsApp",
-      "1,000 mensajes/mes",
-      "1 agente / subcuenta",
-      "Historial 30 días",
-      "Soporte por email"
-    ],
-    popular: false
-  },
-  {
     name: "Professional",
     key: "professional",
     price: "149.000",
