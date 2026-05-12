@@ -20,6 +20,24 @@ const plans: Array<{
   noTrial?: boolean;
 }> = [
   {
+    name: "Nichos Difíciles",
+    key: "esoterico_pro",
+    price: "199.900",
+    currency: "COP",
+    period: "mes",
+    description: "Número blindado contra bloqueos",
+    features: [
+      "1 número blindado anti-bloqueo",
+      "5 agentes / subcuentas",
+      "1 Agente de voz IA",
+      "1 Bot automatizado",
+      "Soporte premium vía WhatsApp",
+      "Sin límite de mensajes",
+      "Configuración especial"
+    ],
+    popular: true
+  },
+  {
     name: "Professional",
     key: "professional",
     price: "149.000",
@@ -35,7 +53,7 @@ const plans: Array<{
       "Analíticas avanzadas",
       "Soporte prioritario"
     ],
-    popular: true
+    popular: false
   },
   {
     name: "Enterprise",
@@ -56,24 +74,6 @@ const plans: Array<{
     ],
     popular: false
   },
-  {
-    name: "Nichos Difíciles",
-    key: "esoterico_pro",
-    price: "199.900",
-    currency: "COP",
-    period: "mes",
-    description: "Número blindado contra bloqueos",
-    features: [
-      "1 número blindado anti-bloqueo",
-      "5 agentes / subcuentas",
-      "1 Agente de voz IA",
-      "1 Bot automatizado",
-      "Soporte premium vía WhatsApp",
-      "Sin límite de mensajes",
-      "Configuración especial"
-    ],
-    popular: false
-  }
 ];
 
 const Pricing = () => {
