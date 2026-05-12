@@ -59,7 +59,8 @@ export const AdminStatistics = () => {
         const resp = await supabase.functions.invoke('admin-get-users', {
           headers: { Authorization: `Bearer ${session.access_token}` },
         });
-        for (const u of resp.data?.users || []) {
+        const list = (resp.data?.data?.users || resp.data?.users || []) as { id: string; email?: string; last_sign_in_at?: string | null }[];
+        for (const u of list) {
           usersMap[u.id] = { email: u.email || '', last_sign_in_at: u.last_sign_in_at };
         }
       }

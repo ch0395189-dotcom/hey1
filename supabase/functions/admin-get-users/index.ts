@@ -67,6 +67,7 @@ serve(async (req) => {
     const users = usersData.users.map((u) => ({
       id: u.id,
       email: u.email,
+      last_sign_in_at: u.last_sign_in_at,
     }));
 
     return new Response(
