@@ -449,8 +449,58 @@ Deno.serve(async (req) => {
                     mediaUrl = await downloadWhatsAppMedia(message.document.id);
                   }
                   break;
+                case 'button':
+                  // Respuestas a botones de plantillas (incluye códigos OTP "Copiar código")
+                  content = message.button?.text || message.button?.payload || '';
+                  messageType = 'text';
+                  break;
+                case 'system':
+                  content = message.system?.body || '';
+                  messageType = 'text';
+                  break;
+                case 'reaction':
+                  content = message.reaction?.emoji || '';
+                  messageType = 'text';
+                  break;
+                case 'sticker':
+                  content = '[sticker]';
+                  break;
+                case 'location': {
+                  const lat = message.location?.latitude;
+                  const lon = message.location?.longitude;
+                  const name = message.location?.name || '';
+                  content = name
+                    ? `📍 ${name} (${lat}, ${lon})`
+                    : `📍 https://maps.google.com/?q=${lat},${lon}`;
+                  messageType = 'text';
+                  break;
+                }
+                case 'contacts': {
+                  const list = message.contacts || [];
+                  const names = list.map((c: { name?: { formatted_name?: string } }) => c?.name?.formatted_name).filter(Boolean);
+                  content = names.length ? `👤 ${names.join(', ')}` : '[contacto]';
+                  messageType = 'text';
+                  break;
+                }
+                case 'order':
+                  content = '[pedido]';
+                  messageType = 'text';
+                  break;
+                case 'unsupported': {
+                  // Meta marca como "unsupported" mensajes que su SDK no decodifica.
+                  // Intentamos rescatar cualquier texto incluido (ej. códigos OTP de autenticación).
+                  const errTitle = message.errors?.[0]?.title;
+                  const errDetails = message.errors?.[0]?.details;
+                  const fallback = errDetails || errTitle || 'Mensaje no soportado por Meta';
+                  content = fallback;
+                  messageType = 'text';
+                  console.log('⚠️ Unsupported message received:', JSON.stringify(message));
+                  break;
+                }
                 default:
+                  console.log(`⚠️ Tipo de mensaje no manejado: ${message.type}`, JSON.stringify(message));
                   content = `[${message.type}]`;
+                  messageType = 'text';
               }
 
               // Save the message
