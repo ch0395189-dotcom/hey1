@@ -105,12 +105,13 @@ export const UsersTable = () => {
 
       if (subsError) throw subsError;
 
-      const { data: authData } = await supabase.functions.invoke('admin-get-users');
+      const { data: authData, error: authError } = await supabase.functions.invoke('admin-get-users');
       
       const emailMap = new Map<string, string>();
-      if (authData?.users) {
-        authData.users.forEach((u: { id: string; email: string }) => {
-          emailMap.set(u.id, u.email);
+      if (!authError) {
+        const list = (authData?.data?.users || authData?.users || []) as { id: string; email?: string }[];
+        list.forEach((u) => {
+          if (u.id && u.email) emailMap.set(u.id, u.email);
         });
       }
 
