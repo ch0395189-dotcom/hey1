@@ -75,9 +75,9 @@ serve(async (req) => {
     const userId = user.id;
     const { plan, successUrl, cancelUrl }: CheckoutRequest = await req.json();
 
-    if (!plan || !PLAN_PRICES[plan]) {
+    if (!plan || !PLAN_PRICES[plan] || plan === 'starter') {
       return new Response(
-        JSON.stringify({ error: 'Invalid plan selected' }),
+        JSON.stringify({ error: 'El plan Starter ya no está disponible. Por favor elige otro plan.' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
