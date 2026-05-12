@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { AlertTriangle, X, CreditCard, Loader2, Check, Crown, Sparkles, Building, Star } from "lucide-react";
+import { AlertTriangle, X, CreditCard, Loader2, Check, Crown, Sparkles, Building } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useBoldCheckout } from "@/hooks/useBoldCheckout";
@@ -15,26 +15,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 
 const PLAN_NAMES: Record<string, string> = {
-  starter: 'Plan Starter',
   professional: 'Plan Professional',
   enterprise: 'Plan Enterprise',
   esoterico_pro: 'Plan Nichos Difíciles',
 };
 
 const PLAN_ICONS: Record<string, React.ReactNode> = {
-  starter: <Star className="h-5 w-5" />,
   professional: <Crown className="h-5 w-5" />,
   enterprise: <Building className="h-5 w-5" />,
   esoterico_pro: <Sparkles className="h-5 w-5" />,
 };
 
 const PLAN_FEATURES: Record<string, string[]> = {
-  starter: [
-    '1 cuenta WhatsApp',
-    '1,000 mensajes/mes',
-    'Chatbot básico',
-    'Soporte por email',
-  ],
   professional: [
     '3 cuentas WhatsApp',
     '10,000 mensajes/mes',
@@ -56,13 +48,12 @@ const PLAN_FEATURES: Record<string, string[]> = {
 };
 
 const PLAN_PRICES: Record<string, { monthly: number; currency: string }> = {
-  starter: { monthly: 49000, currency: 'COP' },
   professional: { monthly: 99000, currency: 'COP' },
   enterprise: { monthly: 299000, currency: 'COP' },
   esoterico_pro: { monthly: 199000, currency: 'COP' },
 };
 
-type SubscriptionPlan = 'starter' | 'professional' | 'enterprise' | 'esoterico_pro';
+type SubscriptionPlan = 'professional' | 'enterprise' | 'esoterico_pro';
 
 export const RenewalBanner = () => {
   const [subscription, setSubscription] = useState<{
@@ -104,13 +95,14 @@ export const RenewalBanner = () => {
       const daysThreshold = data.plan === 'esoterico_pro' ? 2 : 7;
       
       if (daysUntilExpiry <= daysThreshold) {
+        const normalizedPlan = (data.plan === 'starter' ? 'professional' : data.plan) as SubscriptionPlan;
         setSubscription({
-          plan: data.plan as SubscriptionPlan,
+          plan: normalizedPlan,
           status: data.status,
           daysUntilExpiry,
           isExpired: daysUntilExpiry <= 0,
         });
-        setSelectedPlan(data.plan as SubscriptionPlan);
+        setSelectedPlan(normalizedPlan);
       }
     };
 
