@@ -86,6 +86,10 @@ export const UsersTable = () => {
   // Deactivate confirmation
   const [deactivateUser, setDeactivateUser] = useState<UserWithSubscription | null>(null);
 
+  // Bulk delete (users without WhatsApp)
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
+
   const fetchUsers = async () => {
     setLoading(true);
     try {
@@ -262,6 +266,36 @@ export const UsersTable = () => {
       console.error('Error deleting user:', error);
       toast.error('Error al eliminar usuario');
     }
+  };
+
+  const handleBulkDeleteWithoutWhatsApp = async () => {
+    const targets = users.filter(u => {
+      const hasWa = u.platforms.some(p => p === 'WhatsApp' || p === 'WA External');
+      return !hasWa;
+    });
+    if (targets.length === 0) {
+      toast.info('No hay usuarios sin WhatsApp para eliminar');
+      setBulkConfirmOpen(false);
+      return;
+    }
+    setBulkDeleting(true);
+    let ok = 0, fail = 0;
+    for (const u of targets) {
+      try {
+        const { error } = await supabase.functions.invoke('admin-delete-user', {
+          body: { userId: u.user_id },
+        });
+        if (error) throw error;
+        ok++;
+      } catch (e) {
+        console.error('Bulk delete error for', u.email, e);
+        fail++;
+      }
+    }
+    setBulkDeleting(false);
+    setBulkConfirmOpen(false);
+    toast.success(`Eliminados: ${ok}${fail ? ` · Fallidos: ${fail}` : ''}`);
+    fetchUsers();
   };
 
   const handleAddDays = async () => {
@@ -676,7 +710,37 @@ export const UsersTable = () => {
           <Shield className={`h-4 w-4 mr-2 ${loadingMeta ? 'animate-spin' : ''}`} />
           Estado Meta
         </Button>
+        <Button
+          variant="destructive"
+          onClick={() => setBulkConfirmOpen(true)}
+          disabled={bulkDeleting}
+          title="Eliminar todos los usuarios que no tienen ningún número de WhatsApp conectado"
+        >
+          <Trash2 className={`h-4 w-4 mr-2 ${bulkDeleting ? 'animate-pulse' : ''}`} />
+          Eliminar sin WhatsApp ({users.filter(u => !u.platforms.some(p => p === 'WhatsApp' || p === 'WA External')).length})
+        </Button>
       </div>
+
+      <AlertDialog open={bulkConfirmOpen} onOpenChange={setBulkConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar usuarios sin WhatsApp?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se eliminarán permanentemente todos los usuarios registrados que no tienen ningún número de WhatsApp conectado (incluye los que tienen el número desactivado o nunca conectaron uno). Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkDeleteWithoutWhatsApp}
+              disabled={bulkDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {bulkDeleting ? 'Eliminando...' : 'Eliminar todos'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <div className="rounded-md border overflow-x-auto">
         <Table>
