@@ -58,7 +58,9 @@ export const PaymentAlertBanner = () => {
   };
 
   const handleRenew = () => {
-    createCheckout(currentPlan as 'starter' | 'professional' | 'enterprise' | 'esoterico_pro');
+    // Plan Starter ya no está disponible: redirigir a Professional por defecto
+    const planToRenew = currentPlan === 'starter' ? 'professional' : currentPlan;
+    createCheckout(planToRenew as 'professional' | 'enterprise' | 'esoterico_pro');
   };
 
   const visibleAlerts = alerts.filter(alert => !dismissedIds.has(alert.id));
