@@ -7,7 +7,6 @@ const corsHeaders = {
 };
 
 const PLAN_DETAILS: Record<string, { name: string; price: string; period: string; daysBeforeExpiry: number }> = {
-  starter: { name: 'Plan Starter', price: '$49.000 COP', period: 'mes', daysBeforeExpiry: 3 },
   professional: { name: 'Plan Professional', price: '$149.000 COP', period: 'mes', daysBeforeExpiry: 3 },
   enterprise: { name: 'Plan Enterprise', price: '$399.000 COP', period: 'mes', daysBeforeExpiry: 5 },
   esoterico_pro: { name: 'Plan Nichos Difíciles', price: '$30.000 COP', period: 'mes', daysBeforeExpiry: 3 },

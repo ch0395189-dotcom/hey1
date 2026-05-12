@@ -722,15 +722,14 @@ export const UsersTable = () => {
                   </TableCell>
                   <TableCell>
                     <Select
-                      value={user.subscription?.plan || 'starter'}
+                       value={user.subscription?.plan || 'professional'}
                       onValueChange={(value) => handleUpdateSubscription(user.user_id, 'plan', value)}
                     >
                       <SelectTrigger className="w-32">
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="starter">Starter</SelectItem>
-                        <SelectItem value="professional">Professional</SelectItem>
+                       <SelectContent>
+                         <SelectItem value="professional">Professional</SelectItem>
                         <SelectItem value="enterprise">Enterprise</SelectItem>
                         <SelectItem value="esoterico_pro">Nichos Difíciles</SelectItem>
                       </SelectContent>
