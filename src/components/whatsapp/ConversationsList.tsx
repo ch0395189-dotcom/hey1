@@ -160,7 +160,7 @@ export const ConversationsList = ({
       case 'interactive':
         return { icon: <ListChecks className={iconClass} />, label: hasText ? msg.content! : 'Mensaje interactivo' };
       case 'unsupported':
-        return { icon: <MessageCircle className={iconClass} />, label: 'Mensaje no soportado' };
+        return { icon: <MessageCircle className={iconClass} />, label: hasText ? msg.content! : 'Mensaje no soportado' };
       case 'text':
       default:
         if (hasText) return { icon: null, label: msg.content! };
