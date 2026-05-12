@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Check, X, Search, RefreshCw, Trash2, CalendarDays, Plus, CreditCard, Ban } from 'lucide-react';
+import { Check, X, Search, RefreshCw, Trash2, CalendarDays, Plus, CreditCard, Ban, ArrowRightLeft, Shield } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Calendar } from '@/components/ui/calendar';
@@ -32,6 +32,18 @@ interface UserWithSubscription {
   } | null;
   created_at: string;
   platforms: string[];
+  whatsapp_accounts: { id: string; phone_number: string; is_active: boolean; connection_type: string | null }[];
+}
+
+interface MetaStatus {
+  id: string;
+  phone: string;
+  local_active: boolean;
+  source: string;
+  status: string;
+  quality: string | null;
+  name_status: string | null;
+  error: string | null;
 }
 
 export const UsersTable = () => {
@@ -43,6 +55,16 @@ export const UsersTable = () => {
   const [filterActive, setFilterActive] = useState<'all' | 'active' | 'inactive'>('all');
   const [filterWhatsapp, setFilterWhatsapp] = useState<'all' | 'with' | 'without'>('all');
   const [filterPlan, setFilterPlan] = useState<'all' | 'al_dia' | 'vencido' | 'trial'>('all');
+
+  // Meta status map by whatsapp_account_id
+  const [metaStatus, setMetaStatus] = useState<Record<string, MetaStatus>>({});
+  const [loadingMeta, setLoadingMeta] = useState(false);
+
+  // Reassign dialog
+  const [reassignOpen, setReassignOpen] = useState(false);
+  const [reassignAccount, setReassignAccount] = useState<{ id: string; phone: string; from_user: string } | null>(null);
+  const [reassignTarget, setReassignTarget] = useState('');
+  const [reassignSearch, setReassignSearch] = useState('');
 
   // Manage subscription dialog
   const [manageDialogOpen, setManageDialogOpen] = useState(false);
@@ -90,7 +112,7 @@ export const UsersTable = () => {
 
       const { data: waAccounts } = await supabase
         .from('whatsapp_accounts')
-        .select('user_id, is_active, connection_type, phone_number');
+        .select('id, user_id, is_active, connection_type, phone_number');
 
       const { data: platAccounts } = await supabase
         .from('platform_accounts')
@@ -98,6 +120,7 @@ export const UsersTable = () => {
 
       const platformsMap = new Map<string, string[]>();
       const phoneMap = new Map<string, string>();
+      const waByUser = new Map<string, { id: string; phone_number: string; is_active: boolean; connection_type: string | null }[]>();
       waAccounts?.forEach(wa => {
         if (wa.is_active) {
           const list = platformsMap.get(wa.user_id) || [];
@@ -108,6 +131,9 @@ export const UsersTable = () => {
         if (!phoneMap.has(wa.user_id) && wa.phone_number) {
           phoneMap.set(wa.user_id, wa.phone_number);
         }
+        const arr = waByUser.get(wa.user_id) || [];
+        arr.push({ id: wa.id, phone_number: wa.phone_number, is_active: wa.is_active, connection_type: wa.connection_type });
+        waByUser.set(wa.user_id, arr);
       });
       platAccounts?.forEach(pa => {
         if (pa.is_active) {
@@ -135,6 +161,7 @@ export const UsersTable = () => {
           } : null,
           created_at: profile.created_at,
           platforms: platformsMap.get(profile.user_id) || [],
+          whatsapp_accounts: waByUser.get(profile.user_id) || [],
         };
       }) || [];
 
@@ -150,6 +177,50 @@ export const UsersTable = () => {
   useEffect(() => {
     fetchUsers();
   }, []);
+
+  const refreshMetaStatus = async () => {
+    setLoadingMeta(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('admin-wa-meta-status');
+      if (error) throw error;
+      const map: Record<string, MetaStatus> = {};
+      (data?.results || []).forEach((r: MetaStatus) => { map[r.id] = r; });
+      setMetaStatus(map);
+      toast.success('Estado Meta actualizado');
+    } catch (e) {
+      console.error(e);
+      toast.error('Error consultando Meta');
+    } finally {
+      setLoadingMeta(false);
+    }
+  };
+
+  const openReassign = (waId: string, phone: string, fromUser: string) => {
+    setReassignAccount({ id: waId, phone, from_user: fromUser });
+    setReassignTarget('');
+    setReassignSearch('');
+    setReassignOpen(true);
+  };
+
+  const handleReassign = async () => {
+    if (!reassignAccount || !reassignTarget) return;
+    setSubmitting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('admin-reassign-whatsapp', {
+        body: { whatsapp_account_id: reassignAccount.id, new_user_id: reassignTarget },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success('Número reasignado correctamente');
+      setReassignOpen(false);
+      fetchUsers();
+    } catch (e) {
+      console.error(e);
+      toast.error(e instanceof Error ? e.message : 'Error reasignando');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const handleUpdateSubscription = async (
     userId: string, 
@@ -512,6 +583,51 @@ export const UsersTable = () => {
     return true;
   });
 
+  // Sort: active subscribers first by current_period_start ASC (oldest activation first),
+  // then trialing, then inactive at the bottom.
+  const sortedUsers = [...filteredUsers].sort((a, b) => {
+    const rank = (u: UserWithSubscription) => {
+      const s = u.subscription?.status;
+      if (s === 'active') return 0;
+      if (s === 'trialing') return 1;
+      return 2;
+    };
+    const ra = rank(a), rb = rank(b);
+    if (ra !== rb) return ra - rb;
+    const ta = a.subscription?.current_period_start ? new Date(a.subscription.current_period_start).getTime() : Infinity;
+    const tb = b.subscription?.current_period_start ? new Date(b.subscription.current_period_start).getTime() : Infinity;
+    return ta - tb;
+  });
+
+  const metaBadge = (m?: MetaStatus) => {
+    if (!m) return <Badge variant="outline" className="text-xs">Sin consultar</Badge>;
+    if (m.source === 'external') {
+      return <Badge variant={m.local_active ? 'default' : 'destructive'} className="text-xs">QR {m.local_active ? 'Activa' : 'Inactiva'}</Badge>;
+    }
+    const s = m.status;
+    const variant: 'default' | 'secondary' | 'destructive' | 'outline' =
+      s === 'CONNECTED' ? 'default'
+      : s === 'FLAGGED' || s === 'RESTRICTED' ? 'destructive'
+      : s === 'PENDING' ? 'secondary'
+      : 'outline';
+    return (
+      <div className="flex flex-col gap-0.5">
+        <Badge variant={variant} className="text-xs w-fit">{s}</Badge>
+        {m.quality && <span className="text-[10px] text-muted-foreground">Q: {m.quality}</span>}
+        {m.error && <span className="text-[10px] text-destructive truncate max-w-[140px]" title={m.error}>{m.error}</span>}
+      </div>
+    );
+  };
+
+  const targetCandidates = users
+    .filter(u => !reassignAccount || u.user_id !== reassignAccount.from_user)
+    .filter(u =>
+      !reassignSearch ||
+      u.email.toLowerCase().includes(reassignSearch.toLowerCase()) ||
+      (u.full_name || '').toLowerCase().includes(reassignSearch.toLowerCase())
+    )
+    .slice(0, 50);
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3 flex-wrap">
@@ -556,6 +672,10 @@ export const UsersTable = () => {
           <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
           Actualizar
         </Button>
+        <Button variant="outline" onClick={refreshMetaStatus} disabled={loadingMeta}>
+          <Shield className={`h-4 w-4 mr-2 ${loadingMeta ? 'animate-spin' : ''}`} />
+          Estado Meta
+        </Button>
       </div>
 
       <div className="rounded-md border overflow-x-auto">
@@ -566,10 +686,10 @@ export const UsersTable = () => {
               <TableHead>Email</TableHead>
               <TableHead>Teléfono</TableHead>
               <TableHead>Plan</TableHead>
-              <TableHead>Estado</TableHead>
-              <TableHead>Plataformas</TableHead>
+              <TableHead>Estado usuario</TableHead>
+              <TableHead>Estado WhatsApp (Meta)</TableHead>
               <TableHead>Período</TableHead>
-              <TableHead>Registro</TableHead>
+              <TableHead>Activado el</TableHead>
               <TableHead>Acciones</TableHead>
             </TableRow>
           </TableHeader>
@@ -580,14 +700,18 @@ export const UsersTable = () => {
                   Cargando usuarios...
                 </TableCell>
               </TableRow>
-            ) : filteredUsers.length === 0 ? (
+            ) : sortedUsers.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={9} className="text-center py-8">
                   No se encontraron usuarios
                 </TableCell>
               </TableRow>
             ) : (
-              filteredUsers.map((user) => (
+              sortedUsers.map((user) => {
+                const status = user.subscription?.status;
+                const periodEnd = user.subscription?.current_period_end ? new Date(user.subscription.current_period_end).getTime() : null;
+                const isExpired = !(status === 'active' && periodEnd !== null && periodEnd > now) && status !== 'trialing';
+                return (
                 <TableRow key={user.user_id}>
                   <TableCell className="font-medium">
                     {user.full_name || 'Sin nombre'}
@@ -616,10 +740,27 @@ export const UsersTable = () => {
                     {user.subscription ? getStatusBadge(user.subscription.status) : '-'}
                   </TableCell>
                   <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {user.platforms.length > 0 ? user.platforms.map(p => (
-                        <Badge key={p} variant="outline" className="text-xs">{p}</Badge>
-                      )) : <span className="text-muted-foreground text-xs">Ninguna</span>}
+                    <div className="flex flex-col gap-1">
+                      {user.whatsapp_accounts.length === 0 ? (
+                        <span className="text-muted-foreground text-xs">Sin WhatsApp</span>
+                      ) : user.whatsapp_accounts.map(wa => (
+                        <div key={wa.id} className="flex items-center gap-2">
+                          <span className="text-xs font-mono text-muted-foreground">{wa.phone_number}</span>
+                          {metaBadge(metaStatus[wa.id])}
+                          {wa.is_active && isExpired && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-6 px-2"
+                              onClick={() => openReassign(wa.id, wa.phone_number, user.user_id)}
+                              title="Reasignar este número a otro usuario"
+                            >
+                              <ArrowRightLeft className="h-3 w-3 mr-1" />
+                              <span className="text-xs">Reasignar</span>
+                            </Button>
+                          )}
+                        </div>
+                      ))}
                     </div>
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
@@ -631,7 +772,9 @@ export const UsersTable = () => {
                     }
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
-                    {format(new Date(user.created_at), 'dd MMM yyyy', { locale: es })}
+                    {user.subscription?.current_period_start
+                      ? format(new Date(user.subscription.current_period_start), 'dd MMM yyyy', { locale: es })
+                      : <span className="text-muted-foreground">-</span>}
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-1 flex-wrap">
@@ -697,11 +840,53 @@ export const UsersTable = () => {
                     </div>
                   </TableCell>
                 </TableRow>
-              ))
+                );
+              })
             )}
           </TableBody>
         </Table>
       </div>
+
+      {/* Reassign WhatsApp dialog */}
+      <Dialog open={reassignOpen} onOpenChange={setReassignOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reasignar número de WhatsApp</DialogTitle>
+            <DialogDescription>
+              Vas a transferir el número <strong>{reassignAccount?.phone}</strong> a otro usuario. El dueño actual perderá acceso a esta conexión.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Input
+              placeholder="Buscar usuario destino por email o nombre..."
+              value={reassignSearch}
+              onChange={(e) => setReassignSearch(e.target.value)}
+            />
+            <div className="border rounded-md max-h-72 overflow-auto">
+              {targetCandidates.length === 0 ? (
+                <div className="p-3 text-sm text-muted-foreground text-center">Sin coincidencias</div>
+              ) : targetCandidates.map(u => (
+                <button
+                  key={u.user_id}
+                  type="button"
+                  onClick={() => setReassignTarget(u.user_id)}
+                  className={cn(
+                    "w-full text-left px-3 py-2 text-sm border-b last:border-b-0 hover:bg-muted/50",
+                    reassignTarget === u.user_id && "bg-muted"
+                  )}
+                >
+                  <div className="font-medium">{u.full_name || 'Sin nombre'}</div>
+                  <div className="text-xs text-muted-foreground">{u.email}</div>
+                </button>
+              ))}
+            </div>
+            <Button onClick={handleReassign} disabled={!reassignTarget || submitting} className="w-full">
+              <ArrowRightLeft className="h-4 w-4 mr-2" />
+              Reasignar número
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Manage Days/Date Dialog */}
       <Dialog open={manageDialogOpen} onOpenChange={setManageDialogOpen}>
