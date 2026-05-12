@@ -39,6 +39,11 @@ export const UsersTable = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
+  // Filters
+  const [filterActive, setFilterActive] = useState<'all' | 'active' | 'inactive'>('all');
+  const [filterWhatsapp, setFilterWhatsapp] = useState<'all' | 'with' | 'without'>('all');
+  const [filterPlan, setFilterPlan] = useState<'all' | 'al_dia' | 'vencido' | 'trial'>('all');
+
   // Manage subscription dialog
   const [manageDialogOpen, setManageDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserWithSubscription | null>(null);
@@ -473,16 +478,44 @@ export const UsersTable = () => {
     return <Badge variant={variants[status] || 'outline'}>{status}</Badge>;
   };
 
-  const filteredUsers = users.filter(user => 
-    user.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.phone_number?.includes(searchTerm)
-  );
+  const now = Date.now();
+  const filteredUsers = users.filter(user => {
+    const matchesSearch =
+      !searchTerm ||
+      user.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.phone_number?.includes(searchTerm);
+    if (!matchesSearch) return false;
+
+    const status = user.subscription?.status;
+    const isSubActive = status === 'active' || status === 'trialing';
+    if (filterActive === 'active' && !isSubActive) return false;
+    if (filterActive === 'inactive' && isSubActive) return false;
+
+    const hasWa = user.platforms.some(p => p === 'WhatsApp' || p === 'WA External');
+    if (filterWhatsapp === 'with' && !hasWa) return false;
+    if (filterWhatsapp === 'without' && hasWa) return false;
+
+    const periodEnd = user.subscription?.current_period_end
+      ? new Date(user.subscription.current_period_end).getTime()
+      : null;
+    const trialEnd = user.subscription?.trial_end
+      ? new Date(user.subscription.trial_end).getTime()
+      : null;
+    const alDia = status === 'active' && periodEnd !== null && periodEnd > now;
+    const enTrial = status === 'trialing' && trialEnd !== null && trialEnd > now;
+    const vencido = !alDia && !enTrial;
+    if (filterPlan === 'al_dia' && !alDia) return false;
+    if (filterPlan === 'trial' && !enTrial) return false;
+    if (filterPlan === 'vencido' && !vencido) return false;
+
+    return true;
+  });
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1 max-w-sm">
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="relative flex-1 min-w-[220px] max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Buscar por nombre, email o teléfono..."
@@ -490,6 +523,34 @@ export const UsersTable = () => {
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10"
           />
+        </div>
+        <Select value={filterActive} onValueChange={(v) => setFilterActive(v as typeof filterActive)}>
+          <SelectTrigger className="w-[150px]"><SelectValue placeholder="Usuario" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos los usuarios</SelectItem>
+            <SelectItem value="active">Activos</SelectItem>
+            <SelectItem value="inactive">Inactivos</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={filterWhatsapp} onValueChange={(v) => setFilterWhatsapp(v as typeof filterWhatsapp)}>
+          <SelectTrigger className="w-[170px]"><SelectValue placeholder="WhatsApp" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">WhatsApp: todos</SelectItem>
+            <SelectItem value="with">Con WhatsApp activo</SelectItem>
+            <SelectItem value="without">Sin WhatsApp</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={filterPlan} onValueChange={(v) => setFilterPlan(v as typeof filterPlan)}>
+          <SelectTrigger className="w-[160px]"><SelectValue placeholder="Plan" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Plan: todos</SelectItem>
+            <SelectItem value="al_dia">Al día</SelectItem>
+            <SelectItem value="trial">En prueba</SelectItem>
+            <SelectItem value="vencido">Vencido</SelectItem>
+          </SelectContent>
+        </Select>
+        <div className="text-sm text-muted-foreground ml-auto">
+          {filteredUsers.length} / {users.length}
         </div>
         <Button variant="outline" onClick={fetchUsers} disabled={loading}>
           <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
