@@ -35,7 +35,7 @@ const plans: Array<{
       "Analíticas avanzadas",
       "Soporte prioritario"
     ],
-    popular: true
+    popular: false
   },
   {
     name: "Enterprise",
@@ -72,7 +72,7 @@ const plans: Array<{
       "Sin límite de mensajes",
       "Configuración especial"
     ],
-    popular: false
+    popular: true
   }
 ];
 
