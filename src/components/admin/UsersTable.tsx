@@ -764,6 +764,15 @@ export const UsersTable = () => {
           <Trash2 className={`h-4 w-4 mr-2 ${bulkDeleting ? 'animate-pulse' : ''}`} />
           Eliminar sin WhatsApp ({users.filter(u => !u.platforms.some(p => p === 'WhatsApp' || p === 'WA External')).length})
         </Button>
+        <Button
+          variant="destructive"
+          onClick={() => setBulkBadConfirmOpen(true)}
+          disabled={bulkDeleting || loadingMeta}
+          title="Eliminar usuarios cuyos números de WhatsApp están desactivados, bloqueados, baneados, restringidos o con error en Meta"
+        >
+          <Ban className={`h-4 w-4 mr-2 ${bulkDeleting ? 'animate-pulse' : ''}`} />
+          Eliminar WA en mal estado ({usersWithBadWhatsApp().length})
+        </Button>
       </div>
 
       <AlertDialog open={bulkConfirmOpen} onOpenChange={setBulkConfirmOpen}>
@@ -778,6 +787,28 @@ export const UsersTable = () => {
             <AlertDialogCancel disabled={bulkDeleting}>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleBulkDeleteWithoutWhatsApp}
+              disabled={bulkDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {bulkDeleting ? 'Eliminando...' : 'Eliminar todos'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={bulkBadConfirmOpen} onOpenChange={setBulkBadConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar usuarios con WhatsApp en mal estado?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se eliminarán permanentemente los usuarios cuyos números estén desactivados, bloqueados, baneados, restringidos o con error en Meta. Solo se eliminan si TODOS sus números están en mal estado. Esta acción no se puede deshacer.
+              {' '}Asegúrate de haber pulsado "Estado Meta" para tener datos actualizados.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkDeleteBadWhatsApp}
               disabled={bulkDeleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
