@@ -89,6 +89,7 @@ export const UsersTable = () => {
   // Bulk delete (users without WhatsApp)
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
+  const [bulkBadConfirmOpen, setBulkBadConfirmOpen] = useState(false);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -295,6 +296,49 @@ export const UsersTable = () => {
     }
     setBulkDeleting(false);
     setBulkConfirmOpen(false);
+    toast.success(`Eliminados: ${ok}${fail ? ` · Fallidos: ${fail}` : ''}`);
+    fetchUsers();
+  };
+
+  const isBadWaStatus = (s: string | null | undefined) => {
+    if (!s) return false;
+    const up = s.toUpperCase();
+    return ['BANNED', 'BLOCKED', 'LOCKED', 'RESTRICTED', 'FLAGGED', 'ERROR'].includes(up);
+  };
+
+  const usersWithBadWhatsApp = () => users.filter(u => {
+    if (u.whatsapp_accounts.length === 0) return false;
+    // All accounts must be either inactive locally OR in a bad meta status
+    return u.whatsapp_accounts.every(wa => {
+      if (!wa.is_active) return true;
+      const m = metaStatus[wa.id];
+      return m && isBadWaStatus(m.status);
+    });
+  });
+
+  const handleBulkDeleteBadWhatsApp = async () => {
+    const targets = usersWithBadWhatsApp();
+    if (targets.length === 0) {
+      toast.info('No hay usuarios con WhatsApp en mal estado');
+      setBulkBadConfirmOpen(false);
+      return;
+    }
+    setBulkDeleting(true);
+    let ok = 0, fail = 0;
+    for (const u of targets) {
+      try {
+        const { error } = await supabase.functions.invoke('admin-delete-user', {
+          body: { userId: u.user_id },
+        });
+        if (error) throw error;
+        ok++;
+      } catch (e) {
+        console.error('Bulk delete bad-WA error for', u.email, e);
+        fail++;
+      }
+    }
+    setBulkDeleting(false);
+    setBulkBadConfirmOpen(false);
     toast.success(`Eliminados: ${ok}${fail ? ` · Fallidos: ${fail}` : ''}`);
     fetchUsers();
   };
