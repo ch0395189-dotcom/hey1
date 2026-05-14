@@ -9,10 +9,11 @@ import { CreditPurchasesManager } from '@/components/admin/CreditPurchasesManage
 import { AdminStatistics } from '@/components/admin/AdminStatistics';
 import { CloneBotManager } from '@/components/admin/CloneBotManager';
 import { PhoneNumbersTable } from '@/components/admin/PhoneNumbersTable';
+import { EmailsTable } from '@/components/admin/EmailsTable';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Shield, Users, CreditCard, Bell, Coins, BarChart3, Bot, Phone } from 'lucide-react';
+import { ArrowLeft, Shield, Users, CreditCard, Bell, Coins, BarChart3, Bot, Phone, Mail } from 'lucide-react';
 
 const Admin = () => {
   const navigate = useNavigate();
@@ -54,7 +55,7 @@ const Admin = () => {
 
       <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-8">
         <Tabs defaultValue="users" className="space-y-6">
-          <TabsList className="grid w-full sm:max-w-3xl grid-cols-7 h-auto">
+          <TabsList className="grid w-full sm:max-w-4xl grid-cols-8 h-auto">
             <TabsTrigger value="users" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
               <span className="hidden sm:inline">Usuarios</span>
@@ -62,6 +63,10 @@ const Admin = () => {
             <TabsTrigger value="phones" className="flex items-center gap-2">
               <Phone className="h-4 w-4" />
               <span className="hidden sm:inline">Números</span>
+            </TabsTrigger>
+            <TabsTrigger value="emails" className="flex items-center gap-2">
+              <Mail className="h-4 w-4" />
+              <span className="hidden sm:inline">Correos</span>
             </TabsTrigger>
             <TabsTrigger value="payments" className="flex items-center gap-2">
               <CreditCard className="h-4 w-4" />
@@ -104,6 +109,10 @@ const Admin = () => {
 
           <TabsContent value="phones">
             <PhoneNumbersTable />
+          </TabsContent>
+
+          <TabsContent value="emails">
+            <EmailsTable />
           </TabsContent>
 
           <TabsContent value="payments">
