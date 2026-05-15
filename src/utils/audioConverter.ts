@@ -13,8 +13,9 @@
 export function getBestAudioMimeType(): string {
   // Priority order for WhatsApp compatibility:
   // 1. audio/ogg;codecs=opus - Best for WhatsApp, supported by Chrome/Firefox
-  // 2. audio/mp4 - Supported by Safari and WhatsApp
-  // 3. audio/webm - Fallback, needs conversion
+  // 2. audio/webm - Common in Chrome/Android; converted to OGG before sending
+  // 3. audio/mp4 - Last resort because MediaRecorder often creates fragmented MP4
+  //    that Meta accepts initially but later marks as application/octet-stream.
   
   if (typeof MediaRecorder === 'undefined') {
     return 'audio/webm'; // Fallback
@@ -23,9 +24,9 @@ export function getBestAudioMimeType(): string {
   const mimeTypes = [
     'audio/ogg;codecs=opus',
     'audio/ogg; codecs=opus', // Alternative format
-    'audio/mp4',
     'audio/webm;codecs=opus',
     'audio/webm',
+    'audio/mp4',
   ];
   
   for (const mimeType of mimeTypes) {
