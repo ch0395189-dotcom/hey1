@@ -1334,13 +1334,26 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                                 <span className="text-sm">Documento adjunto</span>
                               </a>
                             ) : msg.message_type === 'audio' ? (
-                              <div className="flex items-center gap-2 min-w-[200px]">
-                                <audio 
-                                  src={msg.media_url!} 
-                                  controls 
+                              <div className="flex flex-col gap-1 min-w-[220px]">
+                                <audio
+                                  controls
                                   className="w-full h-10"
                                   preload="metadata"
-                                />
+                                >
+                                  {/* Provide multiple type hints so browsers (incl. Safari/iOS)
+                                      pick a compatible decoder for OGG/Opus or MP4/AAC. */}
+                                  <source src={msg.media_url!} type="audio/ogg; codecs=opus" />
+                                  <source src={msg.media_url!} type="audio/mp4" />
+                                  <source src={msg.media_url!} />
+                                </audio>
+                                <a
+                                  href={msg.media_url!}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-[11px] underline opacity-70 hover:opacity-100 self-end"
+                                >
+                                  Descargar audio
+                                </a>
                               </div>
                             ) : null}
                           </div>
