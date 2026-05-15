@@ -706,21 +706,41 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
         description: "Preparando el audio para WhatsApp.",
       });
 
-      // Prepare audio for WhatsApp - force OGG container/content-type so Meta accepts it.
-      // Browsers (Chrome/Android) record audio/webm with Opus codec; WhatsApp rejects audio/webm.
-      // We re-wrap the blob as audio/ogg (same Opus payload) so the public URL serves the
-      // correct Content-Type that Meta validates.
-      const prepared = await prepareAudioForUpload(audioBlob);
-      const oggBlob = new Blob([prepared.blob], { type: 'audio/ogg; codecs=opus' });
-      const fileName = `audio_${Date.now()}.ogg`;
-      const filePath = `${conversation.id}/${fileName}`;
+      // Browsers (Chrome/Android) record audio/webm with Opus codec; WhatsApp rejects WebM.
+      // We must produce a real OGG/Opus container, not just relabel the bytes — otherwise
+      // Meta delivers corrupted audio and our own player fails too. ffmpeg.wasm handles
+      // a true container remux/transcode here.
+      let finalBlob: Blob = audioBlob;
+      let extension = 'ogg';
+      let contentType = 'audio/ogg';
 
       console.log('[Audio] Original type:', audioBlob.type, 'size:', audioBlob.size);
 
+      if (!isAlreadyWhatsAppCompatible(audioBlob)) {
+        try {
+          finalBlob = await convertToOggOpus(audioBlob);
+          console.log('[Audio] Converted to OGG/Opus, new size:', finalBlob.size);
+        } catch (convErr) {
+          console.error('[Audio] ffmpeg conversion failed, falling back to relabel:', convErr);
+          const prepared = await prepareAudioForUpload(audioBlob);
+          finalBlob = new Blob([prepared.blob], { type: 'audio/ogg; codecs=opus' });
+        }
+      } else {
+        // Already in a compatible container; just normalize ext/contentType.
+        const t = audioBlob.type.toLowerCase();
+        if (t.includes('mp4') || t.includes('m4a')) { extension = 'm4a'; contentType = 'audio/mp4'; }
+        else if (t.includes('mpeg') || t.includes('mp3')) { extension = 'mp3'; contentType = 'audio/mpeg'; }
+        else if (t.includes('aac')) { extension = 'aac'; contentType = 'audio/aac'; }
+        else if (t.includes('amr')) { extension = 'amr'; contentType = 'audio/amr'; }
+      }
+
+      const fileName = `audio_${Date.now()}.${extension}`;
+      const filePath = `${conversation.id}/${fileName}`;
+
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('media')
-        .upload(filePath, oggBlob, {
-          contentType: 'audio/ogg',
+        .upload(filePath, finalBlob, {
+          contentType,
           upsert: false,
         });
 
