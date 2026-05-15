@@ -23,14 +23,23 @@ async function getFFmpeg() {
   loadingPromise = (async () => {
     const { FFmpeg } = await import('@ffmpeg/ffmpeg');
     const { toBlobURL } = await import('@ffmpeg/util');
-    const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.10/dist/umd';
+    // FFmpeg's worker is a module worker in Vite. Loading the UMD core as a
+    // module makes @ffmpeg/ffmpeg throw "failed to import ffmpeg-core.js".
+    // Use the ESM core so the dynamic import exposes the expected default export.
+    const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.10/dist/esm';
     const ffmpeg = new FFmpeg();
-    await ffmpeg.load({
-      coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-      wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
-    });
-    ffmpegInstance = ffmpeg;
-    return ffmpeg;
+    try {
+      await ffmpeg.load({
+        coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+        wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+      });
+      ffmpegInstance = ffmpeg;
+      return ffmpeg;
+    } catch (error) {
+      loadingPromise = null;
+      ffmpeg.terminate();
+      throw error;
+    }
   })();
 
   return loadingPromise;
