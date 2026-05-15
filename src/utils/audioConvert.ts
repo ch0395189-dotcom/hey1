@@ -67,7 +67,10 @@ export async function convertToOggOpus(input: Blob): Promise<Blob> {
   try { await ffmpeg.deleteFile(outputName); } catch { /* noop */ }
 
   const u8 = data instanceof Uint8Array ? data : new Uint8Array(data as ArrayBuffer);
-  return new Blob([u8], { type: 'audio/ogg; codecs=opus' });
+  // Copy into a fresh ArrayBuffer to satisfy strict BlobPart typing.
+  const buf = new ArrayBuffer(u8.byteLength);
+  new Uint8Array(buf).set(u8);
+  return new Blob([buf], { type: 'audio/ogg; codecs=opus' });
 }
 
 /**
