@@ -32,7 +32,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Plus, CreditCard, Search, RefreshCw, Download, FileSpreadsheet, CalendarIcon, X } from 'lucide-react';
+import { Plus, CreditCard, Search, RefreshCw, FileSpreadsheet, CalendarIcon, X, Filter } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -46,8 +46,8 @@ interface UnifiedPayment {
   reference: string | null;
   notes: string | null;
   date: string;
-  source: 'manual' | 'alert' | 'bold';
-  status: string;
+  source: 'manual' | 'alert' | 'bold' | 'credit';
+  status: 'approved' | 'pending' | 'rejected';
 }
 
 interface UserOption {
@@ -55,6 +55,8 @@ interface UserOption {
   full_name: string | null;
   email: string;
 }
+
+type StatusFilter = 'all' | 'approved' | 'pending' | 'rejected';
 
 export const ManualPayments = () => {
   const [payments, setPayments] = useState<UnifiedPayment[]>([]);
@@ -64,7 +66,8 @@ export const ManualPayments = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFrom, setDateFrom] = useState<Date | undefined>();
   const [dateTo, setDateTo] = useState<Date | undefined>();
-  
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+
   // Form state
   const [selectedUserId, setSelectedUserId] = useState('');
   const [amount, setAmount] = useState('');
@@ -76,7 +79,7 @@ export const ManualPayments = () => {
   const fetchAllPayments = async () => {
     setLoading(true);
     try {
-      const [manualRes, alertsRes, boldRes] = await Promise.all([
+      const [manualRes, alertsRes, boldRes, creditRes] = await Promise.all([
         supabase
           .from('manual_payments')
           .select('*')
@@ -84,19 +87,22 @@ export const ManualPayments = () => {
         supabase
           .from('payment_alerts')
           .select('*')
-          .eq('status', 'paid')
-          .order('paid_at', { ascending: false }),
+          .order('sent_at', { ascending: false }),
         supabase
           .from('bold_payments' as any)
+          .select('*')
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('credit_purchases')
           .select('*')
           .order('created_at', { ascending: false }),
       ]);
 
       const unified: UnifiedPayment[] = [];
 
-      // Manual payments
+      // Manual payments — always approved
       if (manualRes.data) {
-        manualRes.data.forEach(p => {
+        manualRes.data.forEach((p: any) => {
           unified.push({
             id: p.id,
             user_id: p.user_id,
@@ -107,15 +113,15 @@ export const ManualPayments = () => {
             notes: p.notes,
             date: p.created_at,
             source: 'manual',
-            status: 'paid',
+            status: 'approved',
           });
         });
       }
 
-      // Paid alerts (confirmed by admin or webhook)
+      // Payment alerts — map status
       if (alertsRes.data) {
-        alertsRes.data.forEach(a => {
-          // Avoid duplicating if a manual payment already exists for same user/amount/time
+        alertsRes.data.forEach((a: any) => {
+          const isPaid = a.status === 'paid';
           unified.push({
             id: a.id,
             user_id: a.user_id,
@@ -126,14 +132,15 @@ export const ManualPayments = () => {
             notes: a.message,
             date: a.paid_at || a.sent_at,
             source: 'alert',
-            status: 'paid',
+            status: isPaid ? 'approved' : 'pending',
           });
         });
       }
 
-      // Bold automatic payments
+      // Bold payments — map event_type
       if (boldRes.data) {
         (boldRes.data as any[]).forEach((b: any) => {
+          const isCompleted = b.event_type === 'completed';
           unified.push({
             id: b.id,
             user_id: b.user_id,
@@ -144,7 +151,29 @@ export const ManualPayments = () => {
             notes: b.plan ? `Plan: ${b.plan}` : null,
             date: b.created_at,
             source: 'bold',
-            status: 'paid',
+            status: isCompleted ? 'approved' : 'pending',
+          });
+        });
+      }
+
+      // Credit purchases — map status
+      if (creditRes.data) {
+        (creditRes.data as any[]).forEach((c: any) => {
+          let status: 'approved' | 'pending' | 'rejected' = 'pending';
+          if (c.status === 'completed') status = 'approved';
+          else if (c.status === 'failed') status = 'rejected';
+
+          unified.push({
+            id: c.id,
+            user_id: c.user_id,
+            amount: c.amount,
+            currency: c.currency || 'COP',
+            payment_method: c.payment_method || 'Créditos',
+            reference: c.payment_reference,
+            notes: `Créditos: ${c.credits}`,
+            date: c.created_at,
+            source: 'credit',
+            status,
           });
         });
       }
@@ -169,7 +198,7 @@ export const ManualPayments = () => {
       if (profilesError) throw profilesError;
 
       const { data: authData } = await supabase.functions.invoke('admin-get-users');
-      
+
       const emailMap = new Map<string, string>();
       if (authData?.users) {
         authData.users.forEach((u: { id: string; email: string }) => {
@@ -196,7 +225,7 @@ export const ManualPayments = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!selectedUserId || !amount) {
       toast.error('Por favor completa los campos requeridos');
       return;
@@ -281,8 +310,9 @@ export const ManualPayments = () => {
   const getSourceLabel = (source: string) => {
     switch (source) {
       case 'manual': return 'Manual';
-      case 'alert': return 'Alerta Pagada';
+      case 'alert': return 'Alerta';
       case 'bold': return 'Bold';
+      case 'credit': return 'Créditos';
       default: return source;
     }
   };
@@ -292,7 +322,21 @@ export const ManualPayments = () => {
       case 'manual': return 'default';
       case 'alert': return 'secondary';
       case 'bold': return 'outline';
+      case 'credit': return 'secondary';
       default: return 'outline';
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'approved':
+        return <Badge className="bg-green-100 text-green-700 hover:bg-green-100">Aprobado</Badge>;
+      case 'pending':
+        return <Badge variant="secondary">Pendiente</Badge>;
+      case 'rejected':
+        return <Badge variant="destructive">Rechazado</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
     }
   };
 
@@ -312,10 +356,15 @@ export const ManualPayments = () => {
     const matchesDateFrom = !fromStart || paymentDate >= fromStart;
     const matchesDateTo = !toEnd || paymentDate <= toEnd;
 
-    return matchesSearch && matchesDateFrom && matchesDateTo;
+    const matchesStatus = statusFilter === 'all' || payment.status === statusFilter;
+
+    return matchesSearch && matchesDateFrom && matchesDateTo && matchesStatus;
   });
 
   const totalAmount = filteredPayments.reduce((sum, p) => sum + p.amount, 0);
+  const approvedCount = payments.filter(p => p.status === 'approved').length;
+  const pendingCount = payments.filter(p => p.status === 'pending').length;
+  const rejectedCount = payments.filter(p => p.status === 'rejected').length;
 
   const exportToCSV = () => {
     if (filteredPayments.length === 0) {
@@ -323,7 +372,7 @@ export const ManualPayments = () => {
       return;
     }
 
-    const headers = ['Fecha', 'Usuario', 'Email', 'Monto (COP)', 'Método', 'Referencia', 'Origen', 'Notas'];
+    const headers = ['Fecha', 'Usuario', 'Email', 'Monto (COP)', 'Método', 'Referencia', 'Origen', 'Estado', 'Notas'];
     const rows = filteredPayments.map(p => [
       format(new Date(p.date), 'yyyy-MM-dd HH:mm'),
       getUserDisplay(p.user_id),
@@ -332,6 +381,7 @@ export const ManualPayments = () => {
       p.payment_method || '',
       p.reference || '',
       getSourceLabel(p.source),
+      p.status === 'approved' ? 'Aprobado' : p.status === 'pending' ? 'Pendiente' : 'Rechazado',
       (p.notes || '').replace(/"/g, '""'),
     ]);
 
@@ -339,7 +389,7 @@ export const ManualPayments = () => {
       headers.join(','),
       ...rows.map(row => row.map(cell => `"${cell}"`).join(',')),
       '',
-      `"Total","","","${totalAmount}","","","",""`,
+      `"Total","","","${totalAmount}","","","","",""`,
     ].join('\n');
 
     const BOM = '\uFEFF';
@@ -354,6 +404,13 @@ export const ManualPayments = () => {
     URL.revokeObjectURL(url);
     toast.success('Archivo exportado correctamente');
   };
+
+  const statusOptions: { value: StatusFilter; label: string }[] = [
+    { value: 'all', label: 'Todos' },
+    { value: 'approved', label: `Aprobados (${approvedCount})` },
+    { value: 'pending', label: `Pendientes (${pendingCount})` },
+    { value: 'rejected', label: `Rechazados (${rejectedCount})` },
+  ];
 
   return (
     <Card>
@@ -461,11 +518,57 @@ export const ManualPayments = () => {
           </div>
         </div>
         <CardDescription>
-          Todos los pagos registrados — manuales, alertas confirmadas y pagos en línea
+          Todos los pagos registrados — manuales, alertas, Bold y compras de créditos
         </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
+          {/* Summary chips */}
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setStatusFilter('approved')}
+              className={cn(
+                "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border transition-colors",
+                statusFilter === 'approved'
+                  ? "bg-green-100 text-green-700 border-green-200"
+                  : "bg-background text-muted-foreground border-border hover:bg-muted"
+              )}
+            >
+              <span className="w-2 h-2 rounded-full bg-green-500" />
+              Aprobados: {approvedCount}
+            </button>
+            <button
+              onClick={() => setStatusFilter('pending')}
+              className={cn(
+                "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border transition-colors",
+                statusFilter === 'pending'
+                  ? "bg-amber-100 text-amber-700 border-amber-200"
+                  : "bg-background text-muted-foreground border-border hover:bg-muted"
+              )}
+            >
+              <span className="w-2 h-2 rounded-full bg-amber-500" />
+              Pendientes: {pendingCount}
+            </button>
+            <button
+              onClick={() => setStatusFilter('rejected')}
+              className={cn(
+                "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border transition-colors",
+                statusFilter === 'rejected'
+                  ? "bg-red-100 text-red-700 border-red-200"
+                  : "bg-background text-muted-foreground border-border hover:bg-muted"
+              )}
+            >
+              <span className="w-2 h-2 rounded-full bg-red-500" />
+              Rechazados: {rejectedCount}
+            </button>
+            {statusFilter !== 'all' && (
+              <Button variant="ghost" size="sm" onClick={() => setStatusFilter('all')} className="h-8">
+                <X className="h-3 w-3 mr-1" />
+                Limpiar filtro
+              </Button>
+            )}
+          </div>
+
           <div className="flex items-center gap-3 flex-wrap">
             <div className="relative flex-1 min-w-[200px] max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -475,6 +578,20 @@ export const ManualPayments = () => {
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
               />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Filter className="h-4 w-4 text-muted-foreground" />
+              <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder="Estado" />
+                </SelectTrigger>
+                <SelectContent>
+                  {statusOptions.map(opt => (
+                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <Popover>
@@ -526,19 +643,20 @@ export const ManualPayments = () => {
                   <TableHead>Método</TableHead>
                   <TableHead>Referencia</TableHead>
                   <TableHead>Origen</TableHead>
+                  <TableHead>Estado</TableHead>
                   <TableHead>Notas</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8">
+                    <TableCell colSpan={8} className="text-center py-8">
                       Cargando pagos...
                     </TableCell>
                   </TableRow>
                 ) : filteredPayments.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                       No hay pagos registrados
                     </TableCell>
                   </TableRow>
@@ -563,6 +681,7 @@ export const ManualPayments = () => {
                           {getSourceLabel(payment.source)}
                         </Badge>
                       </TableCell>
+                      <TableCell>{getStatusBadge(payment.status)}</TableCell>
                       <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">
                         {payment.notes || '-'}
                       </TableCell>
