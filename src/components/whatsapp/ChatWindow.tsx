@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { prepareAudioForUpload } from "@/utils/audioConverter";
-import { convertToOggOpus, isAlreadyWhatsAppCompatible } from "@/utils/audioConvert";
+import { convertToOggOpus } from "@/utils/audioConvert";
 import { compressMediaIfNeeded, formatFileSize, exceedsWhatsAppLimit } from "@/utils/mediaCompressor";
 import { getFriendlyWhatsappError } from "@/lib/whatsappErrors";
 import { motion } from "framer-motion";
@@ -706,32 +705,23 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
         description: "Preparando el audio para WhatsApp.",
       });
 
-      // Browsers (Chrome/Android) record audio/webm with Opus codec; WhatsApp rejects WebM.
-      // We must produce a real OGG/Opus container, not just relabel the bytes — otherwise
-      // Meta delivers corrupted audio and our own player fails too. ffmpeg.wasm handles
-      // a true container remux/transcode here.
+      // Meta is strict with recorder output: WebM is unsupported and browser-recorded
+      // MP4 can be fragmented, which Meta later reports as application/octet-stream.
+      // Send a real OGG/Opus file unless the recorder already produced OGG.
       let finalBlob: Blob = audioBlob;
       let extension = 'ogg';
       let contentType = 'audio/ogg';
 
       console.log('[Audio] Original type:', audioBlob.type, 'size:', audioBlob.size);
 
-      if (!isAlreadyWhatsAppCompatible(audioBlob)) {
+      if (!audioBlob.type.toLowerCase().includes('ogg')) {
         try {
           finalBlob = await convertToOggOpus(audioBlob);
           console.log('[Audio] Converted to OGG/Opus, new size:', finalBlob.size);
         } catch (convErr) {
-          console.error('[Audio] ffmpeg conversion failed, falling back to relabel:', convErr);
-          const prepared = await prepareAudioForUpload(audioBlob);
-          finalBlob = new Blob([prepared.blob], { type: 'audio/ogg; codecs=opus' });
+          console.error('[Audio] ffmpeg conversion failed:', convErr);
+          throw new Error('No se pudo convertir el audio a un formato compatible con WhatsApp. Intenta grabarlo de nuevo.');
         }
-      } else {
-        // Already in a compatible container; just normalize ext/contentType.
-        const t = audioBlob.type.toLowerCase();
-        if (t.includes('mp4') || t.includes('m4a')) { extension = 'm4a'; contentType = 'audio/mp4'; }
-        else if (t.includes('mpeg') || t.includes('mp3')) { extension = 'mp3'; contentType = 'audio/mpeg'; }
-        else if (t.includes('aac')) { extension = 'aac'; contentType = 'audio/aac'; }
-        else if (t.includes('amr')) { extension = 'amr'; contentType = 'audio/amr'; }
       }
 
       const fileName = `audio_${Date.now()}.${extension}`;
