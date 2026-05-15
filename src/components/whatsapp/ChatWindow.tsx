@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { prepareAudioForUpload } from "@/utils/audioConverter";
+import { convertToOggOpus, isAlreadyWhatsAppCompatible } from "@/utils/audioConvert";
 import { compressMediaIfNeeded, formatFileSize, exceedsWhatsAppLimit } from "@/utils/mediaCompressor";
 import { getFriendlyWhatsappError } from "@/lib/whatsappErrors";
 import { motion } from "framer-motion";
