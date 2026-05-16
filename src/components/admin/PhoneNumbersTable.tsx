@@ -23,6 +23,8 @@ interface PhoneRow {
   user_email: string;
   user_active: boolean;
   plan: string | null;
+  current_period_end: string | null;
+  days_expired: number;
   meta_status: string | null;
   meta_quality: string | null;
   meta_name_status: string | null;
