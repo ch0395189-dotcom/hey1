@@ -70,6 +70,33 @@ export const usePlanLimits = (): PlanLimits => {
 
   useEffect(() => {
     load();
+
+    const onFocus = () => load();
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') load();
+    };
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisibility);
+
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      channel = supabase
+        .channel(`plan-limits-${user.id}`)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'subscriptions', filter: `user_id=eq.${user.id}` },
+          () => load()
+        )
+        .subscribe();
+    })();
+
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisibility);
+      if (channel) supabase.removeChannel(channel);
+    };
   }, [load]);
 
   const planKey = (plan ?? "starter") as PlanKey;

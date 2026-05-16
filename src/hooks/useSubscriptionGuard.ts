@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface SubscriptionGuardState {
@@ -18,8 +18,7 @@ export const useSubscriptionGuard = () => {
     reason: null,
   });
 
-  useEffect(() => {
-    const checkSubscription = async () => {
+  const checkSubscription = useCallback(async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         setState(prev => ({ ...prev, loading: false }));
@@ -110,10 +109,38 @@ export const useSubscriptionGuard = () => {
       }
 
       setState({ isSuspended: false, loading: false, plan: data.plan, daysExpired: 0, reason: null });
-    };
-
-    checkSubscription();
   }, []);
+
+  useEffect(() => {
+    checkSubscription();
+
+    const onFocus = () => checkSubscription();
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') checkSubscription();
+    };
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisibility);
+
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      channel = supabase
+        .channel(`subscription-guard-${session.user.id}`)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'subscriptions', filter: `user_id=eq.${session.user.id}` },
+          () => checkSubscription()
+        )
+        .subscribe();
+    })();
+
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisibility);
+      if (channel) supabase.removeChannel(channel);
+    };
+  }, [checkSubscription]);
 
   return state;
 };
