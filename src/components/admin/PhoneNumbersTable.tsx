@@ -10,6 +10,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { RefreshCw, ArrowRightLeft, Search, Phone } from 'lucide-react';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 interface PhoneRow {
   id: string;
@@ -21,6 +23,8 @@ interface PhoneRow {
   user_email: string;
   user_active: boolean;
   plan: string | null;
+  current_period_end: string | null;
+  days_expired: number;
   meta_status: string | null;
   meta_quality: string | null;
   meta_name_status: string | null;
@@ -75,10 +79,10 @@ export const PhoneNumbersTable = () => {
       (authData?.data?.users || authData?.users || []).forEach((u: { id: string; email: string }) => emailMap.set(u.id, u.email));
       const profileMap = new Map<string, string | null>();
       (profiles || []).forEach((p) => profileMap.set(p.user_id, p.full_name));
-      const subMap = new Map<string, { plan: string; active: boolean }>();
+      const subMap = new Map<string, { plan: string; active: boolean; current_period_end: string | null }>();
       (subs || []).forEach((s) => {
         const active = s.status === 'active' && (!s.current_period_end || new Date(s.current_period_end) > new Date());
-        subMap.set(s.user_id, { plan: s.plan, active });
+        subMap.set(s.user_id, { plan: s.plan, active, current_period_end: s.current_period_end });
       });
 
       const userOptions: UserOption[] = (profiles || []).map((p) => ({
@@ -92,6 +96,10 @@ export const PhoneNumbersTable = () => {
 
       const baseRows: PhoneRow[] = (accounts || []).map((a) => {
         const sub = subMap.get(a.user_id);
+        const periodEnd = sub?.current_period_end ? new Date(sub.current_period_end) : null;
+        const daysExpired = periodEnd && periodEnd < new Date()
+          ? Math.ceil((new Date().getTime() - periodEnd.getTime()) / (1000 * 60 * 60 * 24))
+          : 0;
         return {
           id: a.id,
           phone: a.phone_number,
@@ -102,6 +110,8 @@ export const PhoneNumbersTable = () => {
           user_email: emailMap.get(a.user_id) || 'N/A',
           user_active: sub?.active || false,
           plan: sub?.plan || null,
+          current_period_end: sub?.current_period_end || null,
+          days_expired: daysExpired,
           meta_status: null,
           meta_quality: null,
           meta_name_status: null,
@@ -260,6 +270,8 @@ export const PhoneNumbersTable = () => {
                   <TableHead>Calidad</TableHead>
                   <TableHead>Usuario</TableHead>
                   <TableHead>Plan</TableHead>
+                  <TableHead>Vence</TableHead>
+                  <TableHead>Días vencido</TableHead>
                   <TableHead>Estado usuario</TableHead>
                   <TableHead className="text-right">Acción</TableHead>
                 </TableRow>
@@ -289,6 +301,18 @@ export const PhoneNumbersTable = () => {
                       </div>
                     </TableCell>
                     <TableCell className="text-xs">{r.plan || '—'}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {r.current_period_end
+                        ? format(new Date(r.current_period_end), 'dd MMM yyyy', { locale: es })
+                        : '—'}
+                    </TableCell>
+                    <TableCell>
+                      {r.days_expired > 0 ? (
+                        <Badge variant="destructive">{r.days_expired} días</Badge>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
                     <TableCell>
                       {r.user_active ? (
                         <Badge className="bg-green-500/15 text-green-700 border border-green-500/30">Al día</Badge>
@@ -306,7 +330,7 @@ export const PhoneNumbersTable = () => {
                 ))}
                 {filtered.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={10} className="text-center text-muted-foreground py-8">
                       No hay números que coincidan
                     </TableCell>
                   </TableRow>
