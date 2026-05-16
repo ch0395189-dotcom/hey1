@@ -301,6 +301,18 @@ export const PhoneNumbersTable = () => {
                       </div>
                     </TableCell>
                     <TableCell className="text-xs">{r.plan || '—'}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {r.current_period_end
+                        ? format(new Date(r.current_period_end), 'dd MMM yyyy', { locale: es })
+                        : '—'}
+                    </TableCell>
+                    <TableCell>
+                      {r.days_expired > 0 ? (
+                        <Badge variant="destructive">{r.days_expired} días</Badge>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
                     <TableCell>
                       {r.user_active ? (
                         <Badge className="bg-green-500/15 text-green-700 border border-green-500/30">Al día</Badge>
