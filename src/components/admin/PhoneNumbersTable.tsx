@@ -79,10 +79,10 @@ export const PhoneNumbersTable = () => {
       (authData?.data?.users || authData?.users || []).forEach((u: { id: string; email: string }) => emailMap.set(u.id, u.email));
       const profileMap = new Map<string, string | null>();
       (profiles || []).forEach((p) => profileMap.set(p.user_id, p.full_name));
-      const subMap = new Map<string, { plan: string; active: boolean }>();
+      const subMap = new Map<string, { plan: string; active: boolean; current_period_end: string | null }>();
       (subs || []).forEach((s) => {
         const active = s.status === 'active' && (!s.current_period_end || new Date(s.current_period_end) > new Date());
-        subMap.set(s.user_id, { plan: s.plan, active });
+        subMap.set(s.user_id, { plan: s.plan, active, current_period_end: s.current_period_end });
       });
 
       const userOptions: UserOption[] = (profiles || []).map((p) => ({
