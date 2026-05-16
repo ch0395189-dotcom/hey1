@@ -246,7 +246,9 @@ export const PhoneNumbersTable = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos los estados</SelectItem>
-              <SelectItem value="connected">Activos</SelectItem>
+              <SelectItem value="connected">Activos Meta</SelectItem>
+              <SelectItem value="active_paid">Al día</SelectItem>
+              <SelectItem value="active_expired">Plan vencido</SelectItem>
               <SelectItem value="restricted">Restringidos</SelectItem>
               <SelectItem value="blocked">Bloqueados</SelectItem>
               <SelectItem value="disconnected">Desconectados</SelectItem>
