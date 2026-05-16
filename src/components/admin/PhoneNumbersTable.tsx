@@ -56,7 +56,7 @@ export const PhoneNumbersTable = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'connected' | 'restricted' | 'blocked' | 'disconnected' | 'error'>('all');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'connected' | 'restricted' | 'blocked' | 'disconnected' | 'error' | 'active_paid' | 'active_expired'>('all');
 
   // Reassign dialog
   const [open, setOpen] = useState(false);
