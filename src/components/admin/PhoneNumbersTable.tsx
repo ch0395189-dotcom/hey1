@@ -170,6 +170,8 @@ export const PhoneNumbersTable = () => {
         if (filterStatus === 'blocked' && !['BANNED', 'BLOCKED', 'LOCKED'].includes(s)) return false;
         if (filterStatus === 'disconnected' && s !== 'DISCONNECTED') return false;
         if (filterStatus === 'error' && s !== 'ERROR') return false;
+        if (filterStatus === 'active_paid' && !r.user_active) return false;
+        if (filterStatus === 'active_expired' && (r.user_active || r.days_expired === 0)) return false;
       }
       return true;
     });
