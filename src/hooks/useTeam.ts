@@ -34,6 +34,7 @@ const PLAN_LIMITS: Record<string, number> = {
   professional: 3,
   enterprise: 10,
   esoterico_pro: 5,
+  esoterico_rental: 5,
 };
 
 const normalizePermissions = (raw: any): AgentPermissions => ({
