@@ -6,7 +6,7 @@ import { useBoldCheckout } from "@/hooks/useBoldCheckout";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
-type PlanKey = 'starter' | 'professional' | 'enterprise' | 'esoterico_pro';
+type PlanKey = 'starter' | 'professional' | 'enterprise' | 'esoterico_pro' | 'esoterico_rental';
 
 const plans: Array<{
   name: string;
@@ -36,6 +36,25 @@ const plans: Array<{
       "Configuración especial"
     ],
     popular: true
+  },
+  {
+    name: "Nichos Difíciles + Alquiler",
+    key: "esoterico_rental",
+    price: "300.000",
+    currency: "COP",
+    period: "mes",
+    description: "Número blindado con alquiler de número incluido",
+    features: [
+      "Alquiler de número incluido",
+      "1 número blindado anti-bloqueo",
+      "5 agentes / subcuentas",
+      "1 Agente de voz IA",
+      "1 Bot automatizado",
+      "Soporte premium vía WhatsApp",
+      "Sin límite de mensajes",
+      "Configuración especial"
+    ],
+    popular: false
   },
   {
     name: "Professional",
