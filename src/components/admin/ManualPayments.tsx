@@ -74,6 +74,7 @@ export const ManualPayments = () => {
   const [paymentMethod, setPaymentMethod] = useState('');
   const [reference, setReference] = useState('');
   const [notes, setNotes] = useState('');
+  const [selectedPlan, setSelectedPlan] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
 
   const fetchAllPayments = async () => {
@@ -250,14 +251,17 @@ export const ManualPayments = () => {
 
       if (error) throw error;
 
-      // Activate subscription for 30 days
+      // Activate subscription for 30 days (and update plan if selected)
+      const subUpdate: Record<string, unknown> = {
+        status: 'active',
+        current_period_start: new Date().toISOString(),
+        current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      };
+      if (selectedPlan) subUpdate.plan = selectedPlan;
+
       const { error: subError } = await supabase
         .from('subscriptions')
-        .update({
-          status: 'active',
-          current_period_start: new Date().toISOString(),
-          current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-        })
+        .update(subUpdate)
         .eq('user_id', selectedUserId);
 
       if (subError) throw subError;
@@ -287,6 +291,7 @@ export const ManualPayments = () => {
     setPaymentMethod('');
     setReference('');
     setNotes('');
+    setSelectedPlan('');
   };
 
   const getUserDisplay = (userId: string) => {
@@ -465,6 +470,21 @@ export const ManualPayments = () => {
                       value={amount}
                       onChange={(e) => setAmount(e.target.value)}
                     />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="plan">Plan a asignar</Label>
+                    <Select value={selectedPlan} onValueChange={setSelectedPlan}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Mantener plan actual" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="professional">Professional</SelectItem>
+                        <SelectItem value="enterprise">Enterprise</SelectItem>
+                        <SelectItem value="esoterico_pro">Nichos Difíciles</SelectItem>
+                        <SelectItem value="esoterico_rental">Nichos Difíciles + Alquiler</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div className="space-y-2">
