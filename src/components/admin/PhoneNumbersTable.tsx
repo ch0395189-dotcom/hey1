@@ -270,6 +270,8 @@ export const PhoneNumbersTable = () => {
                   <TableHead>Calidad</TableHead>
                   <TableHead>Usuario</TableHead>
                   <TableHead>Plan</TableHead>
+                  <TableHead>Vence</TableHead>
+                  <TableHead>Días vencido</TableHead>
                   <TableHead>Estado usuario</TableHead>
                   <TableHead className="text-right">Acción</TableHead>
                 </TableRow>
