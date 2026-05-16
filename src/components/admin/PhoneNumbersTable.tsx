@@ -56,7 +56,7 @@ export const PhoneNumbersTable = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'connected' | 'restricted' | 'blocked' | 'disconnected' | 'error'>('all');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'connected' | 'restricted' | 'blocked' | 'disconnected' | 'error' | 'active_paid' | 'active_expired'>('all');
 
   // Reassign dialog
   const [open, setOpen] = useState(false);
@@ -170,6 +170,8 @@ export const PhoneNumbersTable = () => {
         if (filterStatus === 'blocked' && !['BANNED', 'BLOCKED', 'LOCKED'].includes(s)) return false;
         if (filterStatus === 'disconnected' && s !== 'DISCONNECTED') return false;
         if (filterStatus === 'error' && s !== 'ERROR') return false;
+        if (filterStatus === 'active_paid' && !r.user_active) return false;
+        if (filterStatus === 'active_expired' && (r.user_active || r.days_expired === 0)) return false;
       }
       return true;
     });
@@ -244,7 +246,9 @@ export const PhoneNumbersTable = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos los estados</SelectItem>
-              <SelectItem value="connected">Activos</SelectItem>
+              <SelectItem value="connected">Activos Meta</SelectItem>
+              <SelectItem value="active_paid">Al día</SelectItem>
+              <SelectItem value="active_expired">Plan vencido</SelectItem>
               <SelectItem value="restricted">Restringidos</SelectItem>
               <SelectItem value="blocked">Bloqueados</SelectItem>
               <SelectItem value="disconnected">Desconectados</SelectItem>
