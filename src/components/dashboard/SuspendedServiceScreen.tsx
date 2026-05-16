@@ -14,7 +14,7 @@ interface SuspendedServiceScreenProps {
   reason: 'trial_expired' | 'subscription_expired' | null;
 }
 
-type PlanKey = 'starter' | 'professional' | 'enterprise' | 'esoterico_pro';
+type PlanKey = 'starter' | 'professional' | 'enterprise' | 'esoterico_pro' | 'esoterico_rental';
 
 const plans: Array<{
   name: string;
@@ -54,6 +54,19 @@ const plans: Array<{
     key: "esoterico_pro",
     price: "199.900",
     features: [
+      "Número blindado anti-bloqueo",
+      "1 Agente de voz IA",
+      "1 Bot automatizado",
+      "Sin límite de mensajes",
+    ],
+    popular: false,
+  },
+  {
+    name: "Nichos Difíciles + Alquiler",
+    key: "esoterico_rental",
+    price: "300.000",
+    features: [
+      "Alquiler de número incluido",
       "Número blindado anti-bloqueo",
       "1 Agente de voz IA",
       "1 Bot automatizado",
