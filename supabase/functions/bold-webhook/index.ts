@@ -210,7 +210,7 @@ serve(async (req) => {
           );
         }
 
-        const validPlans = ['professional', 'enterprise', 'esoterico_pro'];
+        const validPlans = ['professional', 'enterprise', 'esoterico_pro', 'esoterico_rental'];
         if (!validPlans.includes(plan)) {
           console.error('Invalid plan:', plan);
           return new Response(

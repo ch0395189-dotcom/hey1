@@ -1,13 +1,14 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
-type PlanKey = "starter" | "professional" | "enterprise" | "esoterico_pro";
+type PlanKey = "starter" | "professional" | "enterprise" | "esoterico_pro" | "esoterico_rental";
 
 const WHATSAPP_LIMITS: Record<PlanKey, number> = {
   starter: 1,
   professional: 3,
   enterprise: 10,
   esoterico_pro: 1,
+  esoterico_rental: 1,
 };
 
 const PLAN_LABELS: Record<PlanKey, string> = {
@@ -15,6 +16,7 @@ const PLAN_LABELS: Record<PlanKey, string> = {
   professional: "Professional",
   enterprise: "Enterprise",
   esoterico_pro: "Nichos Difíciles",
+  esoterico_rental: "Nichos Difíciles + Alquiler",
 };
 
 interface PlanLimits {

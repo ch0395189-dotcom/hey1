@@ -10,6 +10,7 @@ const PLAN_DETAILS: Record<string, { name: string; price: string; period: string
   professional: { name: 'Plan Professional', price: '$149.000 COP', period: 'mes', daysBeforeExpiry: 3 },
   enterprise: { name: 'Plan Enterprise', price: '$399.000 COP', period: 'mes', daysBeforeExpiry: 5 },
   esoterico_pro: { name: 'Plan Nichos Difíciles', price: '$30.000 COP', period: 'mes', daysBeforeExpiry: 3 },
+  esoterico_rental: { name: 'Plan Nichos Difíciles + Alquiler', price: '$300.000 COP', period: 'mes', daysBeforeExpiry: 3 },
 };
 
 serve(async (req) => {

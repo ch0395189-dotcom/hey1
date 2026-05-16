@@ -10,7 +10,7 @@ const BOLD_API_KEY = Deno.env.get('BOLD_API_KEY')!;
 const BOLD_API_URL = 'https://integrations.api.bold.co';
 
 interface CheckoutRequest {
-  plan: 'starter' | 'professional' | 'enterprise' | 'esoterico_pro';
+  plan: 'starter' | 'professional' | 'enterprise' | 'esoterico_pro' | 'esoterico_rental';
   successUrl: string;
   cancelUrl: string;
 }
@@ -39,6 +39,12 @@ const PLAN_PRICES = {
     currency: 'COP',
     name: 'Plan Nichos Difíciles',
     description: 'Numero blindado contra bloqueos - pago mensual',
+  },
+  esoterico_rental: {
+    amount: 300000,
+    currency: 'COP',
+    name: 'Plan Nichos Difíciles + Alquiler',
+    description: 'Numero blindado anti-bloqueo con alquiler de numero incluido - pago mensual',
   },
 };
 

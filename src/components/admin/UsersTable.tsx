@@ -872,6 +872,7 @@ export const UsersTable = () => {
                          <SelectItem value="professional">Professional</SelectItem>
                         <SelectItem value="enterprise">Enterprise</SelectItem>
                         <SelectItem value="esoterico_pro">Nichos Difíciles</SelectItem>
+                        <SelectItem value="esoterico_rental">Nichos Difíciles + Alquiler</SelectItem>
                       </SelectContent>
                     </Select>
                   </TableCell>

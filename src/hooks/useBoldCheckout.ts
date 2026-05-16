@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useMetaPixel } from '@/hooks/useMetaPixel';
 
-type Plan = 'starter' | 'professional' | 'enterprise' | 'esoterico_pro';
+type Plan = 'starter' | 'professional' | 'enterprise' | 'esoterico_pro' | 'esoterico_rental';
 
 export const useBoldCheckout = () => {
   const [isLoading, setIsLoading] = useState(false);

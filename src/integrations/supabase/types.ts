@@ -1262,6 +1262,7 @@ export type Database = {
         | "professional"
         | "enterprise"
         | "esoterico_pro"
+        | "esoterico_rental"
       subscription_status: "active" | "canceled" | "past_due" | "trialing"
     }
     CompositeTypes: {
@@ -1396,6 +1397,7 @@ export const Constants = {
         "professional",
         "enterprise",
         "esoterico_pro",
+        "esoterico_rental",
       ],
       subscription_status: ["active", "canceled", "past_due", "trialing"],
     },
