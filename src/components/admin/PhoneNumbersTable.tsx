@@ -96,6 +96,10 @@ export const PhoneNumbersTable = () => {
 
       const baseRows: PhoneRow[] = (accounts || []).map((a) => {
         const sub = subMap.get(a.user_id);
+        const periodEnd = sub?.current_period_end ? new Date(sub.current_period_end) : null;
+        const daysExpired = periodEnd && periodEnd < new Date()
+          ? Math.ceil((new Date().getTime() - periodEnd.getTime()) / (1000 * 60 * 60 * 24))
+          : 0;
         return {
           id: a.id,
           phone: a.phone_number,
@@ -106,6 +110,8 @@ export const PhoneNumbersTable = () => {
           user_email: emailMap.get(a.user_id) || 'N/A',
           user_active: sub?.active || false,
           plan: sub?.plan || null,
+          current_period_end: sub?.current_period_end || null,
+          days_expired: daysExpired,
           meta_status: null,
           meta_quality: null,
           meta_name_status: null,
