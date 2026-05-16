@@ -18,12 +18,14 @@ const PLAN_NAMES: Record<string, string> = {
   professional: 'Plan Professional',
   enterprise: 'Plan Enterprise',
   esoterico_pro: 'Plan Nichos Difíciles',
+  esoterico_rental: 'Plan Nichos Difíciles + Alquiler',
 };
 
 const PLAN_ICONS: Record<string, React.ReactNode> = {
   professional: <Crown className="h-5 w-5" />,
   enterprise: <Building className="h-5 w-5" />,
   esoterico_pro: <Sparkles className="h-5 w-5" />,
+  esoterico_rental: <Sparkles className="h-5 w-5" />,
 };
 
 const PLAN_FEATURES: Record<string, string[]> = {
@@ -45,15 +47,23 @@ const PLAN_FEATURES: Record<string, string[]> = {
     '1 Bot automatizado',
     'Soporte premium vía WhatsApp',
   ],
+  esoterico_rental: [
+    'Alquiler de número incluido',
+    'Número blindado anti-bloqueo',
+    '1 Agente de voz IA',
+    '1 Bot automatizado',
+    'Soporte premium vía WhatsApp',
+  ],
 };
 
 const PLAN_PRICES: Record<string, { monthly: number; currency: string }> = {
   professional: { monthly: 99000, currency: 'COP' },
   enterprise: { monthly: 299000, currency: 'COP' },
   esoterico_pro: { monthly: 199000, currency: 'COP' },
+  esoterico_rental: { monthly: 300000, currency: 'COP' },
 };
 
-type SubscriptionPlan = 'professional' | 'enterprise' | 'esoterico_pro';
+type SubscriptionPlan = 'professional' | 'enterprise' | 'esoterico_pro' | 'esoterico_rental';
 
 export const RenewalBanner = () => {
   const [subscription, setSubscription] = useState<{
@@ -92,7 +102,7 @@ export const RenewalBanner = () => {
       const daysUntilExpiry = Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
       
       // Show banner if expiring in 7 days or less, or already expired
-      const daysThreshold = data.plan === 'esoterico_pro' ? 2 : 7;
+      const daysThreshold = (data.plan === 'esoterico_pro' || data.plan === 'esoterico_rental') ? 2 : 7;
       
       if (daysUntilExpiry <= daysThreshold) {
         const normalizedPlan = (data.plan === 'starter' ? 'professional' : data.plan) as SubscriptionPlan;
@@ -140,7 +150,7 @@ export const RenewalBanner = () => {
   const isUrgent = subscription.daysUntilExpiry <= 1;
   const isExpired = subscription.isExpired;
 
-  const plans: SubscriptionPlan[] = ['professional', 'esoterico_pro', 'enterprise'];
+  const plans: SubscriptionPlan[] = ['professional', 'esoterico_pro', 'esoterico_rental', 'enterprise'];
 
   return (
     <>
