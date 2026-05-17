@@ -1127,17 +1127,17 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
           >
             <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
           </button>
-          <DropdownMenu open={moreMenuOpen} onOpenChange={setMoreMenuOpen} modal={false}>
+          <DropdownMenu open={moreMenuOpen} onOpenChange={setMoreMenuOpen}>
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
-                className="p-2 rounded-full hover:bg-primary-foreground/10 active:bg-primary-foreground/20 transition-colors touch-manipulation"
+                className="h-10 w-10 md:h-9 md:w-9 inline-flex items-center justify-center rounded-full hover:bg-primary-foreground/10 active:bg-primary-foreground/20 transition-colors touch-manipulation"
                 title="Más opciones"
                 aria-label="Más opciones"
                 aria-haspopup="menu"
                 aria-expanded={moreMenuOpen}
               >
-                <MoreVertical className="w-4 h-4" />
+                <MoreVertical className="w-5 h-5 md:w-4 md:h-4" />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="bg-card">
@@ -1501,7 +1501,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
 
       {/* Message Input - safe area bottom for iOS home indicator */}
       <form onSubmit={handleSendMessage} className="shrink-0 p-2 md:p-4 border-t border-border bg-card safe-area-bottom">
-        <div className="max-w-3xl mx-auto flex items-center gap-1.5 md:gap-3">
+        <div className="max-w-3xl mx-auto flex items-end gap-1.5 md:gap-2">
           <input
             type="file"
             ref={fileInputRef}
@@ -1547,37 +1547,40 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
           <Input
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
-            placeholder="Escribe un mensaje..."
-            className="flex-1 min-w-0 bg-muted border-0 h-9 md:h-10 text-sm"
+            placeholder="Escribe un mensaje"
+            inputMode="text"
+            autoComplete="off"
+            className="flex-1 min-w-0 bg-muted border-0 h-10 md:h-11 rounded-full px-4 text-base md:text-sm focus-visible:ring-1 focus-visible:ring-primary/30"
+            style={{ fontSize: '16px' }}
             disabled={sending || isRecording}
           />
           {newMessage.trim() || attachedFile ? (
             <Button
               type="submit"
               size="icon"
-              className="shrink-0 h-9 w-9 md:h-10 md:w-10 bg-gradient-hero hover:opacity-90"
+              className="shrink-0 h-10 w-10 md:h-11 md:w-11 rounded-full bg-gradient-hero hover:opacity-90"
               disabled={sending}
             >
-              <Send className="w-4 h-4" />
+              <Send className="w-5 h-5" />
             </Button>
           ) : audioSupported && !isRecording && !audioUrl ? (
             <Button
               type="button"
               size="icon"
-              className="shrink-0 h-9 w-9 md:h-10 md:w-10 bg-gradient-hero hover:opacity-90"
+              className="shrink-0 h-10 w-10 md:h-11 md:w-11 rounded-full bg-gradient-hero hover:opacity-90"
               onClick={startRecording}
               disabled={sending}
             >
-              <Mic className="w-4 h-4" />
+              <Mic className="w-5 h-5" />
             </Button>
           ) : (
             <Button
               type="submit"
               size="icon"
-              className="shrink-0 h-9 w-9 md:h-10 md:w-10 bg-gradient-hero hover:opacity-90"
+              className="shrink-0 h-10 w-10 md:h-11 md:w-11 rounded-full bg-gradient-hero hover:opacity-90"
               disabled
             >
-              <Send className="w-4 h-4" />
+              <Send className="w-5 h-5" />
             </Button>
           )}
         </div>
