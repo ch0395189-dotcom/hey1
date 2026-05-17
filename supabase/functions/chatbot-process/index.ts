@@ -878,6 +878,26 @@ async function sendExternalWhatsAppMessage(
   }
 }
 
+function detectMediaType(mediaUrl: string, explicitMediaType?: string | null): 'image' | 'video' | 'document' | 'audio' {
+  if (explicitMediaType === 'image' || explicitMediaType === 'video' || explicitMediaType === 'document' || explicitMediaType === 'audio') {
+    return explicitMediaType;
+  }
+
+  const lowerUrl = mediaUrl.toLowerCase();
+  if (lowerUrl.includes('.mp4') || lowerUrl.includes('.mov') || lowerUrl.includes('.avi') || lowerUrl.includes('video')) {
+    return 'video';
+  }
+  if (lowerUrl.includes('.mp3') || lowerUrl.includes('.ogg') || lowerUrl.includes('.m4a') ||
+      lowerUrl.includes('.wav') || lowerUrl.includes('.aac') || lowerUrl.includes('.amr') ||
+      lowerUrl.includes('.opus') || lowerUrl.includes('audio')) {
+    return 'audio';
+  }
+  if (lowerUrl.includes('.pdf') || lowerUrl.includes('.doc') || lowerUrl.includes('.xlsx') || lowerUrl.includes('document')) {
+    return 'document';
+  }
+  return 'image';
+}
+
 // Send media via external API (WuzAPI/HeyHey)
 async function sendExternalWhatsAppMediaMessage(
   apiBaseUrl: string,
