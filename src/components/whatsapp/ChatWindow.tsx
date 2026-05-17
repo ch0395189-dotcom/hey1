@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { convertToOggOpus } from "@/utils/audioConvert";
+import { prepareAttachedAudioForWhatsApp, prepareRecordedAudioForWhatsApp } from "@/utils/audioConvert";
 import { compressMediaIfNeeded, formatFileSize, exceedsWhatsAppLimit } from "@/utils/mediaCompressor";
 import { getFriendlyWhatsappError } from "@/lib/whatsappErrors";
 import { motion } from "framer-motion";
@@ -549,6 +549,9 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
   const uploadMediaToStorage = async (file: File): Promise<string> => {
     // Compress media if it exceeds WhatsApp limits
     let fileToUpload = file;
+    if (file.type.startsWith('audio/')) {
+      fileToUpload = await prepareAttachedAudioForWhatsApp(file);
+    }
     
     if (exceedsWhatsAppLimit(file)) {
       toast({
@@ -714,14 +717,12 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
 
       console.log('[Audio] Original type:', audioBlob.type, 'size:', audioBlob.size);
 
-      if (!audioBlob.type.toLowerCase().includes('ogg')) {
-        try {
-          finalBlob = await convertToOggOpus(audioBlob);
-          console.log('[Audio] Converted to OGG/Opus, new size:', finalBlob.size);
-        } catch (convErr) {
-          console.error('[Audio] ffmpeg conversion failed:', convErr);
-          throw new Error('No se pudo convertir el audio a un formato compatible con WhatsApp. Intenta grabarlo de nuevo.');
-        }
+      try {
+        finalBlob = await prepareRecordedAudioForWhatsApp(audioBlob);
+        console.log('[Audio] Prepared as real OGG/Opus, new size:', finalBlob.size);
+      } catch (convErr) {
+        console.error('[Audio] ffmpeg conversion failed:', convErr);
+        throw new Error('No se pudo convertir el audio a un formato compatible con WhatsApp. Intenta grabarlo de nuevo.');
       }
 
       const fileName = `audio_${Date.now()}.${extension}`;
