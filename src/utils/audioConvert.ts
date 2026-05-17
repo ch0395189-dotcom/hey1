@@ -97,6 +97,36 @@ export async function convertToOggOpus(input: Blob): Promise<Blob> {
   return new Blob([buf], { type: 'audio/ogg; codecs=opus' });
 }
 
+export async function isRealOggContainer(input: Blob): Promise<boolean> {
+  const header = new Uint8Array(await input.slice(0, 4).arrayBuffer());
+  return header[0] === 0x4f && header[1] === 0x67 && header[2] === 0x67 && header[3] === 0x53; // OggS
+}
+
+export async function prepareRecordedAudioForWhatsApp(input: Blob): Promise<Blob> {
+  // Do not trust MediaRecorder's MIME type alone. Some mobile browsers report
+  // audio/ogg while writing MP4 bytes, which Meta accepts but recipients get a
+  // broken voice note. Only skip conversion when the actual bytes are OGG.
+  if (await isRealOggContainer(input)) return input;
+  const converted = await convertToOggOpus(input);
+  if (!(await isRealOggContainer(converted))) {
+    throw new Error('La conversión del audio no generó un archivo OGG válido.');
+  }
+  return converted;
+}
+
+export async function prepareAttachedAudioForWhatsApp(file: File): Promise<File> {
+  const type = (file.type || '').toLowerCase();
+  const isWebm = type.includes('webm');
+  const isClaimedOggButNotReal = type.includes('ogg') && !(await isRealOggContainer(file));
+
+  if (!isWebm && !isClaimedOggButNotReal) return file;
+
+  const converted = await prepareRecordedAudioForWhatsApp(file);
+  return new File([converted], `${file.name.replace(/\.[^.]+$/, '') || 'audio'}.ogg`, {
+    type: 'audio/ogg',
+  });
+}
+
 /**
  * Returns true if the blob is already a proper WhatsApp-compatible
  * container (OGG, MP4/M4A, MP3, AAC, AMR) and does not need conversion.
