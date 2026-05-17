@@ -1127,17 +1127,17 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
           >
             <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
           </button>
-          <DropdownMenu open={moreMenuOpen} onOpenChange={setMoreMenuOpen} modal={false}>
+          <DropdownMenu open={moreMenuOpen} onOpenChange={setMoreMenuOpen}>
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
-                className="p-2 rounded-full hover:bg-primary-foreground/10 active:bg-primary-foreground/20 transition-colors touch-manipulation"
+                className="h-10 w-10 md:h-9 md:w-9 inline-flex items-center justify-center rounded-full hover:bg-primary-foreground/10 active:bg-primary-foreground/20 transition-colors touch-manipulation"
                 title="Más opciones"
                 aria-label="Más opciones"
                 aria-haspopup="menu"
                 aria-expanded={moreMenuOpen}
               >
-                <MoreVertical className="w-4 h-4" />
+                <MoreVertical className="w-5 h-5 md:w-4 md:h-4" />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="bg-card">
