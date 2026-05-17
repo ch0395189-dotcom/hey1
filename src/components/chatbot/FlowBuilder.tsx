@@ -11,6 +11,7 @@ import { Plus, Trash2, ChevronRight, MessageSquare, ArrowRight, User, CircleStop
 import { motion, AnimatePresence } from 'framer-motion';
 import { MediaCaptureButtons } from './MediaCaptureButtons';
 import { AppointmentConfig, defaultAppointmentSettings, type AppointmentSettings } from './AppointmentConfig';
+import { prepareAttachedAudioForWhatsApp } from '@/utils/audioConvert';
 
 interface FlowBuilderProps {
   chatbotConfigId: string;
@@ -144,7 +145,7 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
   };
 
   const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+    let file = e.target.files?.[0];
     if (!file) return;
 
     const maxSize = 16 * 1024 * 1024;
@@ -155,6 +156,17 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
 
     setUploadingMedia(true);
     try {
+      // WhatsApp no acepta WebM. Si es audio, convertir a OGG/Opus antes de subir.
+      if ((file.type || '').toLowerCase().startsWith('audio/')) {
+        try {
+          file = await prepareAttachedAudioForWhatsApp(file);
+        } catch (convErr) {
+          console.error('Audio conversion error:', convErr);
+          toast.error('No se pudo convertir el audio a un formato compatible con WhatsApp');
+          return;
+        }
+      }
+
       const ext = file.name.split('.').pop();
       const fileName = `bot_media_${Date.now()}.${ext}`;
       const { data, error } = await supabase.storage
