@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Camera, Video, Mic, MicOff, Square } from 'lucide-react';
+import { prepareRecordedAudioForWhatsApp } from '@/utils/audioConvert';
 
 interface MediaCaptureButtonsProps {
   onMediaCaptured: (url: string, type: string) => void;
@@ -66,9 +67,16 @@ export const MediaCaptureButtons = ({ onMediaCaptured, uploading, setUploading }
 
       recorder.onstop = async () => {
         stream.getTracks().forEach(t => t.stop());
-        const blob = new Blob(chunksRef.current, { type: mimeType });
-        const ext = mimeType.includes('mp4') ? 'm4a' : 'webm';
-        await uploadBlob(blob, ext, 'audio');
+        const rawBlob = new Blob(chunksRef.current, { type: mimeType });
+        try {
+          // WhatsApp no acepta WebM. Convertir a OGG/Opus real antes de subir.
+          const prepared = await prepareRecordedAudioForWhatsApp(rawBlob);
+          await uploadBlob(prepared, 'ogg', 'audio');
+        } catch (err) {
+          console.error('Audio prep error:', err);
+          toast.error('No se pudo procesar el audio para WhatsApp');
+          setUploading(false);
+        }
       };
 
       recorder.start(100);
