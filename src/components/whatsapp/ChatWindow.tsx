@@ -553,13 +553,13 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
       fileToUpload = await prepareAttachedAudioForWhatsApp(file);
     }
     
-    if (exceedsWhatsAppLimit(file)) {
+    if (exceedsWhatsAppLimit(fileToUpload)) {
       toast({
         title: "Comprimiendo archivo...",
-        description: `El archivo excede el límite de WhatsApp. Comprimiendo de ${formatFileSize(file.size)}...`,
+        description: `El archivo excede el límite de WhatsApp. Comprimiendo de ${formatFileSize(fileToUpload.size)}...`,
       });
       
-      const { file: compressed, wasCompressed } = await compressMediaIfNeeded(file);
+      const { file: compressed, wasCompressed } = await compressMediaIfNeeded(fileToUpload);
       fileToUpload = compressed;
       
       if (wasCompressed) {
