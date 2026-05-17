@@ -883,9 +883,17 @@ async function sendExternalWhatsAppMediaMessage(
   apiBaseUrl: string,
   apiToken: string,
   to: string,
-  mediaUrl: string
+  mediaUrl: string,
+  mediaType?: string | null
 ): Promise<void> {
   const phone = to.replace(/\D/g, '');
+  const resolvedMediaType = detectMediaType(mediaUrl, mediaType);
+  const mediaLabels: Record<string, string> = {
+    image: '📷 Imagen',
+    audio: '🎵 Audio',
+    video: '🎥 Video',
+    document: '📄 Documento',
+  };
   
   console.log(`Sending external WhatsApp media to ${phone}: ${mediaUrl}`);
   
@@ -902,8 +910,9 @@ async function sendExternalWhatsAppMediaMessage(
     },
     body: JSON.stringify({
       number: phone,
-      body: '',
+      body: mediaLabels[resolvedMediaType] || '📎 Archivo',
       mediaUrl: mediaUrl,
+      mediaType: resolvedMediaType,
       externalKey: `bot_media_${Date.now()}`,
     }),
   });
@@ -950,21 +959,10 @@ async function sendWhatsAppMediaMessage(
   phoneNumberId: string,
   accessToken: string,
   to: string,
-  mediaUrl: string
+  mediaUrl: string,
+  explicitMediaType?: string | null
 ): Promise<void> {
-  // Detect media type from URL
-  const lowerUrl = mediaUrl.toLowerCase();
-  let mediaType: 'image' | 'video' | 'document' | 'audio' = 'image';
-  
-  if (lowerUrl.includes('.mp4') || lowerUrl.includes('.mov') || lowerUrl.includes('.avi') || lowerUrl.includes('video')) {
-    mediaType = 'video';
-  } else if (lowerUrl.includes('.pdf') || lowerUrl.includes('.doc') || lowerUrl.includes('.xlsx') || lowerUrl.includes('document')) {
-    mediaType = 'document';
-  } else if (lowerUrl.includes('.mp3') || lowerUrl.includes('.ogg') || lowerUrl.includes('.m4a') || 
-             lowerUrl.includes('.wav') || lowerUrl.includes('.aac') || lowerUrl.includes('.amr') || 
-             lowerUrl.includes('.opus') || lowerUrl.includes('audio')) {
-    mediaType = 'audio';
-  }
+  const mediaType = detectMediaType(mediaUrl, explicitMediaType);
 
   const payload: Record<string, any> = {
     messaging_product: 'whatsapp',
