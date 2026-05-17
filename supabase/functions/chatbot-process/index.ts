@@ -2,7 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 interface ChatbotConfig {
@@ -687,7 +687,7 @@ Deno.serve(async (req) => {
     console.error('Chatbot processing error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return new Response(JSON.stringify({ error: errorMessage }), {
-      status: 500,
+      status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
@@ -983,12 +983,15 @@ async function sendWhatsAppMediaMessage(
   explicitMediaType?: string | null
 ): Promise<void> {
   const mediaType = detectMediaType(mediaUrl, explicitMediaType);
+  const uploadedMediaId = mediaType === 'audio'
+    ? await uploadWhatsAppMediaFromUrl(phoneNumberId, accessToken, mediaUrl, mediaType)
+    : null;
 
   const payload: Record<string, any> = {
     messaging_product: 'whatsapp',
     to: to,
     type: mediaType,
-    [mediaType]: { link: mediaUrl },
+    [mediaType]: uploadedMediaId ? { id: uploadedMediaId } : { link: mediaUrl },
   };
 
   const response = await fetch(
@@ -1008,6 +1011,56 @@ async function sendWhatsAppMediaMessage(
     console.error('WhatsApp media send error:', error);
     throw new Error(`Failed to send WhatsApp media: ${error}`);
   }
+}
+
+function getWhatsAppMimeType(mediaUrl: string, mediaType: 'image' | 'video' | 'document' | 'audio'): string {
+  const url = mediaUrl.toLowerCase().split('?')[0];
+  if (mediaType === 'audio') {
+    if (url.endsWith('.mp3')) return 'audio/mpeg';
+    if (url.endsWith('.m4a') || url.endsWith('.mp4')) return 'audio/mp4';
+    if (url.endsWith('.aac')) return 'audio/aac';
+    if (url.endsWith('.amr')) return 'audio/amr';
+    return 'audio/ogg; codecs=opus';
+  }
+  if (mediaType === 'video') return 'video/mp4';
+  if (mediaType === 'image') return url.endsWith('.png') ? 'image/png' : 'image/jpeg';
+  return 'application/pdf';
+}
+
+async function uploadWhatsAppMediaFromUrl(
+  phoneNumberId: string,
+  accessToken: string,
+  mediaUrl: string,
+  mediaType: 'image' | 'video' | 'document' | 'audio'
+): Promise<string> {
+  const mimeType = getWhatsAppMimeType(mediaUrl, mediaType);
+  const mediaResponse = await fetch(mediaUrl);
+  if (!mediaResponse.ok) {
+    const errorText = await mediaResponse.text().catch(() => '');
+    throw new Error(`No se pudo descargar el audio para enviarlo: ${mediaResponse.status} ${errorText}`);
+  }
+
+  const mediaBuffer = await mediaResponse.arrayBuffer();
+  const fileName = mediaType === 'audio' ? 'bot-audio.ogg' : 'bot-media';
+  const form = new FormData();
+  form.append('messaging_product', 'whatsapp');
+  form.append('type', mimeType);
+  form.append('file', new Blob([mediaBuffer], { type: mimeType }), fileName);
+
+  const uploadResponse = await fetch(`https://graph.facebook.com/v21.0/${phoneNumberId}/media`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}` },
+    body: form,
+  });
+
+  const uploadData = await uploadResponse.json().catch(() => null);
+  console.log('WhatsApp media upload response:', JSON.stringify(uploadData));
+
+  if (!uploadResponse.ok || !uploadData?.id) {
+    throw new Error(`WhatsApp media upload failed: ${JSON.stringify(uploadData)}`);
+  }
+
+  return uploadData.id;
 }
 
 // Send interactive WhatsApp message (buttons or list)
