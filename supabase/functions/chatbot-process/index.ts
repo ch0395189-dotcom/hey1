@@ -712,14 +712,16 @@ async function sendNodeResponse(
           platformAccount.external_service_url,
           platformAccount.external_api_key,
           customerIdentifier,
-          node.media_url
+          node.media_url,
+          node.media_type
         );
       } else {
         await sendWhatsAppMediaMessage(
           platformAccount.phone_number_id!,
           platformAccount.access_token!,
           customerIdentifier,
-          node.media_url
+          node.media_url,
+          node.media_type
         );
       }
       await saveOutboundMessage(supabase, conversation_id, `[${node.media_type || 'media'}] ${node.media_url}`, node.media_type || 'image', node.media_url);
