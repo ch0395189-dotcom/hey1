@@ -1047,7 +1047,13 @@ const Dashboard = () => {
             <div className="max-w-5xl mx-auto">
               {whatsappAccounts.length > 1 && (
                 <div className="mb-4">
-                  <Select value={selectedAccountId || ''} onValueChange={setSelectedAccountId}>
+                  <Select
+                    value={selectedAccountId || ''}
+                    onValueChange={(v) => {
+                      setSelectedAccountId(v);
+                      try { localStorage.setItem('selectedWhatsappAccountId', v); } catch { /* ignore */ }
+                    }}
+                  >
                     <SelectTrigger className="max-w-xs">
                       <SelectValue placeholder="Selecciona una cuenta" />
                     </SelectTrigger>
