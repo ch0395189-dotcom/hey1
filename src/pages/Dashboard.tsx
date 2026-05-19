@@ -300,7 +300,7 @@ const Dashboard = () => {
     const fetchAccounts = async () => {
       return await supabase
         .from('whatsapp_accounts')
-        .select('id, display_name, phone_number')
+        .select('id, display_name, phone_number, user_id')
         .order('created_at', { ascending: false });
     };
 
@@ -339,14 +339,22 @@ const Dashboard = () => {
     setWhatsappAccounts(accounts);
     setHasWhatsAppAccount(accounts.length > 0);
     if (accounts.length > 0 && !selectedAccountId) {
-      // Para administradores: priorizar la cuenta principal "Hey Hey Ventas".
+      // Para administradores: priorizar PRIMERO su propia cuenta (la que les pertenece),
+      // luego "Hey Hey Ventas" como respaldo.
       // Para usuarios normales: respetar su última selección guardada.
       let preferred: string | null = null;
       if (isAdmin) {
-        const ventas = accounts.find(
+        const currentUserId = activeSession?.user?.id;
+        const own = currentUserId
+          ? accounts.find((a) => (a as WhatsAppAccount & { user_id?: string }).user_id === currentUserId)
+          : null;
+        if (own) preferred = own.id;
+        if (!preferred) {
+          const ventas = accounts.find(
           (a) => (a.display_name || '').trim().toLowerCase() === 'hey hey ventas'
         );
         if (ventas) preferred = ventas.id;
+        }
       }
       if (!preferred) {
         try {
