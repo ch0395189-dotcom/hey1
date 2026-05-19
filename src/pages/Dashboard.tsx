@@ -721,6 +721,13 @@ const Dashboard = () => {
             <PlatformSidebar 
               activePlatform={activePlatform} 
               onPlatformChange={setActivePlatform}
+              whatsappAccounts={whatsappAccounts}
+              selectedAccountId={selectedAccountId}
+              onSelectAccount={(id) => {
+                setSelectedAccountId(id);
+                setSelectedConversation(null);
+                try { localStorage.setItem('selectedAccountId', id); } catch {}
+              }}
             />
           </motion.div>
 
@@ -767,36 +774,6 @@ const Dashboard = () => {
             </div>
 
             <div className="flex-1 min-h-0 overflow-hidden">
-              {/* Bandejas separadas por número de WhatsApp */}
-              {(activePlatform === 'whatsapp' || activePlatform === 'all') && whatsappAccounts.length > 1 && (
-                <div className="flex items-center gap-1 px-2 py-2 border-b border-border overflow-x-auto scrollbar-whatsapp bg-background">
-                  {whatsappAccounts.map((acc, idx) => {
-                    const active = selectedAccountId === acc.id;
-                    const label = acc.display_name?.trim() || `WhatsApp ${idx + 1}`;
-                    return (
-                      <button
-                        key={acc.id}
-                        onClick={() => {
-                          setSelectedAccountId(acc.id);
-                          setSelectedConversation(null);
-                          try { localStorage.setItem('selectedAccountId', acc.id); } catch {}
-                        }}
-                        title={`${label} · ${acc.phone_number}`}
-                        className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors flex items-center gap-1.5 ${
-                          active
-                            ? 'bg-primary text-primary-foreground'
-                            : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                        }`}
-                      >
-                        <span className="truncate max-w-[140px]">{label}</span>
-                        <span className={`text-[10px] ${active ? 'opacity-80' : 'opacity-60'}`}>
-                          {acc.phone_number}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
               <ConversationsList
                 selectedConversationId={selectedConversation?.id || null}
                 onSelectConversation={setSelectedConversation}
