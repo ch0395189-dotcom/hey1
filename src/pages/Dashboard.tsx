@@ -170,7 +170,7 @@ const Dashboard = () => {
           .select('id, customer_name, customer_phone, customer_profile_pic, is_archived, whatsapp_account_id, platform, platform_account_id, assigned_to')
           .eq('id', conversationIdFromUrl);
         if (selectedAccountId) query = query.eq('whatsapp_account_id', selectedAccountId);
-        const { data } = await query.single();
+        const { data } = await query.maybeSingle();
         if (data) {
           setSelectedConversationState(data as Conversation);
         } else if (selectedAccountId) {
@@ -269,10 +269,21 @@ const Dashboard = () => {
   }, [soundEnabled, volume, desktopEnabled, getToneForPlatform, playNotificationSound, showNotification, sendPushNotification]);
 
   useEffect(() => {
-    if (selectedAccountId && selectedConversation?.whatsapp_account_id !== selectedAccountId) {
+    if (selectedAccountId && selectedConversation && selectedConversation.whatsapp_account_id !== selectedAccountId) {
       setSelectedConversation(null);
     }
   }, [selectedAccountId, selectedConversation?.whatsapp_account_id, setSelectedConversation]);
+
+  useEffect(() => {
+    if (!isAdmin || !accountCheckFinished || whatsappAccounts.length === 0) return;
+    const ventas = whatsappAccounts.find(
+      (a) => (a.display_name || '').trim().toLowerCase() === 'hey hey ventas'
+    );
+    if (ventas && selectedAccountId !== ventas.id) {
+      setSelectedAccountId(ventas.id);
+      try { localStorage.setItem('selectedWhatsappAccountId', ventas.id); } catch { /* ignore */ }
+    }
+  }, [isAdmin, accountCheckFinished, whatsappAccounts, selectedAccountId]);
 
   const checkWhatsAppAccounts = useCallback(async () => {
     setAccountCheckFinished(false);
@@ -355,8 +366,8 @@ const Dashboard = () => {
         : [];
       const currentSelectionIsOwn = !!selectedAccountId && ownAccounts.some((a) => a.id === selectedAccountId);
 
-      // Para administradores: SIEMPRE forzar que la selección sea una cuenta propia.
-      // Preferencia: "Hey Hey Ventas" → cualquier cuenta propia → primera cuenta.
+      // Para administradores: priorizar explícitamente "Hey Hey Ventas" para evitar ver otra bandeja.
+      // Si no existe, usar cuenta propia → primera cuenta disponible.
       // Para usuarios normales: respetar selección previa / localStorage.
       if (isAdmin) {
         const ventas = accounts.find(
