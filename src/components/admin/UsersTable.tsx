@@ -9,7 +9,8 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Check, X, Search, RefreshCw, Trash2, CalendarDays, Plus, CreditCard, Ban, ArrowRightLeft, Shield } from 'lucide-react';
+import { Check, X, Search, RefreshCw, Trash2, CalendarDays, Plus, CreditCard, Ban, ArrowRightLeft, Shield, Inbox } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Calendar } from '@/components/ui/calendar';
@@ -48,6 +49,7 @@ interface MetaStatus {
 
 export const UsersTable = () => {
   const [users, setUsers] = useState<UserWithSubscription[]>([]);
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
