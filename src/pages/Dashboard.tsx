@@ -99,6 +99,7 @@ interface WhatsAppAccount {
   id: string;
   display_name: string | null;
   phone_number: string;
+  user_id?: string;
 }
 
 const Dashboard = () => {
@@ -162,20 +163,23 @@ const Dashboard = () => {
 
   // Restore conversation from URL on mount
   useEffect(() => {
-    if (conversationIdFromUrl && !selectedConversation) {
+    if (conversationIdFromUrl && !selectedConversation && (!selectedAccountId || accountCheckFinished)) {
       const restoreConversation = async () => {
-        const { data } = await supabase
+        let query = supabase
           .from('conversations')
           .select('id, customer_name, customer_phone, customer_profile_pic, is_archived, whatsapp_account_id, platform, platform_account_id, assigned_to')
-          .eq('id', conversationIdFromUrl)
-          .single();
+          .eq('id', conversationIdFromUrl);
+        if (selectedAccountId) query = query.eq('whatsapp_account_id', selectedAccountId);
+        const { data } = await query.single();
         if (data) {
           setSelectedConversationState(data as Conversation);
+        } else if (selectedAccountId) {
+          setSelectedConversation(null);
         }
       };
       restoreConversation();
     }
-  }, [conversationIdFromUrl]);
+  }, [conversationIdFromUrl, selectedAccountId, accountCheckFinished, selectedConversation, setSelectedConversation]);
   const { toast } = useToast();
   const { permission, isSupported, requestPermission, showNotification } = useNotifications();
   const { playNotificationSound } = useNotificationSound();
@@ -350,11 +354,13 @@ const Dashboard = () => {
       // Para usuarios normales: respetar selección previa / localStorage.
       if (isAdmin) {
         if (!currentSelectionIsOwn) {
-          const ventas = ownAccounts.find(
+          const ventas = accounts.find(
             (a) => (a.display_name || '').trim().toLowerCase() === 'hey hey ventas'
           );
           const fallback = ownAccounts[0] || accounts[0];
-          setSelectedAccountId((ventas || fallback).id);
+          const nextAccountId = (ventas || fallback).id;
+          setSelectedAccountId(nextAccountId);
+          try { localStorage.setItem('selectedWhatsappAccountId', nextAccountId); } catch { /* ignore */ }
         }
       } else if (!selectedAccountId) {
         let preferred: string | null = null;
