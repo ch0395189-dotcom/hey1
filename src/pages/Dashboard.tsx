@@ -338,31 +338,32 @@ const Dashboard = () => {
     const accounts = (data || []) as WhatsAppAccount[];
     setWhatsappAccounts(accounts);
     setHasWhatsAppAccount(accounts.length > 0);
-    if (accounts.length > 0 && !selectedAccountId) {
-      // Para administradores: priorizar PRIMERO su propia cuenta (la que les pertenece),
-      // luego "Hey Hey Ventas" como respaldo.
-      // Para usuarios normales: respetar su última selección guardada.
-      let preferred: string | null = null;
+    if (accounts.length > 0) {
+      const currentUserId = activeSession?.user?.id;
+      const ownAccounts = currentUserId
+        ? accounts.filter((a) => (a as WhatsAppAccount & { user_id?: string }).user_id === currentUserId)
+        : [];
+      const currentSelectionIsOwn = !!selectedAccountId && ownAccounts.some((a) => a.id === selectedAccountId);
+
+      // Para administradores: SIEMPRE forzar que la selección sea una cuenta propia.
+      // Preferencia: "Hey Hey Ventas" → cualquier cuenta propia → primera cuenta.
+      // Para usuarios normales: respetar selección previa / localStorage.
       if (isAdmin) {
-        const currentUserId = activeSession?.user?.id;
-        const own = currentUserId
-          ? accounts.find((a) => (a as WhatsAppAccount & { user_id?: string }).user_id === currentUserId)
-          : null;
-        if (own) preferred = own.id;
-        if (!preferred) {
-          const ventas = accounts.find(
-          (a) => (a.display_name || '').trim().toLowerCase() === 'hey hey ventas'
-        );
-        if (ventas) preferred = ventas.id;
+        if (!currentSelectionIsOwn) {
+          const ventas = ownAccounts.find(
+            (a) => (a.display_name || '').trim().toLowerCase() === 'hey hey ventas'
+          );
+          const fallback = ownAccounts[0] || accounts[0];
+          setSelectedAccountId((ventas || fallback).id);
         }
-      }
-      if (!preferred) {
+      } else if (!selectedAccountId) {
+        let preferred: string | null = null;
         try {
           const saved = localStorage.getItem('selectedWhatsappAccountId');
           if (saved && accounts.some((a) => a.id === saved)) preferred = saved;
         } catch { /* ignore */ }
+        setSelectedAccountId(preferred || accounts[0].id);
       }
-      setSelectedAccountId(preferred || accounts[0].id);
     }
     setAccountCheckFinished(true);
   }, [selectedAccountId, isAdmin]);
