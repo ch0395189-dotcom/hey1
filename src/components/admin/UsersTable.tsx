@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Check, X, Search, RefreshCw, Trash2, CalendarDays, Plus, CreditCard, Ban, ArrowRightLeft, Shield, Inbox } from 'lucide-react';
+import { Check, X, Search, RefreshCw, Trash2, CalendarDays, Plus, CreditCard, Ban, ArrowRightLeft, Shield, Inbox, Crown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -49,6 +49,7 @@ interface MetaStatus {
 
 export const UsersTable = () => {
   const [users, setUsers] = useState<UserWithSubscription[]>([]);
+  const [adminIds, setAdminIds] = useState<Set<string>>(new Set());
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -125,6 +126,12 @@ export const UsersTable = () => {
       const { data: platAccounts } = await supabase
         .from('platform_accounts')
         .select('user_id, platform, is_active');
+
+      const { data: rolesData } = await supabase
+        .from('user_roles')
+        .select('user_id, role')
+        .eq('role', 'admin');
+      setAdminIds(new Set((rolesData || []).map(r => r.user_id)));
 
       const platformsMap = new Map<string, string[]>();
       const phoneMap = new Map<string, string>();
@@ -667,6 +674,10 @@ export const UsersTable = () => {
   // Sort: active subscribers first by current_period_start ASC (oldest activation first),
   // then trialing, then inactive at the bottom.
   const sortedUsers = [...filteredUsers].sort((a, b) => {
+    // Admins (principal) always pinned at the very top
+    const aAdmin = adminIds.has(a.user_id) ? 0 : 1;
+    const bAdmin = adminIds.has(b.user_id) ? 0 : 1;
+    if (aAdmin !== bAdmin) return aAdmin - bAdmin;
     const rank = (u: UserWithSubscription) => {
       const s = u.subscription?.status;
       if (s === 'active') return 0;
@@ -856,7 +867,15 @@ export const UsersTable = () => {
                 return (
                 <TableRow key={user.user_id}>
                   <TableCell className="font-medium">
-                    {user.full_name || 'Sin nombre'}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span>{user.full_name || 'Sin nombre'}</span>
+                      {adminIds.has(user.user_id) && (
+                        <Badge className="bg-amber-500/15 text-amber-600 border border-amber-500/40 hover:bg-amber-500/20 gap-1">
+                          <Crown className="h-3 w-3" />
+                          Principal
+                        </Badge>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell className="text-sm">{user.email}</TableCell>
                   <TableCell className="text-sm font-mono">
