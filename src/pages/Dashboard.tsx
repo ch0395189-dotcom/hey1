@@ -27,6 +27,7 @@ import { useNotificationSound } from "@/hooks/useNotificationSound";
 import { useNotificationSettings } from "@/hooks/useNotificationSettings";
 import { useSessionPersistence } from "@/hooks/useSessionPersistence";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { usePushHeartbeat } from "@/hooks/usePushHeartbeat";
 import type { User } from "@supabase/supabase-js";
 import { ConversationsList } from "@/components/whatsapp/ConversationsList";
 import { ChatWindow } from "@/components/whatsapp/ChatWindow";
@@ -181,6 +182,8 @@ const Dashboard = () => {
   const { soundEnabled, desktopEnabled, volume, tone, platformTones, toggleSound, toggleDesktop, setVolume, setTone, setPlatformTone, getToneForPlatform } = useNotificationSettings();
   const { isAdmin } = useAdminCheck();
   const { isRegistered, registerServiceWorker, sendNotification: sendPushNotification } = usePushNotifications();
+  // Mantiene viva la suscripción Web Push (recrea silenciosamente si iOS la invalidó)
+  usePushHeartbeat();
   const { isSuspended, loading: suspendedLoading, plan: suspendedPlan, daysExpired, reason: suspendedReason } = useSubscriptionGuard();
   const { isAgent, myPermissions } = useTeam();
   const canViewContacts = !isAgent || myPermissions.view_contacts;

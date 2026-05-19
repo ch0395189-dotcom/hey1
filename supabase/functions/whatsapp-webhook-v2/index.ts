@@ -521,34 +521,38 @@ Deno.serve(async (req) => {
               }
 
               // Send push notification to owner (and assigned agent if any)
-              try {
-                const { data: convInfo } = await supabase
-                  .from('conversations')
-                  .select('assigned_to, whatsapp_account_id')
-                  .eq('id', conversationId)
-                  .single();
-                const userIds = new Set<string>();
-                if (whatsappAccount.user_id) userIds.add(whatsappAccount.user_id);
-                if (convInfo?.assigned_to) userIds.add(convInfo.assigned_to);
-                const pushBody = (content || `[${messageType}]`).slice(0, 140);
-                await Promise.all(
-                  Array.from(userIds).map((uid) =>
-                    supabase.functions.invoke('send-push-notification', {
-                      body: {
-                        userId: uid,
-                        title: `💬 ${customerName}`,
-                        body: pushBody,
-                        url: `/dashboard?view=messages&platform=whatsapp&conv=${conversationId}`,
-                        conversationId,
-                        platform: 'whatsapp',
-                        tag: `conv-${conversationId}`,
-                      },
-                    })
-                  )
-                );
-              } catch (pushErr) {
-                console.error('Push notification error:', pushErr);
-              }
+              // Fire-and-forget: NO await — el webhook responde a Meta antes
+              // de que la invocación termine, reduciendo latencia percibida.
+              (async () => {
+                try {
+                  const { data: convInfo } = await supabase
+                    .from('conversations')
+                    .select('assigned_to')
+                    .eq('id', conversationId)
+                    .single();
+                  const userIds = new Set<string>();
+                  if (whatsappAccount.user_id) userIds.add(whatsappAccount.user_id);
+                  if (convInfo?.assigned_to) userIds.add(convInfo.assigned_to);
+                  const pushBody = (content || `[${messageType}]`).slice(0, 140);
+                  await Promise.all(
+                    Array.from(userIds).map((uid) =>
+                      supabase.functions.invoke('send-push-notification', {
+                        body: {
+                          userId: uid,
+                          title: `💬 ${customerName}`,
+                          body: pushBody,
+                          url: `/dashboard?view=messages&platform=whatsapp&conv=${conversationId}`,
+                          conversationId,
+                          platform: 'whatsapp',
+                          tag: `conv-${conversationId}`,
+                        },
+                      })
+                    )
+                  );
+                } catch (pushErr) {
+                  console.error('Push notification error (bg):', pushErr);
+                }
+              })();
 
               // Check if chatbot is enabled and should process this message
               const { data: chatbotConfig } = await supabase
