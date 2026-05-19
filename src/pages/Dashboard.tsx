@@ -182,6 +182,8 @@ const Dashboard = () => {
   const { soundEnabled, desktopEnabled, volume, tone, platformTones, toggleSound, toggleDesktop, setVolume, setTone, setPlatformTone, getToneForPlatform } = useNotificationSettings();
   const { isAdmin } = useAdminCheck();
   const { isRegistered, registerServiceWorker, sendNotification: sendPushNotification } = usePushNotifications();
+  // Mantiene viva la suscripción Web Push (recrea silenciosamente si iOS la invalidó)
+  usePushHeartbeat();
   const { isSuspended, loading: suspendedLoading, plan: suspendedPlan, daysExpired, reason: suspendedReason } = useSubscriptionGuard();
   const { isAgent, myPermissions } = useTeam();
   const canViewContacts = !isAgent || myPermissions.view_contacts;

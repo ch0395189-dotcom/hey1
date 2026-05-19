@@ -10,6 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Volume2, Bell, Play, MessageCircle, RefreshCw, Smartphone, Loader2 } from "lucide-react";
+import { Share, Plus } from "lucide-react";
 import { NotificationTone, Platform } from "@/hooks/useNotificationSettings";
 import { useNotificationSound } from "@/hooks/useNotificationSound";
 import { FaWhatsapp, FaFacebookMessenger, FaInstagram, FaTiktok } from "react-icons/fa";
@@ -90,6 +91,18 @@ export const NotificationSettingsPanel = ({
       toast.error(e?.message || "No se pudo activar");
     }
   };
+
+  // Detección iOS no instalado: en iPhone, Web Push solo funciona si la PWA
+  // fue añadida a pantalla de inicio. Si no, mostramos instrucciones.
+  const isIOS = typeof navigator !== "undefined" &&
+    /iPad|iPhone|iPod/.test(navigator.userAgent) &&
+    !/CriOS|FxiOS/.test(navigator.userAgent);
+  const isStandalone = typeof window !== "undefined" && (
+    window.matchMedia("(display-mode: standalone)").matches ||
+    // @ts-ignore — iOS Safari
+    (window.navigator as any).standalone === true
+  );
+  const iosNeedsInstall = isIOS && !isStandalone;
 
   return (
     <div className="space-y-6 p-1">
