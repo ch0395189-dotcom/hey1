@@ -357,7 +357,7 @@ const Dashboard = () => {
       setSelectedAccountId(preferred || accounts[0].id);
     }
     setAccountCheckFinished(true);
-  }, [selectedAccountId]);
+  }, [selectedAccountId, isAdmin]);
 
   // Use session persistence hook for mobile app stability
   const handleSessionRestored = useCallback((restoredUser: User) => {
