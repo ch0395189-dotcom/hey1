@@ -232,6 +232,22 @@ export const NotificationSettingsPanel = ({
         <p className="text-xs text-muted-foreground">
           Recibe avisos en tu celular incluso con la app cerrada. En iPhone, instala primero la app a la pantalla de inicio.
         </p>
+        {iosNeedsInstall && (
+          <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 space-y-2">
+            <p className="text-xs font-medium">
+              📱 En iPhone debes instalar la app primero
+            </p>
+            <ol className="text-xs text-muted-foreground space-y-1 list-decimal pl-4">
+              <li className="flex items-center gap-1 flex-wrap">
+                Toca <Share className="inline w-3 h-3" /> Compartir en Safari
+              </li>
+              <li className="flex items-center gap-1 flex-wrap">
+                Elige <Plus className="inline w-3 h-3" /> "Añadir a pantalla de inicio"
+              </li>
+              <li>Abre Hey Hey desde el icono instalado y vuelve aquí</li>
+            </ol>
+          </div>
+        )}
         {pushStatus === "unsupported" && (
           <p className="text-xs text-destructive">Tu navegador no soporta notificaciones push.</p>
         )}
