@@ -359,12 +359,15 @@ const Dashboard = () => {
       // Preferencia: "Hey Hey Ventas" → cualquier cuenta propia → primera cuenta.
       // Para usuarios normales: respetar selección previa / localStorage.
       if (isAdmin) {
-        if (!currentSelectionIsOwn) {
-          const ventas = accounts.find(
-            (a) => (a.display_name || '').trim().toLowerCase() === 'hey hey ventas'
-          );
+        const ventas = accounts.find(
+          (a) => (a.display_name || '').trim().toLowerCase() === 'hey hey ventas'
+        );
+        if (ventas && selectedAccountId !== ventas.id) {
+          setSelectedAccountId(ventas.id);
+          try { localStorage.setItem('selectedWhatsappAccountId', ventas.id); } catch { /* ignore */ }
+        } else if (!currentSelectionIsOwn) {
           const fallback = ownAccounts[0] || accounts[0];
-          const nextAccountId = (ventas || fallback).id;
+          const nextAccountId = fallback.id;
           setSelectedAccountId(nextAccountId);
           try { localStorage.setItem('selectedWhatsappAccountId', nextAccountId); } catch { /* ignore */ }
         }
