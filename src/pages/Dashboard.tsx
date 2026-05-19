@@ -339,7 +339,21 @@ const Dashboard = () => {
     setWhatsappAccounts(accounts);
     setHasWhatsAppAccount(accounts.length > 0);
     if (accounts.length > 0 && !selectedAccountId) {
-      setSelectedAccountId(accounts[0].id);
+      // Prefer last-selected account stored in localStorage, then an account
+      // whose display_name matches "Hey Hey Ventas" (principal del admin),
+      // and finally the first one available.
+      let preferred: string | null = null;
+      try {
+        const saved = localStorage.getItem('selectedWhatsappAccountId');
+        if (saved && accounts.some((a) => a.id === saved)) preferred = saved;
+      } catch { /* ignore */ }
+      if (!preferred) {
+        const ventas = accounts.find(
+          (a) => (a.display_name || '').trim().toLowerCase() === 'hey hey ventas'
+        );
+        if (ventas) preferred = ventas.id;
+      }
+      setSelectedAccountId(preferred || accounts[0].id);
     }
     setAccountCheckFinished(true);
   }, [selectedAccountId]);
