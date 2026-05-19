@@ -339,16 +339,16 @@ const Dashboard = () => {
     setWhatsappAccounts(accounts);
     setHasWhatsAppAccount(accounts.length > 0);
     if (accounts.length > 0 && !selectedAccountId) {
-      // Siempre priorizar la cuenta principal "Hey Hey Ventas" si existe.
-      // Si no, usar la última seleccionada guardada en localStorage,
-      // y como último recurso, la primera cuenta disponible.
+      // Para administradores: priorizar la cuenta principal "Hey Hey Ventas".
+      // Para usuarios normales: respetar su última selección guardada.
       let preferred: string | null = null;
-      const ventas = accounts.find(
-        (a) => (a.display_name || '').trim().toLowerCase() === 'hey hey ventas'
-      );
-      if (ventas) {
-        preferred = ventas.id;
-      } else {
+      if (isAdmin) {
+        const ventas = accounts.find(
+          (a) => (a.display_name || '').trim().toLowerCase() === 'hey hey ventas'
+        );
+        if (ventas) preferred = ventas.id;
+      }
+      if (!preferred) {
         try {
           const saved = localStorage.getItem('selectedWhatsappAccountId');
           if (saved && accounts.some((a) => a.id === saved)) preferred = saved;
@@ -357,7 +357,7 @@ const Dashboard = () => {
       setSelectedAccountId(preferred || accounts[0].id);
     }
     setAccountCheckFinished(true);
-  }, [selectedAccountId]);
+  }, [selectedAccountId, isAdmin]);
 
   // Use session persistence hook for mobile app stability
   const handleSessionRestored = useCallback((restoredUser: User) => {
