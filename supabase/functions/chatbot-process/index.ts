@@ -1020,7 +1020,9 @@ function getWhatsAppMimeType(mediaUrl: string, mediaType: 'image' | 'video' | 'd
     if (url.endsWith('.m4a') || url.endsWith('.mp4')) return 'audio/mp4';
     if (url.endsWith('.aac')) return 'audio/aac';
     if (url.endsWith('.amr')) return 'audio/amr';
-    return 'audio/ogg; codecs=opus';
+    // Meta /media solo acepta MIME estrictos. NO incluir ";codecs=opus"
+    // o rechaza la subida con "type is invalid".
+    return 'audio/ogg';
   }
   if (mediaType === 'video') return 'video/mp4';
   if (mediaType === 'image') return url.endsWith('.png') ? 'image/png' : 'image/jpeg';
@@ -1041,7 +1043,15 @@ async function uploadWhatsAppMediaFromUrl(
   }
 
   const mediaBuffer = await mediaResponse.arrayBuffer();
-  const fileName = mediaType === 'audio' ? 'bot-audio.ogg' : 'bot-media';
+  const extByMime: Record<string, string> = {
+    'audio/ogg': 'ogg',
+    'audio/mpeg': 'mp3',
+    'audio/mp4': 'm4a',
+    'audio/aac': 'aac',
+    'audio/amr': 'amr',
+  };
+  const ext = extByMime[mimeType] || (mediaType === 'audio' ? 'ogg' : 'bin');
+  const fileName = mediaType === 'audio' ? `bot-audio.${ext}` : 'bot-media';
   const form = new FormData();
   form.append('messaging_product', 'whatsapp');
   form.append('type', mimeType);
@@ -1053,11 +1063,17 @@ async function uploadWhatsAppMediaFromUrl(
     body: form,
   });
 
-  const uploadData = await uploadResponse.json().catch(() => null);
-  console.log('WhatsApp media upload response:', JSON.stringify(uploadData));
+  const rawText = await uploadResponse.text();
+  let uploadData: any = null;
+  try { uploadData = JSON.parse(rawText); } catch { /* keep null */ }
+  console.log(
+    `WhatsApp media upload [${mimeType}] status=${uploadResponse.status} body=${rawText.slice(0, 500)}`
+  );
 
   if (!uploadResponse.ok || !uploadData?.id) {
-    throw new Error(`WhatsApp media upload failed: ${JSON.stringify(uploadData)}`);
+    throw new Error(
+      `WhatsApp media upload failed (status ${uploadResponse.status}): ${rawText.slice(0, 300)}`
+    );
   }
 
   return uploadData.id;
