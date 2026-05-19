@@ -339,19 +339,20 @@ const Dashboard = () => {
     setWhatsappAccounts(accounts);
     setHasWhatsAppAccount(accounts.length > 0);
     if (accounts.length > 0 && !selectedAccountId) {
-      // Prefer last-selected account stored in localStorage, then an account
-      // whose display_name matches "Hey Hey Ventas" (principal del admin),
-      // and finally the first one available.
+      // Siempre priorizar la cuenta principal "Hey Hey Ventas" si existe.
+      // Si no, usar la última seleccionada guardada en localStorage,
+      // y como último recurso, la primera cuenta disponible.
       let preferred: string | null = null;
-      try {
-        const saved = localStorage.getItem('selectedWhatsappAccountId');
-        if (saved && accounts.some((a) => a.id === saved)) preferred = saved;
-      } catch { /* ignore */ }
-      if (!preferred) {
-        const ventas = accounts.find(
-          (a) => (a.display_name || '').trim().toLowerCase() === 'hey hey ventas'
-        );
-        if (ventas) preferred = ventas.id;
+      const ventas = accounts.find(
+        (a) => (a.display_name || '').trim().toLowerCase() === 'hey hey ventas'
+      );
+      if (ventas) {
+        preferred = ventas.id;
+      } else {
+        try {
+          const saved = localStorage.getItem('selectedWhatsappAccountId');
+          if (saved && accounts.some((a) => a.id === saved)) preferred = saved;
+        } catch { /* ignore */ }
       }
       setSelectedAccountId(preferred || accounts[0].id);
     }
