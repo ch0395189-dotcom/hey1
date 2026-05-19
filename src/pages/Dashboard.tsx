@@ -721,6 +721,13 @@ const Dashboard = () => {
             <PlatformSidebar 
               activePlatform={activePlatform} 
               onPlatformChange={setActivePlatform}
+              whatsappAccounts={whatsappAccounts}
+              selectedAccountId={selectedAccountId}
+              onSelectAccount={(id) => {
+                setSelectedAccountId(id);
+                setSelectedConversation(null);
+                try { localStorage.setItem('selectedAccountId', id); } catch {}
+              }}
             />
           </motion.div>
 
