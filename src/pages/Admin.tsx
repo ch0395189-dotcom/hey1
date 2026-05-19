@@ -11,10 +11,11 @@ import { CloneBotManager } from '@/components/admin/CloneBotManager';
 import { PhoneNumbersTable } from '@/components/admin/PhoneNumbersTable';
 import { EmailsTable } from '@/components/admin/EmailsTable';
 import { OrphanUsers } from '@/components/admin/OrphanUsers';
+import { MyWhatsAppAccounts } from '@/components/admin/MyWhatsAppAccounts';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Shield, Users, CreditCard, Bell, Coins, BarChart3, Bot, Phone, Mail, UserX } from 'lucide-react';
+import { ArrowLeft, Shield, Users, CreditCard, Bell, Coins, BarChart3, Bot, Phone, Mail, UserX, Link2 } from 'lucide-react';
 
 const Admin = () => {
   const navigate = useNavigate();
@@ -56,7 +57,7 @@ const Admin = () => {
 
       <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-8">
         <Tabs defaultValue="users" className="space-y-6">
-          <TabsList className="grid w-full sm:max-w-5xl grid-cols-9 h-auto">
+          <TabsList className="grid w-full sm:max-w-6xl grid-cols-10 h-auto">
             <TabsTrigger value="users" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
               <span className="hidden sm:inline">Usuarios</span>
@@ -68,6 +69,10 @@ const Admin = () => {
             <TabsTrigger value="phones" className="flex items-center gap-2">
               <Phone className="h-4 w-4" />
               <span className="hidden sm:inline">Números</span>
+            </TabsTrigger>
+            <TabsTrigger value="my-whatsapp" className="flex items-center gap-2">
+              <Link2 className="h-4 w-4" />
+              <span className="hidden sm:inline">Mis WhatsApp</span>
             </TabsTrigger>
             <TabsTrigger value="emails" className="flex items-center gap-2">
               <Mail className="h-4 w-4" />
@@ -118,6 +123,10 @@ const Admin = () => {
 
           <TabsContent value="phones">
             <PhoneNumbersTable />
+          </TabsContent>
+
+          <TabsContent value="my-whatsapp">
+            <MyWhatsAppAccounts />
           </TabsContent>
 
           <TabsContent value="emails">
