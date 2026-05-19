@@ -99,6 +99,7 @@ interface WhatsAppAccount {
   id: string;
   display_name: string | null;
   phone_number: string;
+  user_id?: string;
 }
 
 const Dashboard = () => {
@@ -162,20 +163,23 @@ const Dashboard = () => {
 
   // Restore conversation from URL on mount
   useEffect(() => {
-    if (conversationIdFromUrl && !selectedConversation) {
+    if (conversationIdFromUrl && !selectedConversation && (!selectedAccountId || accountCheckFinished)) {
       const restoreConversation = async () => {
-        const { data } = await supabase
+        let query = supabase
           .from('conversations')
           .select('id, customer_name, customer_phone, customer_profile_pic, is_archived, whatsapp_account_id, platform, platform_account_id, assigned_to')
-          .eq('id', conversationIdFromUrl)
-          .single();
+          .eq('id', conversationIdFromUrl);
+        if (selectedAccountId) query = query.eq('whatsapp_account_id', selectedAccountId);
+        const { data } = await query.maybeSingle();
         if (data) {
           setSelectedConversationState(data as Conversation);
+        } else if (selectedAccountId) {
+          setSelectedConversation(null);
         }
       };
       restoreConversation();
     }
-  }, [conversationIdFromUrl]);
+  }, [conversationIdFromUrl, selectedAccountId, accountCheckFinished, selectedConversation, setSelectedConversation]);
   const { toast } = useToast();
   const { permission, isSupported, requestPermission, showNotification } = useNotifications();
   const { playNotificationSound } = useNotificationSound();
@@ -264,6 +268,23 @@ const Dashboard = () => {
     });
   }, [soundEnabled, volume, desktopEnabled, getToneForPlatform, playNotificationSound, showNotification, sendPushNotification]);
 
+  useEffect(() => {
+    if (selectedAccountId && selectedConversation && selectedConversation.whatsapp_account_id !== selectedAccountId) {
+      setSelectedConversation(null);
+    }
+  }, [selectedAccountId, selectedConversation?.whatsapp_account_id, setSelectedConversation]);
+
+  useEffect(() => {
+    if (!isAdmin || !accountCheckFinished || whatsappAccounts.length === 0) return;
+    const ventas = whatsappAccounts.find(
+      (a) => (a.display_name || '').trim().toLowerCase() === 'hey hey ventas'
+    );
+    if (ventas && selectedAccountId !== ventas.id) {
+      setSelectedAccountId(ventas.id);
+      try { localStorage.setItem('selectedWhatsappAccountId', ventas.id); } catch { /* ignore */ }
+    }
+  }, [isAdmin, accountCheckFinished, whatsappAccounts, selectedAccountId]);
+
   const checkWhatsAppAccounts = useCallback(async () => {
     setAccountCheckFinished(false);
     const delays = [0, 250, 750, 1500];
@@ -345,16 +366,21 @@ const Dashboard = () => {
         : [];
       const currentSelectionIsOwn = !!selectedAccountId && ownAccounts.some((a) => a.id === selectedAccountId);
 
-      // Para administradores: SIEMPRE forzar que la selección sea una cuenta propia.
-      // Preferencia: "Hey Hey Ventas" → cualquier cuenta propia → primera cuenta.
+      // Para administradores: priorizar explícitamente "Hey Hey Ventas" para evitar ver otra bandeja.
+      // Si no existe, usar cuenta propia → primera cuenta disponible.
       // Para usuarios normales: respetar selección previa / localStorage.
       if (isAdmin) {
-        if (!currentSelectionIsOwn) {
-          const ventas = ownAccounts.find(
-            (a) => (a.display_name || '').trim().toLowerCase() === 'hey hey ventas'
-          );
+        const ventas = accounts.find(
+          (a) => (a.display_name || '').trim().toLowerCase() === 'hey hey ventas'
+        );
+        if (ventas && selectedAccountId !== ventas.id) {
+          setSelectedAccountId(ventas.id);
+          try { localStorage.setItem('selectedWhatsappAccountId', ventas.id); } catch { /* ignore */ }
+        } else if (!currentSelectionIsOwn) {
           const fallback = ownAccounts[0] || accounts[0];
-          setSelectedAccountId((ventas || fallback).id);
+          const nextAccountId = fallback.id;
+          setSelectedAccountId(nextAccountId);
+          try { localStorage.setItem('selectedWhatsappAccountId', nextAccountId); } catch { /* ignore */ }
         }
       } else if (!selectedAccountId) {
         let preferred: string | null = null;
@@ -744,6 +770,7 @@ const Dashboard = () => {
               <ConversationsList
                 selectedConversationId={selectedConversation?.id || null}
                 onSelectConversation={setSelectedConversation}
+                whatsappAccountId={selectedAccountId || undefined}
                 platform={activePlatform}
                 onNewMessage={handleNewMessage}
               />
