@@ -268,6 +268,12 @@ const Dashboard = () => {
     });
   }, [soundEnabled, volume, desktopEnabled, getToneForPlatform, playNotificationSound, showNotification, sendPushNotification]);
 
+  useEffect(() => {
+    if (selectedAccountId && selectedConversation?.whatsapp_account_id !== selectedAccountId) {
+      setSelectedConversation(null);
+    }
+  }, [selectedAccountId, selectedConversation?.whatsapp_account_id, setSelectedConversation]);
+
   const checkWhatsAppAccounts = useCallback(async () => {
     setAccountCheckFinished(false);
     const delays = [0, 250, 750, 1500];
@@ -750,6 +756,7 @@ const Dashboard = () => {
               <ConversationsList
                 selectedConversationId={selectedConversation?.id || null}
                 onSelectConversation={setSelectedConversation}
+                whatsappAccountId={selectedAccountId || undefined}
                 platform={activePlatform}
                 onNewMessage={handleNewMessage}
               />
