@@ -768,7 +768,7 @@ const Dashboard = () => {
 
             <div className="flex-1 min-h-0 overflow-hidden">
               {/* Bandejas separadas por número de WhatsApp */}
-              {activePlatform === 'whatsapp' && whatsappAccounts.length > 1 && (
+              {(activePlatform === 'whatsapp' || activePlatform === 'all') && whatsappAccounts.length > 1 && (
                 <div className="flex items-center gap-1 px-2 py-2 border-b border-border overflow-x-auto scrollbar-whatsapp bg-background">
                   {whatsappAccounts.map((acc, idx) => {
                     const active = selectedAccountId === acc.id;
