@@ -27,6 +27,7 @@ import { useNotificationSound } from "@/hooks/useNotificationSound";
 import { useNotificationSettings } from "@/hooks/useNotificationSettings";
 import { useSessionPersistence } from "@/hooks/useSessionPersistence";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { usePushHeartbeat } from "@/hooks/usePushHeartbeat";
 import type { User } from "@supabase/supabase-js";
 import { ConversationsList } from "@/components/whatsapp/ConversationsList";
 import { ChatWindow } from "@/components/whatsapp/ChatWindow";
