@@ -867,7 +867,15 @@ export const UsersTable = () => {
                 return (
                 <TableRow key={user.user_id}>
                   <TableCell className="font-medium">
-                    {user.full_name || 'Sin nombre'}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span>{user.full_name || 'Sin nombre'}</span>
+                      {adminIds.has(user.user_id) && (
+                        <Badge className="bg-amber-500/15 text-amber-600 border border-amber-500/40 hover:bg-amber-500/20 gap-1">
+                          <Crown className="h-3 w-3" />
+                          Principal
+                        </Badge>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell className="text-sm">{user.email}</TableCell>
                   <TableCell className="text-sm font-mono">
