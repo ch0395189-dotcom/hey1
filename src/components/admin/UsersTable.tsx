@@ -923,6 +923,14 @@ export const UsersTable = () => {
                       <Button
                         size="sm"
                         variant="outline"
+                        onClick={() => navigate(`/admin/inbox/${user.user_id}`)}
+                        title="Ver bandeja de entrada"
+                      >
+                        <Inbox className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
                         onClick={() => handleUpdateSubscription(user.user_id, 'status', 'active')}
                         disabled={user.subscription?.status === 'active'}
                         title="Activar"
