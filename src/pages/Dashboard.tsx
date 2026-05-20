@@ -721,7 +721,7 @@ const Dashboard = () => {
             <PlatformSidebar 
               activePlatform={activePlatform} 
               onPlatformChange={setActivePlatform}
-              whatsappAccounts={whatsappAccounts}
+              whatsappAccounts={whatsappAccounts.filter(a => a.user_id === user?.id)}
               selectedAccountId={selectedAccountId}
               onSelectAccount={(id) => {
                 setSelectedAccountId(id);
