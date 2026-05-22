@@ -1803,6 +1803,15 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
         onOpenChange={setShowInteractiveDialog}
         onSend={handleSendInteractiveMessage}
       />
+
+      {/* Cloned voice preview & multi-voice selector */}
+      <ClonedVoicePreviewDialog
+        open={voicePreviewOpen}
+        onOpenChange={setVoicePreviewOpen}
+        text={newMessage}
+        defaultVoice={clonedVoice}
+        onConfirm={sendClonedVoiceBlob}
+      />
     </div>
   );
 };
