@@ -380,6 +380,12 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
       } else {
         setClonedVoice(null);
       }
+      // Also check for saved voice clones in the new table
+      const { count } = await supabase
+        .from('user_voice_clones')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id);
+      if (!cancelled) setHasAnyVoiceClone((count ?? 0) > 0);
     })();
     return () => { cancelled = true; };
   }, [conversation?.id]);
