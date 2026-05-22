@@ -410,6 +410,8 @@ export const ApiKeysSettings = () => {
               Clona voces de personajes y obtén el ID del modelo para usarlo en el chatbot
             </p>
           </div>
+
+          {fishAudioKey && <VoiceClonesManager />}
         </CardContent>
       </Card>
     </div>
