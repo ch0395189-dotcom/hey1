@@ -915,7 +915,6 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
 
   const _handleSendInteractive = async (data: InteractiveMessageData) => {
     if (!conversation || sending) return;
-    if (!conversation || sending) return;
     
     // Only WhatsApp supports interactive messages
     if (conversation.platform !== 'whatsapp') {
