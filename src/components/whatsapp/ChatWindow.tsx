@@ -813,6 +813,108 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
   };
 
   const handleSendInteractiveMessage = async (data: InteractiveMessageData) => {
+    return _handleSendInteractive(data);
+  };
+
+  const handleSendClonedVoice = async () => {
+    if (!conversation || !newMessage.trim() || sendingClonedVoice || sending) return;
+    if (!clonedVoice?.voiceModelId) {
+      toast({
+        title: "Voz clonada no configurada",
+        description: "Configura tu API key de Fish Audio y un ID de modelo de voz en Ajustes.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSendingClonedVoice(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Sesión no válida");
+
+      toast({ title: "Generando audio...", description: `Sintetizando con tu voz clonada (${clonedVoice.voiceName || "personalizada"}).` });
+
+      // 1. Call Fish Audio TTS — returns raw mp3 binary
+      const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL;
+      const { data: { session } } = await supabase.auth.getSession();
+      const ttsRes = await fetch(`${supabaseUrl}/functions/v1/fish-audio-tts`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
+        body: JSON.stringify({
+          text: newMessage.trim(),
+          voiceModelId: clonedVoice.voiceModelId,
+          userId: user.id,
+        }),
+      });
+
+      if (!ttsRes.ok) {
+        let errMsg = `TTS error ${ttsRes.status}`;
+        try {
+          const j = await ttsRes.json();
+          errMsg = j?.error || errMsg;
+        } catch {}
+        throw new Error(errMsg);
+      }
+
+      const mp3Buffer = await ttsRes.arrayBuffer();
+      const mp3File = new File([mp3Buffer], `cloned_${Date.now()}.mp3`, { type: "audio/mpeg" });
+
+      // 2. Convert to OGG/Opus for WhatsApp compatibility
+      const oggFile = await prepareAttachedAudioForWhatsApp(mp3File);
+
+      // 3. Upload to storage
+      const filePath = `${conversation.id}/cloned_${Date.now()}.ogg`;
+      const { error: uploadError } = await supabase.storage
+        .from("media")
+        .upload(filePath, oggFile, { contentType: "audio/ogg", upsert: false });
+      if (uploadError) throw uploadError;
+      const { data: urlData } = supabase.storage.from("media").getPublicUrl(filePath);
+
+      // 4. Send via the right WhatsApp channel
+      const isExternalConnection = accountConnectionType === "external_qr" || accountConnectionType === "z-api";
+      if (isExternalConnection) {
+        const { data, error } = await supabase.functions.invoke("whatsapp-send-external", {
+          body: {
+            accountId: conversation.whatsapp_account_id,
+            to: conversation.customer_phone,
+            mediaUrl: urlData.publicUrl,
+            mediaType: "audio",
+            conversationId: conversation.id,
+          },
+        });
+        if (error) throw error;
+        if (data?.error) throw new Error(getFriendlyWhatsappError(data));
+      } else {
+        const { data, error } = await supabase.functions.invoke("whatsapp-send-message", {
+          body: {
+            conversation_id: conversation.id,
+            media_url: urlData.publicUrl,
+            media_type: "audio",
+          },
+        });
+        if (error) throw error;
+        if (data?.error) throw new Error(getFriendlyWhatsappError(data));
+      }
+
+      setNewMessage("");
+      toast({ title: "Nota de voz enviada", description: "Tu audio con voz clonada se envió correctamente." });
+    } catch (error: any) {
+      console.error("Error sending cloned voice:", error);
+      toast({
+        title: "Error al enviar voz clonada",
+        description: error?.message || "No se pudo generar o enviar el audio.",
+        variant: "destructive",
+      });
+    } finally {
+      setSendingClonedVoice(false);
+    }
+  };
+
+  const _handleSendInteractive = async (data: InteractiveMessageData) => {
+    if (!conversation || sending) return;
     if (!conversation || sending) return;
     
     // Only WhatsApp supports interactive messages
