@@ -825,6 +825,68 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
     return _handleSendInteractive(data);
   };
 
+  // Handler used by the preview dialog: receives an already-generated audio blob
+  const sendClonedVoiceBlob = async (
+    audioBlob: Blob,
+    voice: { voice_model_id: string; voice_name: string }
+  ) => {
+    if (!conversation) return;
+    setSendingClonedVoice(true);
+    try {
+      const mp3File = new File([audioBlob], `cloned_${Date.now()}.mp3`, { type: 'audio/mpeg' });
+      const oggFile = await prepareAttachedAudioForWhatsApp(mp3File);
+
+      const filePath = `${conversation.id}/cloned_${Date.now()}.ogg`;
+      const { error: uploadError } = await supabase.storage
+        .from('media')
+        .upload(filePath, oggFile, { contentType: 'audio/ogg', upsert: false });
+      if (uploadError) throw uploadError;
+      const { data: urlData } = supabase.storage.from('media').getPublicUrl(filePath);
+
+      const isExternalConnection =
+        accountConnectionType === 'external_qr' || accountConnectionType === 'z-api';
+      if (isExternalConnection) {
+        const { data, error } = await supabase.functions.invoke('whatsapp-send-external', {
+          body: {
+            accountId: conversation.whatsapp_account_id,
+            to: conversation.customer_phone,
+            mediaUrl: urlData.publicUrl,
+            mediaType: 'audio',
+            conversationId: conversation.id,
+          },
+        });
+        if (error) throw error;
+        if (data?.error) throw new Error(getFriendlyWhatsappError(data));
+      } else {
+        const { data, error } = await supabase.functions.invoke('whatsapp-send-message', {
+          body: {
+            conversation_id: conversation.id,
+            media_url: urlData.publicUrl,
+            media_type: 'audio',
+          },
+        });
+        if (error) throw error;
+        if (data?.error) throw new Error(getFriendlyWhatsappError(data));
+      }
+
+      setNewMessage('');
+      toast({
+        title: 'Nota de voz enviada',
+        description: `Enviada con la voz "${voice.voice_name}".`,
+      });
+    } catch (error: any) {
+      console.error('Error sending cloned voice blob:', error);
+      toast({
+        title: 'Error al enviar voz clonada',
+        description: error?.message || 'No se pudo enviar el audio.',
+        variant: 'destructive',
+      });
+      throw error;
+    } finally {
+      setSendingClonedVoice(false);
+    }
+  };
+
   const handleSendClonedVoice = async () => {
     if (!conversation || !newMessage.trim() || sendingClonedVoice || sending) return;
     if (!clonedVoice?.voiceModelId) {
