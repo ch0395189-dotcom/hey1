@@ -1752,15 +1752,15 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
             style={{ fontSize: '16px' }}
             disabled={sending || isRecording}
           />
-          {newMessage.trim() && clonedVoice?.voiceModelId && conversation?.platform === 'whatsapp' && (
+          {newMessage.trim() && (clonedVoice?.voiceModelId || hasAnyVoiceClone) && conversation?.platform === 'whatsapp' && (
             <Button
               type="button"
               size="icon"
               variant="outline"
               className="shrink-0 h-10 w-10 md:h-11 md:w-11 rounded-full border-emerald-500/40 hover:bg-emerald-500/10"
-              onClick={handleSendClonedVoice}
+              onClick={() => setVoicePreviewOpen(true)}
               disabled={sending || sendingClonedVoice}
-              title={`Enviar como nota de voz clonada (${clonedVoice.voiceName || 'personalizada'})`}
+              title="Enviar como nota de voz clonada (vista previa)"
             >
               <Sparkles className={`w-5 h-5 text-emerald-600 ${sendingClonedVoice ? 'animate-pulse' : ''}`} />
             </Button>
