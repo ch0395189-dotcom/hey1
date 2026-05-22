@@ -1119,6 +1119,36 @@ export type Database = {
         }
         Relationships: []
       }
+      user_voice_clones: {
+        Row: {
+          created_at: string
+          id: string
+          is_default: boolean
+          updated_at: string
+          user_id: string
+          voice_model_id: string
+          voice_name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          updated_at?: string
+          user_id: string
+          voice_model_id: string
+          voice_name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          updated_at?: string
+          user_id?: string
+          voice_model_id?: string
+          voice_name?: string
+        }
+        Relationships: []
+      }
       whatsapp_accounts: {
         Row: {
           access_token: string
