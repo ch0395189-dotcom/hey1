@@ -149,7 +149,22 @@ const UpdatePassword = () => {
           <span className="font-display font-bold text-2xl">InboxWA</span>
         </div>
 
-        {success ? (
+        {sessionError ? (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="text-center space-y-4"
+          >
+            <h1 className="font-display text-2xl font-bold">Enlace no válido</h1>
+            <p className="text-muted-foreground">{sessionError}</p>
+            <Button
+              onClick={() => navigate("/reset-password")}
+              className="bg-gradient-hero hover:opacity-90"
+            >
+              Solicitar nuevo enlace
+            </Button>
+          </motion.div>
+        ) : success ? (
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
