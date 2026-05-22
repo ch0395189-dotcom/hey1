@@ -66,6 +66,7 @@ import { useNotificationSound } from "@/hooks/useNotificationSound";
 import { FaWhatsapp, FaFacebookMessenger, FaInstagram, FaTiktok } from "react-icons/fa";
 import { ImagePreviewDialog } from "@/components/whatsapp/ImagePreviewDialog";
 import { InteractiveMessageDialog, InteractiveMessageData } from "@/components/whatsapp/InteractiveMessageDialog";
+import { ClonedVoicePreviewDialog } from "@/components/whatsapp/ClonedVoicePreviewDialog";
 import { TagManager } from "@/components/contacts/TagManager";
 import { AssignAgentMenu } from "@/components/team/AssignAgentMenu";
 import { useTeam } from "@/hooks/useTeam";
