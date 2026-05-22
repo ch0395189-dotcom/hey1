@@ -20,6 +20,7 @@ import {
   Loader2,
   Mic
 } from 'lucide-react';
+import { VoiceClonesManager } from './VoiceClonesManager';
 
 interface ApiKey {
   id: string;
