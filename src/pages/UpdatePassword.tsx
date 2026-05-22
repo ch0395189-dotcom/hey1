@@ -15,18 +15,66 @@ const UpdatePassword = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [sessionReady, setSessionReady] = useState(false);
+  const [sessionError, setSessionError] = useState<string | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
-    // Check if user came from a password reset email
-    const hashParams = new URLSearchParams(window.location.hash.substring(1));
-    const accessToken = hashParams.get('access_token');
-    const type = hashParams.get('type');
+    let cancelled = false;
 
-    if (type === 'recovery' && accessToken) {
-      // Session will be set automatically by Supabase
-    }
+    const init = async () => {
+      try {
+        const url = new URL(window.location.href);
+        const code = url.searchParams.get("code");
+        const errorDesc = url.searchParams.get("error_description") || url.searchParams.get("error");
+
+        const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+        const accessToken = hashParams.get("access_token");
+        const refreshToken = hashParams.get("refresh_token");
+        const hashError = hashParams.get("error_description") || hashParams.get("error");
+
+        if (errorDesc || hashError) {
+          throw new Error(errorDesc || hashError || "Enlace inválido");
+        }
+
+        // PKCE flow: ?code=...
+        if (code) {
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
+          if (error) throw error;
+          // Clean URL
+          window.history.replaceState({}, document.title, "/update-password");
+        }
+        // Legacy hash flow: #access_token=...&refresh_token=...
+        else if (accessToken && refreshToken) {
+          const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+          if (error) throw error;
+          window.history.replaceState({}, document.title, "/update-password");
+        }
+
+        const { data } = await supabase.auth.getSession();
+        if (cancelled) return;
+        if (!data.session) {
+          setSessionError(
+            "El enlace de recuperación expiró o no es válido. Solicita uno nuevo."
+          );
+        } else {
+          setSessionReady(true);
+        }
+      } catch (err: any) {
+        if (!cancelled) {
+          setSessionError(err?.message || "No pudimos validar el enlace de recuperación.");
+        }
+      }
+    };
+
+    init();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const handleUpdatePassword = async (e: React.FormEvent) => {
@@ -53,6 +101,14 @@ const UpdatePassword = () => {
     setLoading(true);
 
     try {
+      // Asegurar que haya sesión antes de actualizar
+      const { data: sess } = await supabase.auth.getSession();
+      if (!sess.session) {
+        throw new Error(
+          "La sesión de recuperación expiró. Solicita un nuevo enlace de restablecimiento."
+        );
+      }
+
       const { error } = await supabase.auth.updateUser({ password });
 
       if (error) throw error;
@@ -93,7 +149,22 @@ const UpdatePassword = () => {
           <span className="font-display font-bold text-2xl">InboxWA</span>
         </div>
 
-        {success ? (
+        {sessionError ? (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="text-center space-y-4"
+          >
+            <h1 className="font-display text-2xl font-bold">Enlace no válido</h1>
+            <p className="text-muted-foreground">{sessionError}</p>
+            <Button
+              onClick={() => navigate("/reset-password")}
+              className="bg-gradient-hero hover:opacity-90"
+            >
+              Solicitar nuevo enlace
+            </Button>
+          </motion.div>
+        ) : success ? (
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
