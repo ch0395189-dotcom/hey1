@@ -38,6 +38,7 @@ import {
   Tag as TagIcon,
   Check as CheckIcon,
   Plus,
+  Sparkles,
 } from "lucide-react";
 import {
   DropdownMenu,
