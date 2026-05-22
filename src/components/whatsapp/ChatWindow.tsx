@@ -359,6 +359,29 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
 
   const { playNotificationSound } = useNotificationSound();
 
+  // Detect if user has Fish Audio voice cloning configured
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase
+        .from('user_api_keys')
+        .select('voice_model_id, voice_name')
+        .eq('user_id', user.id)
+        .eq('provider', 'fish_audio')
+        .eq('is_active', true)
+        .maybeSingle();
+      if (cancelled) return;
+      if (data?.voice_model_id) {
+        setClonedVoice({ voiceModelId: data.voice_model_id, voiceName: data.voice_name ?? null });
+      } else {
+        setClonedVoice(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [conversation?.id]);
+
   useEffect(() => {
     if (conversation) {
       fetchMessages();
