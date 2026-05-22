@@ -66,6 +66,7 @@ import { useNotificationSound } from "@/hooks/useNotificationSound";
 import { FaWhatsapp, FaFacebookMessenger, FaInstagram, FaTiktok } from "react-icons/fa";
 import { ImagePreviewDialog } from "@/components/whatsapp/ImagePreviewDialog";
 import { InteractiveMessageDialog, InteractiveMessageData } from "@/components/whatsapp/InteractiveMessageDialog";
+import { ClonedVoicePreviewDialog } from "@/components/whatsapp/ClonedVoicePreviewDialog";
 import { TagManager } from "@/components/contacts/TagManager";
 import { AssignAgentMenu } from "@/components/team/AssignAgentMenu";
 import { useTeam } from "@/hooks/useTeam";
@@ -148,6 +149,8 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [clonedVoice, setClonedVoice] = useState<{ voiceModelId: string; voiceName: string | null } | null>(null);
   const [sendingClonedVoice, setSendingClonedVoice] = useState(false);
+  const [hasAnyVoiceClone, setHasAnyVoiceClone] = useState(false);
+  const [voicePreviewOpen, setVoicePreviewOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -378,6 +381,12 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
       } else {
         setClonedVoice(null);
       }
+      // Also check for saved voice clones in the new table
+      const { count } = await supabase
+        .from('user_voice_clones')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id);
+      if (!cancelled) setHasAnyVoiceClone((count ?? 0) > 0);
     })();
     return () => { cancelled = true; };
   }, [conversation?.id]);
@@ -814,6 +823,68 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
 
   const handleSendInteractiveMessage = async (data: InteractiveMessageData) => {
     return _handleSendInteractive(data);
+  };
+
+  // Handler used by the preview dialog: receives an already-generated audio blob
+  const sendClonedVoiceBlob = async (
+    audioBlob: Blob,
+    voice: { voice_model_id: string; voice_name: string }
+  ) => {
+    if (!conversation) return;
+    setSendingClonedVoice(true);
+    try {
+      const mp3File = new File([audioBlob], `cloned_${Date.now()}.mp3`, { type: 'audio/mpeg' });
+      const oggFile = await prepareAttachedAudioForWhatsApp(mp3File);
+
+      const filePath = `${conversation.id}/cloned_${Date.now()}.ogg`;
+      const { error: uploadError } = await supabase.storage
+        .from('media')
+        .upload(filePath, oggFile, { contentType: 'audio/ogg', upsert: false });
+      if (uploadError) throw uploadError;
+      const { data: urlData } = supabase.storage.from('media').getPublicUrl(filePath);
+
+      const isExternalConnection =
+        accountConnectionType === 'external_qr' || accountConnectionType === 'z-api';
+      if (isExternalConnection) {
+        const { data, error } = await supabase.functions.invoke('whatsapp-send-external', {
+          body: {
+            accountId: conversation.whatsapp_account_id,
+            to: conversation.customer_phone,
+            mediaUrl: urlData.publicUrl,
+            mediaType: 'audio',
+            conversationId: conversation.id,
+          },
+        });
+        if (error) throw error;
+        if (data?.error) throw new Error(getFriendlyWhatsappError(data));
+      } else {
+        const { data, error } = await supabase.functions.invoke('whatsapp-send-message', {
+          body: {
+            conversation_id: conversation.id,
+            media_url: urlData.publicUrl,
+            media_type: 'audio',
+          },
+        });
+        if (error) throw error;
+        if (data?.error) throw new Error(getFriendlyWhatsappError(data));
+      }
+
+      setNewMessage('');
+      toast({
+        title: 'Nota de voz enviada',
+        description: `Enviada con la voz "${voice.voice_name}".`,
+      });
+    } catch (error: any) {
+      console.error('Error sending cloned voice blob:', error);
+      toast({
+        title: 'Error al enviar voz clonada',
+        description: error?.message || 'No se pudo enviar el audio.',
+        variant: 'destructive',
+      });
+      throw error;
+    } finally {
+      setSendingClonedVoice(false);
+    }
   };
 
   const handleSendClonedVoice = async () => {
@@ -1681,15 +1752,15 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
             style={{ fontSize: '16px' }}
             disabled={sending || isRecording}
           />
-          {newMessage.trim() && clonedVoice?.voiceModelId && conversation?.platform === 'whatsapp' && (
+          {newMessage.trim() && (clonedVoice?.voiceModelId || hasAnyVoiceClone) && conversation?.platform === 'whatsapp' && (
             <Button
               type="button"
               size="icon"
               variant="outline"
               className="shrink-0 h-10 w-10 md:h-11 md:w-11 rounded-full border-emerald-500/40 hover:bg-emerald-500/10"
-              onClick={handleSendClonedVoice}
+              onClick={() => setVoicePreviewOpen(true)}
               disabled={sending || sendingClonedVoice}
-              title={`Enviar como nota de voz clonada (${clonedVoice.voiceName || 'personalizada'})`}
+              title="Enviar como nota de voz clonada (vista previa)"
             >
               <Sparkles className={`w-5 h-5 text-emerald-600 ${sendingClonedVoice ? 'animate-pulse' : ''}`} />
             </Button>
@@ -1731,6 +1802,15 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
         open={showInteractiveDialog}
         onOpenChange={setShowInteractiveDialog}
         onSend={handleSendInteractiveMessage}
+      />
+
+      {/* Cloned voice preview & multi-voice selector */}
+      <ClonedVoicePreviewDialog
+        open={voicePreviewOpen}
+        onOpenChange={setVoicePreviewOpen}
+        text={newMessage}
+        defaultVoice={clonedVoice}
+        onConfirm={sendClonedVoiceBlob}
       />
     </div>
   );

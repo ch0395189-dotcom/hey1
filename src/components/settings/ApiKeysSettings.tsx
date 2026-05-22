@@ -20,6 +20,7 @@ import {
   Loader2,
   Mic
 } from 'lucide-react';
+import { VoiceClonesManager } from './VoiceClonesManager';
 
 interface ApiKey {
   id: string;
@@ -409,6 +410,8 @@ export const ApiKeysSettings = () => {
               Clona voces de personajes y obtén el ID del modelo para usarlo en el chatbot
             </p>
           </div>
+
+          {fishAudioKey && <VoiceClonesManager />}
         </CardContent>
       </Card>
     </div>
