@@ -67,6 +67,7 @@ import { FaWhatsapp, FaFacebookMessenger, FaInstagram, FaTiktok } from "react-ic
 import { ImagePreviewDialog } from "@/components/whatsapp/ImagePreviewDialog";
 import { InteractiveMessageDialog, InteractiveMessageData } from "@/components/whatsapp/InteractiveMessageDialog";
 import { ClonedVoicePreviewDialog } from "@/components/whatsapp/ClonedVoicePreviewDialog";
+import { ForwardMessageDialog } from "@/components/whatsapp/ForwardMessageDialog";
 import { TagManager } from "@/components/contacts/TagManager";
 import { AssignAgentMenu } from "@/components/team/AssignAgentMenu";
 import { useTeam } from "@/hooks/useTeam";
@@ -152,6 +153,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
   const [hasAnyVoiceClone, setHasAnyVoiceClone] = useState(false);
   const [hasFishAudioKey, setHasFishAudioKey] = useState(false);
   const [voicePreviewOpen, setVoicePreviewOpen] = useState(false);
+  const [forwardMessage, setForwardMessage] = useState<Message | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
