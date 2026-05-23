@@ -1,0 +1,1 @@
+ALTER TABLE public.user_voice_clones ADD COLUMN IF NOT EXISTS provider text NOT NULL DEFAULT 'fish_audio';
