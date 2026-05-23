@@ -1761,7 +1761,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
             style={{ fontSize: '16px' }}
             disabled={sending || isRecording}
           />
-          {newMessage.trim() && (clonedVoice?.voiceModelId || hasAnyVoiceClone) && conversation?.platform === 'whatsapp' && (
+          {newMessage.trim() && (clonedVoice?.voiceModelId || hasAnyVoiceClone || hasFishAudioKey) && conversation?.platform === 'whatsapp' && (
             <Button
               type="button"
               size="icon"
