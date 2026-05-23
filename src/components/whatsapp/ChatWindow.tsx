@@ -1498,8 +1498,17 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                       key={msg.id}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className={`flex ${msg.direction === 'outbound' ? 'justify-end' : 'justify-start'} mb-1`}
+                      className={`group flex items-center gap-1 ${msg.direction === 'outbound' ? 'justify-end' : 'justify-start'} mb-1`}
                     >
+                      {msg.direction === 'outbound' && (msg.content || msg.media_url) && (
+                        <button
+                          onClick={() => setForwardMessage(msg)}
+                          title="Reenviar"
+                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-full hover:bg-accent text-muted-foreground"
+                        >
+                          <Forward className="w-4 h-4" />
+                        </button>
+                      )}
                       <div
                         className={`max-w-[85%] md:max-w-md px-3 py-2 shadow-soft ${
                           msg.direction === 'outbound'
@@ -1575,6 +1584,15 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                           {msg.direction === 'outbound' && getStatusIcon(msg.status)}
                         </div>
                       </div>
+                      {msg.direction === 'inbound' && (msg.content || msg.media_url) && (
+                        <button
+                          onClick={() => setForwardMessage(msg)}
+                          title="Reenviar"
+                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-full hover:bg-accent text-muted-foreground"
+                        >
+                          <Forward className="w-4 h-4" />
+                        </button>
+                      )}
                     </motion.div>
                   ))}
                 </div>
