@@ -95,6 +95,13 @@ export const ConversationsList = ({
     onNewMessageRef.current = onNewMessage;
   }, [onNewMessage]);
 
+  // Keep a ref of the current conversations list so the Realtime handler can
+  // check ownership without becoming stale or re-subscribing on every render.
+  const conversationsRef = useRef<Conversation[]>([]);
+  useEffect(() => {
+    conversationsRef.current = conversations;
+  }, [conversations]);
+
   const getPlatformIcon = (platf: string) => {
     switch (platf) {
       case 'whatsapp':
