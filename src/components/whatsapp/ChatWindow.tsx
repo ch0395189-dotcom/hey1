@@ -150,6 +150,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
   const [clonedVoice, setClonedVoice] = useState<{ voiceModelId: string; voiceName: string | null; provider?: string } | null>(null);
   const [sendingClonedVoice, setSendingClonedVoice] = useState(false);
   const [hasAnyVoiceClone, setHasAnyVoiceClone] = useState(false);
+  const [hasFishAudioKey, setHasFishAudioKey] = useState(false);
   const [voicePreviewOpen, setVoicePreviewOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
