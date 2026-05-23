@@ -3,6 +3,9 @@ project_id = "gnnucexcnkuevxfepwmw"
 [functions.fish-audio-tts]
 verify_jwt = false
 
+[functions.elevenlabs-tts]
+verify_jwt = false
+
 [functions.whatsapp-send-external]
 verify_jwt = false
 
