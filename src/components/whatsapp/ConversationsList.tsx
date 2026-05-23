@@ -95,6 +95,13 @@ export const ConversationsList = ({
     onNewMessageRef.current = onNewMessage;
   }, [onNewMessage]);
 
+  // Keep a ref of the current conversations list so the Realtime handler can
+  // check ownership without becoming stale or re-subscribing on every render.
+  const conversationsRef = useRef<Conversation[]>([]);
+  useEffect(() => {
+    conversationsRef.current = conversations;
+  }, [conversations]);
+
   const getPlatformIcon = (platf: string) => {
     switch (platf) {
       case 'whatsapp':
@@ -268,6 +275,19 @@ export const ConversationsList = ({
           if (newMessage.direction === 'inbound' && onNewMessageRef.current) {
             setTimeout(async () => {
               try {
+                // Only notify for conversations in the user's own loaded list.
+                // Admins can see ALL messages via RLS, so without this filter
+                // the sound would fire for every inbound message in the entire
+                // platform (other users' customers).
+                const belongsToUser = conversationsRef.current.some(
+                  (c) => c.id === newMessage.conversation_id
+                );
+                if (!belongsToUser) {
+                  // Refresh so newly-created own conversations show up, but
+                  // don't play sound for messages that aren't ours.
+                  return;
+                }
+
                 const { data: conv } = await supabase
                   .from('conversations')
                   .select('customer_name, customer_phone, platform')
