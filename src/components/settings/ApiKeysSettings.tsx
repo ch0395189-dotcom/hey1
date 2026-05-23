@@ -41,6 +41,10 @@ export const ApiKeysSettings = () => {
   const [fishAudioVoiceName, setFishAudioVoiceName] = useState('');
   const [showGoogleKey, setShowGoogleKey] = useState(false);
   const [showFishAudioKey, setShowFishAudioKey] = useState(false);
+  const [elevenApiKey, setElevenApiKey] = useState('');
+  const [elevenVoiceId, setElevenVoiceId] = useState('');
+  const [elevenVoiceName, setElevenVoiceName] = useState('');
+  const [showElevenKey, setShowElevenKey] = useState(false);
 
   const { data: apiKeys, isLoading } = useQuery({
     queryKey: ['user-api-keys'],
@@ -56,6 +60,7 @@ export const ApiKeysSettings = () => {
 
   const googleKey = apiKeys?.find(k => k.provider === 'google_ai');
   const fishAudioKey = apiKeys?.find(k => k.provider === 'fish_audio');
+  const elevenLabsKey = apiKeys?.find(k => k.provider === 'elevenlabs');
 
   const saveMutation = useMutation({
     mutationFn: async ({ provider, apiKey, voiceModelId, voiceName }: { 
@@ -96,13 +101,20 @@ export const ApiKeysSettings = () => {
     },
     onSuccess: (_, { provider }) => {
       queryClient.invalidateQueries({ queryKey: ['user-api-keys'] });
-      const providerName = provider === 'google_ai' ? 'Google AI' : 'Fish Audio';
+      const providerName =
+        provider === 'google_ai' ? 'Google AI' :
+        provider === 'fish_audio' ? 'Fish Audio' :
+        provider === 'elevenlabs' ? 'ElevenLabs' : provider;
       toast.success(`API Key de ${providerName} guardada`);
       if (provider === 'google_ai') setGoogleApiKey('');
-      else {
+      else if (provider === 'fish_audio') {
         setFishAudioApiKey('');
         setFishAudioVoiceId('');
         setFishAudioVoiceName('');
+      } else if (provider === 'elevenlabs') {
+        setElevenApiKey('');
+        setElevenVoiceId('');
+        setElevenVoiceName('');
       }
     },
     onError: (error) => {
@@ -123,7 +135,10 @@ export const ApiKeysSettings = () => {
     },
     onSuccess: (_, provider) => {
       queryClient.invalidateQueries({ queryKey: ['user-api-keys'] });
-      const providerName = provider === 'google_ai' ? 'Google AI' : 'Fish Audio';
+      const providerName =
+        provider === 'google_ai' ? 'Google AI' :
+        provider === 'fish_audio' ? 'Fish Audio' :
+        provider === 'elevenlabs' ? 'ElevenLabs' : provider;
       toast.success(`API Key de ${providerName} eliminada`);
     },
     onError: (error) => {
@@ -412,6 +427,152 @@ export const ApiKeysSettings = () => {
           </div>
 
           {fishAudioKey && <VoiceClonesManager />}
+        </CardContent>
+      </Card>
+
+      {/* ElevenLabs Card - Voice Cloning */}
+      <Card className="border-2 border-dashed border-primary/30">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-gradient-to-br from-violet-500/10 to-fuchsia-500/10">
+                <Mic className="h-5 w-5 text-violet-600" />
+              </div>
+              <div>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  ElevenLabs
+                  <Badge variant="outline" className="text-xs">Voice Cloning</Badge>
+                </CardTitle>
+                <CardDescription>
+                  Alternativa premium para clonar voces con calidad de estudio
+                </CardDescription>
+              </div>
+            </div>
+            {elevenLabsKey ? (
+              <Badge className="bg-green-500 gap-1">
+                <CheckCircle2 className="h-3 w-3" />
+                Configurado
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="text-muted-foreground">
+                No configurado
+              </Badge>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {elevenLabsKey ? (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                <div className="flex items-center gap-2">
+                  <Key className="h-4 w-4 text-muted-foreground" />
+                  <code className="text-sm">
+                    {showElevenKey ? elevenLabsKey.api_key : maskApiKey(elevenLabsKey.api_key)}
+                  </code>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button variant="ghost" size="icon" onClick={() => setShowElevenKey(!showElevenKey)}>
+                    {showElevenKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => deleteMutation.mutate('elevenlabs')}
+                    disabled={deleteMutation.isPending}
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
+              </div>
+
+              {elevenLabsKey.voice_model_id && (
+                <div className="p-3 bg-violet-50 border border-violet-200 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <Mic className="h-4 w-4 text-violet-600" />
+                    <span className="text-sm font-medium text-violet-800">
+                      Voz: {elevenLabsKey.voice_name || 'Personalizada'}
+                    </span>
+                  </div>
+                  <code className="text-xs text-violet-600 mt-1 block">
+                    ID: {elevenLabsKey.voice_model_id}
+                  </code>
+                </div>
+              )}
+
+              <p className="text-xs text-muted-foreground">
+                Última actualización: {new Date(elevenLabsKey.updated_at).toLocaleDateString()}
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="eleven-api-key">API Key</Label>
+                <Input
+                  id="eleven-api-key"
+                  type="password"
+                  value={elevenApiKey}
+                  onChange={(e) => setElevenApiKey(e.target.value)}
+                  placeholder="sk_..."
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="eleven-voice-id">Voice ID</Label>
+                  <Input
+                    id="eleven-voice-id"
+                    value={elevenVoiceId}
+                    onChange={(e) => setElevenVoiceId(e.target.value)}
+                    placeholder="21m00Tcm4TlvDq8ikWAM"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="eleven-voice-name">Nombre de la Voz</Label>
+                  <Input
+                    id="eleven-voice-name"
+                    value={elevenVoiceName}
+                    onChange={(e) => setElevenVoiceName(e.target.value)}
+                    placeholder="Mi voz"
+                  />
+                </div>
+              </div>
+
+              <Button
+                onClick={() => saveMutation.mutate({
+                  provider: 'elevenlabs',
+                  apiKey: elevenApiKey,
+                  voiceModelId: elevenVoiceId || undefined,
+                  voiceName: elevenVoiceName || undefined,
+                })}
+                disabled={!elevenApiKey.trim() || saveMutation.isPending}
+                className="gap-2"
+              >
+                {saveMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4" />
+                )}
+                Guardar Configuración
+              </Button>
+            </div>
+          )}
+
+          <div className="pt-2 border-t space-y-2">
+            <a
+              href="https://elevenlabs.io/app/voice-lab"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-primary hover:underline inline-flex items-center gap-1"
+            >
+              Ir a ElevenLabs Voice Lab
+              <ExternalLink className="h-3 w-3" />
+            </a>
+            <p className="text-xs text-muted-foreground">
+              Crea o clona una voz en ElevenLabs y copia su Voice ID desde el Voice Lab.
+            </p>
+          </div>
+
+          {elevenLabsKey && <VoiceClonesManager provider="elevenlabs" />}
         </CardContent>
       </Card>
     </div>
