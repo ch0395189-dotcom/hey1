@@ -11,13 +11,14 @@ interface VoiceOption {
   voice_model_id: string;
   voice_name: string;
   is_default?: boolean;
+  provider?: string;
 }
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   text: string;
-  defaultVoice: { voiceModelId: string; voiceName: string | null } | null;
+  defaultVoice: { voiceModelId: string; voiceName: string | null; provider?: string } | null;
   onConfirm: (audioBlob: Blob, voice: VoiceOption) => Promise<void>;
 }
 
@@ -37,7 +38,7 @@ export const ClonedVoicePreviewDialog = ({ open, onOpenChange, text, defaultVoic
       if (!user) return;
       const { data } = await supabase
         .from('user_voice_clones')
-        .select('voice_model_id, voice_name, is_default')
+        .select('voice_model_id, voice_name, is_default, provider')
         .eq('user_id', user.id)
         .order('is_default', { ascending: false });
 
@@ -48,6 +49,7 @@ export const ClonedVoicePreviewDialog = ({ open, onOpenChange, text, defaultVoic
           voice_model_id: defaultVoice.voiceModelId,
           voice_name: defaultVoice.voiceName || 'Voz personalizada',
           is_default: true,
+          provider: defaultVoice.provider || 'fish_audio',
         });
       }
       setVoices(list);
@@ -78,6 +80,8 @@ export const ClonedVoicePreviewDialog = ({ open, onOpenChange, text, defaultVoic
 
   const handleGenerate = async () => {
     if (!selectedVoiceId || !text.trim()) return;
+    const voice = voices.find(v => v.voice_model_id === selectedVoiceId);
+    if (!voice) return;
     setGenerating(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -85,7 +89,8 @@ export const ClonedVoicePreviewDialog = ({ open, onOpenChange, text, defaultVoic
       if (!user) throw new Error('Sesión no válida');
 
       const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL;
-      const res = await fetch(`${supabaseUrl}/functions/v1/fish-audio-tts`, {
+      const fnName = voice.provider === 'elevenlabs' ? 'elevenlabs-tts' : 'fish-audio-tts';
+      const res = await fetch(`${supabaseUrl}/functions/v1/${fnName}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -159,7 +164,9 @@ export const ClonedVoicePreviewDialog = ({ open, onOpenChange, text, defaultVoic
                 <SelectContent>
                   {voices.map((v) => (
                     <SelectItem key={v.voice_model_id} value={v.voice_model_id}>
-                      {v.voice_name} {v.is_default && '★'}
+                      {v.voice_name}
+                      {v.provider === 'elevenlabs' ? ' · ElevenLabs' : ' · Fish Audio'}
+                      {v.is_default && ' ★'}
                     </SelectItem>
                   ))}
                 </SelectContent>

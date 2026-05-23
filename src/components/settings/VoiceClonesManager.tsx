@@ -14,20 +14,26 @@ interface VoiceClone {
   voice_model_id: string;
   is_default: boolean;
   created_at: string;
+  provider: string;
 }
 
-export const VoiceClonesManager = () => {
+interface Props {
+  provider?: 'fish_audio' | 'elevenlabs';
+}
+
+export const VoiceClonesManager = ({ provider = 'fish_audio' }: Props) => {
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [voiceName, setVoiceName] = useState('');
   const [voiceModelId, setVoiceModelId] = useState('');
 
   const { data: voices, isLoading } = useQuery({
-    queryKey: ['user-voice-clones'],
+    queryKey: ['user-voice-clones', provider],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('user_voice_clones')
         .select('*')
+        .eq('provider', provider)
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data as VoiceClone[];
@@ -44,6 +50,7 @@ export const VoiceClonesManager = () => {
         voice_name: voiceName.trim(),
         voice_model_id: voiceModelId.trim(),
         is_default: isFirst,
+        provider,
       });
       if (error) throw error;
     },
@@ -73,7 +80,11 @@ export const VoiceClonesManager = () => {
     mutationFn: async (id: string) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('No autenticado');
-      await supabase.from('user_voice_clones').update({ is_default: false }).eq('user_id', user.id);
+      await supabase
+        .from('user_voice_clones')
+        .update({ is_default: false })
+        .eq('user_id', user.id)
+        .eq('provider', provider);
       const { error } = await supabase.from('user_voice_clones').update({ is_default: true }).eq('id', id);
       if (error) throw error;
     },
@@ -96,7 +107,9 @@ export const VoiceClonesManager = () => {
     <div className="space-y-3 pt-4 border-t">
       <div className="flex items-center justify-between">
         <div>
-          <h4 className="text-sm font-medium">Mis voces clonadas</h4>
+          <h4 className="text-sm font-medium">
+            Mis voces clonadas {provider === 'elevenlabs' ? '(ElevenLabs)' : '(Fish Audio)'}
+          </h4>
           <p className="text-xs text-muted-foreground">
             Guarda varias voces y elige cuál usar en cada chat.
           </p>

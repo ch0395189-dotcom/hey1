@@ -147,7 +147,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
   const [assignedTagIds, setAssignedTagIds] = useState<Set<string>>(new Set());
   const [tagManagerOpen, setTagManagerOpen] = useState(false);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
-  const [clonedVoice, setClonedVoice] = useState<{ voiceModelId: string; voiceName: string | null } | null>(null);
+  const [clonedVoice, setClonedVoice] = useState<{ voiceModelId: string; voiceName: string | null; provider?: string } | null>(null);
   const [sendingClonedVoice, setSendingClonedVoice] = useState(false);
   const [hasAnyVoiceClone, setHasAnyVoiceClone] = useState(false);
   const [voicePreviewOpen, setVoicePreviewOpen] = useState(false);
@@ -370,14 +370,19 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
       if (!user) return;
       const { data } = await supabase
         .from('user_api_keys')
-        .select('voice_model_id, voice_name')
+        .select('voice_model_id, voice_name, provider')
         .eq('user_id', user.id)
-        .eq('provider', 'fish_audio')
+        .in('provider', ['fish_audio', 'elevenlabs'])
         .eq('is_active', true)
-        .maybeSingle();
+        .order('provider', { ascending: true });
       if (cancelled) return;
-      if (data?.voice_model_id) {
-        setClonedVoice({ voiceModelId: data.voice_model_id, voiceName: data.voice_name ?? null });
+      const row = (data || []).find((r: any) => r.voice_model_id);
+      if (row?.voice_model_id) {
+        setClonedVoice({
+          voiceModelId: row.voice_model_id,
+          voiceName: row.voice_name ?? null,
+          provider: row.provider,
+        } as any);
       } else {
         setClonedVoice(null);
       }
