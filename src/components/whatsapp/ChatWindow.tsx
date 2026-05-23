@@ -1257,6 +1257,12 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
   return (
     <div className="flex-1 min-h-0 flex flex-col overflow-hidden bg-background h-full">
       <ImagePreviewDialog url={previewImageUrl} onClose={() => setPreviewImageUrl(null)} />
+      <ForwardMessageDialog
+        open={!!forwardMessage}
+        onOpenChange={(o) => { if (!o) setForwardMessage(null); }}
+        message={forwardMessage}
+        sourceAccountId={conversation?.whatsapp_account_id || ""}
+      />
       {/* Chat Header - WhatsApp Style */}
       <div
         className="px-2 md:px-4 border-b border-border flex items-center justify-between bg-primary text-primary-foreground shrink-0"
