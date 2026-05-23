@@ -39,6 +39,7 @@ import {
   Check as CheckIcon,
   Plus,
   Sparkles,
+  Forward,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -67,6 +68,7 @@ import { FaWhatsapp, FaFacebookMessenger, FaInstagram, FaTiktok } from "react-ic
 import { ImagePreviewDialog } from "@/components/whatsapp/ImagePreviewDialog";
 import { InteractiveMessageDialog, InteractiveMessageData } from "@/components/whatsapp/InteractiveMessageDialog";
 import { ClonedVoicePreviewDialog } from "@/components/whatsapp/ClonedVoicePreviewDialog";
+import { ForwardMessageDialog } from "@/components/whatsapp/ForwardMessageDialog";
 import { TagManager } from "@/components/contacts/TagManager";
 import { AssignAgentMenu } from "@/components/team/AssignAgentMenu";
 import { useTeam } from "@/hooks/useTeam";
@@ -152,6 +154,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
   const [hasAnyVoiceClone, setHasAnyVoiceClone] = useState(false);
   const [hasFishAudioKey, setHasFishAudioKey] = useState(false);
   const [voicePreviewOpen, setVoicePreviewOpen] = useState(false);
+  const [forwardMessage, setForwardMessage] = useState<Message | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -1254,6 +1257,12 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
   return (
     <div className="flex-1 min-h-0 flex flex-col overflow-hidden bg-background h-full">
       <ImagePreviewDialog url={previewImageUrl} onClose={() => setPreviewImageUrl(null)} />
+      <ForwardMessageDialog
+        open={!!forwardMessage}
+        onOpenChange={(o) => { if (!o) setForwardMessage(null); }}
+        message={forwardMessage}
+        sourceAccountId={conversation?.whatsapp_account_id || ""}
+      />
       {/* Chat Header - WhatsApp Style */}
       <div
         className="px-2 md:px-4 border-b border-border flex items-center justify-between bg-primary text-primary-foreground shrink-0"
@@ -1495,8 +1504,17 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                       key={msg.id}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className={`flex ${msg.direction === 'outbound' ? 'justify-end' : 'justify-start'} mb-1`}
+                      className={`group flex items-center gap-1 ${msg.direction === 'outbound' ? 'justify-end' : 'justify-start'} mb-1`}
                     >
+                      {msg.direction === 'outbound' && (msg.content || msg.media_url) && (
+                        <button
+                          onClick={() => setForwardMessage(msg)}
+                          title="Reenviar"
+                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-full hover:bg-accent text-muted-foreground"
+                        >
+                          <Forward className="w-4 h-4" />
+                        </button>
+                      )}
                       <div
                         className={`max-w-[85%] md:max-w-md px-3 py-2 shadow-soft ${
                           msg.direction === 'outbound'
@@ -1572,6 +1590,15 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                           {msg.direction === 'outbound' && getStatusIcon(msg.status)}
                         </div>
                       </div>
+                      {msg.direction === 'inbound' && (msg.content || msg.media_url) && (
+                        <button
+                          onClick={() => setForwardMessage(msg)}
+                          title="Reenviar"
+                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-full hover:bg-accent text-muted-foreground"
+                        >
+                          <Forward className="w-4 h-4" />
+                        </button>
+                      )}
                     </motion.div>
                   ))}
                 </div>
