@@ -387,6 +387,9 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
       } else {
         setClonedVoice(null);
       }
+      // Track if user has a Fish Audio API key (voices can be auto-fetched)
+      const hasFish = (data || []).some((r: any) => r.provider === 'fish_audio');
+      if (!cancelled) setHasFishAudioKey(hasFish);
       // Also check for saved voice clones in the new table
       const { count } = await supabase
         .from('user_voice_clones')
