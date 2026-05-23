@@ -150,6 +150,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
   const [clonedVoice, setClonedVoice] = useState<{ voiceModelId: string; voiceName: string | null; provider?: string } | null>(null);
   const [sendingClonedVoice, setSendingClonedVoice] = useState(false);
   const [hasAnyVoiceClone, setHasAnyVoiceClone] = useState(false);
+  const [hasFishAudioKey, setHasFishAudioKey] = useState(false);
   const [voicePreviewOpen, setVoicePreviewOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -386,6 +387,9 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
       } else {
         setClonedVoice(null);
       }
+      // Track if user has a Fish Audio API key (voices can be auto-fetched)
+      const hasFish = (data || []).some((r: any) => r.provider === 'fish_audio');
+      if (!cancelled) setHasFishAudioKey(hasFish);
       // Also check for saved voice clones in the new table
       const { count } = await supabase
         .from('user_voice_clones')
@@ -1757,7 +1761,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
             style={{ fontSize: '16px' }}
             disabled={sending || isRecording}
           />
-          {newMessage.trim() && (clonedVoice?.voiceModelId || hasAnyVoiceClone) && conversation?.platform === 'whatsapp' && (
+          {newMessage.trim() && (clonedVoice?.voiceModelId || hasAnyVoiceClone || hasFishAudioKey) && conversation?.platform === 'whatsapp' && (
             <Button
               type="button"
               size="icon"
