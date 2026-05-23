@@ -275,32 +275,17 @@ export const ConversationsList = ({
           if (newMessage.direction === 'inbound' && onNewMessageRef.current) {
             setTimeout(async () => {
               try {
-                // Only notify for conversations that belong to the current user.
-                // Admins can see ALL messages via RLS, so without this check the
-                // notification sound would fire for every inbound message in the
-                // entire platform.
-                const belongsToUser = conversations.some(
+                // Only notify for conversations in the user's own loaded list.
+                // Admins can see ALL messages via RLS, so without this filter
+                // the sound would fire for every inbound message in the entire
+                // platform (other users' customers).
+                const belongsToUser = conversationsRef.current.some(
                   (c) => c.id === newMessage.conversation_id
                 );
                 if (!belongsToUser) {
-                  // Re-check against DB in case conversation was just created
-                  const { data: ownCheck } = await supabase
-                    .from('conversations')
-                    .select('id')
-                    .eq('id', newMessage.conversation_id)
-                    .maybeSingle();
-                  // If RLS still returns it but it's not in our list, it might be
-                    // an admin viewing another user's data — skip the sound.
-                  if (!ownCheck) return;
-                  const { data: { user } } = await supabase.auth.getUser();
-                  const { data: accCheck } = await supabase
-                    .from('conversations')
-                    .select('whatsapp_account_id, whatsapp_accounts!inner(user_id)')
-                    .eq('id', newMessage.conversation_id)
-                    .maybeSingle();
-                  // @ts-ignore - nested relation
-                  const ownerId = accCheck?.whatsapp_accounts?.user_id;
-                  if (!user || ownerId !== user.id) return;
+                  // Refresh so newly-created own conversations show up, but
+                  // don't play sound for messages that aren't ours.
+                  return;
                 }
 
                 const { data: conv } = await supabase
