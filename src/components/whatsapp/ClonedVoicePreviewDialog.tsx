@@ -12,6 +12,7 @@ interface VoiceOption {
   voice_name: string;
   is_default?: boolean;
   provider?: string;
+  source?: 'saved' | 'fish_auto';
 }
 
 interface Props {
@@ -29,20 +30,22 @@ export const ClonedVoicePreviewDialog = ({ open, onOpenChange, text, defaultVoic
   const [sending, setSending] = useState(false);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [loadingVoices, setLoadingVoices] = useState(false);
 
   // Load voices when opened
   useEffect(() => {
     if (!open) return;
     (async () => {
+      setLoadingVoices(true);
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) { setLoadingVoices(false); return; }
       const { data } = await supabase
         .from('user_voice_clones')
         .select('voice_model_id, voice_name, is_default, provider')
         .eq('user_id', user.id)
         .order('is_default', { ascending: false });
 
-      const list: VoiceOption[] = data || [];
+      const list: VoiceOption[] = (data || []).map((v: any) => ({ ...v, source: 'saved' as const }));
       // Fallback: include legacy single voice from user_api_keys if no clones saved
       if (list.length === 0 && defaultVoice?.voiceModelId) {
         list.push({
@@ -50,11 +53,53 @@ export const ClonedVoicePreviewDialog = ({ open, onOpenChange, text, defaultVoic
           voice_name: defaultVoice.voiceName || 'Voz personalizada',
           is_default: true,
           provider: defaultVoice.provider || 'fish_audio',
+          source: 'saved',
         });
       }
+
+      // Auto-fetch Fish Audio voices from user's account using their API key
+      try {
+        const { data: fishKey } = await supabase
+          .from('user_api_keys')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('provider', 'fish_audio')
+          .eq('is_active', true)
+          .maybeSingle();
+
+        if (fishKey) {
+          const { data: { session } } = await supabase.auth.getSession();
+          const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL;
+          const res = await fetch(`${supabaseUrl}/functions/v1/fish-audio-list-voices`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+            },
+          });
+          if (res.ok) {
+            const json = await res.json();
+            const remote: VoiceOption[] = (json?.voices || []).map((v: any) => ({
+              voice_model_id: v.voice_model_id,
+              voice_name: v.voice_name,
+              provider: 'fish_audio',
+              source: 'fish_auto' as const,
+            }));
+            // Merge: avoid duplicates by voice_model_id
+            const existing = new Set(list.map(l => l.voice_model_id));
+            for (const r of remote) {
+              if (!existing.has(r.voice_model_id)) list.push(r);
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Could not auto-load Fish Audio voices', e);
+      }
+
       setVoices(list);
       const initial = list.find(v => v.is_default) || list[0];
       if (initial) setSelectedVoiceId(initial.voice_model_id);
+      setLoadingVoices(false);
     })();
   }, [open, defaultVoice]);
 
@@ -152,7 +197,11 @@ export const ClonedVoicePreviewDialog = ({ open, onOpenChange, text, defaultVoic
 
           <div className="space-y-2">
             <Label>Voz</Label>
-            {voices.length === 0 ? (
+            {loadingVoices ? (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" /> Cargando voces...
+              </div>
+            ) : voices.length === 0 ? (
               <p className="text-xs text-muted-foreground">
                 No tienes voces configuradas. Agrega una desde Ajustes → Claves de API → Fish Audio.
               </p>
@@ -167,10 +216,16 @@ export const ClonedVoicePreviewDialog = ({ open, onOpenChange, text, defaultVoic
                       {v.voice_name}
                       {v.provider === 'elevenlabs' ? ' · ElevenLabs' : ' · Fish Audio'}
                       {v.is_default && ' ★'}
+                      {v.source === 'fish_auto' && ' (cuenta)'}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+            )}
+            {!loadingVoices && voices.some(v => v.source === 'fish_auto') && (
+              <p className="text-[11px] text-muted-foreground">
+                Las voces marcadas (cuenta) se cargaron automáticamente desde tu Fish Audio.
+              </p>
             )}
           </div>
 
