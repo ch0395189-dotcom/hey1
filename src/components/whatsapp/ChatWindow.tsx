@@ -1506,12 +1506,18 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                   </div>
 
                   {/* Messages for this date - WhatsApp bubble style */}
-                  {msgs.map((msg) => (
+                  {msgs.map((msg) => {
+                    const isUnsupportedMsg = msg.message_type === 'unsupported' ||
+                      msg.content?.startsWith('📵');
+                    return (
                     <motion.div
                       key={msg.id}
-                      initial={{ opacity: 0, y: 10 }}
+                      initial={{ opacity: 1, y: 0 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className={`group flex items-center gap-1 ${msg.direction === 'outbound' ? 'justify-end' : 'justify-start'} mb-1`}
+                      className={`group flex items-center gap-1 ${
+                        isUnsupportedMsg ? 'justify-center' :
+                        msg.direction === 'outbound' ? 'justify-end' : 'justify-start'
+                      } mb-1`}
                     >
                       {msg.direction === 'outbound' && (msg.content || msg.media_url) && (
                         <button
