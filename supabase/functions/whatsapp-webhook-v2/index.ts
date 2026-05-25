@@ -203,6 +203,10 @@ Deno.serve(async (req) => {
               let conversationId: string;
               let isNewConversation = false;
 
+              // Mensajes "unsupported" de Meta (red cruzada/SMS) no deben
+              // generar notificaciones ni incrementar no-leídos.
+              const isUnsupported = message.type === 'unsupported';
+
               if (!existingConversation) {
                 const { data: newConversation, error: convError } = await supabase
                   .from('conversations')
@@ -211,7 +215,7 @@ Deno.serve(async (req) => {
                     customer_phone: customerPhone,
                     customer_name: customerName,
                     last_message_at: new Date().toISOString(),
-                    unread_count: 1,
+                    unread_count: isUnsupported ? 1 : 1,
                   })
                   .select()
                   .single();
@@ -230,7 +234,7 @@ Deno.serve(async (req) => {
                 }
                 
                 conversationId = existingConversation.id;
-                // Update conversation - increment unread count
+                // Update conversation - increment unread count (skip for unsupported)
                 const { data: currentConv } = await supabase
                   .from('conversations')
                   .select('unread_count')
@@ -241,7 +245,9 @@ Deno.serve(async (req) => {
                   .from('conversations')
                   .update({
                     last_message_at: new Date().toISOString(),
-                    unread_count: (currentConv?.unread_count || 0) + 1,
+                    unread_count: isUnsupported
+                      ? (currentConv?.unread_count || 1)
+                      : (currentConv?.unread_count || 0) + 1,
                     customer_name: customerName,
                   })
                   .eq('id', conversationId);
