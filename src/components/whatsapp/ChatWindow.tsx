@@ -1635,7 +1635,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                           {msg.direction === 'outbound' && getStatusIcon(msg.status)}
                         </div>
                       </div>
-                      {msg.direction === 'inbound' && (msg.content || msg.media_url) && (
+                      {msg.direction === 'inbound' && !isUnsupportedMsg && (msg.content || msg.media_url) && (
                         <button
                           onClick={() => setForwardMessage(msg)}
                           title="Reenviar"
