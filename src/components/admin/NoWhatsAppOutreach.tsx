@@ -97,7 +97,13 @@ export const NoWhatsAppOutreach = () => {
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      toast.success(`Enviados: ${data?.sent?.length || 0} · Errores: ${data?.errors?.length || 0}`);
+      const sentN = data?.sent?.length || 0;
+      const errs = data?.errors || [];
+      if (sentN > 0) toast.success(`Enviados: ${sentN}`);
+      if (errs.length > 0) {
+        console.error('Errores envío:', errs);
+        toast.error(`Errores: ${errs.length}. Primero: ${errs[0]?.error || 'desconocido'}`, { duration: 8000 });
+      }
       setSelected(new Set());
     } catch (e: any) {
       toast.error(e?.message || 'Error al enviar');
