@@ -215,7 +215,7 @@ Deno.serve(async (req) => {
                     customer_phone: customerPhone,
                     customer_name: customerName,
                     last_message_at: new Date().toISOString(),
-                    unread_count: isUnsupported ? 1 : 1,
+                    unread_count: isUnsupported ? 0 : 1,
                   })
                   .select()
                   .single();
