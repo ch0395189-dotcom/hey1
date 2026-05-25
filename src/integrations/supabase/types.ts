@@ -1032,6 +1032,42 @@ export type Database = {
         }
         Relationships: []
       }
+      trial_phone_history: {
+        Row: {
+          created_at: string
+          first_used_at: string
+          first_user_id: string
+          id: string
+          last_attempt_at: string | null
+          last_attempt_user_id: string | null
+          phone_normalized: string
+          phone_number: string
+          reuse_count: number
+        }
+        Insert: {
+          created_at?: string
+          first_used_at?: string
+          first_user_id: string
+          id?: string
+          last_attempt_at?: string | null
+          last_attempt_user_id?: string | null
+          phone_normalized: string
+          phone_number: string
+          reuse_count?: number
+        }
+        Update: {
+          created_at?: string
+          first_used_at?: string
+          first_user_id?: string
+          id?: string
+          last_attempt_at?: string | null
+          last_attempt_user_id?: string | null
+          phone_normalized?: string
+          phone_number?: string
+          reuse_count?: number
+        }
+        Relationships: []
+      }
       user_api_keys: {
         Row: {
           api_key: string
@@ -1273,6 +1309,7 @@ export type Database = {
       increment_outbound_message: { Args: { _user_id: string }; Returns: Json }
       is_agent_of: { Args: { _owner_id: string }; Returns: boolean }
       is_conversation_blocked: { Args: { conv_id: string }; Returns: boolean }
+      normalize_phone: { Args: { p: string }; Returns: string }
       user_owns_chatbot_config: {
         Args: { config_id: string }
         Returns: boolean

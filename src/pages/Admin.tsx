@@ -12,10 +12,11 @@ import { PhoneNumbersTable } from '@/components/admin/PhoneNumbersTable';
 import { EmailsTable } from '@/components/admin/EmailsTable';
 import { OrphanUsers } from '@/components/admin/OrphanUsers';
 import { MyWhatsAppAccounts } from '@/components/admin/MyWhatsAppAccounts';
+import { TrialAbuseTable } from '@/components/admin/TrialAbuseTable';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Shield, Users, CreditCard, Bell, Coins, BarChart3, Bot, Phone, Mail, UserX, Link2 } from 'lucide-react';
+import { ArrowLeft, Shield, Users, CreditCard, Bell, Coins, BarChart3, Bot, Phone, Mail, UserX, Link2, ShieldAlert } from 'lucide-react';
 
 const Admin = () => {
   const navigate = useNavigate();
@@ -57,7 +58,7 @@ const Admin = () => {
 
       <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-8">
         <Tabs defaultValue="users" className="space-y-6">
-          <TabsList className="grid w-full sm:max-w-6xl grid-cols-10 h-auto">
+          <TabsList className="grid w-full sm:max-w-6xl grid-cols-11 h-auto">
             <TabsTrigger value="users" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
               <span className="hidden sm:inline">Usuarios</span>
@@ -97,6 +98,10 @@ const Admin = () => {
             <TabsTrigger value="statistics" className="flex items-center gap-2">
               <BarChart3 className="h-4 w-4" />
               <span className="hidden sm:inline">Estadísticas</span>
+            </TabsTrigger>
+            <TabsTrigger value="abuse" className="flex items-center gap-2">
+              <ShieldAlert className="h-4 w-4" />
+              <span className="hidden sm:inline">Abuso</span>
             </TabsTrigger>
           </TabsList>
 
@@ -152,6 +157,10 @@ const Admin = () => {
 
           <TabsContent value="statistics">
             <AdminStatistics />
+          </TabsContent>
+
+          <TabsContent value="abuse">
+            <TrialAbuseTable />
           </TabsContent>
         </Tabs>
       </main>
