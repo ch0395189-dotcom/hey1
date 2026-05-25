@@ -1578,7 +1578,38 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                           </div>
                         )}
                         {msg.content && (
-                          <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                          <>
+                            {msg.direction === 'inbound' && detectOTP(msg.content) && (
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  const code = detectOTP(msg.content)!;
+                                  try {
+                                    await navigator.clipboard.writeText(code);
+                                    toast({ title: 'Código copiado', description: code });
+                                  } catch {
+                                    toast({ title: 'No se pudo copiar', variant: 'destructive' });
+                                  }
+                                }}
+                                className="mb-1.5 w-full flex items-center justify-between gap-2 px-2.5 py-2 rounded-md bg-emerald-500/10 border border-emerald-500/30 hover:bg-emerald-500/20 transition-colors text-left"
+                                title="Copiar código de verificación"
+                              >
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                                  <div className="min-w-0">
+                                    <p className="text-[10px] uppercase tracking-wide text-emerald-700 dark:text-emerald-400 font-medium leading-none">
+                                      Código de verificación
+                                    </p>
+                                    <p className="text-base font-mono font-semibold tracking-wider text-emerald-700 dark:text-emerald-300 leading-tight">
+                                      {detectOTP(msg.content)}
+                                    </p>
+                                  </div>
+                                </div>
+                                <Copy className="w-4 h-4 text-emerald-600 shrink-0" />
+                              </button>
+                            )}
+                            <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                          </>
                         )}
                         <div
                           className={`flex items-center justify-end gap-1 mt-0.5 ${
