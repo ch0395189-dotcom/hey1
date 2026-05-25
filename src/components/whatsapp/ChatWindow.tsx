@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { prepareAttachedAudioForWhatsApp, prepareRecordedAudioForWhatsApp } from "@/utils/audioConvert";
 import { compressMediaIfNeeded, formatFileSize, exceedsWhatsAppLimit } from "@/utils/mediaCompressor";
 import { getFriendlyWhatsappError } from "@/lib/whatsappErrors";
+import { detectOTP } from "@/lib/otpDetect";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
