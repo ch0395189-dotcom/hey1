@@ -431,7 +431,11 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
               setMessages((prev) => [...prev, newMsg]);
               
               // If it's an inbound message, play notification sound
-              if (newMsg.direction === 'inbound') {
+              // Skip for unsupported messages (cross-network/SMS) — no real content.
+              const isUnsupportedMsg = newMsg.message_type === 'unsupported' ||
+                newMsg.content?.startsWith('📵 Mensaje desde red externa');
+              
+              if (newMsg.direction === 'inbound' && !isUnsupportedMsg) {
                 console.log('🔊 Playing notification sound for inbound message');
                 playNotificationSound();
                 
