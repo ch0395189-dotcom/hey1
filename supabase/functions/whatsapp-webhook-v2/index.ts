@@ -254,7 +254,8 @@ Deno.serve(async (req) => {
               }
 
               // Send welcome message for NEW conversations if chatbot is enabled
-              if (isNewConversation) {
+              // Skip welcome for unsupported messages (cross-network/SMS) — no real WhatsApp contact.
+              if (isNewConversation && !isUnsupported) {
                 const { data: chatbotConfigForWelcome } = await supabase
                   .from('chatbot_configs')
                   .select('is_enabled, welcome_message')
