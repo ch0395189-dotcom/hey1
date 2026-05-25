@@ -41,6 +41,8 @@ import {
   Plus,
   Sparkles,
   Forward,
+  Copy,
+  ShieldCheck,
 } from "lucide-react";
 import {
   DropdownMenu,
