@@ -203,6 +203,10 @@ Deno.serve(async (req) => {
               let conversationId: string;
               let isNewConversation = false;
 
+              // Mensajes "unsupported" de Meta (red cruzada/SMS) no deben
+              // generar notificaciones ni incrementar no-leídos.
+              const isUnsupported = message.type === 'unsupported';
+
               if (!existingConversation) {
                 const { data: newConversation, error: convError } = await supabase
                   .from('conversations')
@@ -211,7 +215,7 @@ Deno.serve(async (req) => {
                     customer_phone: customerPhone,
                     customer_name: customerName,
                     last_message_at: new Date().toISOString(),
-                    unread_count: 1,
+                    unread_count: isUnsupported ? 0 : 1,
                   })
                   .select()
                   .single();
@@ -230,7 +234,7 @@ Deno.serve(async (req) => {
                 }
                 
                 conversationId = existingConversation.id;
-                // Update conversation - increment unread count
+                // Update conversation - increment unread count (skip for unsupported)
                 const { data: currentConv } = await supabase
                   .from('conversations')
                   .select('unread_count')
@@ -241,14 +245,17 @@ Deno.serve(async (req) => {
                   .from('conversations')
                   .update({
                     last_message_at: new Date().toISOString(),
-                    unread_count: (currentConv?.unread_count || 0) + 1,
+                    unread_count: isUnsupported
+                      ? (currentConv?.unread_count || 1)
+                      : (currentConv?.unread_count || 0) + 1,
                     customer_name: customerName,
                   })
                   .eq('id', conversationId);
               }
 
               // Send welcome message for NEW conversations if chatbot is enabled
-              if (isNewConversation) {
+              // Skip welcome for unsupported messages (cross-network/SMS) — no real WhatsApp contact.
+              if (isNewConversation && !isUnsupported) {
                 const { data: chatbotConfigForWelcome } = await supabase
                   .from('chatbot_configs')
                   .select('is_enabled, welcome_message')
@@ -525,36 +532,39 @@ Deno.serve(async (req) => {
               // Send push notification to owner (and assigned agent if any)
               // Fire-and-forget: NO await — el webhook responde a Meta antes
               // de que la invocación termine, reduciendo latencia percibida.
-              (async () => {
-                try {
-                  const { data: convInfo } = await supabase
-                    .from('conversations')
-                    .select('assigned_to')
-                    .eq('id', conversationId)
-                    .single();
-                  const userIds = new Set<string>();
-                  if (whatsappAccount.user_id) userIds.add(whatsappAccount.user_id);
-                  if (convInfo?.assigned_to) userIds.add(convInfo.assigned_to);
-                  const pushBody = (content || `[${messageType}]`).slice(0, 140);
-                  await Promise.all(
-                    Array.from(userIds).map((uid) =>
-                      supabase.functions.invoke('send-push-notification', {
-                        body: {
-                          userId: uid,
-                          title: `💬 ${customerName}`,
-                          body: pushBody,
-                          url: `/dashboard?view=messages&platform=whatsapp&conv=${conversationId}`,
-                          conversationId,
-                          platform: 'whatsapp',
-                          tag: `conv-${conversationId}`,
+              // Skip for unsupported messages (cross-network/SMS) — no real content to notify about.
+              if (!isUnsupported) {
+                (async () => {
+                  try {
+                    const { data: convInfo } = await supabase
+                      .from('conversations')
+                      .select('assigned_to')
+                      .eq('id', conversationId)
+                      .single();
+                    const userIds = new Set<string>();
+                    if (whatsappAccount.user_id) userIds.add(whatsappAccount.user_id);
+                    if (convInfo?.assigned_to) userIds.add(convInfo.assigned_to);
+                    const pushBody = (content || `[${messageType}]`).slice(0, 140);
+                    await Promise.all(
+                      Array.from(userIds).map((uid) =>
+                        supabase.functions.invoke('send-push-notification', {
+                          body: {
+                            userId: uid,
+                            title: `💬 ${customerName}`,
+                            body: pushBody,
+                            url: `/dashboard?view=messages&platform=whatsapp&conv=${conversationId}`,
+                            conversationId,
+                            platform: 'whatsapp',
+                            tag: `conv-${conversationId}`,
                         },
-                      })
-                    )
-                  );
-                } catch (pushErr) {
-                  console.error('Push notification error (bg):', pushErr);
-                }
-              })();
+                        })
+                      )
+                    );
+                  } catch (pushErr) {
+                    console.error('Push notification error (bg):', pushErr);
+                  }
+                })();
+              }
 
               // Check if chatbot is enabled and should process this message
               const { data: chatbotConfig } = await supabase

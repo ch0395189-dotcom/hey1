@@ -431,7 +431,11 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
               setMessages((prev) => [...prev, newMsg]);
               
               // If it's an inbound message, play notification sound
-              if (newMsg.direction === 'inbound') {
+              // Skip for unsupported messages (cross-network/SMS) — no real content.
+              const isUnsupportedMsg = newMsg.message_type === 'unsupported' ||
+                newMsg.content?.startsWith('📵 Mensaje desde red externa');
+              
+              if (newMsg.direction === 'inbound' && !isUnsupportedMsg) {
                 console.log('🔊 Playing notification sound for inbound message');
                 playNotificationSound();
                 
@@ -1502,14 +1506,20 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                   </div>
 
                   {/* Messages for this date - WhatsApp bubble style */}
-                  {msgs.map((msg) => (
+                  {msgs.map((msg) => {
+                    const isUnsupportedMsg = msg.message_type === 'unsupported' ||
+                      msg.content?.startsWith('📵');
+                    return (
                     <motion.div
                       key={msg.id}
-                      initial={{ opacity: 0, y: 10 }}
+                      initial={{ opacity: 1, y: 0 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className={`group flex items-center gap-1 ${msg.direction === 'outbound' ? 'justify-end' : 'justify-start'} mb-1`}
+                      className={`group flex items-center gap-1 ${
+                        isUnsupportedMsg ? 'justify-center' :
+                        msg.direction === 'outbound' ? 'justify-end' : 'justify-start'
+                      } mb-1`}
                     >
-                      {msg.direction === 'outbound' && (msg.content || msg.media_url) && (
+                      {msg.direction === 'outbound' && !isUnsupportedMsg && (msg.content || msg.media_url) && (
                         <button
                           onClick={() => setForwardMessage(msg)}
                           title="Reenviar"
@@ -1519,7 +1529,8 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                         </button>
                       )}
                       <div
-                        className={`max-w-[85%] md:max-w-md px-3 py-2 shadow-soft ${
+                        className={`${isUnsupportedMsg ? 'max-w-[90%] md:max-w-lg' : 'max-w-[85%] md:max-w-md'} px-3 py-2 ${isUnsupportedMsg ? 'bg-muted/40 border border-dashed border-border rounded-lg' : 'shadow-soft'} ${
+                          isUnsupportedMsg ? '' :
                           msg.direction === 'outbound'
                             ? 'chat-bubble-out'
                             : 'chat-bubble-in'
@@ -1624,7 +1635,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                           {msg.direction === 'outbound' && getStatusIcon(msg.status)}
                         </div>
                       </div>
-                      {msg.direction === 'inbound' && (msg.content || msg.media_url) && (
+                      {msg.direction === 'inbound' && !isUnsupportedMsg && (msg.content || msg.media_url) && (
                         <button
                           onClick={() => setForwardMessage(msg)}
                           title="Reenviar"
@@ -1634,7 +1645,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                         </button>
                       )}
                     </motion.div>
-                  ))}
+                  );})}
                 </div>
               ))
             )}
