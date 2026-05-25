@@ -33,7 +33,7 @@ function buildHtml(name: string) {
       ¿Tuviste algún problema o necesitas ayuda? Escríbenos por WhatsApp y te asistimos.
     </p>
     <div style="text-align:center;margin:20px 0;">
-      <a href="https://wa.me/573001112233?text=Hola%2C%20mi%20plan%20vencio%20y%20necesito%20ayuda%20para%20reactivar"
+      <a href="https://wa.me/573238261825?text=Hola%2C%20mi%20plan%20vencio%20y%20necesito%20ayuda%20para%20reactivar"
          style="color:#22c55e;text-decoration:none;font-weight:600;">
         Hablar con soporte por WhatsApp
       </a>

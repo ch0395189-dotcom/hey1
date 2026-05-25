@@ -27,7 +27,7 @@ function buildHtml(name: string) {
       Responde este correo o escríbenos por WhatsApp y agendamos tu instalación cuanto antes para que aproveches todos los días de tu plan.
     </p>
     <div style="text-align:center;margin:30px 0;">
-      <a href="https://wa.me/573001112233?text=Hola%2C%20quiero%20el%20servicio%20de%20instalaci%C3%B3n%20de%20mi%20n%C3%BAmero"
+      <a href="https://wa.me/573238261825?text=Hola%2C%20quiero%20el%20servicio%20de%20instalaci%C3%B3n%20de%20mi%20n%C3%BAmero"
          style="background:linear-gradient(135deg,#22c55e,#16a34a);color:white;padding:14px 28px;text-decoration:none;border-radius:8px;font-weight:600;display:inline-block;">
         Quiero instalación asistida
       </a>
