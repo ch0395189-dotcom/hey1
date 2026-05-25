@@ -488,11 +488,13 @@ Deno.serve(async (req) => {
                   break;
                 case 'unsupported': {
                   // Meta marca como "unsupported" mensajes que su SDK no decodifica.
-                  // Intentamos rescatar cualquier texto incluido (ej. códigos OTP de autenticación).
-                  const errTitle = message.errors?.[0]?.title;
-                  const errDetails = message.errors?.[0]?.details;
-                  const fallback = errDetails || errTitle || 'Mensaje no soportado por Meta';
-                  content = fallback;
+                  // Suele ocurrir con usuarios de la red cruzada de Meta (SMS / otras redes,
+                  // identificados por contacts[].user_id con prefijo país tipo "GB.xxx").
+                  // El texto original NO viene en el payload — es una limitación de Meta.
+                  const isCrossNetwork = !!message.from_user_id;
+                  content = isCrossNetwork
+                    ? '📵 Mensaje desde red externa (SMS / cross-network de Meta). El contenido no se puede mostrar. Pídele a la persona que escriba directamente desde WhatsApp.'
+                    : '📵 Mensaje no compatible con WhatsApp Cloud API. Pídele a la persona que lo reenvíe como texto, imagen o audio.';
                   messageType = 'text';
                   console.log('⚠️ Unsupported message received:', JSON.stringify(message));
                   break;
