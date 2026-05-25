@@ -1644,7 +1644,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                         </button>
                       )}
                     </motion.div>
-                  ))}
+                  );})}
                 </div>
               ))
             )}
