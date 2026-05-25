@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Search, Plus, Archive, Inbox, MessageCircle, RefreshCw, CheckSquare, Trash2, X, Ban, Mic, Image as ImageIcon, Video, FileText, MapPin, User as UserIcon, Smile, Sticker as StickerIcon, Paperclip, ListChecks, ThumbsUp } from "lucide-react";
+import { Search, Plus, Archive, Inbox, MessageCircle, RefreshCw, CheckSquare, Trash2, X, Ban, Mic, Image as ImageIcon, Video, FileText, MapPin, User as UserIcon, Smile, Sticker as StickerIcon, Paperclip, ListChecks, ThumbsUp, Smartphone } from "lucide-react";
 import { Tag as TagIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
