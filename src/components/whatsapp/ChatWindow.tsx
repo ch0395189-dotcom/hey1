@@ -1529,7 +1529,8 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                         </button>
                       )}
                       <div
-                        className={`max-w-[85%] md:max-w-md px-3 py-2 shadow-soft ${
+                        className={`${isUnsupportedMsg ? 'max-w-[90%] md:max-w-lg' : 'max-w-[85%] md:max-w-md'} px-3 py-2 ${isUnsupportedMsg ? 'bg-muted/40 border border-dashed border-border rounded-lg' : 'shadow-soft'} ${
+                          isUnsupportedMsg ? '' :
                           msg.direction === 'outbound'
                             ? 'chat-bubble-out'
                             : 'chat-bubble-in'
