@@ -161,6 +161,21 @@ Deno.serve(async (req) => {
 
     console.log('Processing chatbot for conversation:', conversation_id, 'platform:', platform || 'whatsapp');
 
+    // Detect inbound OTP / verification codes from external platforms
+    // (banks, Google, Meta, etc.) and skip auto-response so the bot doesn't
+    // reply or trigger flows when the user gets a verification message.
+    if (message_content && typeof message_content === 'string') {
+      const lower = message_content.toLowerCase();
+      const hasOtpKeyword = /(c[oó]digo|code|otp|pin|verificaci[oó]n|verification|confirmaci[oó]n|confirmation|one[-\s]?time|autentica)/i.test(lower);
+      const hasCode = /\b(\d{3,4}[-\s]?\d{3,4}|\d{4,8})\b/.test(message_content) || /\bG-\d{4,8}\b/.test(message_content);
+      if (hasOtpKeyword && hasCode) {
+        console.log('Skipping chatbot: message looks like an OTP/verification code');
+        return new Response(JSON.stringify({ processed: false, reason: 'otp_detected' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
     // Determine the account ID to use for chatbot config lookup
     const accountId = platform_account_id || whatsapp_account_id;
     const currentPlatform = platform || 'whatsapp';
