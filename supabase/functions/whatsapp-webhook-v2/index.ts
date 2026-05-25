@@ -564,7 +564,9 @@ Deno.serve(async (req) => {
                 .eq('is_enabled', true)
                 .single();
 
-              if (chatbotConfig) {
+              // Saltar el chatbot para mensajes "unsupported" de Meta (red cruzada / SMS):
+              // no tenemos contenido real al que responder.
+              if (chatbotConfig && message.type !== 'unsupported') {
                 // Get WhatsApp account access token
                 const { data: accountData } = await supabase
                   .from('whatsapp_accounts')
