@@ -1519,7 +1519,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                         msg.direction === 'outbound' ? 'justify-end' : 'justify-start'
                       } mb-1`}
                     >
-                      {msg.direction === 'outbound' && (msg.content || msg.media_url) && (
+                      {msg.direction === 'outbound' && !isUnsupportedMsg && (msg.content || msg.media_url) && (
                         <button
                           onClick={() => setForwardMessage(msg)}
                           title="Reenviar"
