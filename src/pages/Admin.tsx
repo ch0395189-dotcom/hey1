@@ -60,7 +60,7 @@ const Admin = () => {
 
       <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-8">
         <Tabs defaultValue="users" className="space-y-6">
-          <TabsList className="grid w-full sm:max-w-6xl grid-cols-13 h-auto">
+          <TabsList className="grid w-full sm:max-w-6xl grid-cols-[repeat(13,minmax(0,1fr))] h-auto">
             <TabsTrigger value="users" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
               <span className="hidden sm:inline">Usuarios</span>
