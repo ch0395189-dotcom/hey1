@@ -1350,15 +1350,23 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
           >
             <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
           </button>
-          <DropdownMenu open={moreMenuOpen} onOpenChange={setMoreMenuOpen}>
+          <DropdownMenu open={moreMenuOpen} onOpenChange={setMoreMenuOpen} modal={false}>
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
                 className="h-10 w-10 md:h-9 md:w-9 inline-flex items-center justify-center rounded-full hover:bg-primary-foreground/10 active:bg-primary-foreground/20 transition-colors touch-manipulation"
+                style={{ WebkitTapHighlightColor: 'transparent' }}
                 title="Más opciones"
                 aria-label="Más opciones"
                 aria-haspopup="menu"
                 aria-expanded={moreMenuOpen}
+                onPointerDown={(e) => {
+                  // En WebView móvil (Capacitor) Radix a veces no abre con el pointerdown sintético.
+                  // Forzamos apertura manual y evitamos el doble disparo.
+                  e.preventDefault();
+                  setMoreMenuOpen((v) => !v);
+                }}
+                onClick={(e) => { e.preventDefault(); }}
               >
                 <MoreVertical className="w-5 h-5 md:w-4 md:h-4" />
               </button>
