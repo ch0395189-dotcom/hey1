@@ -30,11 +30,6 @@ export const CtwaAnalytics = () => {
   const load = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('admin-ctwa-analytics', {
-        method: 'GET',
-        // @ts-expect-error invoke supports query via headers fallback; use direct fetch instead
-      });
-      // Use direct fetch to send query params reliably
       const { data: sess } = await supabase.auth.getSession();
       const token = sess?.session?.access_token;
       const url = `https://gnnucexcnkuevxfepwmw.supabase.co/functions/v1/admin-ctwa-analytics?days=${days}`;
@@ -42,7 +37,6 @@ export const CtwaAnalytics = () => {
       const j = await res.json();
       if (j?.error) throw new Error(j.error);
       setRows(j.results || []);
-      void data; void error;
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Error cargando analítica');
     } finally {
