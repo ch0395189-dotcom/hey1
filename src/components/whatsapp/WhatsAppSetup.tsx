@@ -106,6 +106,44 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
 
   const FB_LOGIN_TIMEOUT_MS = 30000; // 30 seconds - extended to avoid false positives
 
+  // Detect mobile / Capacitor WebView where FB.login popup doesn't work
+  const isMobileEnv = typeof window !== 'undefined' && (
+    !!(window as any).Capacitor?.isNativePlatform?.() ||
+    /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+    window.matchMedia('(max-width: 768px)').matches
+  );
+
+  // Mobile fallback: full-page redirect to Meta OAuth (popups are blocked in WebViews)
+  const handleMobileRedirectSignup = () => {
+    if (!planLimits.canAddWhatsAppAccount) {
+      toast({
+        title: "Límite alcanzado",
+        description: `Tu plan ${planLimits.planLabel} permite ${planLimits.whatsappLimit} cuenta(s) de WhatsApp. Mejora tu plan para agregar más.`,
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!metaConfig.appId || !metaConfig.configId) {
+      toast({
+        title: "Configuración pendiente",
+        description: "Las credenciales de Meta no están configuradas. Contacta al administrador.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const redirectUri = 'https://www.heyhey.site/dashboard';
+    const extras = encodeURIComponent(JSON.stringify({ feature: 'whatsapp_embedded_signup', version: 2 }));
+    const oauthUrl =
+      `https://www.facebook.com/v21.0/dialog/oauth` +
+      `?client_id=${encodeURIComponent(metaConfig.appId)}` +
+      `&config_id=${encodeURIComponent(metaConfig.configId)}` +
+      `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+      `&response_type=code` +
+      `&override_default_response_type=true` +
+      `&extras=${extras}`;
+    window.location.href = oauthUrl;
+  };
+
   // Fetch Meta configuration from Edge Function
   const fetchMetaConfig = useCallback(async () => {
     try {
@@ -805,8 +843,8 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
               ) : (
                 <div className="space-y-3">
                   <Button 
-                    onClick={handleEmbeddedSignup} 
-                    disabled={connecting || !fbLoaded || !planLimits.canAddWhatsAppAccount}
+                    onClick={isMobileEnv ? handleMobileRedirectSignup : handleEmbeddedSignup} 
+                    disabled={connecting || (!isMobileEnv && !fbLoaded) || !planLimits.canAddWhatsAppAccount}
                     className="w-full bg-gradient-hero hover:opacity-90"
                     size="lg"
                   >
@@ -823,17 +861,22 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
                       </>
                     )}
                   </Button>
-                  
-                  {/* Fallback: open in new tab to avoid iframe popup blocking */}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full"
-                    onClick={() => window.open(window.location.href, '_blank')}
-                  >
-                    <ExternalLink className="w-4 h-4 mr-2" />
-                    Abrir en nueva pestaña (si el popup no aparece)
-                  </Button>
+
+                  {isMobileEnv ? (
+                    <p className="text-xs text-center text-muted-foreground">
+                      En móvil te redirigiremos a Meta para completar la conexión y volverás aquí automáticamente.
+                    </p>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => window.open(window.location.href, '_blank')}
+                    >
+                      <ExternalLink className="w-4 h-4 mr-2" />
+                      Abrir en nueva pestaña (si el popup no aparece)
+                    </Button>
+                  )}
                 </div>
               )}
 
