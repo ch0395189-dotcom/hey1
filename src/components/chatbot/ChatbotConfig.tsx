@@ -451,7 +451,27 @@ export const ChatbotConfig = ({ whatsappAccountId, whatsappAccountName }: Chatbo
         </TabsContent>
 
         <TabsContent value="voice">
-          <VoiceAgent />
+          {voiceAgentEnabled ? (
+            <VoiceAgent />
+          ) : (
+            <Card>
+              <CardContent className="p-8 text-center space-y-4">
+                <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                  <Lock className="h-6 w-6 text-muted-foreground" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold">Agente de voz exclusivo</h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    El Agente de Voz con IA solo está disponible en los planes{' '}
+                    <strong>Nichos Difíciles</strong> y <strong>Nichos Difíciles + Alquiler</strong>.
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Mejora tu plan desde la sección de suscripción para habilitar esta función.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
       </Tabs>
