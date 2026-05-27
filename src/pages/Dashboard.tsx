@@ -191,6 +191,7 @@ const Dashboard = () => {
   // Mantiene viva la suscripción Web Push (recrea silenciosamente si iOS la invalidó)
   usePushHeartbeat();
   const { isSuspended, loading: suspendedLoading, plan: suspendedPlan, daysExpired, reason: suspendedReason } = useSubscriptionGuard();
+  const { usage: msgUsage, blocked: msgBlocked, loading: msgUsageLoading } = useMessageLimit();
   const { isAgent, myPermissions } = useTeam();
   const canViewContacts = !isAgent || myPermissions.view_contacts;
   const canViewStatistics = !isAgent || myPermissions.view_statistics;
@@ -486,6 +487,11 @@ const Dashboard = () => {
   // Show suspended screen if subscription expired
   if (!suspendedLoading && isSuspended) {
     return <SuspendedServiceScreen plan={suspendedPlan} daysExpired={daysExpired} reason={suspendedReason} />;
+  }
+
+  // Bloquear acceso si se agotaron los mensajes del mes (no admins)
+  if (!isAdmin && !msgUsageLoading && msgBlocked && msgUsage) {
+    return <MessageLimitBlockScreen usage={msgUsage} plan={suspendedPlan} />;
   }
 
   // Show setup if no WhatsApp accounts
