@@ -50,7 +50,6 @@ import { usePaymentSuccessHandler } from "@/hooks/usePaymentSuccessHandler";
 import { SuspendedServiceScreen } from "@/components/dashboard/SuspendedServiceScreen";
 import { MessageLimitBlockScreen } from "@/components/dashboard/MessageLimitBlockScreen";
 import { useMessageLimit } from "@/hooks/useMessageLimit";
-import { useAdminCheck as useAdminCheck2 } from "@/hooks/useAdminCheck";
 import { NotificationSettingsPanel } from "@/components/notifications/NotificationSettingsPanel";
 import {
   Dialog,
