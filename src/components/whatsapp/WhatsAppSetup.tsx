@@ -843,8 +843,8 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
               ) : (
                 <div className="space-y-3">
                   <Button 
-                    onClick={handleEmbeddedSignup} 
-                    disabled={connecting || !fbLoaded || !planLimits.canAddWhatsAppAccount}
+                    onClick={isMobileEnv ? handleMobileRedirectSignup : handleEmbeddedSignup} 
+                    disabled={connecting || (!isMobileEnv && !fbLoaded) || !planLimits.canAddWhatsAppAccount}
                     className="w-full bg-gradient-hero hover:opacity-90"
                     size="lg"
                   >
@@ -861,17 +861,22 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
                       </>
                     )}
                   </Button>
-                  
-                  {/* Fallback: open in new tab to avoid iframe popup blocking */}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full"
-                    onClick={() => window.open(window.location.href, '_blank')}
-                  >
-                    <ExternalLink className="w-4 h-4 mr-2" />
-                    Abrir en nueva pestaña (si el popup no aparece)
-                  </Button>
+
+                  {isMobileEnv ? (
+                    <p className="text-xs text-center text-muted-foreground">
+                      En móvil te redirigiremos a Meta para completar la conexión y volverás aquí automáticamente.
+                    </p>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => window.open(window.location.href, '_blank')}
+                    >
+                      <ExternalLink className="w-4 h-4 mr-2" />
+                      Abrir en nueva pestaña (si el popup no aparece)
+                    </Button>
+                  )}
                 </div>
               )}
 
