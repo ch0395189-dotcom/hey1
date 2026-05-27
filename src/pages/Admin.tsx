@@ -15,10 +15,11 @@ import { MyWhatsAppAccounts } from '@/components/admin/MyWhatsAppAccounts';
 import { TrialAbuseTable } from '@/components/admin/TrialAbuseTable';
 import { NoWhatsAppOutreach } from '@/components/admin/NoWhatsAppOutreach';
 import { ExpiredPlansOutreach } from '@/components/admin/ExpiredPlansOutreach';
+import { CtwaAnalytics } from '@/components/admin/CtwaAnalytics';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Shield, Users, CreditCard, Bell, Coins, BarChart3, Bot, Phone, Mail, UserX, Link2, ShieldAlert, MailWarning, Clock } from 'lucide-react';
+import { ArrowLeft, Shield, Users, CreditCard, Bell, Coins, BarChart3, Bot, Phone, Mail, UserX, Link2, ShieldAlert, MailWarning, Clock, Megaphone } from 'lucide-react';
 
 const Admin = () => {
   const navigate = useNavigate();
@@ -60,7 +61,7 @@ const Admin = () => {
 
       <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-8">
         <Tabs defaultValue="users" className="space-y-6">
-          <TabsList className="grid w-full sm:max-w-6xl grid-cols-[repeat(13,minmax(0,1fr))] h-auto">
+          <TabsList className="grid w-full sm:max-w-6xl grid-cols-[repeat(14,minmax(0,1fr))] h-auto">
             <TabsTrigger value="users" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
               <span className="hidden sm:inline">Usuarios</span>
@@ -112,6 +113,10 @@ const Admin = () => {
             <TabsTrigger value="expired" className="flex items-center gap-2">
               <Clock className="h-4 w-4" />
               <span className="hidden sm:inline">Vencidos</span>
+            </TabsTrigger>
+            <TabsTrigger value="ctwa" className="flex items-center gap-2">
+              <Megaphone className="h-4 w-4" />
+              <span className="hidden sm:inline">CTWA</span>
             </TabsTrigger>
           </TabsList>
 
@@ -179,6 +184,10 @@ const Admin = () => {
 
           <TabsContent value="expired">
             <ExpiredPlansOutreach />
+          </TabsContent>
+
+          <TabsContent value="ctwa">
+            <CtwaAnalytics />
           </TabsContent>
         </Tabs>
       </main>
