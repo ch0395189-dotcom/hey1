@@ -17,6 +17,8 @@ import { KnowledgeBase } from './KnowledgeBase';
 import { AIConfig } from './AIConfig';
 import { VoiceAgent } from './VoiceAgent';
 import { ConsentDialog } from './ConsentDialog';
+import { usePlanLimits } from '@/hooks/usePlanLimits';
+import { Lock } from 'lucide-react';
 
 interface ChatbotConfigProps {
   whatsappAccountId: string;
@@ -43,6 +45,8 @@ export const ChatbotConfig = ({ whatsappAccountId, whatsappAccountName }: Chatbo
   const [consentConfirmed, setConsentConfirmed] = useState(false);
   const [consentOpen, setConsentOpen] = useState(false);
   const [accountPhone, setAccountPhone] = useState<string | undefined>(undefined);
+  const { plan } = usePlanLimits();
+  const voiceAgentEnabled = plan === 'esoterico_pro' || plan === 'esoterico_rental';
   const [config, setConfig] = useState<ChatbotConfigData>({
     whatsapp_account_id: whatsappAccountId,
     name: 'Mi Chatbot',
@@ -241,6 +245,7 @@ export const ChatbotConfig = ({ whatsappAccountId, whatsappAccountName }: Chatbo
           <TabsTrigger value="voice" className="flex items-center gap-1.5 px-3 py-2 whitespace-nowrap text-xs sm:text-sm">
             <Mic className="h-4 w-4 shrink-0" />
             <span>Voz</span>
+            {!voiceAgentEnabled && <Lock className="h-3 w-3 shrink-0 ml-0.5 text-muted-foreground" />}
           </TabsTrigger>
         </TabsList>
 
@@ -446,7 +451,27 @@ export const ChatbotConfig = ({ whatsappAccountId, whatsappAccountName }: Chatbo
         </TabsContent>
 
         <TabsContent value="voice">
-          <VoiceAgent />
+          {voiceAgentEnabled ? (
+            <VoiceAgent />
+          ) : (
+            <Card>
+              <CardContent className="p-8 text-center space-y-4">
+                <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                  <Lock className="h-6 w-6 text-muted-foreground" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold">Agente de voz exclusivo</h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    El Agente de Voz con IA solo está disponible en los planes{' '}
+                    <strong>Nichos Difíciles</strong> y <strong>Nichos Difíciles + Alquiler</strong>.
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Mejora tu plan desde la sección de suscripción para habilitar esta función.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
       </Tabs>
