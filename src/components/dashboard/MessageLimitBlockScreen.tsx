@@ -94,7 +94,7 @@ export const MessageLimitBlockScreen = ({ usage, plan }: Props) => {
           <DialogHeader>
             <DialogTitle>Comprar paquete extra de mensajes</DialogTitle>
             <DialogDescription>
-              Adquiere mensajes adicionales para este mes. Un administrador procesará tu pago.
+              Adquiere mensajes adicionales para este mes. El pago se procesa al instante.
             </DialogDescription>
           </DialogHeader>
           <WhatsAppMessagePackages />
