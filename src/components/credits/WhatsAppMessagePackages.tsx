@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { useCredits } from '@/hooks/useCredits';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 const iconForSize = (n: number) => {
   if (n >= 25000) return Building2;
@@ -23,12 +24,20 @@ export const WhatsAppMessagePackages = () => {
   const handlePurchase = async (packageId: string) => {
     setPurchasing(packageId);
     try {
-      const purchase = await purchaseCredits(packageId);
-      if (purchase) {
-        toast.success('Solicitud de compra creada', {
-          description: 'Un administrador la aprobará y los mensajes extra se sumarán al mes en curso.',
-        });
+      const successUrl = `${window.location.origin}/dashboard?payment=success`;
+      const cancelUrl = `${window.location.origin}/dashboard?payment=cancelled`;
+      const { data, error } = await supabase.functions.invoke('bold-checkout-package', {
+        body: { packageId, successUrl, cancelUrl },
+      });
+      if (error) throw error;
+      if (data?.paymentUrl) {
+        window.location.href = data.paymentUrl;
+      } else {
+        throw new Error(data?.error || 'No se recibió URL de pago');
       }
+    } catch (err) {
+      console.error('Error creating package checkout:', err);
+      toast.error('No se pudo iniciar el pago. Intenta de nuevo.');
     } finally {
       setPurchasing(null);
     }
