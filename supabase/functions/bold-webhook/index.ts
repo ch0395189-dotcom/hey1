@@ -158,7 +158,8 @@ serve(async (req) => {
       }
 
       // If still no userId/plan, try looking up from pending bold_payments by reference
-      if ((!userId || !plan) && reference) {
+      let pendingMetadata: any = null;
+      if (reference) {
         const { data: pendingPayment } = await supabase
           .from('bold_payments')
           .select('user_id, plan, metadata')
@@ -169,8 +170,47 @@ serve(async (req) => {
         if (pendingPayment) {
           if (!userId) userId = pendingPayment.user_id;
           if (!plan) plan = pendingPayment.plan;
+          pendingMetadata = pendingPayment.metadata || null;
           console.log(`Found pending payment for reference ${reference}: user=${userId}, plan=${plan}`);
         }
+      }
+
+      // ---- Package payment (extra WhatsApp messages) ----
+      const pkgId = pendingMetadata?.package_id;
+      const extraMessages = Number(pendingMetadata?.extra_messages || 0);
+      if (userId && pkgId && extraMessages > 0) {
+        const { error: addErr } = await supabase.rpc('add_extra_messages', {
+          _user_id: userId,
+          _amount: extraMessages,
+        });
+        if (addErr) {
+          console.error('Error adding extra messages:', addErr);
+        } else {
+          console.log(`✅ +${extraMessages} extra messages added for user ${userId}`);
+        }
+
+        await supabase.from('bold_payments').insert({
+          user_id: userId,
+          amount: typeof transactionAmount === 'number' ? transactionAmount : parseInt(transactionAmount) || 0,
+          currency: data.currency || 'COP',
+          plan: null,
+          bold_transaction_id: transactionId || reference,
+          event_type: 'completed',
+          metadata: { ...pendingMetadata, webhook: data },
+        });
+
+        if (reference) {
+          await supabase
+            .from('bold_payments')
+            .update({ event_type: 'completed' })
+            .eq('bold_transaction_id', reference)
+            .eq('event_type', 'pending');
+        }
+
+        return new Response(
+          JSON.stringify({ received: true, package: true }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
 
       // Store bold payment record
