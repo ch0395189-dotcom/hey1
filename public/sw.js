@@ -3,7 +3,7 @@
 // Service Worker for Hey Hey - Push Notifications
 // IMPORTANT: This SW does NOT cache HTML/JS/CSS to avoid stale content issues.
 // Bump CACHE_VERSION on every release to force old caches to be cleared.
-const CACHE_VERSION = 'heyhey-v7';
+const CACHE_VERSION = 'heyhey-v8';
 
 // Set to true to force a full logout on every release (clears Supabase auth
 // tokens too). Leave false to preserve sessions across updates.
