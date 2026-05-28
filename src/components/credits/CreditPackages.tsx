@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useCredits, CREDIT_COSTS } from '@/hooks/useCredits';
+import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 
@@ -15,18 +16,26 @@ const packageIcons = {
 };
 
 export const CreditPackages = () => {
-  const { packages, loading, purchaseCredits } = useCredits();
+  const { packages, loading } = useCredits();
   const [purchasing, setPurchasing] = useState<string | null>(null);
 
   const handlePurchase = async (packageId: string) => {
     setPurchasing(packageId);
     try {
-      const purchase = await purchaseCredits(packageId);
-      if (purchase) {
-        toast.success('Solicitud de compra creada', {
-          description: 'Un administrador procesará tu pago pronto.',
-        });
+      const successUrl = `${window.location.origin}/dashboard?payment=success`;
+      const cancelUrl = `${window.location.origin}/dashboard?payment=cancelled`;
+      const { data, error } = await supabase.functions.invoke('bold-checkout-package', {
+        body: { packageId, successUrl, cancelUrl },
+      });
+      if (error) throw error;
+      if (data?.paymentUrl) {
+        window.location.href = data.paymentUrl;
+      } else {
+        throw new Error(data?.error || 'No se recibió URL de pago');
       }
+    } catch (err) {
+      console.error('Error creating checkout:', err);
+      toast.error('No se pudo iniciar el pago. Intenta de nuevo.');
     } finally {
       setPurchasing(null);
     }
