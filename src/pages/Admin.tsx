@@ -5,6 +5,7 @@ import { UsersTable } from '@/components/admin/UsersTable';
 import { ManualPayments } from '@/components/admin/ManualPayments';
 import { PaymentAlerts } from '@/components/admin/PaymentAlerts';
 import { CreditPackagesManager } from '@/components/admin/CreditPackagesManager';
+import { ManualExtraMessages } from '@/components/admin/ManualExtraMessages';
 import { CreditPurchasesManager } from '@/components/admin/CreditPurchasesManager';
 import { AdminStatistics } from '@/components/admin/AdminStatistics';
 import { CloneBotManager } from '@/components/admin/CloneBotManager';
@@ -159,6 +160,7 @@ const Admin = () => {
 
           <TabsContent value="credits" className="space-y-6">
             <CreditPackagesManager />
+            <ManualExtraMessages />
             <CreditPurchasesManager />
           </TabsContent>
 
