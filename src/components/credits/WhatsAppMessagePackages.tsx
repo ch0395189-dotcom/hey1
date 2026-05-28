@@ -16,7 +16,7 @@ const iconForSize = (n: number) => {
 };
 
 export const WhatsAppMessagePackages = () => {
-  const { packages, loading, purchaseCredits } = useCredits();
+  const { packages, loading } = useCredits();
   const [purchasing, setPurchasing] = useState<string | null>(null);
 
   const waPackages = packages.filter((p) => p.package_type === 'whatsapp_messages');
