@@ -98,31 +98,22 @@ export const useCredits = () => {
         return null;
       }
 
-      const pkg = packages.find(p => p.id === packageId);
-      if (!pkg) return null;
-
-      // Create purchase record
-      const { data, error } = await supabase
-        .from('credit_purchases')
-        .insert({
-          user_id: user.id,
-          package_id: packageId,
-          credits: pkg.credits,
-          amount: pkg.price_cop,
-          currency: 'COP',
-          status: 'pending'
-        })
-        .select()
-        .single();
+      const successUrl = `${window.location.origin}/dashboard?payment=success`;
+      const cancelUrl = `${window.location.origin}/dashboard?payment=cancelled`;
+      const { data, error } = await supabase.functions.invoke('bold-checkout-package', {
+        body: { packageId, successUrl, cancelUrl },
+      });
 
       if (error) throw error;
+      if (!data?.paymentUrl) throw new Error(data?.error || 'No se recibió URL de pago');
 
+      window.location.href = data.paymentUrl;
       return data;
     } catch (error) {
       console.error('Error creating purchase:', error);
       toast({
         title: "Error",
-        description: "No se pudo procesar la compra",
+        description: "No se pudo iniciar el pago. Intenta de nuevo.",
         variant: "destructive",
       });
       return null;
