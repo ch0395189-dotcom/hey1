@@ -61,6 +61,22 @@ async function getFFmpeg() {
 }
 
 /**
+ * Warm up ffmpeg.wasm in the background so the first audio send doesn't
+ * pay the 2-4s download/compile cost. Safe to call multiple times — it's
+ * a no-op after the first call.
+ */
+export function preloadFFmpeg(): void {
+  // Only preload on capable devices to avoid wasting data/CPU on low-end
+  // phones that may never actually record audio.
+  if (typeof window === "undefined") return;
+  if (!("MediaRecorder" in window)) return;
+  // Fire-and-forget; errors are non-fatal — real conversion will retry.
+  getFFmpeg().catch(() => {
+    /* ignore — will be retried on actual use */
+  });
+}
+
+/**
  * Converts an audio blob (typically WebM/Opus from MediaRecorder) into a
  * real OGG/Opus blob that WhatsApp Cloud API and all modern browsers
  * accept.
