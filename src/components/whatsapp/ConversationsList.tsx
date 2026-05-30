@@ -200,32 +200,48 @@ export const ConversationsList = ({
       const { data, error } = await query;
       if (error) throw error;
 
-      const conversationsWithMessages = await Promise.all(
-        (data || []).map(async (conv) => {
-          const [messagesRes, tagsRes] = await Promise.all([
+      const convs = data || [];
+      const convIds = convs.map((c) => c.id);
+
+      // Single batched fetch for messages + tags across ALL conversations,
+      // instead of 2 queries per conversation (N+1). Massively cuts latency
+      // when users have many conversations.
+      const [messagesRes, tagsRes] = convIds.length
+        ? await Promise.all([
             supabase
               .from('messages')
-              .select('content, direction, message_type, media_url')
-              .eq('conversation_id', conv.id)
-              .order('created_at', { ascending: false })
-              .limit(1),
+              .select('conversation_id, content, direction, message_type, media_url, created_at')
+              .in('conversation_id', convIds)
+              .order('created_at', { ascending: false }),
             supabase
               .from('conversation_tags')
-              .select('tag:contact_tags(id, name, color)')
-              .eq('conversation_id', conv.id),
-          ]);
+              .select('conversation_id, tag:contact_tags(id, name, color)')
+              .in('conversation_id', convIds),
+          ])
+        : [{ data: [] as any[] }, { data: [] as any[] }];
 
-          const tags = (tagsRes.data || [])
-            .map((row: any) => row.tag)
-            .filter(Boolean) as { id: string; name: string; color: string }[];
+      // Build a map of conversation_id -> latest message (first occurrence
+      // wins because we ordered DESC).
+      const lastMessageByConv = new Map<string, any>();
+      for (const m of (messagesRes.data || [])) {
+        if (!lastMessageByConv.has(m.conversation_id)) {
+          lastMessageByConv.set(m.conversation_id, m);
+        }
+      }
 
-          return {
-            ...conv,
-            last_message: messagesRes.data?.[0] || null,
-            tags,
-          };
-        })
-      );
+      const tagsByConv = new Map<string, { id: string; name: string; color: string }[]>();
+      for (const row of (tagsRes.data || []) as any[]) {
+        if (!row.tag) continue;
+        const arr = tagsByConv.get(row.conversation_id) || [];
+        arr.push(row.tag);
+        tagsByConv.set(row.conversation_id, arr);
+      }
+
+      const conversationsWithMessages = convs.map((conv) => ({
+        ...conv,
+        last_message: lastMessageByConv.get(conv.id) || null,
+        tags: tagsByConv.get(conv.id) || [],
+      }));
 
       setConversations(conversationsWithMessages);
     } catch (error) {
