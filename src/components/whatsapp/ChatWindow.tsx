@@ -369,6 +369,18 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
 
   const { playNotificationSound } = useNotificationSound();
 
+  // Warm up ffmpeg.wasm in the background once a chat is open. This way
+  // when the user finally hits "record", the OGG conversion is instant
+  // instead of waiting 2-4s for the wasm core to download + compile.
+  useEffect(() => {
+    if (!audioSupported) return;
+    const idle = (cb: () => void) =>
+      (window as any).requestIdleCallback
+        ? (window as any).requestIdleCallback(cb, { timeout: 3000 })
+        : window.setTimeout(cb, 1500);
+    idle(() => preloadFFmpeg());
+  }, [audioSupported]);
+
   // Detect if user has Fish Audio voice cloning configured
   useEffect(() => {
     let cancelled = false;
