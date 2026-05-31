@@ -170,7 +170,7 @@ const Register = () => {
           </p>
           <div className="flex justify-center gap-4">
             <div className="text-center">
-              <div className="font-display text-2xl font-bold">14 días</div>
+              <div className="font-display text-2xl font-bold">2 días</div>
               <div className="text-white/70 text-sm">Prueba gratis</div>
             </div>
             <div className="w-px bg-white/20" />
