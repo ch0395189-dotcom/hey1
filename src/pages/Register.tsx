@@ -79,7 +79,7 @@ const Register = () => {
 
           <h1 className="font-display text-3xl font-bold mb-2">Crea tu cuenta</h1>
           <p className="text-muted-foreground mb-8">
-            Empieza tu prueba gratuita de 14 días. Sin tarjeta de crédito.
+            Empieza tu prueba gratuita de 2 días. Sin tarjeta de crédito.
           </p>
 
           <form onSubmit={handleRegister} className="space-y-6">
