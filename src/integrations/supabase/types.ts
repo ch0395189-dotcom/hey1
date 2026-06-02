@@ -1032,6 +1032,90 @@ export type Database = {
         }
         Relationships: []
       }
+      tiktok_lead_routes: {
+        Row: {
+          created_at: string
+          form_id: string
+          id: string
+          template_language: string
+          template_name: string
+          updated_at: string
+          user_id: string
+          whatsapp_account_id: string
+        }
+        Insert: {
+          created_at?: string
+          form_id: string
+          id?: string
+          template_language?: string
+          template_name?: string
+          updated_at?: string
+          user_id: string
+          whatsapp_account_id: string
+        }
+        Update: {
+          created_at?: string
+          form_id?: string
+          id?: string
+          template_language?: string
+          template_name?: string
+          updated_at?: string
+          user_id?: string
+          whatsapp_account_id?: string
+        }
+        Relationships: []
+      }
+      tiktok_leads: {
+        Row: {
+          conversation_id: string | null
+          created_at: string
+          email: string | null
+          form_id: string | null
+          full_name: string | null
+          id: string
+          lead_id: string | null
+          phone: string
+          raw_payload: Json | null
+          template_sent_at: string | null
+          template_status: string | null
+          updated_at: string
+          user_id: string
+          whatsapp_account_id: string
+        }
+        Insert: {
+          conversation_id?: string | null
+          created_at?: string
+          email?: string | null
+          form_id?: string | null
+          full_name?: string | null
+          id?: string
+          lead_id?: string | null
+          phone: string
+          raw_payload?: Json | null
+          template_sent_at?: string | null
+          template_status?: string | null
+          updated_at?: string
+          user_id: string
+          whatsapp_account_id: string
+        }
+        Update: {
+          conversation_id?: string | null
+          created_at?: string
+          email?: string | null
+          form_id?: string | null
+          full_name?: string | null
+          id?: string
+          lead_id?: string | null
+          phone?: string
+          raw_payload?: Json | null
+          template_sent_at?: string | null
+          template_status?: string | null
+          updated_at?: string
+          user_id?: string
+          whatsapp_account_id?: string
+        }
+        Relationships: []
+      }
       trial_phone_history: {
         Row: {
           created_at: string
