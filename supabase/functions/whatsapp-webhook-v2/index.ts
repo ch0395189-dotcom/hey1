@@ -494,16 +494,44 @@ Deno.serve(async (req) => {
                   messageType = 'text';
                   break;
                 case 'unsupported': {
-                  // Meta marca como "unsupported" mensajes que su SDK no decodifica.
-                  // Suele ocurrir con usuarios de la red cruzada de Meta (SMS / otras redes,
-                  // identificados por contacts[].user_id con prefijo país tipo "GB.xxx").
-                  // El texto original NO viene en el payload — es una limitación de Meta.
-                  const isCrossNetwork = !!message.from_user_id;
-                  content = isCrossNetwork
-                    ? '📵 Mensaje desde red externa (SMS / cross-network de Meta). El contenido no se puede mostrar. Pídele a la persona que escriba directamente desde WhatsApp.'
-                    : '📵 Mensaje no compatible con WhatsApp Cloud API. Pídele a la persona que lo reenvíe como texto, imagen o audio.';
+                  // 🔍 RAW LOG — full payload (message + value envelope) to inspect what
+                  // Meta actually sends for cross-network/SMS/OTP messages.
+                  console.log('🟧 [UNSUPPORTED] RAW message:', JSON.stringify(message, null, 2));
+                  console.log('🟧 [UNSUPPORTED] RAW value envelope:', JSON.stringify(value, null, 2));
+
+                  // Try every known/likely field where Meta might leak text or a code.
+                  const candidates: Array<string | undefined> = [
+                    (message as any)?.text?.body,
+                    (message as any)?.body,
+                    (message as any)?.button?.text,
+                    (message as any)?.button?.payload,
+                    (message as any)?.interactive?.button_reply?.title,
+                    (message as any)?.interactive?.list_reply?.title,
+                    (message as any)?.errors?.[0]?.message,
+                    (message as any)?.errors?.[0]?.error_data?.details,
+                    (message as any)?.system?.body,
+                  ];
+                  const recovered = candidates.find((s) => typeof s === 'string' && s.trim().length > 0);
+
+                  // Try to extract an OTP code (3-10 digits) from anywhere in the stringified payload.
+                  const stringified = JSON.stringify(message);
+                  const codeMatch = stringified.match(/\b(\d{3}[-\s]?\d{3,4}|\d{4,8})\b/);
+                  const extractedCode = codeMatch?.[1]?.replace(/[-\s]/g, '');
+
+                  console.log('🟧 [UNSUPPORTED] Recovered text:', recovered ?? '(none)');
+                  console.log('🟧 [UNSUPPORTED] Extracted code:', extractedCode ?? '(none)');
+
+                  const isCrossNetwork = !!(message as any).from_user_id;
+                  if (recovered) {
+                    content = `📵 (red externa) ${recovered}`;
+                  } else if (extractedCode) {
+                    content = `🔑 Código detectado: ${extractedCode}\n(extraído de mensaje cross-network)`;
+                  } else {
+                    content = isCrossNetwork
+                      ? '📵 Mensaje desde red externa (SMS / cross-network de Meta). Meta no envía el contenido en el webhook.'
+                      : '📵 Mensaje no compatible con WhatsApp Cloud API.';
+                  }
                   messageType = 'text';
-                  console.log('⚠️ Unsupported message received:', JSON.stringify(message));
                   break;
                 }
                 default:
