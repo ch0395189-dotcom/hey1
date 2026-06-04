@@ -27,6 +27,7 @@ import { ExternalWhatsAppSetup } from "./ExternalWhatsAppSetup";
 import { EditAccountDialog } from "./EditAccountDialog";
 import { WhatsAppDiagnostics } from "./WhatsAppDiagnostics";
 import { ConnectionVerification } from "./ConnectionVerification";
+import { WhatsAppTemplateCreator } from "./WhatsAppTemplateCreator";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
@@ -728,6 +729,10 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
                       <TestMessageSender 
                         accountId={account.id} 
                         accountPhone={account.phone_number}
+                        connectionType={account.connection_type}
+                      />
+                      <WhatsAppTemplateCreator
+                        accountId={account.id}
                         connectionType={account.connection_type}
                       />
                     </motion.div>
