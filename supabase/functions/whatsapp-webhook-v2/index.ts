@@ -7,6 +7,88 @@ const corsHeaders = {
     'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Advanced OTP / code extractor for cross-network "unsupported" messages.
+// Recursively walks any JSON payload, collects every string value, and tries
+// multiple heuristics to surface a verification code.
+// ─────────────────────────────────────────────────────────────────────────────
+const OTP_KEYWORDS = [
+  'código', 'codigo', 'code', 'otp', 'pin',
+  'verificación', 'verificacion', 'verification', 'verify',
+  'confirmación', 'confirmacion', 'confirmation', 'confirm',
+  'one-time', 'one time', 'single-use',
+  'acceso', 'ingreso', 'login', 'log in', 'sign in', 'iniciar sesión',
+  'autenticación', 'autenticacion', 'authenticate', 'authentication',
+  'facebook', 'meta', 'instagram', 'whatsapp', 'google',
+  'security', 'seguridad', 'token',
+];
+
+function collectStrings(value: unknown, out: string[] = []): string[] {
+  if (value == null) return out;
+  if (typeof value === 'string') {
+    if (value.trim().length > 0) out.push(value);
+    return out;
+  }
+  if (Array.isArray(value)) {
+    for (const v of value) collectStrings(v, out);
+    return out;
+  }
+  if (typeof value === 'object') {
+    for (const v of Object.values(value as Record<string, unknown>)) collectStrings(v, out);
+  }
+  return out;
+}
+
+function tryExtractCode(text: string): string | null {
+  // Branded patterns first (most reliable): G-123456, F-123456, M-123456
+  const branded = text.match(/\b([GFM])-(\d{4,8})\b/);
+  if (branded) return branded[2];
+
+  // FB-style: "12345 FB" or "FB-12345"
+  const fb = text.match(/\b(\d{4,8})\s*FB\b|\bFB[-\s]?(\d{4,8})\b/i);
+  if (fb) return (fb[1] || fb[2]);
+
+  // Code preceded by a keyword (es/en) within ~80 chars
+  const lower = text.toLowerCase();
+  for (const kw of OTP_KEYWORDS) {
+    const idx = lower.indexOf(kw);
+    if (idx === -1) continue;
+    const window = text.slice(idx, idx + 80);
+    const m = window.match(/\b(\d{3,4}[-\s]?\d{3,4}|\d{4,8})\b/);
+    if (m) return m[1].replace(/[-\s]/g, '');
+  }
+
+  // Standalone numeric code with separator (e.g. "123-456", "1234 5678")
+  const sep = text.match(/\b(\d{3,4}[-\s]\d{3,4})\b/);
+  if (sep) return sep[1].replace(/[-\s]/g, '');
+
+  return null;
+}
+
+/**
+ * Deep-scan an unknown payload for a verification code.
+ * Returns { code, source } when a likely code is found.
+ */
+function extractOtpFromPayload(payload: unknown): { code: string; source: string } | null {
+  const strings = collectStrings(payload);
+  // 1) keyword-anchored / branded matches first (high confidence)
+  for (const s of strings) {
+    const code = tryExtractCode(s);
+    if (code) return { code, source: s.length > 120 ? s.slice(0, 120) + '…' : s };
+  }
+  // 2) fallback — any 4-8 digit standalone token that isn't an obvious phone/year
+  for (const s of strings) {
+    const matches = s.match(/\b\d{4,8}\b/g);
+    if (!matches) continue;
+    for (const candidate of matches) {
+      if (candidate.length >= 10) continue;
+      if (/^(19|20)\d{2}$/.test(candidate)) continue; // year
+      if (s.length <= 60) return { code: candidate, source: s };
+    }
+  }
+  return null;
+}
+
 const withCors = (headers: HeadersInit = {}) => ({
   ...corsHeaders,
   ...headers,
@@ -499,7 +581,12 @@ Deno.serve(async (req) => {
                   console.log('🟧 [UNSUPPORTED] RAW message:', JSON.stringify(message, null, 2));
                   console.log('🟧 [UNSUPPORTED] RAW value envelope:', JSON.stringify(value, null, 2));
 
-                  // Try every known/likely field where Meta might leak text or a code.
+                  // Deep recursive OTP scan across both the message AND the envelope
+                  // (sometimes Meta puts hints in value.errors / value.metadata).
+                  const otp =
+                    extractOtpFromPayload(message) || extractOtpFromPayload(value);
+
+                  // Also surface any plain text Meta might have leaked
                   const candidates: Array<string | undefined> = [
                     (message as any)?.text?.body,
                     (message as any)?.body,
@@ -511,21 +598,19 @@ Deno.serve(async (req) => {
                     (message as any)?.errors?.[0]?.error_data?.details,
                     (message as any)?.system?.body,
                   ];
-                  const recovered = candidates.find((s) => typeof s === 'string' && s.trim().length > 0);
-
-                  // Try to extract an OTP code (3-10 digits) from anywhere in the stringified payload.
-                  const stringified = JSON.stringify(message);
-                  const codeMatch = stringified.match(/\b(\d{3}[-\s]?\d{3,4}|\d{4,8})\b/);
-                  const extractedCode = codeMatch?.[1]?.replace(/[-\s]/g, '');
+                  const recovered = candidates.find(
+                    (s) => typeof s === 'string' && s.trim().length > 0,
+                  );
 
                   console.log('🟧 [UNSUPPORTED] Recovered text:', recovered ?? '(none)');
-                  console.log('🟧 [UNSUPPORTED] Extracted code:', extractedCode ?? '(none)');
+                  console.log('🟧 [UNSUPPORTED] OTP detection:', otp ?? '(none)');
 
                   const isCrossNetwork = !!(message as any).from_user_id;
-                  if (recovered) {
+
+                  if (otp) {
+                    content = `🔑 Código detectado: *${otp.code}*\n_(extraído automáticamente de mensaje cross-network)_`;
+                  } else if (recovered) {
                     content = `📵 (red externa) ${recovered}`;
-                  } else if (extractedCode) {
-                    content = `🔑 Código detectado: ${extractedCode}\n(extraído de mensaje cross-network)`;
                   } else {
                     content = isCrossNetwork
                       ? '📵 Mensaje desde red externa (SMS / cross-network de Meta). Meta no envía el contenido en el webhook.'
