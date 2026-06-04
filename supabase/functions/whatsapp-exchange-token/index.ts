@@ -10,6 +10,7 @@ interface ExchangeTokenRequest {
   access_token?: string;
   phone_number_id?: string;
   waba_id?: string;
+  redirect_uri?: string;
 }
 
 interface TokenResponse {
