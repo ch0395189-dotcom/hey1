@@ -581,7 +581,12 @@ Deno.serve(async (req) => {
                   console.log('🟧 [UNSUPPORTED] RAW message:', JSON.stringify(message, null, 2));
                   console.log('🟧 [UNSUPPORTED] RAW value envelope:', JSON.stringify(value, null, 2));
 
-                  // Try every known/likely field where Meta might leak text or a code.
+                  // Deep recursive OTP scan across both the message AND the envelope
+                  // (sometimes Meta puts hints in value.errors / value.metadata).
+                  const otp =
+                    extractOtpFromPayload(message) || extractOtpFromPayload(value);
+
+                  // Also surface any plain text Meta might have leaked
                   const candidates: Array<string | undefined> = [
                     (message as any)?.text?.body,
                     (message as any)?.body,
@@ -593,21 +598,19 @@ Deno.serve(async (req) => {
                     (message as any)?.errors?.[0]?.error_data?.details,
                     (message as any)?.system?.body,
                   ];
-                  const recovered = candidates.find((s) => typeof s === 'string' && s.trim().length > 0);
-
-                  // Try to extract an OTP code (3-10 digits) from anywhere in the stringified payload.
-                  const stringified = JSON.stringify(message);
-                  const codeMatch = stringified.match(/\b(\d{3}[-\s]?\d{3,4}|\d{4,8})\b/);
-                  const extractedCode = codeMatch?.[1]?.replace(/[-\s]/g, '');
+                  const recovered = candidates.find(
+                    (s) => typeof s === 'string' && s.trim().length > 0,
+                  );
 
                   console.log('🟧 [UNSUPPORTED] Recovered text:', recovered ?? '(none)');
-                  console.log('🟧 [UNSUPPORTED] Extracted code:', extractedCode ?? '(none)');
+                  console.log('🟧 [UNSUPPORTED] OTP detection:', otp ?? '(none)');
 
                   const isCrossNetwork = !!(message as any).from_user_id;
-                  if (recovered) {
+
+                  if (otp) {
+                    content = `🔑 Código detectado: *${otp.code}*\n_(extraído automáticamente de mensaje cross-network)_`;
+                  } else if (recovered) {
                     content = `📵 (red externa) ${recovered}`;
-                  } else if (extractedCode) {
-                    content = `🔑 Código detectado: ${extractedCode}\n(extraído de mensaje cross-network)`;
                   } else {
                     content = isCrossNetwork
                       ? '📵 Mensaje desde red externa (SMS / cross-network de Meta). Meta no envía el contenido en el webhook.'
