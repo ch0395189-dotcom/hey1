@@ -1,8 +1,19 @@
 import { useEffect, useState, useCallback } from "react";
-import { Loader2, RefreshCw, FileText } from "lucide-react";
+import { Loader2, RefreshCw, FileText, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -14,6 +25,11 @@ interface MetaTemplate {
   language?: string;
   rejected_reason?: string;
   quality_score?: { score?: string } | null;
+  components?: Array<{
+    type: string;
+    text?: string;
+    example?: { body_text?: string[][] };
+  }>;
 }
 
 interface Props {
@@ -42,6 +58,10 @@ export const WhatsAppTemplateList = ({ accountId, connectionType, refreshSignal 
   const [loading, setLoading] = useState(false);
   const [templates, setTemplates] = useState<MetaTemplate[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [editing, setEditing] = useState<MetaTemplate | null>(null);
+  const [editBody, setEditBody] = useState("");
+  const [editSample, setEditSample] = useState("Carlos");
+  const [saving, setSaving] = useState(false);
   const { toast } = useToast();
 
   const isOfficial = connectionType !== "external_qr" && connectionType !== "external";
@@ -72,7 +92,51 @@ export const WhatsAppTemplateList = ({ accountId, connectionType, refreshSignal 
 
   if (!isOfficial) return null;
 
+  const openEdit = (tpl: MetaTemplate) => {
+    const bodyComp = tpl.components?.find((c) => c.type?.toUpperCase() === "BODY");
+    setEditBody(bodyComp?.text || "");
+    setEditSample(bodyComp?.example?.body_text?.[0]?.[0] || "Carlos");
+    setEditing(tpl);
+  };
+
+  const saveEdit = async () => {
+    if (!editing) return;
+    setSaving(true);
+    try {
+      const { data, error: invokeError } = await supabase.functions.invoke("whatsapp-edit-template", {
+        body: {
+          whatsapp_account_id: accountId,
+          template_id: editing.id,
+          body: editBody,
+          sample_name: editSample,
+        },
+      });
+      if (invokeError) throw invokeError;
+      if (data?.error) throw new Error(data.error);
+      toast({
+        title: "Edición enviada",
+        description: `Meta recibió cambios para ${editing.name}. Vuelve a estado PENDING.`,
+      });
+      setEditing(null);
+      load();
+    } catch (e: any) {
+      toast({
+        title: "No se pudo editar la plantilla",
+        description: e?.message || "Intenta de nuevo más tarde.",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const canEdit = (status: string) => {
+    const s = (status || "").toUpperCase();
+    return s === "APPROVED" || s === "REJECTED" || s === "PAUSED";
+  };
+
   return (
+    <>
     <Card className="mt-4">
       <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0">
         <div>
@@ -115,14 +179,66 @@ export const WhatsAppTemplateList = ({ accountId, connectionType, refreshSignal 
                       : ""}
                   </p>
                 </div>
-                <Badge variant={statusVariant(tpl.status)} className="shrink-0 uppercase">
-                  {tpl.status}
-                </Badge>
+                <div className="flex shrink-0 items-center gap-2">
+                  <Badge variant={statusVariant(tpl.status)} className="uppercase">
+                    {tpl.status}
+                  </Badge>
+                  {canEdit(tpl.status) && (
+                    <Button variant="ghost" size="sm" onClick={() => openEdit(tpl)}>
+                      <Pencil className="h-3.5 w-3.5 mr-1" /> Editar
+                    </Button>
+                  )}
+                </div>
               </div>
             ))}
           </div>
         )}
       </CardContent>
     </Card>
+
+    <Dialog open={!!editing} onOpenChange={(open) => !open && setEditing(null)}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Editar plantilla {editing?.name}</DialogTitle>
+          <DialogDescription>
+            Tras guardar, Meta volverá a poner la plantilla en estado PENDING. Mantén {'{{1}}'} para el nombre del lead.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="edit-sample">Ejemplo para {'{{1}}'}</Label>
+            <Input
+              id="edit-sample"
+              value={editSample}
+              onChange={(e) => setEditSample(e.target.value)}
+              disabled={saving}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="edit-body">Texto</Label>
+            <Textarea
+              id="edit-body"
+              rows={7}
+              value={editBody}
+              onChange={(e) => setEditBody(e.target.value)}
+              disabled={saving}
+            />
+            <p className="text-xs text-muted-foreground">
+              Meta limita las ediciones a ~10 por mes por plantilla.
+            </p>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setEditing(null)} disabled={saving}>
+            Cancelar
+          </Button>
+          <Button onClick={saveEdit} disabled={saving}>
+            {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+            Guardar cambios
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 };
