@@ -225,7 +225,7 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
         setConnecting(true);
         console.log('Detected OAuth code in URL, calling whatsapp-exchange-token...');
         const { data, error } = await supabase.functions.invoke('whatsapp-exchange-token', {
-          body: { code },
+          body: { code, redirect_uri: `https://www.heyhey.site${window.location.pathname}` },
         });
         console.log('Exchange response (from URL code):', { data, error });
         if (error) throw error;
