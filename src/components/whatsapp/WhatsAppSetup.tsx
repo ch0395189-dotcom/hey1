@@ -488,7 +488,7 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
             console.log('Got auth credential from callback, exchanging/saving token...');
             (async () => {
               const success = await exchangeCredentials(
-                code ? { code } : { access_token: accessToken }
+                code ? { code, redirect_uri: '' } : { access_token: accessToken }
               );
               if (!success) {
                 setConnecting(false);
