@@ -18,9 +18,10 @@ Soy del equipo de HeyHey. Te escribimos para continuar con la información que s
 interface WhatsAppTemplateCreatorProps {
   accountId: string;
   connectionType?: string | null;
+  onCreated?: () => void;
 }
 
-export const WhatsAppTemplateCreator = ({ accountId, connectionType }: WhatsAppTemplateCreatorProps) => {
+export const WhatsAppTemplateCreator = ({ accountId, connectionType, onCreated }: WhatsAppTemplateCreatorProps) => {
   const [creating, setCreating] = useState(false);
   const [templateName, setTemplateName] = useState("lead_tiktok_bienvenida_suave");
   const [sampleName, setSampleName] = useState("Carlos");
@@ -50,6 +51,7 @@ export const WhatsAppTemplateCreator = ({ accountId, connectionType }: WhatsAppT
         title: "Plantilla enviada a revisión",
         description: `Meta recibió ${templateName}. Revisa el estado en WhatsApp Manager.`,
       });
+      onCreated?.();
     } catch (error: any) {
       toast({
         title: "No se pudo crear la plantilla",

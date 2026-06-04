@@ -28,6 +28,7 @@ import { EditAccountDialog } from "./EditAccountDialog";
 import { WhatsAppDiagnostics } from "./WhatsAppDiagnostics";
 import { ConnectionVerification } from "./ConnectionVerification";
 import { WhatsAppTemplateCreator } from "./WhatsAppTemplateCreator";
+import { WhatsAppTemplateList } from "./WhatsAppTemplateList";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
@@ -96,6 +97,7 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
   const [metaConfig, setMetaConfig] = useState<{ appId: string; configId: string }>({ appId: '', configId: '' });
   const [configLoading, setConfigLoading] = useState(true);
   const [expandedAccount, setExpandedAccount] = useState<string | null>(null);
+  const [templateRefresh, setTemplateRefresh] = useState(0);
   const [editingAccount, setEditingAccount] = useState<WhatsAppAccount | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -734,6 +736,12 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
                       <WhatsAppTemplateCreator
                         accountId={account.id}
                         connectionType={account.connection_type}
+                        onCreated={() => setTemplateRefresh((n) => n + 1)}
+                      />
+                      <WhatsAppTemplateList
+                        accountId={account.id}
+                        connectionType={account.connection_type}
+                        refreshSignal={templateRefresh}
                       />
                     </motion.div>
                   )}
