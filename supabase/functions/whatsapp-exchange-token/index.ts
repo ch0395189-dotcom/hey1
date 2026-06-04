@@ -73,7 +73,9 @@ Deno.serve(async (req) => {
 
     // Step 1: Exchange code for access token (if needed)
     if (!accessToken && code) {
-      const tokenUrl = `https://graph.facebook.com/v21.0/oauth/access_token?client_id=${META_APP_ID}&client_secret=${META_APP_SECRET}&code=${code}`;
+      // Meta requires redirect_uri to match exactly what was used in the OAuth dialog.
+      const REDIRECT_URI = 'https://www.heyhey.site/dashboard';
+      const tokenUrl = `https://graph.facebook.com/v21.0/oauth/access_token?client_id=${META_APP_ID}&client_secret=${META_APP_SECRET}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&code=${code}`;
       const tokenResponse = await fetch(tokenUrl);
       const tokenData = await tokenResponse.json() as TokenResponse & { error?: { message: string } };
 
