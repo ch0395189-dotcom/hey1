@@ -735,6 +735,12 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
                       <WhatsAppTemplateCreator
                         accountId={account.id}
                         connectionType={account.connection_type}
+                        onCreated={() => setTemplateRefresh((n) => n + 1)}
+                      />
+                      <WhatsAppTemplateList
+                        accountId={account.id}
+                        connectionType={account.connection_type}
+                        refreshSignal={templateRefresh}
                       />
                     </motion.div>
                   )}
