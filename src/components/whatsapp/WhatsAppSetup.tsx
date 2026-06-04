@@ -28,6 +28,7 @@ import { EditAccountDialog } from "./EditAccountDialog";
 import { WhatsAppDiagnostics } from "./WhatsAppDiagnostics";
 import { ConnectionVerification } from "./ConnectionVerification";
 import { WhatsAppTemplateCreator } from "./WhatsAppTemplateCreator";
+import { WhatsAppTemplateList } from "./WhatsAppTemplateList";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
