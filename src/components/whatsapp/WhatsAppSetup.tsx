@@ -256,7 +256,7 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
     }
   }, [metaConfig.appId, loadFacebookSDK]);
 
-  const exchangeCredentials = async (params: { code?: string; access_token?: string; phone_number_id?: string; waba_id?: string }) => {
+  const exchangeCredentials = async (params: { code?: string; access_token?: string; phone_number_id?: string; waba_id?: string; redirect_uri?: string }) => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
