@@ -97,6 +97,7 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
   const [metaConfig, setMetaConfig] = useState<{ appId: string; configId: string }>({ appId: '', configId: '' });
   const [configLoading, setConfigLoading] = useState(true);
   const [expandedAccount, setExpandedAccount] = useState<string | null>(null);
+  const [templateRefresh, setTemplateRefresh] = useState(0);
   const [editingAccount, setEditingAccount] = useState<WhatsAppAccount | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
