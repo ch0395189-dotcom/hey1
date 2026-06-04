@@ -126,6 +126,9 @@ Deno.serve(async (req) => {
     // --- Resolve target WhatsApp account ---
     // Strategy: use the account configured via tiktok_lead_routes (form_id -> whatsapp_account_id)
     // If not configured, fall back to the most recently active WhatsApp account.
+    let templateName =
+      Deno.env.get("TIKTOK_LEAD_TEMPLATE_NAME") || "lead_tiktok_bienvenida_suave";
+    let templateLang = Deno.env.get("TIKTOK_LEAD_TEMPLATE_LANG") || "es";
     let waAccount:
       | { id: string; user_id: string; phone_number_id: string; access_token: string }
       | null = null;
@@ -138,6 +141,8 @@ Deno.serve(async (req) => {
         .maybeSingle();
 
       if (route?.whatsapp_account_id) {
+        templateName = route.template_name || templateName;
+        templateLang = route.template_language || templateLang;
         const { data: acc } = await supabase
           .from("whatsapp_accounts")
           .select("id, user_id, phone_number_id, access_token")
@@ -262,11 +267,6 @@ Deno.serve(async (req) => {
     }
 
     // --- Send WhatsApp template (lead_tiktok_bienvenida) ---
-    const templateName =
-      Deno.env.get("TIKTOK_LEAD_TEMPLATE_NAME") || "lead_tiktok_bienvenida";
-    const templateLang =
-      Deno.env.get("TIKTOK_LEAD_TEMPLATE_LANG") || "es";
-
     try {
       const firstName = (fullName || "").split(" ")[0] || "amig@";
       const waResp = await fetch(
