@@ -225,7 +225,7 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
         setConnecting(true);
         console.log('Detected OAuth code in URL, calling whatsapp-exchange-token...');
         const { data, error } = await supabase.functions.invoke('whatsapp-exchange-token', {
-          body: { code },
+          body: { code, redirect_uri: `https://www.heyhey.site${window.location.pathname}` },
         });
         console.log('Exchange response (from URL code):', { data, error });
         if (error) throw error;
@@ -256,7 +256,7 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
     }
   }, [metaConfig.appId, loadFacebookSDK]);
 
-  const exchangeCredentials = async (params: { code?: string; access_token?: string; phone_number_id?: string; waba_id?: string }) => {
+  const exchangeCredentials = async (params: { code?: string; access_token?: string; phone_number_id?: string; waba_id?: string; redirect_uri?: string }) => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
@@ -488,7 +488,7 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
             console.log('Got auth credential from callback, exchanging/saving token...');
             (async () => {
               const success = await exchangeCredentials(
-                code ? { code } : { access_token: accessToken }
+                code ? { code, redirect_uri: '' } : { access_token: accessToken }
               );
               if (!success) {
                 setConnecting(false);

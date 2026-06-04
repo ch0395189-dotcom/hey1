@@ -10,6 +10,7 @@ interface ExchangeTokenRequest {
   access_token?: string;
   phone_number_id?: string;
   waba_id?: string;
+  redirect_uri?: string;
 }
 
 interface TokenResponse {
@@ -73,17 +74,40 @@ Deno.serve(async (req) => {
 
     // Step 1: Exchange code for access token (if needed)
     if (!accessToken && code) {
-      // Meta requires redirect_uri to match exactly what was used in the OAuth dialog.
-      const REDIRECT_URI = 'https://www.heyhey.site/dashboard';
-      const tokenUrl = `https://graph.facebook.com/v21.0/oauth/access_token?client_id=${META_APP_ID}&client_secret=${META_APP_SECRET}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&code=${code}`;
-      const tokenResponse = await fetch(tokenUrl);
-      const tokenData = await tokenResponse.json() as TokenResponse & { error?: { message: string } };
+      // Meta requires redirect_uri to match EXACTLY what was used in the OAuth dialog.
+      // - FB.login JS SDK popup uses an empty redirect_uri ("")
+      // - Redirect-based flow uses the actual page URL (e.g. https://www.heyhey.site/dashboard)
+      // The frontend tells us which one was used via body.redirect_uri.
+      const candidates: string[] = [];
+      if (typeof body.redirect_uri === 'string') candidates.push(body.redirect_uri);
+      // Fallbacks tried in order if the explicit one fails
+      candidates.push('');
+      candidates.push('https://www.heyhey.site/dashboard');
+      candidates.push('https://www.heyhey.site/');
 
-      if (tokenData.error) {
-        console.error('Token exchange error:', tokenData.error);
+      let tokenData: TokenResponse & { error?: { message: string } } | null = null;
+      let lastError: { message: string } | undefined;
+      const tried = new Set<string>();
+      for (const ru of candidates) {
+        if (tried.has(ru)) continue;
+        tried.add(ru);
+        const tokenUrl = `https://graph.facebook.com/v21.0/oauth/access_token?client_id=${META_APP_ID}&client_secret=${META_APP_SECRET}&redirect_uri=${encodeURIComponent(ru)}&code=${code}`;
+        const r = await fetch(tokenUrl);
+        const d = await r.json() as TokenResponse & { error?: { message: string } };
+        if (!d.error && d.access_token) {
+          console.log('Token exchange succeeded with redirect_uri:', JSON.stringify(ru));
+          tokenData = d;
+          break;
+        }
+        lastError = d.error;
+        console.warn('Token exchange failed with redirect_uri', JSON.stringify(ru), '-', d.error?.message);
+      }
+
+      if (!tokenData) {
+        console.error('Token exchange error (all redirect_uri candidates failed):', lastError);
         return new Response(
-          JSON.stringify({ error: 'Failed to exchange token', details: tokenData.error.message }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          JSON.stringify({ error: 'Failed to exchange token', details: lastError?.message ?? 'unknown' }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
       accessToken = tokenData.access_token;
