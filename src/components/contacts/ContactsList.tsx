@@ -450,12 +450,13 @@ export const ContactsList = () => {
                     </Button>
                     <Button 
                       variant="ghost" 
-                      size="icon" 
-                      className="w-8 h-8"
+                      size="sm"
+                      className="h-8 gap-1.5 px-2 border border-primary/40 text-primary hover:bg-primary/10"
                       onClick={() => setSelectionMode(true)}
-                      title="Seleccionar múltiples"
+                      title="Seleccionar contactos para enviar mensaje masivo"
                     >
                       <CheckSquare className="w-4 h-4" />
+                      <span className="text-xs font-medium hidden sm:inline">Enviar</span>
                     </Button>
                   </>
                 )}
