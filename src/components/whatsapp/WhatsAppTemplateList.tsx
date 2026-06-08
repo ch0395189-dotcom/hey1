@@ -137,6 +137,8 @@ export const WhatsAppTemplateList = ({ accountId, connectionType, refreshSignal 
     return s === "APPROVED" || s === "REJECTED" || s === "PAUSED";
   };
 
+  const approvedTemplates = templates.filter((t) => (t.status || "").toUpperCase() === "APPROVED");
+
   return (
     <>
     <Card className="mt-4">
@@ -155,6 +157,34 @@ export const WhatsAppTemplateList = ({ accountId, connectionType, refreshSignal 
         </Button>
       </CardHeader>
       <CardContent>
+        {approvedTemplates.length > 0 && (
+          <div className="mb-4 rounded-lg border border-primary/30 bg-primary/5 p-4">
+            <div className="flex items-start justify-between gap-3 flex-wrap">
+              <div className="min-w-0">
+                <p className="font-semibold text-sm flex items-center gap-2">
+                  <Send className="h-4 w-4 text-primary" />
+                  Enviar mensaje con plantilla aprobada
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Inicia conversación con un número nuevo o reabre chats fuera de las 24h.
+                </p>
+              </div>
+              <Button
+                size="lg"
+                onClick={() => setSending(approvedTemplates[0])}
+                className="shrink-0"
+              >
+                <Send className="h-4 w-4 mr-2" />
+                Enviar plantilla
+              </Button>
+            </div>
+            {approvedTemplates.length > 1 && (
+              <p className="text-xs text-muted-foreground mt-2">
+                Tienes {approvedTemplates.length} plantillas aprobadas. Usa el botón "Enviar" en cada fila para elegir otra.
+              </p>
+            )}
+          </div>
+        )}
         {loading && templates.length === 0 ? (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" /> Consultando Meta...
