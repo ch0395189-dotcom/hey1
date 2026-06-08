@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { prepareAttachedAudioForWhatsApp, prepareRecordedAudioForWhatsApp, preloadFFmpeg } from "@/utils/audioConvert";
+import { prepareAttachedAudioForWhatsApp, prepareRecordedAudioForWhatsApp, preloadFFmpeg, convertToOggOpus } from "@/utils/audioConvert";
 import { compressMediaIfNeeded, formatFileSize, exceedsWhatsAppLimit } from "@/utils/mediaCompressor";
 import { getFriendlyWhatsappError } from "@/lib/whatsappErrors";
 import { detectOTP } from "@/lib/otpDetect";
@@ -894,8 +894,10 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
     if (!conversation) return;
     setSendingClonedVoice(true);
     try {
-      const mp3File = new File([audioBlob], `cloned_${Date.now()}.mp3`, { type: 'audio/mpeg' });
-      const oggFile = await prepareAttachedAudioForWhatsApp(mp3File);
+      // Always remux to OGG/Opus so WhatsApp renders it as a voice note (PTT),
+      // not as an uploaded music/file attachment.
+      const oggBlob = await convertToOggOpus(audioBlob);
+      const oggFile = new File([oggBlob], `cloned_${Date.now()}.ogg`, { type: 'audio/ogg' });
 
       const filePath = `${conversation.id}/cloned_${Date.now()}.ogg`;
       const { error: uploadError } = await supabase.storage
@@ -992,10 +994,12 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
       }
 
       const mp3Buffer = await ttsRes.arrayBuffer();
-      const mp3File = new File([mp3Buffer], `cloned_${Date.now()}.mp3`, { type: "audio/mpeg" });
+      const mp3Blob = new Blob([mp3Buffer], { type: "audio/mpeg" });
 
-      // 2. Convert to OGG/Opus for WhatsApp compatibility
-      const oggFile = await prepareAttachedAudioForWhatsApp(mp3File);
+      // 2. Remux MP3 → OGG/Opus so WhatsApp shows it as a voice note (PTT),
+      // not as an uploaded music attachment.
+      const oggBlob = await convertToOggOpus(mp3Blob);
+      const oggFile = new File([oggBlob], `cloned_${Date.now()}.ogg`, { type: "audio/ogg" });
 
       // 3. Upload to storage
       const filePath = `${conversation.id}/cloned_${Date.now()}.ogg`;
