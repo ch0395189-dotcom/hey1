@@ -34,6 +34,7 @@ interface SendMessageRequest {
   message_type?: 'text' | 'template' | 'image' | 'video' | 'document' | 'audio' | 'interactive';
   template_name?: string;
   template_language?: string;
+  template_body_params?: string[];
   media_url?: string;
   media_type?: 'image' | 'video' | 'document' | 'audio';
   interactive?: InteractiveMessage;
@@ -149,7 +150,7 @@ Deno.serve(async (req) => {
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
     const body = await req.json() as SendMessageRequest;
-    const { message, message_type, media_url, media_type, interactive } = body;
+    const { message, message_type, media_url, media_type, interactive, template_name, template_language, template_body_params } = body;
     let { conversation_id } = body;
 
     // If no conversation_id, create or find conversation by phone_number + whatsapp_account_id
@@ -224,9 +225,9 @@ Deno.serve(async (req) => {
       }
     }
 
-    if (!conversation_id || (!message && !media_url && !interactive)) {
+    if (!conversation_id || (!message && !media_url && !interactive && !template_name)) {
       return new Response(
-        JSON.stringify({ error: 'conversation_id (or phone_number+whatsapp_account_id) and (message, media_url, or interactive) are required' }),
+        JSON.stringify({ error: 'conversation_id (or phone_number+whatsapp_account_id) and (message, media_url, interactive, or template_name) are required' }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -288,7 +289,24 @@ Deno.serve(async (req) => {
     let contentToSave: string | null = null;
 
     // Build payload based on message type
-    if (interactive) {
+    if (template_name) {
+      actualMessageType = 'template';
+      const params = (template_body_params || []).map((t) => ({ type: 'text', text: String(t) }));
+      whatsappPayload = {
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to: recipientPhone,
+        type: 'template',
+        template: {
+          name: template_name,
+          language: { code: template_language || 'es' },
+          ...(params.length > 0
+            ? { components: [{ type: 'body', parameters: params }] }
+            : {}),
+        },
+      };
+      contentToSave = `[template:${template_name}]${params.length ? ' ' + params.map(p => p.text).join(' | ') : ''}`;
+    } else if (interactive) {
       whatsappPayload = buildInteractivePayload(interactive, recipientPhone);
       actualMessageType = 'interactive';
       

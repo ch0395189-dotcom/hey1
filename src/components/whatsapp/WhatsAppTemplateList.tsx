@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { Loader2, RefreshCw, FileText, Pencil } from "lucide-react";
+import { Loader2, RefreshCw, FileText, Pencil, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { SendTemplateDialog } from "./SendTemplateDialog";
 
 interface MetaTemplate {
   id: string;
@@ -59,6 +60,7 @@ export const WhatsAppTemplateList = ({ accountId, connectionType, refreshSignal 
   const [templates, setTemplates] = useState<MetaTemplate[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<MetaTemplate | null>(null);
+  const [sending, setSending] = useState<MetaTemplate | null>(null);
   const [editBody, setEditBody] = useState("");
   const [editSample, setEditSample] = useState("Carlos");
   const [saving, setSaving] = useState(false);
@@ -188,6 +190,11 @@ export const WhatsAppTemplateList = ({ accountId, connectionType, refreshSignal 
                       <Pencil className="h-3.5 w-3.5 mr-1" /> Editar
                     </Button>
                   )}
+                  {(tpl.status || "").toUpperCase() === "APPROVED" && (
+                    <Button variant="default" size="sm" onClick={() => setSending(tpl)}>
+                      <Send className="h-3.5 w-3.5 mr-1" /> Enviar
+                    </Button>
+                  )}
                 </div>
               </div>
             ))}
@@ -239,6 +246,11 @@ export const WhatsAppTemplateList = ({ accountId, connectionType, refreshSignal 
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    <SendTemplateDialog
+      accountId={accountId}
+      template={sending}
+      onClose={() => setSending(null)}
+    />
     </>
   );
 };
