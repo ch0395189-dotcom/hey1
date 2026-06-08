@@ -72,6 +72,7 @@ export const ContactsList = () => {
   const [selectedTagFilters, setSelectedTagFilters] = useState<Set<string>>(new Set());
   const [conversationTagMap, setConversationTagMap] = useState<ConversationTagMap>({});
   const [showTagFilter, setShowTagFilter] = useState(false);
+  const [singleSendContact, setSingleSendContact] = useState<Contact | null>(null);
   const { toast } = useToast();
 
   const handleTagsChange = useCallback(() => {
