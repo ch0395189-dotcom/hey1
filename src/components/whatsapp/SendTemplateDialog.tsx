@@ -59,7 +59,8 @@ export const SendTemplateDialog = ({ accountId, template, onClose, onSent }: Pro
   const preview = useMemo(() => {
     let text = bodyText;
     for (let i = 0; i < varCount; i++) {
-      text = text.replaceAll(`{{${i + 1}}}`, params[i] || `{{${i + 1}}}`);
+      const token = `{{${i + 1}}}`;
+      text = text.split(token).join(params[i] || token);
     }
     return text;
   }, [bodyText, params, varCount]);
