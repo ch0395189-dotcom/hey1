@@ -783,6 +783,14 @@ export const ContactsList = () => {
         selectedContacts={selectedContacts}
         onComplete={exitSelectionMode}
       />
+
+      {/* Single-contact send dialog (reuses bulk dialog with one recipient) */}
+      <BulkMessageDialog
+        open={!!singleSendContact}
+        onOpenChange={(open) => !open && setSingleSendContact(null)}
+        selectedContacts={singleSendContact ? [singleSendContact] : []}
+        onComplete={() => setSingleSendContact(null)}
+      />
     </div>
   );
 };
