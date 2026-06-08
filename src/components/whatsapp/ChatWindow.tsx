@@ -163,6 +163,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
   const [templatesPopoverOpen, setTemplatesPopoverOpen] = useState(false);
   const [templatesLoading, setTemplatesLoading] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<any | null>(null);
+  const [templateTestMode, setTemplateTestMode] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
