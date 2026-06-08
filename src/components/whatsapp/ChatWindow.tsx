@@ -70,6 +70,7 @@ import { useNotificationSound } from "@/hooks/useNotificationSound";
 import { FaWhatsapp, FaFacebookMessenger, FaInstagram, FaTiktok } from "react-icons/fa";
 import { ImagePreviewDialog } from "@/components/whatsapp/ImagePreviewDialog";
 import { InteractiveMessageDialog, InteractiveMessageData } from "@/components/whatsapp/InteractiveMessageDialog";
+import { SendTemplateDialog } from "@/components/whatsapp/SendTemplateDialog";
 import { ClonedVoicePreviewDialog } from "@/components/whatsapp/ClonedVoicePreviewDialog";
 import { ForwardMessageDialog } from "@/components/whatsapp/ForwardMessageDialog";
 import { TagManager } from "@/components/contacts/TagManager";
@@ -158,6 +159,10 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
   const [hasFishAudioKey, setHasFishAudioKey] = useState(false);
   const [voicePreviewOpen, setVoicePreviewOpen] = useState(false);
   const [forwardMessage, setForwardMessage] = useState<Message | null>(null);
+  const [approvedTemplates, setApprovedTemplates] = useState<any[]>([]);
+  const [templatesPopoverOpen, setTemplatesPopoverOpen] = useState(false);
+  const [templatesLoading, setTemplatesLoading] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<any | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -181,6 +186,30 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
     
     fetchAccountType();
   }, [conversation?.whatsapp_account_id]);
+
+  // Load approved templates when opening the templates popover
+  const loadApprovedTemplates = useCallback(async () => {
+    if (!conversation?.whatsapp_account_id) return;
+    setTemplatesLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("whatsapp-list-templates", {
+        body: { whatsapp_account_id: conversation.whatsapp_account_id },
+      });
+      if (error) throw error;
+      const list = (data?.templates ?? []).filter(
+        (t: any) => (t.status || "").toUpperCase() === "APPROVED"
+      );
+      setApprovedTemplates(list);
+    } catch (e: any) {
+      toast({
+        title: "No se pudieron cargar plantillas",
+        description: e?.message || "Intenta de nuevo.",
+        variant: "destructive",
+      });
+    } finally {
+      setTemplatesLoading(false);
+    }
+  }, [conversation?.whatsapp_account_id, toast]);
 
   // Fetch bot state for this conversation
   const fetchBotState = useCallback(async () => {
@@ -1885,6 +1914,63 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
               <ListOrdered className="w-5 h-5 text-muted-foreground" />
             </Button>
           )}
+          {conversation?.platform === 'whatsapp' &&
+            accountConnectionType !== 'external_qr' &&
+            accountConnectionType !== 'external' && (
+              <Popover
+                open={templatesPopoverOpen}
+                onOpenChange={(o) => {
+                  setTemplatesPopoverOpen(o);
+                  if (o) loadApprovedTemplates();
+                }}
+              >
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="shrink-0 h-8 w-8 md:h-10 md:w-10"
+                    title="Enviar plantilla aprobada"
+                  >
+                    <FileText className="w-5 h-5 text-muted-foreground" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent side="top" align="start" className="w-72 p-2">
+                  <div className="px-2 py-1.5">
+                    <p className="text-sm font-semibold">Plantillas aprobadas</p>
+                    <p className="text-xs text-muted-foreground">
+                      Útil fuera de la ventana de 24h.
+                    </p>
+                  </div>
+                  <div className="max-h-72 overflow-y-auto">
+                    {templatesLoading ? (
+                      <p className="px-2 py-3 text-xs text-muted-foreground">Cargando...</p>
+                    ) : approvedTemplates.length === 0 ? (
+                      <p className="px-2 py-3 text-xs text-muted-foreground">
+                        No tienes plantillas aprobadas. Créalas en WhatsApp → Plantillas.
+                      </p>
+                    ) : (
+                      approvedTemplates.map((tpl) => (
+                        <button
+                          key={tpl.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedTemplate(tpl);
+                            setTemplatesPopoverOpen(false);
+                          }}
+                          className="w-full text-left rounded-md px-2 py-2 hover:bg-accent transition-colors"
+                        >
+                          <p className="text-sm font-medium truncate">{tpl.name}</p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {tpl.language || '—'} · {tpl.category || '—'}
+                          </p>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
           <Input
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
@@ -1955,6 +2041,18 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
         defaultVoice={clonedVoice}
         onConfirm={sendClonedVoiceBlob}
       />
+
+      {/* Send approved template to current conversation */}
+      {conversation && (
+        <SendTemplateDialog
+          accountId={conversation.whatsapp_account_id}
+          template={selectedTemplate}
+          defaultPhone={conversation.customer_phone}
+          lockPhone
+          onClose={() => setSelectedTemplate(null)}
+          onSent={() => fetchMessages()}
+        />
+      )}
     </div>
   );
 };
