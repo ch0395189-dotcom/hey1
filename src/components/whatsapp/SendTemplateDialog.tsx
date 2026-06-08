@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Loader2, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,13 +26,21 @@ interface Props {
   template: TemplateLike | null;
   onClose: () => void;
   onSent?: () => void;
+  defaultPhone?: string;
+  lockPhone?: boolean;
 }
 
-export const SendTemplateDialog = ({ accountId, template, onClose, onSent }: Props) => {
+export const SendTemplateDialog = ({ accountId, template, onClose, onSent, defaultPhone, lockPhone }: Props) => {
   const { toast } = useToast();
   const [phone, setPhone] = useState("");
   const [params, setParams] = useState<string[]>([]);
   const [sending, setSending] = useState(false);
+
+  useEffect(() => {
+    if (template && defaultPhone) {
+      setPhone(defaultPhone.replace(/\D/g, ""));
+    }
+  }, [template, defaultPhone]);
 
   const bodyText = useMemo(
     () => template?.components?.find((c) => c.type?.toUpperCase() === "BODY")?.text || "",
@@ -126,7 +134,7 @@ export const SendTemplateDialog = ({ accountId, template, onClose, onSent }: Pro
               placeholder="573001234567"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              disabled={sending}
+              disabled={sending || lockPhone}
             />
           </div>
 
