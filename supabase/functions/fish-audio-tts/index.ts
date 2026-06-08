@@ -13,7 +13,7 @@ serve(async (req) => {
   }
 
   try {
-    const { text, voiceModelId, userId } = await req.json();
+    const { text, voiceModelId, userId, mode } = await req.json();
 
     if (!text) {
       return new Response(
@@ -70,6 +70,15 @@ serve(async (req) => {
       mp3_bitrate: 128,
       latency: 'normal',
     };
+
+    // Style presets: "natural" (fiel a la muestra) vs "creativo" (más expresivo)
+    if (mode === 'creativo') {
+      requestBody.temperature = 0.9;
+      requestBody.top_p = 0.9;
+    } else {
+      requestBody.temperature = 0.7;
+      requestBody.top_p = 0.7;
+    }
 
     // Add voice model reference if provided
     if (userVoiceModelId) {
