@@ -72,6 +72,7 @@ export const ContactsList = () => {
   const [selectedTagFilters, setSelectedTagFilters] = useState<Set<string>>(new Set());
   const [conversationTagMap, setConversationTagMap] = useState<ConversationTagMap>({});
   const [showTagFilter, setShowTagFilter] = useState(false);
+  const [singleSendContact, setSingleSendContact] = useState<Contact | null>(null);
   const { toast } = useToast();
 
   const handleTagsChange = useCallback(() => {
@@ -449,12 +450,13 @@ export const ContactsList = () => {
                     </Button>
                     <Button 
                       variant="ghost" 
-                      size="icon" 
-                      className="w-8 h-8"
+                      size="sm"
+                      className="h-8 gap-1.5 px-2 border border-primary/40 text-primary hover:bg-primary/10"
                       onClick={() => setSelectionMode(true)}
-                      title="Seleccionar múltiples"
+                      title="Seleccionar contactos para enviar mensaje masivo"
                     >
                       <CheckSquare className="w-4 h-4" />
+                      <span className="text-xs font-medium hidden sm:inline">Enviar</span>
                     </Button>
                   </>
                 )}
@@ -601,6 +603,14 @@ export const ContactsList = () => {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="bg-popover">
+                        <DropdownMenuItem
+                          className="gap-2"
+                          onClick={() => setSingleSendContact(contact)}
+                        >
+                          <Send className="w-4 h-4" />
+                          Enviar mensaje
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
                         <DropdownMenuItem className="gap-2">
                           <MessageCircle className="w-4 h-4" />
                           Ir a conversación
@@ -772,6 +782,14 @@ export const ContactsList = () => {
         onOpenChange={setShowBulkMessageDialog}
         selectedContacts={selectedContacts}
         onComplete={exitSelectionMode}
+      />
+
+      {/* Single-contact send dialog (reuses bulk dialog with one recipient) */}
+      <BulkMessageDialog
+        open={!!singleSendContact}
+        onOpenChange={(open) => !open && setSingleSendContact(null)}
+        selectedContacts={singleSendContact ? [singleSendContact] : []}
+        onComplete={() => setSingleSendContact(null)}
       />
     </div>
   );
