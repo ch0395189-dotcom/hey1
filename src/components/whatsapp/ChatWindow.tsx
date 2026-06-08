@@ -1221,6 +1221,43 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
     }
   };
 
+  const getTemplateStatusBadge = (status: string | null, createdAt: string) => {
+    const elapsedSec = Math.max(0, Math.floor((Date.now() - new Date(createdAt).getTime()) / 1000));
+    let label = 'Enviando...';
+    let eta = '';
+    let cls = 'bg-muted text-muted-foreground';
+    switch (status) {
+      case 'sent':
+        label = '✓ Enviado a WhatsApp';
+        eta = elapsedSec < 60 ? 'Entrega estimada: 10–30s' : 'Esperando confirmación de Meta';
+        cls = 'bg-blue-500/10 text-blue-700 dark:text-blue-300';
+        break;
+      case 'delivered':
+        label = '✓✓ Entregado al teléfono';
+        cls = 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300';
+        break;
+      case 'read':
+        label = '✓✓ Leído por el cliente';
+        cls = 'bg-primary/15 text-primary';
+        break;
+      case 'failed':
+        label = '✕ No se pudo entregar';
+        cls = 'bg-destructive/10 text-destructive';
+        break;
+      default:
+        eta = 'Enviando a Meta...';
+    }
+    return (
+      <div className={`mt-1.5 inline-flex flex-col gap-0.5 rounded-md px-2 py-1 text-[11px] ${cls}`}>
+        <span className="font-medium leading-none">{label}</span>
+        {eta && <span className="opacity-80 leading-none">{eta}</span>}
+      </div>
+    );
+  };
+
+  const isTemplateMessage = (msg: Message) =>
+    msg.message_type === 'template' || (msg.content?.startsWith('[template:') ?? false);
+
   const getInitials = (name: string | null, phone: string) => {
     if (name) {
       return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
@@ -1654,6 +1691,11 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                           </span>
                           {msg.direction === 'outbound' && getStatusIcon(msg.status)}
                         </div>
+                        {msg.direction === 'outbound' && isTemplateMessage(msg) && (
+                          <div className="flex justify-end">
+                            {getTemplateStatusBadge(msg.status, msg.created_at)}
+                          </div>
+                        )}
                       </div>
                       {msg.direction === 'inbound' && !isUnsupportedMsg && (msg.content || msg.media_url) && (
                         <button
