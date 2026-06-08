@@ -2064,9 +2064,12 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
         <SendTemplateDialog
           accountId={conversation.whatsapp_account_id}
           template={selectedTemplate}
-          defaultPhone={conversation.customer_phone}
-          lockPhone
-          onClose={() => setSelectedTemplate(null)}
+          defaultPhone={templateTestMode ? undefined : conversation.customer_phone}
+          lockPhone={!templateTestMode}
+          onClose={() => {
+            setSelectedTemplate(null);
+            setTemplateTestMode(false);
+          }}
           onSent={() => fetchMessages()}
         />
       )}
