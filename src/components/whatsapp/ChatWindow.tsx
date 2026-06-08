@@ -2041,6 +2041,18 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
         defaultVoice={clonedVoice}
         onConfirm={sendClonedVoiceBlob}
       />
+
+      {/* Send approved template to current conversation */}
+      {conversation && (
+        <SendTemplateDialog
+          accountId={conversation.whatsapp_account_id}
+          template={selectedTemplate}
+          defaultPhone={conversation.customer_phone}
+          lockPhone
+          onClose={() => setSelectedTemplate(null)}
+          onSent={() => fetchMessages()}
+        />
+      )}
     </div>
   );
 };
