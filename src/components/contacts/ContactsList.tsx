@@ -603,6 +603,14 @@ export const ContactsList = () => {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="bg-popover">
+                        <DropdownMenuItem
+                          className="gap-2"
+                          onClick={() => setSingleSendContact(contact)}
+                        >
+                          <Send className="w-4 h-4" />
+                          Enviar mensaje
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
                         <DropdownMenuItem className="gap-2">
                           <MessageCircle className="w-4 h-4" />
                           Ir a conversación
