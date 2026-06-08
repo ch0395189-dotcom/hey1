@@ -51,10 +51,14 @@ export function getFriendlyWhatsappError(
   if (code && FRIENDLY_BY_CODE[code]) return FRIENDLY_BY_CODE[code];
 
   const raw = (data.message || data.details?.message || data.error || "").toString();
+  const lowered = raw.toLowerCase();
+  if (lowered.includes('business account locked') || lowered.includes('failed_131031')) {
+    return FRIENDLY_BY_CODE[131031];
+  }
   // Intentar extraer (#NNNN) del mensaje crudo si Meta lo incluye
-  const match = raw.match(/\(#(\d+)\)/);
+  const match = raw.match(/\(#(\d+)\)|failed_(\d+)/);
   if (match) {
-    const parsed = Number(match[1]);
+    const parsed = Number(match[1] || match[2]);
     if (FRIENDLY_BY_CODE[parsed]) return FRIENDLY_BY_CODE[parsed];
   }
   return raw || fallback;
