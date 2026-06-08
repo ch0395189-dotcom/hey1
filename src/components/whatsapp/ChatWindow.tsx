@@ -163,6 +163,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
   const [templatesPopoverOpen, setTemplatesPopoverOpen] = useState(false);
   const [templatesLoading, setTemplatesLoading] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<any | null>(null);
+  const [templateTestMode, setTemplateTestMode] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -1941,6 +1942,22 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                     <p className="text-xs text-muted-foreground">
                       Útil fuera de la ventana de 24h.
                     </p>
+                    <div className="mt-2 flex gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setTemplateTestMode(false)}
+                        className={`flex-1 text-xs rounded-md px-2 py-1 border transition-colors ${!templateTestMode ? 'bg-primary text-primary-foreground border-primary' : 'bg-background hover:bg-accent'}`}
+                      >
+                        A este chat
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setTemplateTestMode(true)}
+                        className={`flex-1 text-xs rounded-md px-2 py-1 border transition-colors ${templateTestMode ? 'bg-primary text-primary-foreground border-primary' : 'bg-background hover:bg-accent'}`}
+                      >
+                        Probar a otro número
+                      </button>
+                    </div>
                   </div>
                   <div className="max-h-72 overflow-y-auto">
                     {templatesLoading ? (
@@ -2047,9 +2064,12 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
         <SendTemplateDialog
           accountId={conversation.whatsapp_account_id}
           template={selectedTemplate}
-          defaultPhone={conversation.customer_phone}
-          lockPhone
-          onClose={() => setSelectedTemplate(null)}
+          defaultPhone={templateTestMode ? undefined : conversation.customer_phone}
+          lockPhone={!templateTestMode}
+          onClose={() => {
+            setSelectedTemplate(null);
+            setTemplateTestMode(false);
+          }}
           onSent={() => fetchMessages()}
         />
       )}
