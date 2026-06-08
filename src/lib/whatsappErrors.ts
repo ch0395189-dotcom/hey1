@@ -52,6 +52,7 @@ export function getFriendlyWhatsappError(
 
   const raw = (data.message || data.details?.message || data.error || "").toString();
   const lowered = raw.toLowerCase();
+  if (lowered === 'failed' || lowered === 'failed_unknown') return fallback;
   if (lowered.includes('business account locked') || lowered.includes('failed_131031')) {
     return FRIENDLY_BY_CODE[131031];
   }
