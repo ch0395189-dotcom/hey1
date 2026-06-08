@@ -1237,7 +1237,8 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
   };
 
   const getStatusIcon = (status: string | null) => {
-    switch (status) {
+    const normalizedStatus = status?.startsWith('failed_') ? 'failed' : status;
+    switch (normalizedStatus) {
       case 'sent':
         return <Check className="w-3 h-3" />;
       case 'delivered':
@@ -1252,11 +1253,12 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
   };
 
   const getTemplateStatusBadge = (status: string | null, createdAt: string) => {
+    const normalizedStatus = status?.startsWith('failed_') ? 'failed' : status;
     const elapsedSec = Math.max(0, Math.floor((Date.now() - new Date(createdAt).getTime()) / 1000));
     let label = 'Enviando...';
     let eta = '';
     let cls = 'bg-muted text-muted-foreground';
-    switch (status) {
+    switch (normalizedStatus) {
       case 'sent':
         label = '✓ Enviado a WhatsApp';
         eta = elapsedSec < 60 ? 'Entrega estimada: 10–30s' : 'Esperando confirmación de Meta';
@@ -1272,6 +1274,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
         break;
       case 'failed':
         label = '✕ No se pudo entregar';
+        eta = getFriendlyWhatsappError({ error: status || 'failed' }, 'Revisa el número o la cuenta de WhatsApp.');
         cls = 'bg-destructive/10 text-destructive';
         break;
       default:
