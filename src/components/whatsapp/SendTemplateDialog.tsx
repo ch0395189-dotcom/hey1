@@ -85,6 +85,14 @@ export const SendTemplateDialog = ({ accountId, template, onClose, onSent, defau
       toast({ title: "Faltan variables", description: "Completa todas las variables de la plantilla.", variant: "destructive" });
       return;
     }
+    if (params.some((p) => /\{\{.*\}\}/.test(p))) {
+      toast({
+        title: "Variable inválida",
+        description: "Escribe solo el valor real. Ejemplo: Jair, no {{1}} ni {{nombre}}.",
+        variant: "destructive",
+      });
+      return;
+    }
     setSending(true);
     try {
       const { data, error } = await supabase.functions.invoke("whatsapp-send-message", {
@@ -146,7 +154,7 @@ export const SendTemplateDialog = ({ accountId, template, onClose, onSent, defau
                 {Array.from({ length: varCount }).map((_, i) => (
                   <Input
                     key={i}
-                    placeholder={`{{${i + 1}}}`}
+                    placeholder={`Valor ${i + 1}, ej: Jair`}
                     value={params[i] ?? ""}
                     onChange={(e) => {
                       const next = [...params];
