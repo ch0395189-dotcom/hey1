@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { getFriendlyWhatsappError } from "@/lib/whatsappErrors";
 
 interface TemplateLike {
   id: string;
@@ -98,9 +99,9 @@ export const SendTemplateDialog = ({ accountId, template, onClose, onSent, defau
       });
       if (error) throw error;
       if (data?.error || data?.success === false) {
-        throw new Error(data?.error || data?.message || "No se pudo enviar la plantilla");
+        throw new Error(getFriendlyWhatsappError(data, "No se pudo enviar la plantilla"));
       }
-      toast({ title: "Plantilla enviada", description: `Mensaje enviado a +${clean}` });
+      toast({ title: "Plantilla aceptada", description: `WhatsApp la está entregando a +${clean}.` });
       setPhone("");
       setParams([]);
       onSent?.();

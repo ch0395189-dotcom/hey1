@@ -142,6 +142,12 @@ interface WhatsAppStatus {
   status: string;
   timestamp: string;
   recipient_id: string;
+  errors?: Array<{
+    code?: number;
+    title?: string;
+    message?: string;
+    error_data?: { details?: string };
+  }>;
 }
 
 interface WhatsAppWebhookEntry {
@@ -731,13 +737,20 @@ Deno.serve(async (req) => {
           // Handle status updates
           if (value.statuses && value.statuses.length > 0) {
             for (const status of value.statuses) {
+              const firstError = status.errors?.[0];
+              const nextStatus = status.status === 'failed'
+                ? `failed_${firstError?.code ?? 'unknown'}`
+                : status.status;
+
               const { error: updateError } = await supabase
                 .from('messages')
-                .update({ status: status.status })
+                .update({ status: nextStatus })
                 .eq('whatsapp_message_id', status.id);
 
               if (updateError) {
                 console.error('Error updating message status:', updateError);
+              } else if (status.status === 'failed') {
+                console.error('WhatsApp delivery failed:', JSON.stringify({ id: status.id, error: firstError }));
               }
             }
           }
