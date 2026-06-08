@@ -70,6 +70,7 @@ import { useNotificationSound } from "@/hooks/useNotificationSound";
 import { FaWhatsapp, FaFacebookMessenger, FaInstagram, FaTiktok } from "react-icons/fa";
 import { ImagePreviewDialog } from "@/components/whatsapp/ImagePreviewDialog";
 import { InteractiveMessageDialog, InteractiveMessageData } from "@/components/whatsapp/InteractiveMessageDialog";
+import { SendTemplateDialog } from "@/components/whatsapp/SendTemplateDialog";
 import { ClonedVoicePreviewDialog } from "@/components/whatsapp/ClonedVoicePreviewDialog";
 import { ForwardMessageDialog } from "@/components/whatsapp/ForwardMessageDialog";
 import { TagManager } from "@/components/contacts/TagManager";
@@ -158,6 +159,10 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
   const [hasFishAudioKey, setHasFishAudioKey] = useState(false);
   const [voicePreviewOpen, setVoicePreviewOpen] = useState(false);
   const [forwardMessage, setForwardMessage] = useState<Message | null>(null);
+  const [approvedTemplates, setApprovedTemplates] = useState<any[]>([]);
+  const [templatesPopoverOpen, setTemplatesPopoverOpen] = useState(false);
+  const [templatesLoading, setTemplatesLoading] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<any | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -181,6 +186,30 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
     
     fetchAccountType();
   }, [conversation?.whatsapp_account_id]);
+
+  // Load approved templates when opening the templates popover
+  const loadApprovedTemplates = useCallback(async () => {
+    if (!conversation?.whatsapp_account_id) return;
+    setTemplatesLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("whatsapp-list-templates", {
+        body: { whatsapp_account_id: conversation.whatsapp_account_id },
+      });
+      if (error) throw error;
+      const list = (data?.templates ?? []).filter(
+        (t: any) => (t.status || "").toUpperCase() === "APPROVED"
+      );
+      setApprovedTemplates(list);
+    } catch (e: any) {
+      toast({
+        title: "No se pudieron cargar plantillas",
+        description: e?.message || "Intenta de nuevo.",
+        variant: "destructive",
+      });
+    } finally {
+      setTemplatesLoading(false);
+    }
+  }, [conversation?.whatsapp_account_id, toast]);
 
   // Fetch bot state for this conversation
   const fetchBotState = useCallback(async () => {
