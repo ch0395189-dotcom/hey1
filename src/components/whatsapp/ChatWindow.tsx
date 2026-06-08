@@ -1928,12 +1928,13 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                 <PopoverTrigger asChild>
                   <Button
                     type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="shrink-0 h-8 w-8 md:h-10 md:w-10"
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0 h-9 md:h-10 gap-1.5 px-2.5 border-primary/40 text-primary hover:bg-primary/10"
                     title="Enviar plantilla aprobada"
                   >
-                    <FileText className="w-5 h-5 text-muted-foreground" />
+                    <FileText className="w-4 h-4" />
+                    <span className="hidden sm:inline text-xs font-medium">Plantillas</span>
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent side="top" align="start" className="w-72 p-2">
