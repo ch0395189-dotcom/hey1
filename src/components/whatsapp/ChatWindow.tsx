@@ -1691,6 +1691,11 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                           </span>
                           {msg.direction === 'outbound' && getStatusIcon(msg.status)}
                         </div>
+                        {msg.direction === 'outbound' && isTemplateMessage(msg) && (
+                          <div className="flex justify-end">
+                            {getTemplateStatusBadge(msg.status, msg.created_at)}
+                          </div>
+                        )}
                       </div>
                       {msg.direction === 'inbound' && !isUnsupportedMsg && (msg.content || msg.media_url) && (
                         <button
