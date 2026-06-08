@@ -28,8 +28,8 @@ export const ClonedVoicePreviewDialog = ({ open, onOpenChange, text, defaultVoic
   const [selectedVoiceId, setSelectedVoiceId] = useState<string>('');
   const [generating, setGenerating] = useState(false);
   const [sending, setSending] = useState(false);
-  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
-  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [samples, setSamples] = useState<Array<{ mode: 'natural' | 'creativo'; label: string; blob: Blob; url: string }>>([]);
+  const [selectedMode, setSelectedMode] = useState<'natural' | 'creativo'>('natural');
   const [loadingVoices, setLoadingVoices] = useState(false);
 
   // Load voices when opened
@@ -106,9 +106,9 @@ export const ClonedVoicePreviewDialog = ({ open, onOpenChange, text, defaultVoic
   // Reset audio when dialog closes
   useEffect(() => {
     if (!open) {
-      if (audioUrl) URL.revokeObjectURL(audioUrl);
-      setAudioBlob(null);
-      setAudioUrl(null);
+      samples.forEach((s) => URL.revokeObjectURL(s.url));
+      setSamples([]);
+      setSelectedMode('natural');
       setGenerating(false);
       setSending(false);
     }
@@ -117,9 +117,8 @@ export const ClonedVoicePreviewDialog = ({ open, onOpenChange, text, defaultVoic
 
   // Reset preview when voice changes
   useEffect(() => {
-    if (audioUrl) URL.revokeObjectURL(audioUrl);
-    setAudioBlob(null);
-    setAudioUrl(null);
+    samples.forEach((s) => URL.revokeObjectURL(s.url));
+    setSamples([]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedVoiceId]);
 
@@ -135,26 +134,38 @@ export const ClonedVoicePreviewDialog = ({ open, onOpenChange, text, defaultVoic
 
       const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL;
       const fnName = voice.provider === 'elevenlabs' ? 'elevenlabs-tts' : 'fish-audio-tts';
-      const res = await fetch(`${supabaseUrl}/functions/v1/${fnName}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
-        },
-        body: JSON.stringify({ text: text.trim(), voiceModelId: selectedVoiceId, userId: user.id }),
-      });
 
-      if (!res.ok) {
-        let msg = `Error ${res.status}`;
-        try { const j = await res.json(); msg = j?.error || msg; } catch {}
-        throw new Error(msg);
-      }
+      const modes: Array<'natural' | 'creativo'> = voice.provider === 'elevenlabs'
+        ? ['natural']
+        : ['natural', 'creativo'];
 
-      const buf = await res.arrayBuffer();
-      const blob = new Blob([buf], { type: 'audio/mpeg' });
-      if (audioUrl) URL.revokeObjectURL(audioUrl);
-      setAudioBlob(blob);
-      setAudioUrl(URL.createObjectURL(blob));
+      const results = await Promise.all(modes.map(async (mode) => {
+        const res = await fetch(`${supabaseUrl}/functions/v1/${fnName}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+          },
+          body: JSON.stringify({ text: text.trim(), voiceModelId: selectedVoiceId, userId: user.id, mode }),
+        });
+        if (!res.ok) {
+          let msg = `Error ${res.status}`;
+          try { const j = await res.json(); msg = j?.error || msg; } catch {}
+          throw new Error(msg);
+        }
+        const buf = await res.arrayBuffer();
+        const blob = new Blob([buf], { type: 'audio/mpeg' });
+        return {
+          mode,
+          label: mode === 'creativo' ? 'Creativo' : 'Natural',
+          blob,
+          url: URL.createObjectURL(blob),
+        };
+      }));
+
+      samples.forEach((s) => URL.revokeObjectURL(s.url));
+      setSamples(results);
+      setSelectedMode(results[0].mode);
     } catch (e: any) {
       toast.error('Error al generar audio: ' + (e?.message || 'desconocido'));
     } finally {
@@ -163,12 +174,13 @@ export const ClonedVoicePreviewDialog = ({ open, onOpenChange, text, defaultVoic
   };
 
   const handleSend = async () => {
-    if (!audioBlob) return;
+    const chosen = samples.find((s) => s.mode === selectedMode) || samples[0];
+    if (!chosen) return;
     const voice = voices.find(v => v.voice_model_id === selectedVoiceId);
     if (!voice) return;
     setSending(true);
     try {
-      await onConfirm(audioBlob, voice);
+      await onConfirm(chosen.blob, voice);
       onOpenChange(false);
     } catch {
       // toast handled upstream
@@ -229,10 +241,35 @@ export const ClonedVoicePreviewDialog = ({ open, onOpenChange, text, defaultVoic
             )}
           </div>
 
-          {audioUrl && (
+          {samples.length > 0 && (
             <div className="space-y-2">
-              <Label>Vista previa</Label>
-              <audio src={audioUrl} controls className="w-full" />
+              <Label>Elige la versión que prefieras</Label>
+              <div className="space-y-2">
+                {samples.map((s) => {
+                  const active = selectedMode === s.mode;
+                  return (
+                    <button
+                      key={s.mode}
+                      type="button"
+                      onClick={() => setSelectedMode(s.mode)}
+                      className={`w-full text-left p-3 rounded-lg border transition-colors ${
+                        active ? 'border-emerald-600 bg-emerald-50 dark:bg-emerald-950/30' : 'border-border bg-background hover:bg-muted/50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium flex items-center gap-2">
+                          <span className={`inline-block w-2 h-2 rounded-full ${active ? 'bg-emerald-600' : 'bg-muted-foreground/40'}`} />
+                          {s.label}
+                          <span className="text-xs text-muted-foreground font-normal">
+                            {s.mode === 'creativo' ? '· más expresivo' : '· fiel a la muestra'}
+                          </span>
+                        </span>
+                      </div>
+                      <audio src={s.url} controls className="w-full" onClick={(e) => e.stopPropagation()} />
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>
@@ -246,16 +283,16 @@ export const ClonedVoicePreviewDialog = ({ open, onOpenChange, text, defaultVoic
           >
             {generating ? (
               <Loader2 className="h-4 w-4 animate-spin" />
-            ) : audioUrl ? (
+            ) : samples.length > 0 ? (
               <RefreshCw className="h-4 w-4" />
             ) : (
               <Sparkles className="h-4 w-4" />
             )}
-            {audioUrl ? 'Regenerar' : 'Generar'}
+            {samples.length > 0 ? 'Regenerar' : 'Generar opciones'}
           </Button>
           <Button
             onClick={handleSend}
-            disabled={!audioBlob || sending || generating}
+            disabled={samples.length === 0 || sending || generating}
             className="gap-2 bg-emerald-600 hover:bg-emerald-700"
           >
             {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
