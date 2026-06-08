@@ -1914,6 +1914,63 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
               <ListOrdered className="w-5 h-5 text-muted-foreground" />
             </Button>
           )}
+          {conversation?.platform === 'whatsapp' &&
+            accountConnectionType !== 'external_qr' &&
+            accountConnectionType !== 'external' && (
+              <Popover
+                open={templatesPopoverOpen}
+                onOpenChange={(o) => {
+                  setTemplatesPopoverOpen(o);
+                  if (o) loadApprovedTemplates();
+                }}
+              >
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="shrink-0 h-8 w-8 md:h-10 md:w-10"
+                    title="Enviar plantilla aprobada"
+                  >
+                    <FileText className="w-5 h-5 text-muted-foreground" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent side="top" align="start" className="w-72 p-2">
+                  <div className="px-2 py-1.5">
+                    <p className="text-sm font-semibold">Plantillas aprobadas</p>
+                    <p className="text-xs text-muted-foreground">
+                      Útil fuera de la ventana de 24h.
+                    </p>
+                  </div>
+                  <div className="max-h-72 overflow-y-auto">
+                    {templatesLoading ? (
+                      <p className="px-2 py-3 text-xs text-muted-foreground">Cargando...</p>
+                    ) : approvedTemplates.length === 0 ? (
+                      <p className="px-2 py-3 text-xs text-muted-foreground">
+                        No tienes plantillas aprobadas. Créalas en WhatsApp → Plantillas.
+                      </p>
+                    ) : (
+                      approvedTemplates.map((tpl) => (
+                        <button
+                          key={tpl.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedTemplate(tpl);
+                            setTemplatesPopoverOpen(false);
+                          }}
+                          className="w-full text-left rounded-md px-2 py-2 hover:bg-accent transition-colors"
+                        >
+                          <p className="text-sm font-medium truncate">{tpl.name}</p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {tpl.language || '—'} · {tpl.category || '—'}
+                          </p>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
           <Input
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
