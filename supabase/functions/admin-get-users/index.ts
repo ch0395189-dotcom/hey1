@@ -58,17 +58,24 @@ serve(async (req) => {
 
     // Use service role to list users
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
-    const { data: usersData, error: usersError } = await adminClient.auth.admin.listUsers();
-
-    if (usersError) {
-      throw usersError;
+    const perPage = 1000;
+    let page = 1;
+    const allUsers: { id: string; email?: string; last_sign_in_at?: string | null }[] = [];
+    // Paginate through ALL users (listUsers defaults to 50 per page)
+    while (true) {
+      const { data: usersData, error: usersError } = await adminClient.auth.admin.listUsers({ page, perPage });
+      if (usersError) throw usersError;
+      const batch = usersData?.users || [];
+      if (batch.length === 0) break;
+      for (const u of batch) {
+        allUsers.push({ id: u.id, email: u.email, last_sign_in_at: u.last_sign_in_at });
+      }
+      if (batch.length < perPage) break;
+      page += 1;
+      if (page > 50) break; // safety guard
     }
 
-    const users = usersData.users.map((u) => ({
-      id: u.id,
-      email: u.email,
-      last_sign_in_at: u.last_sign_in_at,
-    }));
+    const users = allUsers;
 
     return new Response(
       JSON.stringify({ users }),
