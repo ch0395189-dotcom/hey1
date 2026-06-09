@@ -442,6 +442,18 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
     // Start polling every 2 seconds
     pollingInterval = setInterval(checkForNewAccounts, 2000);
 
+    let embeddedSignupSessionInfo: {
+      accessToken?: string;
+      code?: string;
+      phone_number_id?: string;
+      waba_id?: string;
+    } | null = null;
+
+    const waitForEmbeddedSignupSessionInfo = () =>
+      new Promise<typeof embeddedSignupSessionInfo>((resolve) => {
+        window.setTimeout(() => resolve(embeddedSignupSessionInfo), 1200);
+      });
+
     // Session info listener for Embedded Signup v2 - captures data when user completes setup
     const sessionInfoListener = async (sessionInfo: {
       accessToken?: string;
@@ -450,9 +462,10 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
       waba_id?: string;
     }) => {
       console.log('sessionInfoListener received:', JSON.stringify(sessionInfo, null, 2));
+      embeddedSignupSessionInfo = { ...embeddedSignupSessionInfo, ...sessionInfo };
       
       if (finished) {
-        console.log('Already finished, ignoring sessionInfoListener');
+        console.log('Already finished, saved sessionInfoListener data for callback merge');
         return;
       }
       finished = true;
@@ -462,10 +475,10 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
 
       if (sessionInfo.accessToken || sessionInfo.code) {
         const success = await exchangeCredentials({
-          code: sessionInfo.code,
-          access_token: sessionInfo.accessToken,
-          phone_number_id: sessionInfo.phone_number_id,
-          waba_id: sessionInfo.waba_id,
+          code: embeddedSignupSessionInfo.code,
+          access_token: embeddedSignupSessionInfo.accessToken,
+          phone_number_id: embeddedSignupSessionInfo.phone_number_id,
+          waba_id: embeddedSignupSessionInfo.waba_id,
         });
         if (!success) {
           setConnecting(false);
@@ -500,10 +513,22 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
             cleanup();
             cleanupListeners();
             
-            console.log('Got auth credential from callback, exchanging/saving token...');
+            console.log('Got auth credential from callback, waiting briefly for Embedded Signup IDs...');
             (async () => {
+              const signupInfo = await waitForEmbeddedSignupSessionInfo();
               const success = await exchangeCredentials(
-                code ? { code, redirect_uri: '' } : { access_token: accessToken }
+                code
+                  ? {
+                      code,
+                      redirect_uri: '',
+                      phone_number_id: signupInfo?.phone_number_id,
+                      waba_id: signupInfo?.waba_id,
+                    }
+                  : {
+                      access_token: accessToken,
+                      phone_number_id: signupInfo?.phone_number_id,
+                      waba_id: signupInfo?.waba_id,
+                    }
               );
               if (!success) {
                 setConnecting(false);
