@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { WhatsAppFloatingButton } from "@/components/ui/WhatsAppFloatingButton";
 
 const Login = () => {
+  const location = useLocation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -42,6 +43,15 @@ const Login = () => {
     return "No pudimos iniciar sesión. Revisa tus datos e intenta nuevamente.";
   };
 
+  const getRedirectTarget = () => {
+    const params = new URLSearchParams(location.search);
+    const redirectTo = params.get("redirectTo");
+    if (redirectTo?.startsWith("/") && !redirectTo.startsWith("//")) {
+      return redirectTo;
+    }
+    return "/dashboard";
+  };
+
   // Check for existing session on mount
   useEffect(() => {
     const checkExistingSession = async () => {
@@ -49,7 +59,7 @@ const Login = () => {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
           console.log('[Login] Existing session found, redirecting to dashboard');
-          window.location.replace('/dashboard');
+          window.location.replace(getRedirectTarget());
           return;
         }
       } catch (error) {
@@ -63,12 +73,12 @@ const Login = () => {
     // Also listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' && session?.user) {
-        window.location.replace('/dashboard');
+        window.location.replace(getRedirectTarget());
       }
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [location.search]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -90,7 +100,7 @@ const Login = () => {
       // Hard redirect to ensure session is picked up everywhere and avoid
       // the spinner getting stuck if React Router navigation races with
       // the auth state change listener.
-      window.location.replace("/dashboard");
+      window.location.replace(getRedirectTarget());
       return;
     } catch (error: any) {
       toast({
