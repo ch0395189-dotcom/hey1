@@ -405,6 +405,40 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
     let finished = false;
     let popupOpened = false;
     let pollingInterval: ReturnType<typeof setInterval> | null = null;
+    let embeddedSignupSessionInfo: {
+      accessToken?: string;
+      code?: string;
+      phone_number_id?: string;
+      waba_id?: string;
+    } | null = null;
+
+    const embeddedSignupMessageListener = (event: MessageEvent) => {
+      if (!event.origin.endsWith('facebook.com')) return;
+
+      try {
+        const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+        if (data?.type !== 'WA_EMBEDDED_SIGNUP') return;
+
+        const embeddedMessage = data as WhatsAppEmbeddedSignupMessage;
+        console.log('WA_EMBEDDED_SIGNUP message received:', JSON.stringify(embeddedMessage, null, 2));
+
+        const firstWabaId = embeddedMessage.data?.waba_id || embeddedMessage.data?.waba_ids?.[0];
+        if (embeddedMessage.data?.phone_number_id || firstWabaId) {
+          embeddedSignupSessionInfo = {
+            ...embeddedSignupSessionInfo,
+            phone_number_id: embeddedMessage.data?.phone_number_id || embeddedSignupSessionInfo?.phone_number_id,
+            waba_id: firstWabaId || embeddedSignupSessionInfo?.waba_id,
+          };
+        }
+
+        const metaMessage = getEmbeddedSignupErrorMessage(embeddedMessage);
+        if (metaMessage) {
+          setLastError(metaMessage);
+        }
+      } catch (error) {
+        console.warn('Could not parse WA Embedded Signup message:', event.data, error);
+      }
+    };
     
     const cleanup = () => {
       if (pollingInterval) {
@@ -441,6 +475,7 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
     // Listen for visibility/focus changes
     document.addEventListener('visibilitychange', checkPopupOpened);
     window.addEventListener('blur', () => { popupOpened = true; });
+    window.addEventListener('message', embeddedSignupMessageListener);
 
     const cleanupListeners = () => {
       document.removeEventListener('visibilitychange', checkPopupOpened);
@@ -487,43 +522,6 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
 
     // Start polling every 2 seconds
     pollingInterval = setInterval(checkForNewAccounts, 2000);
-
-    let embeddedSignupSessionInfo: {
-      accessToken?: string;
-      code?: string;
-      phone_number_id?: string;
-      waba_id?: string;
-    } | null = null;
-
-    const embeddedSignupMessageListener = (event: MessageEvent) => {
-      if (!event.origin.endsWith('facebook.com')) return;
-
-      try {
-        const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
-        if (data?.type !== 'WA_EMBEDDED_SIGNUP') return;
-
-        const embeddedMessage = data as WhatsAppEmbeddedSignupMessage;
-        console.log('WA_EMBEDDED_SIGNUP message received:', JSON.stringify(embeddedMessage, null, 2));
-
-        const firstWabaId = embeddedMessage.data?.waba_id || embeddedMessage.data?.waba_ids?.[0];
-        if (embeddedMessage.data?.phone_number_id || firstWabaId) {
-          embeddedSignupSessionInfo = {
-            ...embeddedSignupSessionInfo,
-            phone_number_id: embeddedMessage.data?.phone_number_id || embeddedSignupSessionInfo?.phone_number_id,
-            waba_id: firstWabaId || embeddedSignupSessionInfo?.waba_id,
-          };
-        }
-
-        const metaMessage = getEmbeddedSignupErrorMessage(embeddedMessage);
-        if (metaMessage) {
-          setLastError(metaMessage);
-        }
-      } catch (error) {
-        console.warn('Could not parse WA Embedded Signup message:', event.data, error);
-      }
-    };
-
-    window.addEventListener('message', embeddedSignupMessageListener);
 
     const waitForEmbeddedSignupSessionInfo = () =>
       new Promise<typeof embeddedSignupSessionInfo>((resolve) => {
