@@ -64,9 +64,9 @@ const plans: Array<{
     period: "mes",
     description: "Para negocios en crecimiento",
     features: [
-      "3 números de WhatsApp",
+      "2 números de WhatsApp",
       "10,000 mensajes/mes",
-      "3 agentes / subcuentas",
+      "2 agentes / subcuentas",
       "Historial ilimitado",
       "Respuestas rápidas",
       "Analíticas avanzadas",
@@ -82,9 +82,9 @@ const plans: Array<{
     period: "mes",
     description: "Para grandes empresas",
     features: [
-      "10 números de WhatsApp",
+      "5 números de WhatsApp",
       "Mensajes ilimitados",
-      "10 agentes / subcuentas",
+      "5 agentes / subcuentas",
       "API personalizada",
       "Automatizaciones",
       "Integraciones CRM",
