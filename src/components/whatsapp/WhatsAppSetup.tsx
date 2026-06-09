@@ -98,6 +98,14 @@ const getAccountLabel = (account: any) => {
   return account?.phone_number || account?.display_name || "tu cuenta";
 };
 
+const getAccountPhone = (account: Partial<WhatsAppAccount> | null | undefined) => {
+  return account?.phone_number || account?.display_name || account?.phone_number_id || "Pendiente de configurar";
+};
+
+const getAccountName = (account: Partial<WhatsAppAccount> | null | undefined) => {
+  return account?.display_name || getAccountPhone(account);
+};
+
 export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
   const [accounts, setAccounts] = useState<WhatsAppAccount[]>([]);
   const [loading, setLoading] = useState(true);
@@ -424,7 +432,7 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
             
             toast({
               title: "¡Cuenta conectada!",
-              description: `WhatsApp ${newAccount.phone_number || newAccount.display_name} conectado exitosamente.`,
+              description: `WhatsApp ${getAccountName(newAccount)} conectado exitosamente.`,
             });
             
             setAccounts(data);
@@ -666,8 +674,8 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
       {verifyingAccount && (
         <ConnectionVerification
           accountId={verifyingAccount.id}
-          accountPhone={verifyingAccount.phone_number}
-          accountName={verifyingAccount.display_name || verifyingAccount.phone_number}
+          accountPhone={getAccountPhone(verifyingAccount)}
+          accountName={getAccountName(verifyingAccount)}
           onVerificationComplete={() => {
             setVerifyingAccount(null);
             // Navigate to inbox or dashboard
@@ -697,12 +705,12 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="font-medium">{account.display_name || account.phone_number}</span>
+                          <span className="font-medium">{getAccountName(account)}</span>
                           <Badge variant={account.is_active ? "default" : "secondary"}>
                             {account.is_active ? "Activo" : "Inactivo"}
                           </Badge>
                         </div>
-                        <p className="text-sm text-muted-foreground">{account.phone_number}</p>
+                        <p className="text-sm text-muted-foreground">{getAccountPhone(account)}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -770,7 +778,7 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
                     >
                       <TestMessageSender 
                         accountId={account.id} 
-                        accountPhone={account.phone_number}
+                        accountPhone={getAccountPhone(account)}
                         connectionType={account.connection_type}
                       />
                       <WhatsAppTemplateCreator
@@ -984,7 +992,7 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
           <AlertDialogHeader>
             <AlertDialogTitle>¿Eliminar cuenta de WhatsApp?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción eliminará la cuenta "{accountToDelete?.display_name || accountToDelete?.phone_number}" 
+              Esta acción eliminará la cuenta "{getAccountName(accountToDelete)}" 
               y todas sus conversaciones asociadas. Esta acción no se puede deshacer.
             </AlertDialogDescription>
           </AlertDialogHeader>
