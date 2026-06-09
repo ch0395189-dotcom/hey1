@@ -73,6 +73,21 @@ declare global {
   }
 }
 
+interface WhatsAppEmbeddedSignupMessage {
+  type?: string;
+  event?: string;
+  data?: {
+    phone_number_id?: string;
+    waba_id?: string;
+    waba_ids?: string[];
+    business_id?: string;
+    current_step?: string;
+    error_message?: string;
+    error_code?: string;
+    session_id?: string;
+  };
+}
+
 interface WhatsAppAccount {
   id: string;
   phone_number: string;
@@ -105,6 +120,23 @@ const getAccountPhone = (account: Partial<WhatsAppAccount> | null | undefined) =
 
 const getAccountName = (account: Partial<WhatsAppAccount> | null | undefined) => {
   return account?.display_name || getAccountPhone(account);
+};
+
+const getEmbeddedSignupErrorMessage = (message: WhatsAppEmbeddedSignupMessage) => {
+  if (message.event === 'CANCEL') {
+    if (message.data?.error_message) {
+      return `Meta canceló el proceso: ${message.data.error_message}${message.data.error_code ? ` (código ${message.data.error_code})` : ''}`;
+    }
+    if (message.data?.current_step) {
+      return `Meta indicó que el flujo se cerró antes de terminar, en el paso: ${message.data.current_step}.`;
+    }
+  }
+
+  if (message.event === 'ERROR' && message.data?.error_message) {
+    return `Meta reportó un error: ${message.data.error_message}${message.data.error_code ? ` (código ${message.data.error_code})` : ''}`;
+  }
+
+  return null;
 };
 
 export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
@@ -373,6 +405,40 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
     let finished = false;
     let popupOpened = false;
     let pollingInterval: ReturnType<typeof setInterval> | null = null;
+    let embeddedSignupSessionInfo: {
+      accessToken?: string;
+      code?: string;
+      phone_number_id?: string;
+      waba_id?: string;
+    } | null = null;
+
+    const embeddedSignupMessageListener = (event: MessageEvent) => {
+      if (!event.origin.endsWith('facebook.com')) return;
+
+      try {
+        const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+        if (data?.type !== 'WA_EMBEDDED_SIGNUP') return;
+
+        const embeddedMessage = data as WhatsAppEmbeddedSignupMessage;
+        console.log('WA_EMBEDDED_SIGNUP message received:', JSON.stringify(embeddedMessage, null, 2));
+
+        const firstWabaId = embeddedMessage.data?.waba_id || embeddedMessage.data?.waba_ids?.[0];
+        if (embeddedMessage.data?.phone_number_id || firstWabaId) {
+          embeddedSignupSessionInfo = {
+            ...embeddedSignupSessionInfo,
+            phone_number_id: embeddedMessage.data?.phone_number_id || embeddedSignupSessionInfo?.phone_number_id,
+            waba_id: firstWabaId || embeddedSignupSessionInfo?.waba_id,
+          };
+        }
+
+        const metaMessage = getEmbeddedSignupErrorMessage(embeddedMessage);
+        if (metaMessage) {
+          setLastError(metaMessage);
+        }
+      } catch (error) {
+        console.warn('Could not parse WA Embedded Signup message:', event.data, error);
+      }
+    };
     
     const cleanup = () => {
       if (pollingInterval) {
@@ -388,6 +454,7 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
       if (!popupOpened) {
         finished = true;
         cleanup();
+        cleanupListeners();
         setConnecting(false);
         toast({
           title: "No se abrió el popup de Meta",
@@ -408,10 +475,14 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
     
     // Listen for visibility/focus changes
     document.addEventListener('visibilitychange', checkPopupOpened);
-    window.addEventListener('blur', () => { popupOpened = true; });
+    const markPopupOpened = () => { popupOpened = true; };
+    window.addEventListener('blur', markPopupOpened);
+    window.addEventListener('message', embeddedSignupMessageListener);
 
     const cleanupListeners = () => {
       document.removeEventListener('visibilitychange', checkPopupOpened);
+      window.removeEventListener('blur', markPopupOpened);
+      window.removeEventListener('message', embeddedSignupMessageListener);
     };
 
     // Poll for new accounts in case callbacks don't fire
@@ -455,16 +526,9 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
     // Start polling every 2 seconds
     pollingInterval = setInterval(checkForNewAccounts, 2000);
 
-    let embeddedSignupSessionInfo: {
-      accessToken?: string;
-      code?: string;
-      phone_number_id?: string;
-      waba_id?: string;
-    } | null = null;
-
     const waitForEmbeddedSignupSessionInfo = () =>
       new Promise<typeof embeddedSignupSessionInfo>((resolve) => {
-        window.setTimeout(() => resolve(embeddedSignupSessionInfo), 1200);
+        window.setTimeout(() => resolve(embeddedSignupSessionInfo), 1800);
       });
 
     // Session info listener for Embedded Signup v2 - captures data when user completes setup
