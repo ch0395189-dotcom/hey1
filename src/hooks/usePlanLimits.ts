@@ -6,7 +6,7 @@ type PlanKey = "starter" | "professional" | "enterprise" | "esoterico_pro" | "es
 const WHATSAPP_LIMITS: Record<PlanKey, number> = {
   starter: 1,
   professional: 3,
-  enterprise: 10,
+  enterprise: 5,
   esoterico_pro: 1,
   esoterico_rental: 1,
 };
