@@ -454,6 +454,7 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
       if (!popupOpened) {
         finished = true;
         cleanup();
+        cleanupListeners();
         setConnecting(false);
         toast({
           title: "No se abrió el popup de Meta",
@@ -474,11 +475,13 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
     
     // Listen for visibility/focus changes
     document.addEventListener('visibilitychange', checkPopupOpened);
-    window.addEventListener('blur', () => { popupOpened = true; });
+    const markPopupOpened = () => { popupOpened = true; };
+    window.addEventListener('blur', markPopupOpened);
     window.addEventListener('message', embeddedSignupMessageListener);
 
     const cleanupListeners = () => {
       document.removeEventListener('visibilitychange', checkPopupOpened);
+      window.removeEventListener('blur', markPopupOpened);
       window.removeEventListener('message', embeddedSignupMessageListener);
     };
 
