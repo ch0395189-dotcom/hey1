@@ -19,7 +19,8 @@ import {
   Pencil,
   Trash2,
   Bug,
-  QrCode
+  QrCode,
+  RefreshCw
 } from "lucide-react";
 import { TestMessageSender } from "./TestMessageSender";
 import { ManualWhatsAppSetup } from "./ManualWhatsAppSetup";
@@ -120,6 +121,7 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [accountToDelete, setAccountToDelete] = useState<WhatsAppAccount | null>(null);
   const [verifyingAccount, setVerifyingAccount] = useState<WhatsAppAccount | null>(null);
+  const [lastError, setLastError] = useState<string | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
   const planLimits = usePlanLimits();
@@ -295,6 +297,7 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
         throw new Error(getExchangeErrorMessage(data, 'Error al conectar la cuenta de WhatsApp.'));
       }
 
+      setLastError(null);
       toast({
         title: "¡Cuenta conectada!",
         description: `WhatsApp ${getAccountLabel(data.account)} conectado exitosamente.`,
@@ -322,9 +325,11 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
       return true;
     } catch (error: any) {
       console.error('Error exchanging token:', error);
+      const msg = error?.message || "Error al conectar la cuenta de WhatsApp.";
+      setLastError(msg);
       toast({
         title: "Error",
-        description: error.message || "Error al conectar la cuenta de WhatsApp.",
+        description: msg,
         variant: "destructive",
       });
       return false;
@@ -598,9 +603,11 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
       }
       setConnecting(false);
       console.error('FB.login error:', error);
+      const msg = error?.message || "No se pudo iniciar el login de Meta.";
+      setLastError(msg);
       toast({
         title: "Error",
-        description: error?.message || "No se pudo iniciar el login de Meta.",
+        description: msg,
         variant: "destructive",
       });
     }
@@ -903,6 +910,35 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
                 </div>
               ) : (
                 <div className="space-y-3">
+                  {lastError && (
+                    <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3">
+                      <div className="flex items-start gap-2">
+                        <AlertCircle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-destructive">
+                            Último error de Meta
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1 break-words whitespace-pre-wrap">
+                            {lastError}
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full mt-3"
+                        disabled={connecting || (!isMobileEnv && !fbLoaded) || !planLimits.canAddWhatsAppAccount}
+                        onClick={() => {
+                          setLastError(null);
+                          (isMobileEnv ? handleMobileRedirectSignup : handleEmbeddedSignup)();
+                        }}
+                      >
+                        <RefreshCw className="w-4 h-4 mr-2" />
+                        Reintentar conexión
+                      </Button>
+                    </div>
+                  )}
+
                   <Button 
                     onClick={isMobileEnv ? handleMobileRedirectSignup : handleEmbeddedSignup} 
                     disabled={connecting || (!isMobileEnv && !fbLoaded) || !planLimits.canAddWhatsAppAccount}
