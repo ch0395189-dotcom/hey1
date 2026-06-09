@@ -452,9 +452,13 @@ const Dashboard = () => {
           checkWhatsAppAccounts();
           return;
         }
-        navigate('/login', { replace: true });
+        const redirectTarget = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+        navigate(`/login?redirectTo=${encodeURIComponent(redirectTarget)}`, { replace: true });
       } catch {
-        if (!cancelled) navigate('/login', { replace: true });
+        if (!cancelled) {
+          const redirectTarget = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+          navigate(`/login?redirectTo=${encodeURIComponent(redirectTarget)}`, { replace: true });
+        }
       }
     })();
     return () => {
