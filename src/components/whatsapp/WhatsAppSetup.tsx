@@ -89,6 +89,15 @@ interface WhatsAppSetupProps {
   onAccountConnected?: () => void;
 }
 
+const getExchangeErrorMessage = (data: any, fallback: string) => {
+  if (!data?.error) return fallback;
+  return data.message || data.details || data.error || fallback;
+};
+
+const getAccountLabel = (account: any) => {
+  return account?.phone_number || account?.display_name || "tu cuenta";
+};
+
 export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
   const [accounts, setAccounts] = useState<WhatsAppAccount[]>([]);
   const [loading, setLoading] = useState(true);
@@ -229,10 +238,13 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
         });
         console.log('Exchange response (from URL code):', { data, error });
         if (error) throw error;
+        if (data?.error || !data?.account) {
+          throw new Error(getExchangeErrorMessage(data, 'No se pudo finalizar la vinculación.'));
+        }
 
         toast({
           title: '¡Cuenta conectada!',
-          description: `WhatsApp ${data.account.phone_number} conectado exitosamente.`,
+          description: `WhatsApp ${getAccountLabel(data.account)} conectado exitosamente.`,
         });
 
         fetchAccounts();
@@ -271,10 +283,13 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
       console.log('Exchange response:', { data, error });
 
       if (error) throw error;
+      if (data?.error || !data?.account?.id) {
+        throw new Error(getExchangeErrorMessage(data, 'Error al conectar la cuenta de WhatsApp.'));
+      }
 
       toast({
         title: "¡Cuenta conectada!",
-        description: `WhatsApp ${data.account.phone_number} conectado exitosamente.`,
+        description: `WhatsApp ${getAccountLabel(data.account)} conectado exitosamente.`,
       });
 
       // Fetch updated accounts and show verification dialog
