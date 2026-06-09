@@ -157,8 +157,11 @@ Deno.serve(async (req) => {
 
       if (!wabaId) {
         return new Response(
-          JSON.stringify({ error: 'No WhatsApp Business Account found in the authorization' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          JSON.stringify({
+            error: 'missing_whatsapp_business_account',
+            message: 'Meta no entregó la cuenta de WhatsApp Business ni el número. Vuelve a iniciar la conexión y asegúrate de seleccionar el negocio, la cuenta de WhatsApp y el número durante el popup de Meta.',
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
     }
