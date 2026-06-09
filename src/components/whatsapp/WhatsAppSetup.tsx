@@ -73,6 +73,21 @@ declare global {
   }
 }
 
+interface WhatsAppEmbeddedSignupMessage {
+  type?: string;
+  event?: string;
+  data?: {
+    phone_number_id?: string;
+    waba_id?: string;
+    waba_ids?: string[];
+    business_id?: string;
+    current_step?: string;
+    error_message?: string;
+    error_code?: string;
+    session_id?: string;
+  };
+}
+
 interface WhatsAppAccount {
   id: string;
   phone_number: string;
@@ -105,6 +120,23 @@ const getAccountPhone = (account: Partial<WhatsAppAccount> | null | undefined) =
 
 const getAccountName = (account: Partial<WhatsAppAccount> | null | undefined) => {
   return account?.display_name || getAccountPhone(account);
+};
+
+const getEmbeddedSignupErrorMessage = (message: WhatsAppEmbeddedSignupMessage) => {
+  if (message.event === 'CANCEL') {
+    if (message.data?.error_message) {
+      return `Meta canceló el proceso: ${message.data.error_message}${message.data.error_code ? ` (código ${message.data.error_code})` : ''}`;
+    }
+    if (message.data?.current_step) {
+      return `Meta indicó que el flujo se cerró antes de terminar, en el paso: ${message.data.current_step}.`;
+    }
+  }
+
+  if (message.event === 'ERROR' && message.data?.error_message) {
+    return `Meta reportó un error: ${message.data.error_message}${message.data.error_code ? ` (código ${message.data.error_code})` : ''}`;
+  }
+
+  return null;
 };
 
 export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
