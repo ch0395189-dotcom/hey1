@@ -31,7 +31,7 @@ export interface TeamAgent {
 
 const PLAN_LIMITS: Record<string, number> = {
   starter: 1,
-  professional: 3,
+  professional: 2,
   enterprise: 5,
   esoterico_pro: 5,
   esoterico_rental: 5,
