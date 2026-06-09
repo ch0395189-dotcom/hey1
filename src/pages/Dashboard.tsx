@@ -464,7 +464,7 @@ const Dashboard = () => {
     return () => {
       cancelled = true;
     };
-  }, [isInitializing, user, navigate]);
+  }, [isInitializing, user, navigate, checkWhatsAppAccounts]);
 
   const handleLogout = async () => {
     try {
