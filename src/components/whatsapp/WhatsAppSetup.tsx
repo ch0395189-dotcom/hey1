@@ -910,6 +910,35 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
                 </div>
               ) : (
                 <div className="space-y-3">
+                  {lastError && (
+                    <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3">
+                      <div className="flex items-start gap-2">
+                        <AlertCircle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-destructive">
+                            Último error de Meta
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1 break-words whitespace-pre-wrap">
+                            {lastError}
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full mt-3"
+                        disabled={connecting || (!isMobileEnv && !fbLoaded) || !planLimits.canAddWhatsAppAccount}
+                        onClick={() => {
+                          setLastError(null);
+                          (isMobileEnv ? handleMobileRedirectSignup : handleEmbeddedSignup)();
+                        }}
+                      >
+                        <RefreshCw className="w-4 h-4 mr-2" />
+                        Reintentar conexión
+                      </Button>
+                    </div>
+                  )}
+
                   <Button 
                     onClick={isMobileEnv ? handleMobileRedirectSignup : handleEmbeddedSignup} 
                     disabled={connecting || (!isMobileEnv && !fbLoaded) || !planLimits.canAddWhatsAppAccount}
