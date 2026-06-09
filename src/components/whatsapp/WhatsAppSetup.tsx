@@ -444,6 +444,7 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
 
     const cleanupListeners = () => {
       document.removeEventListener('visibilitychange', checkPopupOpened);
+      window.removeEventListener('message', embeddedSignupMessageListener);
     };
 
     // Poll for new accounts in case callbacks don't fire
