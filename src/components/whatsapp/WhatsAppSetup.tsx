@@ -288,11 +288,13 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
           title: '¡Cuenta conectada!',
           description: `WhatsApp ${getAccountLabel(data.account)} conectado exitosamente.`,
         });
+        setLastError(null);
 
         fetchAccounts();
         onAccountConnected?.();
       } catch (error: any) {
         console.error('Error exchanging token from URL code:', error);
+        setLastError(error?.message || 'No se pudo finalizar la vinculación.');
         toast({
           title: 'Error',
           description: error?.message || 'No se pudo finalizar la vinculación.',
