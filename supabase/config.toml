@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.tiktok-lead-webhook]
 verify_jwt = false
+
+[functions.whatsapp-quality-monitor]
+verify_jwt = false
