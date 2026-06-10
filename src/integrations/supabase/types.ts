@@ -1286,6 +1286,10 @@ export type Database = {
           is_active: boolean
           phone_number: string
           phone_number_id: string
+          quality_last_checked_at: string | null
+          quality_pause_reason: string | null
+          quality_paused: boolean
+          quality_rating: string | null
           updated_at: string
           user_id: string
           webhook_verify_token: string | null
@@ -1303,6 +1307,10 @@ export type Database = {
           is_active?: boolean
           phone_number: string
           phone_number_id: string
+          quality_last_checked_at?: string | null
+          quality_pause_reason?: string | null
+          quality_paused?: boolean
+          quality_rating?: string | null
           updated_at?: string
           user_id: string
           webhook_verify_token?: string | null
@@ -1320,11 +1328,62 @@ export type Database = {
           is_active?: boolean
           phone_number?: string
           phone_number_id?: string
+          quality_last_checked_at?: string | null
+          quality_pause_reason?: string | null
+          quality_paused?: boolean
+          quality_rating?: string | null
           updated_at?: string
           user_id?: string
           webhook_verify_token?: string | null
         }
         Relationships: []
+      }
+      whatsapp_quality_alerts: {
+        Row: {
+          created_at: string
+          id: string
+          new_rating: string
+          old_rating: string | null
+          paused: boolean
+          phone_number: string | null
+          reason: string | null
+          resolved: boolean
+          user_id: string
+          whatsapp_account_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          new_rating: string
+          old_rating?: string | null
+          paused?: boolean
+          phone_number?: string | null
+          reason?: string | null
+          resolved?: boolean
+          user_id: string
+          whatsapp_account_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          new_rating?: string
+          old_rating?: string | null
+          paused?: boolean
+          phone_number?: string | null
+          reason?: string | null
+          resolved?: boolean
+          user_id?: string
+          whatsapp_account_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_quality_alerts_whatsapp_account_id_fkey"
+            columns: ["whatsapp_account_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
