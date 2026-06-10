@@ -243,7 +243,10 @@ Deno.serve(async (req) => {
           id,
           phone_number_id,
           access_token,
-          user_id
+          user_id,
+          quality_paused,
+          quality_pause_reason,
+          quality_rating
         )
       `)
       .eq('id', conversation_id)
@@ -260,6 +263,19 @@ Deno.serve(async (req) => {
     if (!whatsappAccount) {
       return new Response(
         JSON.stringify({ error: 'WhatsApp account not found' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Block sends when account is paused due to low Meta quality rating
+    if (whatsappAccount.quality_paused) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'quality_paused',
+          message: whatsappAccount.quality_pause_reason || `Tu cuenta está pausada por baja calidad en Meta (${whatsappAccount.quality_rating}). Reanúdala desde el panel cuando hayas reducido el riesgo.`,
+          quality_rating: whatsappAccount.quality_rating,
+        }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
