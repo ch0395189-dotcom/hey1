@@ -39,6 +39,7 @@ import { TrialBanner } from "@/components/dashboard/TrialBanner";
 import { RenewalBanner } from "@/components/dashboard/RenewalBanner";
 import { PaymentAlertBanner } from "@/components/dashboard/PaymentAlertBanner";
 import { MessageLimitBanner } from "@/components/dashboard/MessageLimitBanner";
+import { QualityAlertBanner } from "@/components/dashboard/QualityAlertBanner";
 import { PlatformSidebar, Platform } from "@/components/dashboard/PlatformSidebar";
 import { PlatformSetup } from "@/components/platforms/PlatformSetup";
 import { ApiKeysSettings } from "@/components/settings/ApiKeysSettings";
@@ -559,6 +560,7 @@ const Dashboard = () => {
           <RenewalBanner />
           <PaymentAlertBanner />
           <MessageLimitBanner />
+          <QualityAlertBanner />
         </div>
       )}
       
