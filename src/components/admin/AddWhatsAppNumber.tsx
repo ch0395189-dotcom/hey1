@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, PhonePlus, CheckCircle2 } from "lucide-react";
+import { Loader2, PhoneCall, CheckCircle2 } from "lucide-react";
 
 interface SrcAccount {
   id: string;
@@ -139,7 +139,7 @@ export const AddWhatsAppNumber = () => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2"><PhonePlus className="h-5 w-5" /> Agregar nuevo número (mismo Business Portfolio)</CardTitle>
+        <CardTitle className="flex items-center gap-2"><PhoneCall className="h-5 w-5" /> Agregar nuevo número (mismo Business Portfolio)</CardTitle>
         <CardDescription>
           Usa el WABA y token de una cuenta Meta existente para registrar un nuevo número de teléfono y crear una nueva cuenta de WhatsApp en HeyHey.
         </CardDescription>
