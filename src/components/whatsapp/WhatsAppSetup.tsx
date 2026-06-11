@@ -107,6 +107,16 @@ interface WhatsAppSetupProps {
 
 const getExchangeErrorMessage = (data: any, fallback: string) => {
   if (!data?.error) return fallback;
+  // Errores conocidos con instrucciones accionables
+  if (data.error === 'phone_not_available_yet') {
+    return data.message || fallback;
+  }
+  if (data.error === 'missing_whatsapp_business_account') {
+    return data.message || fallback;
+  }
+  if (data.error === 'plan_limit_reached') {
+    return data.message || fallback;
+  }
   return data.message || data.details || data.error || fallback;
 };
 

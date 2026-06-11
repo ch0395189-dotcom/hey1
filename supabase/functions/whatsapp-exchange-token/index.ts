@@ -171,55 +171,66 @@ Deno.serve(async (req) => {
     let phoneVerifiedName = '';
 
     if (!phoneNumberId) {
-      // Try with user token first
+      // Meta a veces tarda unos segundos en propagar el phone_number tras el Embedded Signup.
+      // Reintentar con backoff: 0s, 2s, 4s, 6s (4 intentos). Probar con token de usuario y app token.
+      const appToken = `${META_APP_ID}|${META_APP_SECRET}`;
+      const tokensToTry: Array<{ label: string; token: string }> = [
+        { label: 'user', token: accessToken! },
+        { label: 'app', token: appToken },
+      ];
+      const maxAttempts = 4;
       let foundPhone = false;
-      
-      try {
-        const phoneNumbersUrl = `https://graph.facebook.com/v21.0/${wabaId}/phone_numbers?access_token=${accessToken}`;
-        const phoneNumbersResponse = await fetch(phoneNumbersUrl);
-        const phoneNumbersData = await phoneNumbersResponse.json() as PhoneNumbersResponse & { error?: { message: string } };
+      let lastPhoneErr: string | null = null;
 
-        if (!phoneNumbersData.error && phoneNumbersData.data?.length > 0) {
-          const phoneData = phoneNumbersData.data[0];
-          phoneNumberId = phoneData.id;
-          phoneDisplayNumber = phoneData.display_phone_number;
-          phoneVerifiedName = phoneData.verified_name;
-          foundPhone = true;
-        } else if (phoneNumbersData.error) {
-          console.warn('Phone numbers API error with user token:', phoneNumbersData.error.message);
+      for (let attempt = 0; attempt < maxAttempts && !foundPhone; attempt++) {
+        if (attempt > 0) {
+          await new Promise((r) => setTimeout(r, 2000));
         }
-      } catch (e) {
-        console.warn('Phone numbers fetch failed:', e);
-      }
-
-      // Try with app token as fallback
-      if (!foundPhone) {
-        try {
-          const appTokenUrl = `https://graph.facebook.com/v21.0/${wabaId}/phone_numbers?access_token=${META_APP_ID}|${META_APP_SECRET}`;
-          const appTokenResponse = await fetch(appTokenUrl);
-          const appTokenData = await appTokenResponse.json() as PhoneNumbersResponse & { error?: { message: string } };
-
-          if (!appTokenData.error && appTokenData.data?.length > 0) {
-            console.log('Got phone numbers via app token');
-            const phoneData = appTokenData.data[0];
-            phoneNumberId = phoneData.id;
-            phoneDisplayNumber = phoneData.display_phone_number;
-            phoneVerifiedName = phoneData.verified_name;
-            foundPhone = true;
-          } else {
-            console.warn('App token phone numbers also failed:', appTokenData.error?.message || 'No data');
+        for (const t of tokensToTry) {
+          try {
+            const url = `https://graph.facebook.com/v21.0/${wabaId}/phone_numbers?access_token=${encodeURIComponent(t.token)}`;
+            const resp = await fetch(url);
+            const d = await resp.json() as PhoneNumbersResponse & { error?: { message: string } };
+            if (!d.error && d.data?.length > 0) {
+              const phoneData = d.data[0];
+              phoneNumberId = phoneData.id;
+              phoneDisplayNumber = phoneData.display_phone_number;
+              phoneVerifiedName = phoneData.verified_name;
+              foundPhone = true;
+              console.log(`Phone numbers obtained on attempt ${attempt + 1} via ${t.label} token`);
+              break;
+            }
+            if (d.error) {
+              lastPhoneErr = d.error.message;
+              console.warn(`phone_numbers attempt ${attempt + 1} (${t.label}):`, d.error.message);
+            } else {
+              lastPhoneErr = 'Meta devolvió la lista vacía de números';
+              console.warn(`phone_numbers attempt ${attempt + 1} (${t.label}): empty list`);
+            }
+          } catch (e) {
+            lastPhoneErr = e instanceof Error ? e.message : String(e);
+            console.warn(`phone_numbers attempt ${attempt + 1} (${t.label}) threw:`, lastPhoneErr);
           }
-        } catch (e) {
-          console.warn('App token phone numbers fetch failed:', e);
         }
       }
 
-      // Last resort: save with WABA ID as placeholder
       if (!foundPhone) {
-        console.warn('Could not get phone numbers, using WABA ID as fallback');
-        phoneNumberId = `waba_${wabaId}`;
-        phoneDisplayNumber = 'Pendiente de configurar';
-        phoneVerifiedName = '';
+        // Devolver error accionable en vez de guardar placeholder
+        return new Response(
+          JSON.stringify({
+            error: 'phone_not_available_yet',
+            message:
+              'Meta entregó tu cuenta de WhatsApp Business pero todavía no aparece el número.\n\n' +
+              'Esto suele ocurrir cuando:\n' +
+              '• El número aún se está propagando en Meta (espera 1–2 minutos y vuelve a intentar).\n' +
+              '• No seleccionaste un número durante el flujo (vuelve a iniciar la conexión y selecciona el número).\n' +
+              '• El número no terminó la verificación con Meta.\n\n' +
+              'Si el problema persiste tras 2 reintentos, escríbenos para conectarlo manualmente desde nuestro lado.',
+            waba_id: wabaId,
+            details: lastPhoneErr,
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
     } else {
       // phoneNumberId was provided from sessionInfoListener, fetch details
@@ -260,29 +271,45 @@ Deno.serve(async (req) => {
     }
 
     // Step 5: Register phone number with Cloud API (prevents error #133010)
+    // Reintentar hasta 3 veces con backoff porque Meta puede responder con error transitorio
+    // justo después del signup.
     if (phoneNumberId && !phoneNumberId.startsWith('waba_')) {
-      try {
-        const registerUrl = `https://graph.facebook.com/v21.0/${phoneNumberId}/register`;
-        const registerResponse = await fetch(registerUrl, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            messaging_product: 'whatsapp',
-            pin: '123456',
-          }),
-        });
-        const registerData = await registerResponse.json();
-        console.log('Phone registration response:', JSON.stringify(registerData));
-        if (registerData.error) {
-          console.warn('Phone registration warning (non-blocking):', registerData.error.message);
-        } else {
-          console.log('Phone number registered successfully with Cloud API');
+      const registerUrl = `https://graph.facebook.com/v21.0/${phoneNumberId}/register`;
+      let registered = false;
+      let lastRegErr: string | null = null;
+      for (let attempt = 0; attempt < 3 && !registered; attempt++) {
+        if (attempt > 0) await new Promise((r) => setTimeout(r, 1500 * attempt));
+        try {
+          const registerResponse = await fetch(registerUrl, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ messaging_product: 'whatsapp', pin: '123456' }),
+          });
+          const registerData = await registerResponse.json();
+          if (registerData.error) {
+            lastRegErr = registerData.error.message;
+            // Si el número ya está registrado, Meta devuelve un error específico que tratamos como éxito.
+            const msg = (registerData.error.message || '').toLowerCase();
+            if (msg.includes('already') || registerData.error.code === 133005) {
+              console.log('Phone already registered with Cloud API, OK.');
+              registered = true;
+              break;
+            }
+            console.warn(`register attempt ${attempt + 1} failed:`, registerData.error.message);
+          } else {
+            console.log(`Phone registered on attempt ${attempt + 1}`);
+            registered = true;
+          }
+        } catch (e) {
+          lastRegErr = e instanceof Error ? e.message : String(e);
+          console.warn(`register attempt ${attempt + 1} threw:`, lastRegErr);
         }
-      } catch (e) {
-        console.warn('Phone registration failed (non-blocking):', e);
+      }
+      if (!registered) {
+        console.error('Phone registration failed after 3 attempts:', lastRegErr);
       }
     }
 
