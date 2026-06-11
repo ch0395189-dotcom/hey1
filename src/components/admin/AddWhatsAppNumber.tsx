@@ -45,7 +45,7 @@ export const AddWhatsAppNumber = () => {
       const { data } = await supabase
         .from("whatsapp_accounts")
         .select("id, phone_number, display_name, business_account_id, user_id, connection_type")
-        .eq("connection_type", "meta")
+        .eq("connection_type", "official_api")
         .not("business_account_id", "is", null)
         .order("updated_at", { ascending: false });
       setAccounts((data ?? []) as SrcAccount[]);
