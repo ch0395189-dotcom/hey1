@@ -18,10 +18,11 @@ import { NoWhatsAppOutreach } from '@/components/admin/NoWhatsAppOutreach';
 import { ExpiredPlansOutreach } from '@/components/admin/ExpiredPlansOutreach';
 import { CtwaAnalytics } from '@/components/admin/CtwaAnalytics';
 import { ReassignableNumbers } from '@/components/admin/ReassignableNumbers';
+import { AddWhatsAppNumber } from '@/components/admin/AddWhatsAppNumber';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Shield, Users, CreditCard, Bell, Coins, BarChart3, Bot, Phone, Mail, UserX, Link2, ShieldAlert, MailWarning, Clock, Megaphone, RotateCcw } from 'lucide-react';
+import { ArrowLeft, Shield, Users, CreditCard, Bell, Coins, BarChart3, Bot, Phone, Mail, UserX, Link2, ShieldAlert, MailWarning, Clock, Megaphone, RotateCcw, PhoneCall } from 'lucide-react';
 
 const Admin = () => {
   const navigate = useNavigate();
@@ -63,7 +64,7 @@ const Admin = () => {
 
       <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-8">
         <Tabs defaultValue="users" className="space-y-6">
-          <TabsList className="grid w-full sm:max-w-6xl grid-cols-[repeat(15,minmax(0,1fr))] h-auto">
+          <TabsList className="grid w-full sm:max-w-6xl grid-cols-[repeat(16,minmax(0,1fr))] h-auto">
             <TabsTrigger value="users" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
               <span className="hidden sm:inline">Usuarios</span>
@@ -123,6 +124,10 @@ const Admin = () => {
             <TabsTrigger value="reassignable" className="flex items-center gap-2">
               <RotateCcw className="h-4 w-4" />
               <span className="hidden sm:inline">Reasignables</span>
+            </TabsTrigger>
+            <TabsTrigger value="add-number" className="flex items-center gap-2">
+              <PhoneCall className="h-4 w-4" />
+              <span className="hidden sm:inline">Nuevo número</span>
             </TabsTrigger>
           </TabsList>
 
@@ -199,6 +204,10 @@ const Admin = () => {
 
           <TabsContent value="reassignable">
             <ReassignableNumbers />
+          </TabsContent>
+
+          <TabsContent value="add-number">
+            <AddWhatsAppNumber />
           </TabsContent>
         </Tabs>
       </main>
