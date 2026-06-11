@@ -148,7 +148,21 @@ export const ReassignableNumbers = () => {
           || (sub.status === "trialing" && sub.trial_end && new Date(sub.trial_end) < new Date());
         const inactive = daysSince(last) >= INACTIVE_DAYS;
         const reasons: string[] = [];
-        if (subExpired) reasons.push("Plan vencido");
+        if (subExpired) {
+          let expiredDays: number | null = null;
+          if (sub?.current_period_end) {
+            expiredDays = Math.floor(daysSince(sub.current_period_end));
+          } else if (sub?.status === "trialing" && sub?.trial_end) {
+            expiredDays = Math.floor(daysSince(sub.trial_end));
+          }
+          if (expiredDays !== null && Number.isFinite(expiredDays) && expiredDays >= 0) {
+            reasons.push(`Plan vencido hace ${expiredDays}d`);
+          } else if (!sub) {
+            reasons.push("Sin plan");
+          } else {
+            reasons.push(`Plan ${sub.status}`);
+          }
+        }
         if (inactive) reasons.push(`Sin login ${Math.floor(daysSince(last))}d`);
         return { account: a, reasons, eligible: reasons.length > 0 };
       })
