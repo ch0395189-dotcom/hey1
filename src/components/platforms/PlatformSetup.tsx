@@ -1079,6 +1079,35 @@ export const PlatformSetup = ({ onAccountConnected }: PlatformSetupProps) => {
                               <ExternalLink className="w-3 h-3" />
                             </a>
                           </p>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="mt-3 w-full"
+                            onClick={async () => {
+                              try {
+                                const { data, error } = await supabase.functions.invoke('tiktok-register-account');
+                                if (error) throw error;
+                                if (!data?.ok) {
+                                  toast({
+                                    title: "No se pudo registrar TikTok",
+                                    description: data?.error ?? "Verifica que la cuenta de TikTok esté conectada.",
+                                    variant: "destructive",
+                                  });
+                                  return;
+                                }
+                                toast({
+                                  title: "TikTok conectado",
+                                  description: `Open ID: ${data.open_id}${data.display_name ? ` (${data.display_name})` : ''}`,
+                                });
+                                queryClient.invalidateQueries({ queryKey: ['platform-accounts'] });
+                              } catch (e: any) {
+                                toast({ title: "Error", description: e.message, variant: "destructive" });
+                              }
+                            }}
+                          >
+                            Auto-detectar Open ID desde mi cuenta conectada
+                          </Button>
                         </div>
                       )}
 
