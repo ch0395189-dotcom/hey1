@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, RefreshCw, Link2, RotateCcw } from "lucide-react";
+import { Loader2, RefreshCw, Link2, RotateCcw, History } from "lucide-react";
 
 interface WAAccount {
   id: string;
@@ -28,6 +28,17 @@ interface SubRow {
   trial_end: string | null;
 }
 
+interface LogRow {
+  id: string;
+  whatsapp_account_id: string;
+  phone_number: string | null;
+  previous_user_id: string | null;
+  new_user_id: string;
+  performed_by: string;
+  reason: string | null;
+  created_at: string;
+}
+
 const INACTIVE_DAYS = 30;
 
 const isGoodQuality = (q: string | null) =>
@@ -47,8 +58,10 @@ export const ReassignableNumbers = () => {
   const [lastSignIn, setLastSignIn] = useState<Record<string, string | null>>({});
   const [emailToId, setEmailToId] = useState<Record<string, string>>({});
   const [targetEmail, setTargetEmail] = useState<Record<string, string>>({});
+  const [targetReason, setTargetReason] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [myUserId, setMyUserId] = useState<string | null>(null);
+  const [history, setHistory] = useState<LogRow[]>([]);
   const { toast } = useToast();
 
   const load = async () => {
@@ -104,6 +117,14 @@ export const ReassignableNumbers = () => {
       } catch (e) {
         console.warn("emails fetch failed", e);
       }
+
+      // Cargar historial de reasignaciones
+      const { data: logs } = await (supabase as any)
+        .from("whatsapp_reassignment_log")
+        .select("id, whatsapp_account_id, phone_number, previous_user_id, new_user_id, performed_by, reason, created_at")
+        .order("created_at", { ascending: false })
+        .limit(200);
+      setHistory((logs ?? []) as LogRow[]);
     } catch (e: any) {
       toast({ title: "Error", description: e.message ?? "No se pudo cargar", variant: "destructive" });
     } finally {
@@ -139,15 +160,22 @@ export const ReassignableNumbers = () => {
       toast({ title: "Falta destino", description: "Indica un email válido o usa 'Asignar a mí'", variant: "destructive" });
       return;
     }
+    const reason = (targetReason[accountId] ?? "").trim();
+    if (!reason) {
+      toast({ title: "Falta motivo", description: "Indica un motivo para la reasignación", variant: "destructive" });
+      return;
+    }
     setBusy(accountId);
     try {
       const { data, error } = await supabase.functions.invoke("admin-reassign-whatsapp", {
-        body: { whatsapp_account_id: accountId, new_user_id: newUserId },
+        body: { whatsapp_account_id: accountId, new_user_id: newUserId, reason },
       });
       if (error) throw error;
       const resp = data as { ok?: boolean; error?: string };
       if (!resp?.ok) throw new Error(resp?.error || "Error reasignando");
       toast({ title: "Reasignado", description: "Cuenta reasignada correctamente" });
+      setTargetReason((s) => ({ ...s, [accountId]: "" }));
+      setTargetEmail((s) => ({ ...s, [accountId]: "" }));
       await load();
     } catch (e: any) {
       toast({ title: "Error", description: e.message ?? "No se pudo reasignar", variant: "destructive" });
@@ -241,6 +269,12 @@ export const ReassignableNumbers = () => {
                               {busy === a.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
                             </Button>
                           </div>
+                          <Input
+                            placeholder="motivo (requerido)"
+                            value={targetReason[a.id] ?? ""}
+                            onChange={(e) => setTargetReason((s) => ({ ...s, [a.id]: e.target.value }))}
+                            className="h-8 text-sm"
+                          />
                           {inputEmail && !resolvedId && (
                             <p className="text-xs text-destructive">Email no encontrado</p>
                           )}
@@ -261,6 +295,54 @@ export const ReassignableNumbers = () => {
             </Table>
           </div>
         )}
+
+        <div className="mt-10">
+          <div className="flex items-center gap-2 mb-3">
+            <History className="h-5 w-5" />
+            <h3 className="font-semibold">Historial de reasignaciones</h3>
+            <Badge variant="secondary">{history.length}</Badge>
+          </div>
+          {history.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4">Aún no hay reasignaciones registradas.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Fecha</TableHead>
+                    <TableHead>Número</TableHead>
+                    <TableHead>De</TableHead>
+                    <TableHead>A</TableHead>
+                    <TableHead>Admin</TableHead>
+                    <TableHead>Motivo</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {history.map((h) => (
+                    <TableRow key={h.id}>
+                      <TableCell className="text-xs whitespace-nowrap">
+                        {new Date(h.created_at).toLocaleString()}
+                      </TableCell>
+                      <TableCell className="text-sm">{h.phone_number || h.whatsapp_account_id.slice(0, 8)}</TableCell>
+                      <TableCell className="text-xs">
+                        {h.previous_user_id ? (emails[h.previous_user_id] || profiles[h.previous_user_id] || h.previous_user_id.slice(0, 8)) : "—"}
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        {emails[h.new_user_id] || profiles[h.new_user_id] || h.new_user_id.slice(0, 8)}
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        {emails[h.performed_by] || profiles[h.performed_by] || h.performed_by.slice(0, 8)}
+                      </TableCell>
+                      <TableCell className="text-sm max-w-[260px] whitespace-normal break-words">
+                        {h.reason || "—"}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </div>
       </CardContent>
     </Card>
   );

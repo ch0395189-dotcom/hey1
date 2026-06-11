@@ -51,9 +51,10 @@ serve(async (req) => {
     }
 
     const body = await req.json().catch(() => ({}));
-    const { whatsapp_account_id, new_user_id } = body as {
+    const { whatsapp_account_id, new_user_id, reason } = body as {
       whatsapp_account_id?: string;
       new_user_id?: string;
+      reason?: string;
     };
     if (!whatsapp_account_id || !new_user_id) {
       return new Response(
@@ -77,6 +78,13 @@ serve(async (req) => {
       );
     }
 
+    // Snapshot del estado anterior para auditoría
+    const { data: prevAccount } = await admin
+      .from("whatsapp_accounts")
+      .select("user_id, phone_number")
+      .eq("id", whatsapp_account_id)
+      .maybeSingle();
+
     const { error: updErr } = await admin
       .from("whatsapp_accounts")
       .update({ user_id: new_user_id, updated_at: new Date().toISOString() })
@@ -88,6 +96,16 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Registrar en el historial auditable
+    await admin.from("whatsapp_reassignment_log").insert({
+      whatsapp_account_id,
+      phone_number: prevAccount?.phone_number ?? null,
+      previous_user_id: prevAccount?.user_id ?? null,
+      new_user_id,
+      performed_by: userData.user.id,
+      reason: reason?.toString().slice(0, 500) ?? null,
+    });
 
     return new Response(JSON.stringify({ ok: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
