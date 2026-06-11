@@ -1385,6 +1385,39 @@ export type Database = {
           },
         ]
       }
+      whatsapp_reassignment_log: {
+        Row: {
+          created_at: string
+          id: string
+          new_user_id: string
+          performed_by: string
+          phone_number: string | null
+          previous_user_id: string | null
+          reason: string | null
+          whatsapp_account_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          new_user_id: string
+          performed_by: string
+          phone_number?: string | null
+          previous_user_id?: string | null
+          reason?: string | null
+          whatsapp_account_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          new_user_id?: string
+          performed_by?: string
+          phone_number?: string | null
+          previous_user_id?: string | null
+          reason?: string | null
+          whatsapp_account_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
