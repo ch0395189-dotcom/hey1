@@ -42,7 +42,7 @@ const Header = () => {
           {/* Desktop CTA */}
           <div className="hidden md:flex items-center gap-4">
             <Link to="/login">
-              <Button variant="ghost" className="text-muted-foreground hover:text-foreground">
+              <Button variant="outline" className="border-primary text-primary hover:bg-primary hover:text-primary-foreground font-semibold">
                 Iniciar Sesión
               </Button>
             </Link>
