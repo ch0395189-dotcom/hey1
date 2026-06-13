@@ -46,6 +46,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { FacebookDiagnostics } from "./FacebookDiagnostics";
+import { TikTokWhatsAppNotifySettings } from "./TikTokWhatsAppNotifySettings";
 
 // Utility to detect if user is on mobile device
 const isMobileDevice = () => {
@@ -872,6 +873,10 @@ export const PlatformSetup = ({ onAccountConnected }: PlatformSetupProps) => {
                             </div>
                           </div>
                         </motion.div>
+                      )}
+
+                      {platform === 'tiktok' && (
+                        <TikTokWhatsAppNotifySettings platformAccountId={account.id} />
                       )}
                     </motion.div>
                   ))}
