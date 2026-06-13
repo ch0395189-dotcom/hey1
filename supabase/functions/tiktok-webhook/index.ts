@@ -92,7 +92,7 @@ Deno.serve(async (req) => {
       // Find the platform account for this TikTok account
       const { data: platformAccount, error: accountError } = await supabase
         .from('platform_accounts')
-        .select('id, user_id, tiktok_access_token, tiktok_open_id')
+        .select('id, user_id, tiktok_access_token, tiktok_open_id, notify_enabled, notify_whatsapp_account_id, notify_phone, account_name')
         .eq('platform', 'tiktok')
         .eq('tiktok_open_id', recipientOpenId)
         .eq('is_active', true)
@@ -267,6 +267,55 @@ Deno.serve(async (req) => {
           }
         } catch (pushErr) {
           console.error('Push error:', pushErr);
+        }
+
+        // Forward to WhatsApp as notification if configured
+        try {
+          if (
+            platformAccount.notify_enabled &&
+            platformAccount.notify_whatsapp_account_id &&
+            platformAccount.notify_phone
+          ) {
+            const { data: waAcc } = await supabase
+              .from('whatsapp_accounts')
+              .select('id, connection_type, is_active')
+              .eq('id', platformAccount.notify_whatsapp_account_id)
+              .maybeSingle();
+
+            if (waAcc?.is_active) {
+              const digits = String(platformAccount.notify_phone).replace(/\D/g, '');
+              const preview = (content || `[${messageType}]`).slice(0, 300);
+              const notifyText =
+                `🎵 *Nuevo DM de TikTok*\n` +
+                `👤 ${customerName}\n` +
+                `💬 ${preview}\n\n` +
+                `Abrir: https://www.heyhey.site/dashboard?view=messages&platform=tiktok&conv=${conversationId}`;
+
+              const isExternal =
+                waAcc.connection_type === 'external_qr' ||
+                waAcc.connection_type === 'z-api';
+
+              const fn = isExternal ? 'whatsapp-send-external' : 'whatsapp-send-message';
+              const body = isExternal
+                ? {
+                    accountId: waAcc.id,
+                    to: digits,
+                    message: notifyText,
+                    createConversation: false,
+                  }
+                : {
+                    phone_number: digits,
+                    whatsapp_account_id: waAcc.id,
+                    message: notifyText,
+                    message_type: 'text',
+                  };
+
+              const { error: notifyErr } = await supabase.functions.invoke(fn, { body });
+              if (notifyErr) console.error('WA notify error:', notifyErr);
+            }
+          }
+        } catch (notifyErr) {
+          console.error('WA notify exception:', notifyErr);
         }
 
         // Check if chatbot is enabled and should process this message
