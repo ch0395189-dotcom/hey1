@@ -781,6 +781,9 @@ export type Database = {
           id: string
           instagram_account_id: string | null
           is_active: boolean
+          notify_enabled: boolean
+          notify_phone: string | null
+          notify_whatsapp_account_id: string | null
           page_access_token: string | null
           page_id: string | null
           platform: string
@@ -796,6 +799,9 @@ export type Database = {
           id?: string
           instagram_account_id?: string | null
           is_active?: boolean
+          notify_enabled?: boolean
+          notify_phone?: string | null
+          notify_whatsapp_account_id?: string | null
           page_access_token?: string | null
           page_id?: string | null
           platform: string
@@ -811,6 +817,9 @@ export type Database = {
           id?: string
           instagram_account_id?: string | null
           is_active?: boolean
+          notify_enabled?: boolean
+          notify_phone?: string | null
+          notify_whatsapp_account_id?: string | null
           page_access_token?: string | null
           page_id?: string | null
           platform?: string
@@ -820,7 +829,15 @@ export type Database = {
           user_id?: string
           webhook_verify_token?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "platform_accounts_notify_whatsapp_account_id_fkey"
+            columns: ["notify_whatsapp_account_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
