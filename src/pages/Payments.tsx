@@ -20,6 +20,21 @@ import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
+const BOGOTA_TZ = 'America/Bogota';
+const fmtBogota = (iso: string, opts: Intl.DateTimeFormatOptions) =>
+  new Intl.DateTimeFormat('es-CO', { timeZone: BOGOTA_TZ, ...opts }).format(new Date(iso));
+const fmtBogotaDateTime = (iso: string) =>
+  fmtBogota(iso, { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
+const fmtBogotaCsv = (iso: string) => {
+  // YYYY-MM-DD HH:mm in Bogota time
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: BOGOTA_TZ, year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hour12: false,
+  }).formatToParts(new Date(iso));
+  const get = (t: string) => parts.find(p => p.type === t)?.value || '';
+  return `${get('year')}-${get('month')}-${get('day')} ${get('hour')}:${get('minute')}`;
+};
+
 interface UnifiedPayment {
   id: string;
   user_id: string;
@@ -205,7 +220,7 @@ const Payments = () => {
     const rows = filtered.map(p => {
       const u = userById.get(p.user_id);
       return [
-        format(new Date(p.date), 'yyyy-MM-dd HH:mm'),
+        fmtBogotaCsv(p.date),
         u?.full_name || '',
         u?.email || '',
         p.amount.toString(),
@@ -375,7 +390,7 @@ const Payments = () => {
                       return (
                         <TableRow key={`${p.source}-${p.id}`}>
                           <TableCell className="whitespace-nowrap text-sm">
-                            {format(new Date(p.date), 'dd MMM yyyy HH:mm', { locale: es })}
+                            {fmtBogotaDateTime(p.date)}
                           </TableCell>
                           <TableCell className="font-medium">{u?.full_name || '—'}</TableCell>
                           <TableCell className="text-sm text-muted-foreground">{u?.email || '—'}</TableCell>
