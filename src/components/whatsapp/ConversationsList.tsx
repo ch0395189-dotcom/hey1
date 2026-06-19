@@ -203,31 +203,37 @@ export const ConversationsList = ({
       const convs = data || [];
       const convIds = convs.map((c) => c.id);
 
-      // Single batched fetch for messages + tags across ALL conversations,
-      // instead of 2 queries per conversation (N+1). Massively cuts latency
-      // when users have many conversations.
-      const [messagesRes, tagsRes] = convIds.length
-        ? await Promise.all([
+      // Fetch the latest message PER conversation. A single batched
+      // `IN (...)` query is capped at 1000 rows by PostgREST, so when a user
+      // has many conversations/messages the oldest conversations end up
+      // showing "Sin mensajes" even though they have history. We fetch
+      // one-by-one in parallel chunks to keep it both correct and fast.
+      const lastMessageByConv = new Map<string, any>();
+      const CHUNK = 25;
+      for (let i = 0; i < convIds.length; i += CHUNK) {
+        const chunk = convIds.slice(i, i + CHUNK);
+        const results = await Promise.all(
+          chunk.map((cid) =>
             supabase
               .from('messages')
               .select('conversation_id, content, direction, message_type, media_url, created_at')
-              .in('conversation_id', convIds)
-              .order('created_at', { ascending: false }),
-            supabase
-              .from('conversation_tags')
-              .select('conversation_id, tag:contact_tags(id, name, color)')
-              .in('conversation_id', convIds),
-          ])
-        : [{ data: [] as any[] }, { data: [] as any[] }];
-
-      // Build a map of conversation_id -> latest message (first occurrence
-      // wins because we ordered DESC).
-      const lastMessageByConv = new Map<string, any>();
-      for (const m of (messagesRes.data || [])) {
-        if (!lastMessageByConv.has(m.conversation_id)) {
-          lastMessageByConv.set(m.conversation_id, m);
-        }
+              .eq('conversation_id', cid)
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .maybeSingle()
+          )
+        );
+        results.forEach((r, idx) => {
+          if (r.data) lastMessageByConv.set(chunk[idx], r.data);
+        });
       }
+
+      const tagsRes = convIds.length
+        ? await supabase
+            .from('conversation_tags')
+            .select('conversation_id, tag:contact_tags(id, name, color)')
+            .in('conversation_id', convIds)
+        : { data: [] as any[] };
 
       const tagsByConv = new Map<string, { id: string; name: string; color: string }[]>();
       for (const row of (tagsRes.data || []) as any[]) {
