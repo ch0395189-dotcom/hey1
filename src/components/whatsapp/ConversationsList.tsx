@@ -86,6 +86,8 @@ export const ConversationsList = ({
   const [bulkLoading, setBulkLoading] = useState(false);
   const [showDeleteAllBlockedConfirm, setShowDeleteAllBlockedConfirm] = useState(false);
   const [deletingAllBlocked, setDeletingAllBlocked] = useState(false);
+  const [deleteSingleConv, setDeleteSingleConv] = useState<Conversation | null>(null);
+  const [deletingSingle, setDeletingSingle] = useState(false);
 
   // Tag filter state
   const [allTags, setAllTags] = useState<{ id: string; name: string; color: string }[]>([]);
@@ -551,6 +553,27 @@ export const ConversationsList = ({
     }
   };
 
+  const handleDeleteSingle = async () => {
+    if (!deleteSingleConv) return;
+    setDeletingSingle(true);
+    try {
+      const convId = deleteSingleConv.id;
+      await supabase.from('messages').delete().eq('conversation_id', convId);
+      await supabase.from('chatbot_conversation_state').delete().eq('conversation_id', convId);
+      await supabase.from('conversation_tags').delete().eq('conversation_id', convId);
+      const { error } = await supabase.from('conversations').delete().eq('id', convId);
+      if (error) throw error;
+      toast.success('Contacto eliminado');
+      setDeleteSingleConv(null);
+      fetchConversations();
+    } catch (error) {
+      console.error('Error deleting conversation:', error);
+      toast.error('Error al eliminar el contacto');
+    } finally {
+      setDeletingSingle(false);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
@@ -932,6 +955,22 @@ export const ConversationsList = ({
                   {conversation.unread_count}
                 </Badge>
               )}
+
+              {/* Per-row delete in blocked view */}
+              {viewMode === 'blocked' && !selectMode && !isAgent && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="w-8 h-8 shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDeleteSingleConv(conversation);
+                  }}
+                  title="Eliminar contacto bloqueado"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              )}
             </motion.div>
           ))
         )}
@@ -1004,6 +1043,28 @@ export const ConversationsList = ({
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deletingAllBlocked ? 'Eliminando...' : 'Eliminar todos'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Single Confirmation */}
+      <AlertDialog open={!!deleteSingleConv} onOpenChange={(open) => !open && setDeleteSingleConv(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar este contacto?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se eliminará permanentemente {deleteSingleConv?.customer_name || deleteSingleConv?.customer_phone} y todos sus mensajes. Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingSingle}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteSingle}
+              disabled={deletingSingle}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deletingSingle ? 'Eliminando...' : 'Eliminar'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
