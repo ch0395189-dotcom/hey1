@@ -86,6 +86,8 @@ export const ConversationsList = ({
   const [bulkLoading, setBulkLoading] = useState(false);
   const [showDeleteAllBlockedConfirm, setShowDeleteAllBlockedConfirm] = useState(false);
   const [deletingAllBlocked, setDeletingAllBlocked] = useState(false);
+  const [deleteSingleConv, setDeleteSingleConv] = useState<Conversation | null>(null);
+  const [deletingSingle, setDeletingSingle] = useState(false);
 
   // Tag filter state
   const [allTags, setAllTags] = useState<{ id: string; name: string; color: string }[]>([]);
@@ -548,6 +550,27 @@ export const ConversationsList = ({
       toast.error('Error al eliminar contactos bloqueados');
     } finally {
       setDeletingAllBlocked(false);
+    }
+  };
+
+  const handleDeleteSingle = async () => {
+    if (!deleteSingleConv) return;
+    setDeletingSingle(true);
+    try {
+      const convId = deleteSingleConv.id;
+      await supabase.from('messages').delete().eq('conversation_id', convId);
+      await supabase.from('chatbot_conversation_state').delete().eq('conversation_id', convId);
+      await supabase.from('conversation_tags').delete().eq('conversation_id', convId);
+      const { error } = await supabase.from('conversations').delete().eq('id', convId);
+      if (error) throw error;
+      toast.success('Contacto eliminado');
+      setDeleteSingleConv(null);
+      fetchConversations();
+    } catch (error) {
+      console.error('Error deleting conversation:', error);
+      toast.error('Error al eliminar el contacto');
+    } finally {
+      setDeletingSingle(false);
     }
   };
 
