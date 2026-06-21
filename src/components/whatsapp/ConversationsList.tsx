@@ -84,6 +84,8 @@ export const ConversationsList = ({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [bulkLoading, setBulkLoading] = useState(false);
+  const [showDeleteAllBlockedConfirm, setShowDeleteAllBlockedConfirm] = useState(false);
+  const [deletingAllBlocked, setDeletingAllBlocked] = useState(false);
 
   // Tag filter state
   const [allTags, setAllTags] = useState<{ id: string; name: string; color: string }[]>([]);
@@ -519,6 +521,36 @@ export const ConversationsList = ({
     }
   };
 
+  const handleDeleteAllBlocked = async () => {
+    setDeletingAllBlocked(true);
+    try {
+      const ids = conversations.map(c => c.id);
+      if (ids.length === 0) {
+        toast.info('No hay contactos bloqueados para eliminar');
+        setShowDeleteAllBlockedConfirm(false);
+        return;
+      }
+      for (const convId of ids) {
+        await supabase.from('messages').delete().eq('conversation_id', convId);
+        await supabase.from('chatbot_conversation_state').delete().eq('conversation_id', convId);
+        await supabase.from('conversation_tags').delete().eq('conversation_id', convId);
+      }
+      const { error } = await supabase
+        .from('conversations')
+        .delete()
+        .in('id', ids);
+      if (error) throw error;
+      toast.success(`${ids.length} contacto(s) bloqueado(s) eliminado(s)`);
+      setShowDeleteAllBlockedConfirm(false);
+      fetchConversations();
+    } catch (error) {
+      console.error('Error deleting blocked:', error);
+      toast.error('Error al eliminar contactos bloqueados');
+    } finally {
+      setDeletingAllBlocked(false);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
@@ -714,7 +746,19 @@ export const ConversationsList = ({
       {viewMode === 'blocked' && (
         <div className="px-4 py-2 bg-destructive/10 text-sm text-destructive flex items-center gap-2">
           <Ban className="w-4 h-4" />
-          Mostrando contactos bloqueados
+          <span className="flex-1">Mostrando contactos bloqueados</span>
+          {!isAgent && conversations.length > 0 && (
+            <Button
+              variant="destructive"
+              size="sm"
+              className="h-7 px-2 text-xs"
+              onClick={() => setShowDeleteAllBlockedConfirm(true)}
+              disabled={deletingAllBlocked}
+            >
+              <Trash2 className="w-3 h-3 mr-1" />
+              Eliminar todos
+            </Button>
+          )}
         </div>
       )}
 
