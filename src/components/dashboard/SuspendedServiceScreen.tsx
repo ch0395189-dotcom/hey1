@@ -28,9 +28,9 @@ const plans: Array<{
     key: "professional",
     price: "149.000",
     features: [
-      "2 números de WhatsApp",
+      "1 número de WhatsApp",
       "10,000 mensajes/mes",
-      "2 agentes",
+      "3 agentes",
       "Analíticas avanzadas",
       "Soporte prioritario",
     ],
@@ -41,9 +41,9 @@ const plans: Array<{
     key: "enterprise",
     price: "399.000",
     features: [
-      "5 números de WhatsApp",
+      "3 números de WhatsApp",
       "Mensajes ilimitados",
-      "5 agentes",
+      "10 agentes",
       "API personalizada",
       "Account manager",
     ],
