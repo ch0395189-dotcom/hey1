@@ -955,6 +955,22 @@ export const ConversationsList = ({
                   {conversation.unread_count}
                 </Badge>
               )}
+
+              {/* Per-row delete in blocked view */}
+              {viewMode === 'blocked' && !selectMode && !isAgent && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="w-8 h-8 shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDeleteSingleConv(conversation);
+                  }}
+                  title="Eliminar contacto bloqueado"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              )}
             </motion.div>
           ))
         )}
