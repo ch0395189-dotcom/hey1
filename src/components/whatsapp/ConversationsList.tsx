@@ -986,6 +986,28 @@ export const ConversationsList = ({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Delete All Blocked Confirmation */}
+      <AlertDialog open={showDeleteAllBlockedConfirm} onOpenChange={setShowDeleteAllBlockedConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar todos los contactos bloqueados?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se eliminarán permanentemente {conversations.length} contacto(s) bloqueado(s) y todos sus mensajes. Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingAllBlocked}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteAllBlocked}
+              disabled={deletingAllBlocked}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deletingAllBlocked ? 'Eliminando...' : 'Eliminar todos'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
