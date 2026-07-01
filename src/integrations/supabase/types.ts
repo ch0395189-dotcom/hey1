@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_impersonation_log: {
+        Row: {
+          admin_id: string
+          ended_at: string | null
+          id: string
+          started_at: string
+          target_user_id: string
+          user_agent: string | null
+        }
+        Insert: {
+          admin_id: string
+          ended_at?: string | null
+          id?: string
+          started_at?: string
+          target_user_id: string
+          user_agent?: string | null
+        }
+        Update: {
+          admin_id?: string
+          ended_at?: string | null
+          id?: string
+          started_at?: string
+          target_user_id?: string
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       bold_payments: {
         Row: {
           amount: number
