@@ -262,7 +262,7 @@ Deno.serve(async (req) => {
           // Find the WhatsApp account
           const { data: whatsappAccount, error: accountError } = await supabase
             .from('whatsapp_accounts')
-            .select('id, user_id')
+            .select('id, user_id, ai_agent_enabled, ai_agent_prompt')
             .eq('phone_number_id', phoneNumberId)
             .eq('is_active', true)
             .limit(1)
@@ -683,6 +683,41 @@ Deno.serve(async (req) => {
                     console.error('Push notification error (bg):', pushErr);
                   }
                 })();
+              }
+
+              // AI Support Agent (HeyHey) takes priority over node-based chatbot
+              if (whatsappAccount.ai_agent_enabled && message.type !== 'unsupported') {
+                const { data: accountData } = await supabase
+                  .from('whatsapp_accounts')
+                  .select('access_token')
+                  .eq('id', whatsappAccount.id)
+                  .single();
+                if (accountData) {
+                  try {
+                    await fetch(
+                      `${Deno.env.get('SUPABASE_URL')}/functions/v1/heyhey-ai-agent`,
+                      {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+                        },
+                        body: JSON.stringify({
+                          conversation_id: conversationId,
+                          message_content: chatbotContent || content,
+                          whatsapp_account_id: whatsappAccount.id,
+                          phone_number_id: phoneNumberId,
+                          access_token: accountData.access_token,
+                          customer_phone: customerPhone,
+                          custom_prompt: whatsappAccount.ai_agent_prompt,
+                        }),
+                      }
+                    );
+                  } catch (agentErr) {
+                    console.error('Error calling heyhey-ai-agent:', agentErr);
+                  }
+                }
+                continue; // skip node-based chatbot for this message
               }
 
               // Check if chatbot is enabled and should process this message
