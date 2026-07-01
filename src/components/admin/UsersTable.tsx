@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Check, X, Search, RefreshCw, Trash2, CalendarDays, Plus, CreditCard, Ban, ArrowRightLeft, Shield, Inbox, Crown } from 'lucide-react';
+import { Check, X, Search, RefreshCw, Trash2, CalendarDays, Plus, CreditCard, Ban, ArrowRightLeft, Shield, Inbox, Crown, UserCog } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -946,6 +946,14 @@ export const UsersTable = () => {
                         title="Ver bandeja de entrada"
                       >
                         <Inbox className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="default"
+                        onClick={() => navigate(`/admin/impersonate/${user.user_id}`)}
+                        title="Entrar como este usuario (dashboard completo)"
+                      >
+                        <UserCog className="h-4 w-4" />
                       </Button>
                       <Button
                         size="sm"

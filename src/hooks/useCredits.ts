@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { getEffectiveUser } from '@/lib/effectiveAuth';
 import { useToast } from '@/hooks/use-toast';
 
 interface CreditPackage {
@@ -36,7 +37,7 @@ export const useCredits = () => {
 
   const fetchCredits = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await getEffectiveUser();
       if (!user) return;
 
       const { data, error } = await supabase
@@ -69,7 +70,7 @@ export const useCredits = () => {
 
   const fetchUsage = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await getEffectiveUser();
       if (!user) return;
 
       const { data, error } = await supabase
@@ -88,7 +89,7 @@ export const useCredits = () => {
 
   const purchaseCredits = async (packageId: string) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await getEffectiveUser();
       if (!user) {
         toast({
           title: "Error",

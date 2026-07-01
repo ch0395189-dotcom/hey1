@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { getImpersonationId } from '@/lib/effectiveAuth';
 
 interface SubscriptionGuardState {
   isSuspended: boolean;
@@ -24,12 +25,15 @@ export const useSubscriptionGuard = () => {
         setState(prev => ({ ...prev, loading: false }));
         return;
       }
+      // If admin is impersonating, evaluate suspension for the impersonated user
+      const impId = getImpersonationId();
+      const uid = impId || session.user.id;
 
       // Check if user is admin - admins are never suspended
       const { data: roleData } = await supabase
         .from('user_roles')
         .select('role')
-        .eq('user_id', session.user.id)
+        .eq('user_id', uid)
         .eq('role', 'admin')
         .maybeSingle();
 
@@ -42,7 +46,7 @@ export const useSubscriptionGuard = () => {
       const { data: agentRow } = await supabase
         .from('team_agents')
         .select('owner_id')
-        .eq('agent_user_id', session.user.id)
+        .eq('agent_user_id', uid)
         .eq('is_active', true)
         .maybeSingle();
 
@@ -54,7 +58,7 @@ export const useSubscriptionGuard = () => {
       const { data, error } = await supabase
         .from('subscriptions')
         .select('plan, status, trial_end, current_period_end')
-        .eq('user_id', session.user.id)
+        .eq('user_id', uid)
         .maybeSingle();
 
       if (error || !data) {

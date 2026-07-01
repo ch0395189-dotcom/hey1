@@ -25,6 +25,7 @@ import {
   Smartphone
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { getEffectiveUser } from "@/lib/effectiveAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -628,7 +629,7 @@ export const PlatformSetup = ({ onAccountConnected }: PlatformSetupProps) => {
     setIsSubmitting(true);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await getEffectiveUser();
       if (!user) throw new Error("No autenticado");
 
       const verifyToken = crypto.randomUUID();

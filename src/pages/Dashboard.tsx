@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { NewMessageDialog } from "@/components/whatsapp/NewMessageDialog";
 import { supabase } from "@/integrations/supabase/client";
+import { getImpersonationId, clearImpersonation } from "@/lib/effectiveAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useNotificationSound } from "@/hooks/useNotificationSound";
@@ -362,9 +363,13 @@ const Dashboard = () => {
 
     const accounts = (data || []) as WhatsAppAccount[];
     setWhatsappAccounts(accounts);
-    setHasWhatsAppAccount(accounts.length > 0);
+    const impId = getImpersonationId();
+    const scopedAccounts = impId
+      ? accounts.filter((a) => (a as WhatsAppAccount & { user_id?: string }).user_id === impId)
+      : accounts;
+    setHasWhatsAppAccount(scopedAccounts.length > 0);
     if (accounts.length > 0) {
-      const currentUserId = activeSession?.user?.id;
+      const currentUserId = impId || activeSession?.user?.id;
       const ownAccounts = currentUserId
         ? accounts.filter((a) => (a as WhatsAppAccount & { user_id?: string }).user_id === currentUserId)
         : [];
@@ -473,6 +478,7 @@ const Dashboard = () => {
     } catch {
       console.warn('[Dashboard] No se pudo marcar el cierre de sesión explícito');
     }
+    await clearImpersonation();
     await supabase.auth.signOut();
     toast({
       title: "Sesión cerrada",
@@ -735,7 +741,7 @@ const Dashboard = () => {
             <PlatformSidebar 
               activePlatform={activePlatform} 
               onPlatformChange={setActivePlatform}
-              whatsappAccounts={whatsappAccounts.filter(a => a.user_id === user?.id)}
+              whatsappAccounts={whatsappAccounts.filter(a => a.user_id === (getImpersonationId() || user?.id))}
               selectedAccountId={selectedAccountId}
               onSelectAccount={(id) => {
                 setSelectedAccountId(id);

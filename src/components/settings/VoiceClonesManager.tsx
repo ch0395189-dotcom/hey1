@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { getEffectiveUser } from '@/lib/effectiveAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -42,7 +43,7 @@ export const VoiceClonesManager = ({ provider = 'fish_audio' }: Props) => {
 
   const addMutation = useMutation({
     mutationFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await getEffectiveUser();
       if (!user) throw new Error('No autenticado');
       const isFirst = !voices || voices.length === 0;
       const { error } = await supabase.from('user_voice_clones').insert({
@@ -78,7 +79,7 @@ export const VoiceClonesManager = ({ provider = 'fish_audio' }: Props) => {
 
   const setDefaultMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await getEffectiveUser();
       if (!user) throw new Error('No autenticado');
       await supabase
         .from('user_voice_clones')

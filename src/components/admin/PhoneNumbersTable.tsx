@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { RefreshCw, ArrowRightLeft, Search, Phone, Inbox } from 'lucide-react';
+import { RefreshCw, ArrowRightLeft, Search, Phone, Inbox, UserCog } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -335,6 +335,14 @@ export const PhoneNumbersTable = () => {
                           title="Ver bandeja"
                         >
                           <Inbox className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="default"
+                          onClick={() => navigate(`/admin/impersonate/${r.user_id}`)}
+                          title="Entrar como este usuario"
+                        >
+                          <UserCog className="h-4 w-4" />
                         </Button>
                         <Button size="sm" variant="outline" onClick={() => openReassign(r)}>
                           <ArrowRightLeft className="h-4 w-4 mr-1" />

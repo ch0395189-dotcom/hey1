@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
+import { getEffectiveUser } from '@/lib/effectiveAuth';
 import { toast } from 'sonner';
 import { 
   Mic, 
@@ -81,7 +82,7 @@ export const VoiceAgent = ({ voiceModelId: initialVoiceModelId, onVoiceModelIdCh
     setIsSpeaking(true);
     
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await getEffectiveUser();
       
       // Get AI response using user's Google AI key or Lovable AI
       let responseText = '';

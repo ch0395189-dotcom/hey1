@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { getEffectiveUser } from '@/lib/effectiveAuth';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -37,7 +38,7 @@ export const ClonedVoicePreviewDialog = ({ open, onOpenChange, text, defaultVoic
     if (!open) return;
     (async () => {
       setLoadingVoices(true);
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await getEffectiveUser();
       if (!user) { setLoadingVoices(false); return; }
       const { data } = await supabase
         .from('user_voice_clones')
@@ -128,7 +129,7 @@ export const ClonedVoicePreviewDialog = ({ open, onOpenChange, text, defaultVoic
     if (!voice) return;
     setGenerating(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await getEffectiveUser();
       const { data: { session } } = await supabase.auth.getSession();
       if (!user) throw new Error('Sesión no válida');
 

@@ -14,6 +14,7 @@ import Dashboard from "./pages/Dashboard";
 // initial JS bundle. This speeds up first paint for everyone.
 const Admin = lazy(() => import("./pages/Admin"));
 const AdminInbox = lazy(() => import("./pages/AdminInbox"));
+const AdminImpersonate = lazy(() => import("./pages/AdminImpersonate"));
 const Payments = lazy(() => import("./pages/Payments"));
 const Privacy = lazy(() => import("./pages/Privacy"));
 const Terms = lazy(() => import("./pages/Terms"));
@@ -24,6 +25,7 @@ const Install = lazy(() => import("./pages/Install"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 import { InstallAppBanner } from "@/components/install/InstallAppBanner";
 import { UpdateBanner } from "@/components/UpdateBanner";
+import { ImpersonationBanner } from "@/components/admin/ImpersonationBanner";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -49,6 +51,7 @@ const App = () => {
         <MetaPixelProvider />
         <BrowserRouter>
           <UpdateBanner />
+          <ImpersonationBanner />
           <Suspense fallback={null}>
             <Routes>
               <Route path="/" element={<Landing />} />
@@ -57,6 +60,7 @@ const App = () => {
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/admin" element={<Admin />} />
               <Route path="/admin/inbox/:userId" element={<AdminInbox />} />
+              <Route path="/admin/impersonate/:userId" element={<AdminImpersonate />} />
               <Route path="/admin/payments" element={<Payments />} />
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/terms" element={<Terms />} />
