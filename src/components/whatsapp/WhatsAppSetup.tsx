@@ -31,6 +31,7 @@ import { ConnectionVerification } from "./ConnectionVerification";
 import { WhatsAppTemplateCreator } from "./WhatsAppTemplateCreator";
 import { WhatsAppTemplateList } from "./WhatsAppTemplateList";
 import { supabase } from "@/integrations/supabase/client";
+import { getEffectiveUser } from "@/lib/effectiveAuth";
 import { useToast } from "@/hooks/use-toast";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { useNavigate } from "react-router-dom";

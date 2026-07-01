@@ -11,6 +11,7 @@ import {
   Info
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { getEffectiveUser } from "@/lib/effectiveAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { WebhookSetupWizard } from "./WebhookSetupWizard";
@@ -77,7 +78,7 @@ export const ManualWhatsAppSetup = ({ onAccountConnected }: ManualWhatsAppSetupP
     setSaving(true);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await getEffectiveUser();
       if (!user) throw new Error('No authenticated user');
 
       // Enforce plan limit

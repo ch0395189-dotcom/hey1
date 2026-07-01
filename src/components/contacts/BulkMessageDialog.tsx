@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { getEffectiveUser } from "@/lib/effectiveAuth";
 import { getFriendlyWhatsappError } from "@/lib/whatsappErrors";
 import {
   Dialog,
@@ -225,7 +226,7 @@ export const BulkMessageDialog = ({
         }
 
         const scheduledAt = new Date(`${scheduledDate}T${scheduledTime}`).toISOString();
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { user } } = await getEffectiveUser();
 
         const { error } = await supabase.from('scheduled_messages').insert({
           user_id: user!.id,

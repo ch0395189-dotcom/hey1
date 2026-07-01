@@ -64,6 +64,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import EmojiPicker from "emoji-picker-react";
 import { supabase } from "@/integrations/supabase/client";
+import { getEffectiveUser } from "@/lib/effectiveAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { useNotificationSound } from "@/hooks/useNotificationSound";
@@ -415,7 +416,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await getEffectiveUser();
       if (!user) return;
       const { data } = await supabase
         .from('user_api_keys')
@@ -963,7 +964,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
 
     setSendingClonedVoice(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await getEffectiveUser();
       if (!user) throw new Error("Sesión no válida");
 
       toast({ title: "Generando audio...", description: `Sintetizando con tu voz clonada (${clonedVoice.voiceName || "personalizada"}).` });

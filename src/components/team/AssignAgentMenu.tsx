@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { getEffectiveUser } from "@/lib/effectiveAuth";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -37,7 +38,7 @@ export const AssignAgentMenu = ({ conversationId, currentAssignee, onAssigned, o
 
   useEffect(() => {
     const load = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await getEffectiveUser();
       if (!user) return;
       setMe(user.id);
       // Am I an agent? if so, hide menu

@@ -81,7 +81,7 @@ export const VoiceAgent = ({ voiceModelId: initialVoiceModelId, onVoiceModelIdCh
     setIsSpeaking(true);
     
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await getEffectiveUser();
       
       // Get AI response using user's Google AI key or Lovable AI
       let responseText = '';

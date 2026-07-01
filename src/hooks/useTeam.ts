@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { getEffectiveUser } from "@/lib/effectiveAuth";
 
 export interface AgentPermissions {
   block_contacts: boolean;
@@ -56,7 +57,7 @@ export const useTeam = () => {
 
   const refresh = useCallback(async () => {
     setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await getEffectiveUser();
     if (!user) {
       setLoading(false);
       return;

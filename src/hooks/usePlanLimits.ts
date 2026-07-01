@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { getEffectiveUser } from "@/lib/effectiveAuth";
 
 type PlanKey = "starter" | "professional" | "enterprise" | "esoterico_pro" | "esoterico_rental";
 
@@ -38,7 +39,7 @@ export const usePlanLimits = (): PlanLimits => {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await getEffectiveUser();
       if (!user) {
         setPlan(null);
         setCurrentCount(0);
@@ -80,7 +81,7 @@ export const usePlanLimits = (): PlanLimits => {
 
     let channel: ReturnType<typeof supabase.channel> | null = null;
     (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await getEffectiveUser();
       if (!user) return;
       channel = supabase
         .channel(`plan-limits-${user.id}`)

@@ -69,7 +69,7 @@ export const ApiKeysSettings = () => {
       voiceModelId?: string;
       voiceName?: string;
     }) => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await getEffectiveUser();
       if (!user) throw new Error('No autenticado');
 
       const existingKey = apiKeys?.find(k => k.provider === provider);
