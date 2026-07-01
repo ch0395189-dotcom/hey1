@@ -1319,6 +1319,8 @@ export type Database = {
       whatsapp_accounts: {
         Row: {
           access_token: string
+          ai_agent_enabled: boolean
+          ai_agent_prompt: string | null
           business_account_id: string
           connection_type: string | null
           created_at: string
@@ -1340,6 +1342,8 @@ export type Database = {
         }
         Insert: {
           access_token: string
+          ai_agent_enabled?: boolean
+          ai_agent_prompt?: string | null
           business_account_id: string
           connection_type?: string | null
           created_at?: string
@@ -1361,6 +1365,8 @@ export type Database = {
         }
         Update: {
           access_token?: string
+          ai_agent_enabled?: boolean
+          ai_agent_prompt?: string | null
           business_account_id?: string
           connection_type?: string | null
           created_at?: string
