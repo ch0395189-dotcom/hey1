@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { getEffectiveUser } from '@/lib/effectiveAuth';
 import { useToast } from '@/hooks/use-toast';
 
 interface CreditPackage {

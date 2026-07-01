@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
+import { getEffectiveUser } from '@/lib/effectiveAuth';
 import { toast } from 'sonner';
 import { 
   Mic, 
