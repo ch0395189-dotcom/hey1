@@ -262,7 +262,7 @@ Deno.serve(async (req) => {
           // Find the WhatsApp account
           const { data: whatsappAccount, error: accountError } = await supabase
             .from('whatsapp_accounts')
-            .select('id, user_id')
+            .select('id, user_id, ai_agent_enabled, ai_agent_prompt')
             .eq('phone_number_id', phoneNumberId)
             .eq('is_active', true)
             .limit(1)
