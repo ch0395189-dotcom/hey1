@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { NewMessageDialog } from "@/components/whatsapp/NewMessageDialog";
 import { supabase } from "@/integrations/supabase/client";
-import { getImpersonationId } from "@/lib/effectiveAuth";
+import { getImpersonationId, clearImpersonation } from "@/lib/effectiveAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useNotificationSound } from "@/hooks/useNotificationSound";
@@ -478,6 +478,7 @@ const Dashboard = () => {
     } catch {
       console.warn('[Dashboard] No se pudo marcar el cierre de sesión explícito');
     }
+    await clearImpersonation();
     await supabase.auth.signOut();
     toast({
       title: "Sesión cerrada",
