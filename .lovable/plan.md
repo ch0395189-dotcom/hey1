@@ -1,38 +1,62 @@
-
 ## Objetivo
-
-Permitir que un admin abra la bandeja de entrada completa de cualquier usuario (conversaciones, mensajes, estado del chatbot) y pueda incluso responder mensajes, accesible desde la tabla de **Usuarios** y la tabla de **Números** del panel admin.
+Cuando un admin entre a un usuario, ver y operar **todo el dashboard como ese usuario**: bandeja, chatbot, plantillas, contactos, plataformas, equipo, créditos, plan, configuración. Con banner permanente "MODO ADMIN — actuando como X" y botón salir.
 
 ## Enfoque
-
-No generamos sesiones falsas (riesgo de seguridad). En su lugar:
-1. **Ampliamos políticas RLS** para que el rol `admin` pueda leer y actualizar conversaciones, mensajes y estado del chatbot de cualquier usuario.
-2. **Creamos una página `/admin/inbox/:userId`** que carga las cuentas de WhatsApp del usuario objetivo y renderiza la misma UI de bandeja del Dashboard, con un banner visible *"Viendo bandeja de [email] como admin"*.
-3. Los envíos de mensajes ya pasan por edge functions con `service_role` (`whatsapp-send-message`, `whatsapp-send-external`), así que sólo aceptamos un `accountId` explícito y funciona sin más cambios.
+No generamos sesión falsa. Mantenemos la sesión real del admin y agregamos un **"effective user id"** global. RLS ya cubre lectura/escritura para admin en la mayoría de tablas; ampliamos lo que falte. El frontend lee de un contexto en vez de `user.id` directo.
 
 ## Cambios
 
-### 1. Migración SQL (RLS admin)
-Agregar políticas para admin en:
-- `conversations`: SELECT + UPDATE
-- `messages`: SELECT + INSERT + UPDATE
-- `chatbot_conversation_state`: SELECT + UPDATE
-- `conversation_tags`: SELECT
+### 1. Contexto de impersonación (frontend)
+- `src/contexts/ImpersonationContext.tsx`: provee `{ realUserId, effectiveUserId, targetEmail, targetName, isImpersonating, stopImpersonation() }`. Persiste `impersonate_user_id` en `sessionStorage` para sobrevivir recargas.
+- `src/hooks/useEffectiveUser.ts`: reemplaza el patrón `supabase.auth.getUser()` en queries. Devuelve `effectiveUserId`.
+- Wrap `<App>` con el provider.
 
-Todas con `USING (has_role(auth.uid(), 'admin'))`.
+### 2. Ruta
+- `/admin/impersonate/:userId` → guarda el id en el contexto + sessionStorage y redirige a `/dashboard`.
+- Botón "Entrar como" en `UsersTable` y `PhoneNumbersTable` (reemplaza/al lado del actual "Inbox").
 
-### 2. Frontend
-- **`src/pages/AdminInbox.tsx`** (nueva): página protegida con `useAdminCheck`, lee `:userId` de la URL, hace fetch de `whatsapp_accounts` y `platform_accounts` de ese usuario, y reutiliza `ConversationsList` + `ChatWindow` filtrados por esas cuentas. Banner superior con email del usuario y botón "Volver al admin".
-- **`src/App.tsx`**: añadir ruta `/admin/inbox/:userId`.
-- **`src/components/admin/UsersTable.tsx`**: botón con ícono Inbox → `navigate('/admin/inbox/' + userId)`.
-- **`src/components/admin/PhoneNumbersTable.tsx`**: mismo botón por fila usando `user_id` de la cuenta.
+### 3. Banner global
+- `src/components/admin/ImpersonationBanner.tsx` fijo arriba del layout cuando `isImpersonating`. Muestra email/nombre + botón "Salir del modo admin" → limpia sessionStorage y vuelve a `/admin`.
 
-### 3. Sin cambios en
-- Edge functions de envío (ya usan service role).
-- Hooks de auth (mantenemos la sesión del admin).
+### 4. Refactor de queries
+Reemplazar `user.id` por `effectiveUserId` en los hooks/componentes que cargan datos del usuario (no en login/registro/auth). Ámbito mínimo:
+- Dashboard, ConversationsList, ChatWindow, WhatsAppSetup, ExternalWhatsAppSetup
+- ChatbotConfig, KnowledgeBase, KeywordManager, FlowBuilder
+- ContactsList, ContactTags, TagManager, BulkMessageDialog
+- PlatformSetup, TikTokWhatsAppNotifySettings
+- TeamManagement, AssignAgentMenu
+- CreditBalance, CreditUsageHistory, CreditPackages
+- Settings (ApiKeysSettings, AutoRefreshSettings, VoiceClonesManager, NotificationSettingsPanel)
+- StatisticsPanel, useMessageLimit, usePlanLimits, useCredits, useTeam, useSubscriptionGuard
+- SendTemplateDialog, WhatsAppTemplateList/Creator
+
+Auth (Login, Register, ResetPassword, useAdminCheck, push subs) sigue usando `auth.uid()`.
+
+### 5. RLS para admin
+Migración que añade políticas `USING (has_role(auth.uid(),'admin'))` (SELECT + INSERT + UPDATE + DELETE donde aplique) en las tablas que aún no las tienen:
+- whatsapp_accounts, platform_accounts
+- chatbot_configs, chatbot_flow_nodes, chatbot_keywords, chatbot_knowledge_base
+- contact_tags, conversation_tags
+- scheduled_messages, user_voice_clones, user_api_keys
+- subscriptions, user_credits, monthly_message_usage, team_agents, push_subscriptions
+
+(conversations, messages, chatbot_conversation_state ya tienen políticas admin del plan anterior.)
+
+### 6. Edge functions
+Las edge functions que reciben `accountId/conversationId` explícitos ya funcionan con service role. Para las que infieren el usuario de `auth.getUser()` (ej. envío de plantillas, send-message), agregar parámetro opcional `actAsUserId` y validar que el caller sea admin antes de aceptarlo:
+- whatsapp-send-message, whatsapp-send-external, whatsapp-create-template, whatsapp-list-templates, whatsapp-edit-template
+- tiktok-send-message, messenger-send-message, instagram-send-message
+- bold-checkout (NO se toca: el admin no debe pagar por el usuario)
+
+### 7. Auditoría
+Nueva tabla `admin_impersonation_log` (admin_id, target_user_id, started_at, ended_at). Se inserta al entrar/salir. Visible en el panel admin con un visor simple.
 
 ## Seguridad
+- Banner rojo permanente, imposible ocultar.
+- `useAdminCheck` bloquea la ruta y el provider rechaza setear `effectiveUserId` si no es admin.
+- Log auditable de cada sesión de impersonación.
+- Logout normal limpia el sessionStorage.
 
-- El acceso a la ruta `/admin/inbox/:userId` queda bloqueado por `useAdminCheck` (redirige si no es admin).
-- Las políticas RLS usan `has_role(auth.uid(), 'admin')`, que ya es la función `SECURITY DEFINER` existente — no hay recursión.
-- Banner permanente para que el admin sepa que está viendo datos de otro usuario.
+## Fuera de alcance
+- No se cambia el email del admin ni se generan tokens del usuario.
+- Pagos con tarjeta del usuario (checkout Bold) quedan deshabilitados durante impersonación.
