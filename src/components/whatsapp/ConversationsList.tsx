@@ -500,6 +500,42 @@ export const ConversationsList = ({
     }
   };
 
+  const maybeSendReport = async (
+    convs: Conversation[],
+    reason: string,
+  ): Promise<boolean> => {
+    const email = reportEmail.trim();
+    if (!email) return true;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      toast.error('Email inválido para el reporte');
+      return false;
+    }
+    setSendingReport(true);
+    try {
+      const payload = convs.map((c) => ({
+        name: c.customer_name,
+        phone: c.customer_phone,
+        email: null,
+        platform: c.platform,
+        last_message_at: c.last_message_at,
+        tags: (c.tags ?? []).map((t) => t.name).join(', '),
+      }));
+      const { data, error } = await supabase.functions.invoke('send-contacts-report', {
+        body: { email, contacts: payload, reason },
+      });
+      if (error) throw error;
+      const resp = data as { ok?: boolean; error?: string };
+      if (!resp?.ok) throw new Error(resp?.error || 'No se pudo enviar el reporte');
+      toast.success(`Reporte enviado a ${email}`);
+      return true;
+    } catch (e: any) {
+      toast.error(e?.message || 'Error enviando el reporte');
+      return false;
+    } finally {
+      setSendingReport(false);
+    }
+  };
+
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return;
     setBulkLoading(true);
