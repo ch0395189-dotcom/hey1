@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { motion } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Search, Plus, Archive, Inbox, MessageCircle, RefreshCw, CheckSquare, Trash2, X, Ban, Mic, Image as ImageIcon, Video, FileText, MapPin, User as UserIcon, Smile, Sticker as StickerIcon, Paperclip, ListChecks, ThumbsUp, Smartphone } from "lucide-react";
@@ -88,6 +89,10 @@ export const ConversationsList = ({
   const [deletingAllBlocked, setDeletingAllBlocked] = useState(false);
   const [deleteSingleConv, setDeleteSingleConv] = useState<Conversation | null>(null);
   const [deletingSingle, setDeletingSingle] = useState(false);
+
+  // Optional email report before deletion
+  const [reportEmail, setReportEmail] = useState("");
+  const [sendingReport, setSendingReport] = useState(false);
 
   // Tag filter state
   const [allTags, setAllTags] = useState<{ id: string; name: string; color: string }[]>([]);
