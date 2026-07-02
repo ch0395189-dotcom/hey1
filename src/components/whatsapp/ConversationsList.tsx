@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { motion } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Search, Plus, Archive, Inbox, MessageCircle, RefreshCw, CheckSquare, Trash2, X, Ban, Mic, Image as ImageIcon, Video, FileText, MapPin, User as UserIcon, Smile, Sticker as StickerIcon, Paperclip, ListChecks, ThumbsUp, Smartphone } from "lucide-react";
@@ -88,6 +89,10 @@ export const ConversationsList = ({
   const [deletingAllBlocked, setDeletingAllBlocked] = useState(false);
   const [deleteSingleConv, setDeleteSingleConv] = useState<Conversation | null>(null);
   const [deletingSingle, setDeletingSingle] = useState(false);
+
+  // Optional email report before deletion
+  const [reportEmail, setReportEmail] = useState("");
+  const [sendingReport, setSendingReport] = useState(false);
 
   // Tag filter state
   const [allTags, setAllTags] = useState<{ id: string; name: string; color: string }[]>([]);
@@ -495,10 +500,49 @@ export const ConversationsList = ({
     }
   };
 
+  const maybeSendReport = async (
+    convs: Conversation[],
+    reason: string,
+  ): Promise<boolean> => {
+    const email = reportEmail.trim();
+    if (!email) return true;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      toast.error('Email inválido para el reporte');
+      return false;
+    }
+    setSendingReport(true);
+    try {
+      const payload = convs.map((c) => ({
+        name: c.customer_name,
+        phone: c.customer_phone,
+        email: null,
+        platform: c.platform,
+        last_message_at: c.last_message_at,
+        tags: (c.tags ?? []).map((t) => t.name).join(', '),
+      }));
+      const { data, error } = await supabase.functions.invoke('send-contacts-report', {
+        body: { email, contacts: payload, reason },
+      });
+      if (error) throw error;
+      const resp = data as { ok?: boolean; error?: string };
+      if (!resp?.ok) throw new Error(resp?.error || 'No se pudo enviar el reporte');
+      toast.success(`Reporte enviado a ${email}`);
+      return true;
+    } catch (e: any) {
+      toast.error(e?.message || 'Error enviando el reporte');
+      return false;
+    } finally {
+      setSendingReport(false);
+    }
+  };
+
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return;
     setBulkLoading(true);
     try {
+      const toReport = conversations.filter((c) => selectedIds.has(c.id));
+      const reportOk = await maybeSendReport(toReport, 'Contactos eliminados desde selección múltiple.');
+      if (!reportOk) { setBulkLoading(false); return; }
       // Delete messages first, then conversations
       for (const convId of selectedIds) {
         await supabase.from('messages').delete().eq('conversation_id', convId);
@@ -514,6 +558,7 @@ export const ConversationsList = ({
       toast.success(`${selectedIds.size} conversación(es) eliminada(s)`);
       exitSelectMode();
       setShowDeleteConfirm(false);
+      setReportEmail("");
       fetchConversations();
     } catch (error) {
       console.error('Error deleting:', error);
@@ -532,6 +577,8 @@ export const ConversationsList = ({
         setShowDeleteAllBlockedConfirm(false);
         return;
       }
+      const reportOk = await maybeSendReport(conversations, 'Contactos bloqueados eliminados.');
+      if (!reportOk) { setDeletingAllBlocked(false); return; }
       for (const convId of ids) {
         await supabase.from('messages').delete().eq('conversation_id', convId);
         await supabase.from('chatbot_conversation_state').delete().eq('conversation_id', convId);
@@ -544,6 +591,7 @@ export const ConversationsList = ({
       if (error) throw error;
       toast.success(`${ids.length} contacto(s) bloqueado(s) eliminado(s)`);
       setShowDeleteAllBlockedConfirm(false);
+      setReportEmail("");
       fetchConversations();
     } catch (error) {
       console.error('Error deleting blocked:', error);
@@ -557,6 +605,8 @@ export const ConversationsList = ({
     if (!deleteSingleConv) return;
     setDeletingSingle(true);
     try {
+      const reportOk = await maybeSendReport([deleteSingleConv], 'Contacto eliminado desde la bandeja de entrada.');
+      if (!reportOk) { setDeletingSingle(false); return; }
       const convId = deleteSingleConv.id;
       await supabase.from('messages').delete().eq('conversation_id', convId);
       await supabase.from('chatbot_conversation_state').delete().eq('conversation_id', convId);
@@ -565,6 +615,7 @@ export const ConversationsList = ({
       if (error) throw error;
       toast.success('Contacto eliminado');
       setDeleteSingleConv(null);
+      setReportEmail("");
       fetchConversations();
     } catch (error) {
       console.error('Error deleting conversation:', error);
@@ -1017,10 +1068,24 @@ export const ConversationsList = ({
               Esta acción eliminará permanentemente las conversaciones seleccionadas y todos sus mensajes. No se puede deshacer.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="report-email-bulk">Enviar reporte por correo (opcional)</Label>
+            <Input
+              id="report-email-bulk"
+              type="email"
+              placeholder="tucorreo@ejemplo.com"
+              value={reportEmail}
+              onChange={(e) => setReportEmail(e.target.value)}
+              disabled={bulkLoading || sendingReport}
+            />
+            <p className="text-xs text-muted-foreground">
+              Si escribes un correo, recibirás un reporte con toda la información de los contactos antes de eliminarlos.
+            </p>
+          </div>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={bulkLoading}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleBulkDelete} disabled={bulkLoading} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              {bulkLoading ? 'Eliminando...' : 'Eliminar'}
+            <AlertDialogCancel disabled={bulkLoading || sendingReport}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkDelete} disabled={bulkLoading || sendingReport} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {sendingReport ? 'Enviando reporte...' : bulkLoading ? 'Eliminando...' : 'Eliminar'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1035,14 +1100,28 @@ export const ConversationsList = ({
               Se eliminarán permanentemente {conversations.length} contacto(s) bloqueado(s) y todos sus mensajes. Esta acción no se puede deshacer.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="report-email-blocked">Enviar reporte por correo (opcional)</Label>
+            <Input
+              id="report-email-blocked"
+              type="email"
+              placeholder="tucorreo@ejemplo.com"
+              value={reportEmail}
+              onChange={(e) => setReportEmail(e.target.value)}
+              disabled={deletingAllBlocked || sendingReport}
+            />
+            <p className="text-xs text-muted-foreground">
+              Si escribes un correo, recibirás un reporte con toda la información de los contactos antes de eliminarlos.
+            </p>
+          </div>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deletingAllBlocked}>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel disabled={deletingAllBlocked || sendingReport}>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteAllBlocked}
-              disabled={deletingAllBlocked}
+              disabled={deletingAllBlocked || sendingReport}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {deletingAllBlocked ? 'Eliminando...' : 'Eliminar todos'}
+              {sendingReport ? 'Enviando reporte...' : deletingAllBlocked ? 'Eliminando...' : 'Eliminar todos'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1057,14 +1136,28 @@ export const ConversationsList = ({
               Se eliminará permanentemente {deleteSingleConv?.customer_name || deleteSingleConv?.customer_phone} y todos sus mensajes. Esta acción no se puede deshacer.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="report-email-single">Enviar reporte por correo (opcional)</Label>
+            <Input
+              id="report-email-single"
+              type="email"
+              placeholder="tucorreo@ejemplo.com"
+              value={reportEmail}
+              onChange={(e) => setReportEmail(e.target.value)}
+              disabled={deletingSingle || sendingReport}
+            />
+            <p className="text-xs text-muted-foreground">
+              Si escribes un correo, recibirás un reporte con la información del contacto antes de eliminarlo.
+            </p>
+          </div>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deletingSingle}>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel disabled={deletingSingle || sendingReport}>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteSingle}
-              disabled={deletingSingle}
+              disabled={deletingSingle || sendingReport}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {deletingSingle ? 'Eliminando...' : 'Eliminar'}
+              {sendingReport ? 'Enviando reporte...' : deletingSingle ? 'Eliminando...' : 'Eliminar'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
