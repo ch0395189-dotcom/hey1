@@ -504,6 +504,9 @@ export const ConversationsList = ({
     if (selectedIds.size === 0) return;
     setBulkLoading(true);
     try {
+      const toReport = conversations.filter((c) => selectedIds.has(c.id));
+      const reportOk = await maybeSendReport(toReport, 'Contactos eliminados desde selección múltiple.');
+      if (!reportOk) { setBulkLoading(false); return; }
       // Delete messages first, then conversations
       for (const convId of selectedIds) {
         await supabase.from('messages').delete().eq('conversation_id', convId);
@@ -519,6 +522,7 @@ export const ConversationsList = ({
       toast.success(`${selectedIds.size} conversación(es) eliminada(s)`);
       exitSelectMode();
       setShowDeleteConfirm(false);
+      setReportEmail("");
       fetchConversations();
     } catch (error) {
       console.error('Error deleting:', error);
@@ -537,6 +541,8 @@ export const ConversationsList = ({
         setShowDeleteAllBlockedConfirm(false);
         return;
       }
+      const reportOk = await maybeSendReport(conversations, 'Contactos bloqueados eliminados.');
+      if (!reportOk) { setDeletingAllBlocked(false); return; }
       for (const convId of ids) {
         await supabase.from('messages').delete().eq('conversation_id', convId);
         await supabase.from('chatbot_conversation_state').delete().eq('conversation_id', convId);
@@ -549,6 +555,7 @@ export const ConversationsList = ({
       if (error) throw error;
       toast.success(`${ids.length} contacto(s) bloqueado(s) eliminado(s)`);
       setShowDeleteAllBlockedConfirm(false);
+      setReportEmail("");
       fetchConversations();
     } catch (error) {
       console.error('Error deleting blocked:', error);
@@ -562,6 +569,8 @@ export const ConversationsList = ({
     if (!deleteSingleConv) return;
     setDeletingSingle(true);
     try {
+      const reportOk = await maybeSendReport([deleteSingleConv], 'Contacto eliminado desde la bandeja de entrada.');
+      if (!reportOk) { setDeletingSingle(false); return; }
       const convId = deleteSingleConv.id;
       await supabase.from('messages').delete().eq('conversation_id', convId);
       await supabase.from('chatbot_conversation_state').delete().eq('conversation_id', convId);
@@ -570,6 +579,7 @@ export const ConversationsList = ({
       if (error) throw error;
       toast.success('Contacto eliminado');
       setDeleteSingleConv(null);
+      setReportEmail("");
       fetchConversations();
     } catch (error) {
       console.error('Error deleting conversation:', error);
