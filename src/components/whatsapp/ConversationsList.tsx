@@ -1068,10 +1068,24 @@ export const ConversationsList = ({
               Esta acción eliminará permanentemente las conversaciones seleccionadas y todos sus mensajes. No se puede deshacer.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="report-email-bulk">Enviar reporte por correo (opcional)</Label>
+            <Input
+              id="report-email-bulk"
+              type="email"
+              placeholder="tucorreo@ejemplo.com"
+              value={reportEmail}
+              onChange={(e) => setReportEmail(e.target.value)}
+              disabled={bulkLoading || sendingReport}
+            />
+            <p className="text-xs text-muted-foreground">
+              Si escribes un correo, recibirás un reporte con toda la información de los contactos antes de eliminarlos.
+            </p>
+          </div>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={bulkLoading}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleBulkDelete} disabled={bulkLoading} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              {bulkLoading ? 'Eliminando...' : 'Eliminar'}
+            <AlertDialogCancel disabled={bulkLoading || sendingReport}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkDelete} disabled={bulkLoading || sendingReport} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {sendingReport ? 'Enviando reporte...' : bulkLoading ? 'Eliminando...' : 'Eliminar'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1086,14 +1100,28 @@ export const ConversationsList = ({
               Se eliminarán permanentemente {conversations.length} contacto(s) bloqueado(s) y todos sus mensajes. Esta acción no se puede deshacer.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="report-email-blocked">Enviar reporte por correo (opcional)</Label>
+            <Input
+              id="report-email-blocked"
+              type="email"
+              placeholder="tucorreo@ejemplo.com"
+              value={reportEmail}
+              onChange={(e) => setReportEmail(e.target.value)}
+              disabled={deletingAllBlocked || sendingReport}
+            />
+            <p className="text-xs text-muted-foreground">
+              Si escribes un correo, recibirás un reporte con toda la información de los contactos antes de eliminarlos.
+            </p>
+          </div>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deletingAllBlocked}>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel disabled={deletingAllBlocked || sendingReport}>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteAllBlocked}
-              disabled={deletingAllBlocked}
+              disabled={deletingAllBlocked || sendingReport}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {deletingAllBlocked ? 'Eliminando...' : 'Eliminar todos'}
+              {sendingReport ? 'Enviando reporte...' : deletingAllBlocked ? 'Eliminando...' : 'Eliminar todos'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1108,14 +1136,28 @@ export const ConversationsList = ({
               Se eliminará permanentemente {deleteSingleConv?.customer_name || deleteSingleConv?.customer_phone} y todos sus mensajes. Esta acción no se puede deshacer.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="report-email-single">Enviar reporte por correo (opcional)</Label>
+            <Input
+              id="report-email-single"
+              type="email"
+              placeholder="tucorreo@ejemplo.com"
+              value={reportEmail}
+              onChange={(e) => setReportEmail(e.target.value)}
+              disabled={deletingSingle || sendingReport}
+            />
+            <p className="text-xs text-muted-foreground">
+              Si escribes un correo, recibirás un reporte con la información del contacto antes de eliminarlo.
+            </p>
+          </div>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deletingSingle}>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel disabled={deletingSingle || sendingReport}>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteSingle}
-              disabled={deletingSingle}
+              disabled={deletingSingle || sendingReport}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {deletingSingle ? 'Eliminando...' : 'Eliminar'}
+              {sendingReport ? 'Enviando reporte...' : deletingSingle ? 'Eliminando...' : 'Eliminar'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
