@@ -462,7 +462,15 @@ export const TagManager = ({ conversationId, onTagsChange, open: controlledOpen,
             size="icon"
             className="w-9 h-9 text-primary-foreground hover:bg-primary-foreground/10"
             title="Gestionar etiquetas"
-            onClick={() => setOpen(true)}
+            onPointerDown={(e) => {
+              // Some parent Radix menus block clicks briefly while closing on
+              // iOS. Handle pointerdown + defer opening so the tap always
+              // registers.
+              e.preventDefault();
+              e.stopPropagation();
+              setTimeout(() => setOpen(true), 250);
+            }}
+            onClick={(e) => e.preventDefault()}
           >
             <TagIcon className="w-4 h-4" />
           </Button>
