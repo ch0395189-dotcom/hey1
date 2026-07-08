@@ -895,15 +895,26 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
     if (!conversation) return;
     setSendingClonedVoice(true);
     try {
-      // Always remux to OGG/Opus so WhatsApp renders it as a voice note (PTT),
-      // not as an uploaded music/file attachment.
-      const oggBlob = await convertToOggOpus(audioBlob);
-      const oggFile = new File([oggBlob], `cloned_${Date.now()}.ogg`, { type: 'audio/ogg' });
+      // Try to remux to OGG/Opus so WhatsApp renders it as a voice note (PTT).
+      // On iOS Safari / restricted WebViews ffmpeg.wasm can't load — in that
+      // case we upload the original MP3 so the send still works (as a music
+      // attachment instead of a PTT).
+      let finalBlob: Blob = audioBlob;
+      let ext = 'ogg';
+      let contentType = 'audio/ogg';
+      try {
+        finalBlob = await convertToOggOpus(audioBlob);
+      } catch (e) {
+        console.warn('[voice-clone] ffmpeg unavailable, sending MP3 as-is:', e);
+        ext = 'mp3';
+        contentType = 'audio/mpeg';
+      }
+      const outFile = new File([finalBlob], `cloned_${Date.now()}.${ext}`, { type: contentType });
 
-      const filePath = `${conversation.id}/cloned_${Date.now()}.ogg`;
+      const filePath = `${conversation.id}/cloned_${Date.now()}.${ext}`;
       const { error: uploadError } = await supabase.storage
         .from('media')
-        .upload(filePath, oggFile, { contentType: 'audio/ogg', upsert: false });
+        .upload(filePath, outFile, { contentType, upsert: false });
       if (uploadError) throw uploadError;
       const { data: urlData } = supabase.storage.from('media').getPublicUrl(filePath);
 
@@ -997,16 +1008,25 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
       const mp3Buffer = await ttsRes.arrayBuffer();
       const mp3Blob = new Blob([mp3Buffer], { type: "audio/mpeg" });
 
-      // 2. Remux MP3 → OGG/Opus so WhatsApp shows it as a voice note (PTT),
-      // not as an uploaded music attachment.
-      const oggBlob = await convertToOggOpus(mp3Blob);
-      const oggFile = new File([oggBlob], `cloned_${Date.now()}.ogg`, { type: "audio/ogg" });
+      // 2. Try to remux MP3 → OGG/Opus so WhatsApp shows it as PTT.
+      //    Fall back to sending the MP3 as-is when ffmpeg.wasm can't load (iOS).
+      let finalBlob: Blob = mp3Blob;
+      let ext = 'ogg';
+      let contentType = 'audio/ogg';
+      try {
+        finalBlob = await convertToOggOpus(mp3Blob);
+      } catch (e) {
+        console.warn('[voice-clone] ffmpeg unavailable, sending MP3 as-is:', e);
+        ext = 'mp3';
+        contentType = 'audio/mpeg';
+      }
+      const outFile = new File([finalBlob], `cloned_${Date.now()}.${ext}`, { type: contentType });
 
       // 3. Upload to storage
-      const filePath = `${conversation.id}/cloned_${Date.now()}.ogg`;
+      const filePath = `${conversation.id}/cloned_${Date.now()}.${ext}`;
       const { error: uploadError } = await supabase.storage
         .from("media")
-        .upload(filePath, oggFile, { contentType: "audio/ogg", upsert: false });
+        .upload(filePath, outFile, { contentType, upsert: false });
       if (uploadError) throw uploadError;
       const { data: urlData } = supabase.storage.from("media").getPublicUrl(filePath);
 
