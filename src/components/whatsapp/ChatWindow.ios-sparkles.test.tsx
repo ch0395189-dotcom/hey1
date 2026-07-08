@@ -115,31 +115,30 @@ describe("ChatWindow ✨ Sparkles button on iOS", () => {
     if (originalUA) Object.defineProperty(window.navigator, "userAgent", originalUA);
   });
 
-  it("abre el diálogo de voz clonada al tocar ✨ en iOS (touchend sin preventDefault)", async () => {
+  it("abre el diálogo de voz clonada en el primer toque iOS aunque el teclado esté abierto", async () => {
     renderChat();
 
     // Type text so the ✨ Sparkles button renders.
     const input = screen.getByPlaceholderText("Escribe un mensaje");
     fireEvent.change(input, { target: { value: "Hola desde iOS" } });
+    input.focus();
+    expect(input).toHaveFocus();
 
     const sparklesBtn = await screen.findByTitle(
       "Enviar como nota de voz clonada (vista previa)",
     );
     expect(sparklesBtn).toBeInTheDocument();
 
-    // Simulate iOS tap sequence: touchstart → touchend → click.
-    // The handlers must NOT call preventDefault on touch events, so the
-    // synthesized click still fires. Guard prevents a double-open.
+    // On real iOS with the keyboard open, Safari can consume the tap after
+    // touchstart to blur the input, so touchend/click may never activate the
+    // button. The action must therefore run on touchstart without preventDefault.
     const touchStartEvt = fireEvent.touchStart(sparklesBtn, { touches: [{ clientX: 10, clientY: 10 }] });
-    const touchEndEvt = fireEvent.touchEnd(sparklesBtn, { changedTouches: [{ clientX: 10, clientY: 10 }] });
     expect(touchStartEvt).toBe(true); // event not preventDefault'd
-    expect(touchEndEvt).toBe(true);   // event not preventDefault'd
-
-    fireEvent.click(sparklesBtn);
 
     await waitFor(() => {
       expect(screen.getByTestId("cloned-voice-dialog")).toBeInTheDocument();
     });
+    expect(input).not.toHaveFocus();
   });
 
   it("no abre el diálogo dos veces cuando iOS dispara touchend y click seguidos", async () => {
@@ -151,9 +150,12 @@ describe("ChatWindow ✨ Sparkles button on iOS", () => {
       "Enviar como nota de voz clonada (vista previa)",
     );
 
-    fireEvent.touchStart(sparklesBtn);
-    fireEvent.touchEnd(sparklesBtn);
+    const touchStartEvt = fireEvent.touchStart(sparklesBtn);
+    const touchEndEvt = fireEvent.touchEnd(sparklesBtn);
     fireEvent.click(sparklesBtn);
+
+    expect(touchStartEvt).toBe(true);
+    expect(touchEndEvt).toBe(true);
 
     await waitFor(() => {
       expect(screen.getAllByTestId("cloned-voice-dialog")).toHaveLength(1);
