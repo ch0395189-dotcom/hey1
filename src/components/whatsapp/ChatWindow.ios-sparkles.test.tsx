@@ -53,6 +53,7 @@ vi.mock("@/integrations/supabase/client", () => {
     const api: Record<string, unknown> = {
       select: vi.fn(() => api),
       eq: vi.fn(() => api),
+      in: vi.fn(() => api),
       order: vi.fn(() => terminal({ data: [], error: null })),
       update: vi.fn(() => api),
       insert: vi.fn(() => api),
