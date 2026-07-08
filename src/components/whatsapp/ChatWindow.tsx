@@ -628,12 +628,28 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
       // fires the action, click is the desktop/fallback path. No
       // preventDefault anywhere so the tap is never swallowed.
       return {
-        onTouchEnd: () => { trigger(); },
+        // Blur the focused input FIRST so the tap isn't consumed by iOS
+        // dismissing the keyboard (which shifts layout mid-tap).
+        onTouchStart: () => {
+          if (document.activeElement instanceof HTMLElement) {
+            document.activeElement.blur();
+          }
+        },
+        onTouchEnd: () => {
+          console.log(`[iOS tap] touchend → ${key}`);
+          trigger();
+        },
         onClick: (e: React.MouseEvent) => {
+          console.log(`[iOS tap] click → ${key}`);
           // Avoid double-trigger when both touchend and click fire.
           e.stopPropagation();
           trigger();
         },
+        style: {
+          touchAction: 'manipulation',
+          WebkitTapHighlightColor: 'transparent',
+          cursor: 'pointer',
+        } as React.CSSProperties,
       };
     }
 
