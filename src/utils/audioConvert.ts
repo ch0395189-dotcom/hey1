@@ -123,11 +123,27 @@ export async function prepareRecordedAudioForWhatsApp(input: Blob): Promise<Blob
   // audio/ogg while writing MP4 bytes, which Meta accepts but recipients get a
   // broken voice note. Only skip conversion when the actual bytes are OGG.
   if (await isRealOggContainer(input)) return input;
-  const converted = await convertToOggOpus(input);
-  if (!(await isRealOggContainer(converted))) {
-    throw new Error('La conversión del audio no generó un archivo OGG válido.');
+  // iOS Safari records audio/mp4 (AAC) natively and cannot run ffmpeg.wasm
+  // (requires SharedArrayBuffer + COOP/COEP). If the blob is already a
+  // WhatsApp-compatible container (mp4/m4a/mp3/aac/amr) send it as-is.
+  // WhatsApp will show it as a music attachment instead of a PTT voice
+  // note, but it plays — much better than failing silently.
+  if (isAlreadyWhatsAppCompatible(input)) return input;
+  try {
+    const converted = await convertToOggOpus(input);
+    if (!(await isRealOggContainer(converted))) {
+      throw new Error('La conversión del audio no generó un archivo OGG válido.');
+    }
+    return converted;
+  } catch (err) {
+    // Fallback: if ffmpeg.wasm can't run (typical on iOS WebView / restricted
+    // headers) and the source is any recognizable audio format, send it as-is.
+    if (input.type && input.type.startsWith('audio/')) {
+      console.warn('[audioConvert] ffmpeg unavailable, sending original blob as-is:', input.type, err);
+      return input;
+    }
+    throw err;
   }
-  return converted;
 }
 
 export async function prepareAttachedAudioForWhatsApp(file: File): Promise<File> {
