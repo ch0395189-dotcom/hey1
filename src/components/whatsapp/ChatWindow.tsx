@@ -614,7 +614,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
     const trigger = () => {
       const now = Date.now();
       const last = tapGuardRef.current.get(key) ?? 0;
-      if (now - last < 400) return;
+      if (now - last < 750) return;
       tapGuardRef.current.set(key, now);
       action();
     };
@@ -623,24 +623,22 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
        (navigator.platform === 'MacIntel' && (navigator as any).maxTouchPoints > 1));
 
     if (isIOS) {
-      // iOS Safari: any preventDefault on pointerdown/touchstart of a button
-      // suppresses the synthesized click. Keep handlers minimal: touchend
-      // fires the action, click is the desktop/fallback path. No
-      // preventDefault anywhere so the tap is never swallowed.
+      // iOS Safari/WebView: when an input is focused, the first tap on a
+      // nearby button is often consumed just to dismiss the keyboard, so
+      // touchend/click may never reach the button. Fire from touchstart,
+      // before the keyboard blur/layout shift can swallow the tap. Do not
+      // preventDefault, so Safari can still complete its native click path.
       return {
-        // Blur the focused input FIRST so the tap isn't consumed by iOS
-        // dismissing the keyboard (which shifts layout mid-tap).
         onTouchStart: () => {
+          trigger();
           if (document.activeElement instanceof HTMLElement) {
             document.activeElement.blur();
           }
         },
         onTouchEnd: () => {
-          console.log(`[iOS tap] touchend → ${key}`);
           trigger();
         },
         onClick: (e: React.MouseEvent) => {
-          console.log(`[iOS tap] click → ${key}`);
           // Avoid double-trigger when both touchend and click fire.
           e.stopPropagation();
           trigger();
