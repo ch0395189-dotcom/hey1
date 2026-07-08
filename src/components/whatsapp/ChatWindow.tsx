@@ -1499,7 +1499,11 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
               <DropdownMenuItem
                 onSelect={(e) => {
                   e.preventDefault();
-                  setTimeout(() => setTagManagerOpen(true), 50);
+                  // Radix DropdownMenu locks body pointer-events for ~200ms
+                  // while closing on iOS Safari/WebView. Open the dialog
+                  // after the lock is released so the tap registers.
+                  setMoreMenuOpen(false);
+                  setTimeout(() => setTagManagerOpen(true), 300);
                 }}
               >
                 <TagIcon className="w-4 h-4 mr-2" />
