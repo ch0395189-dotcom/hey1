@@ -606,6 +606,38 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
     }, 0);
   };
 
+  // Consistent tap handlers: prevent input blur on pointerdown, fire on
+  // pointerup (mobile) OR click (desktop / synthesized), with a short guard
+  // so the same tap doesn't trigger twice.
+  const tapGuardRef = useRef<Map<string, number>>(new Map());
+  const makeTapHandlers = (key: string, action: () => void) => {
+    const trigger = () => {
+      const now = Date.now();
+      const last = tapGuardRef.current.get(key) ?? 0;
+      if (now - last < 400) return;
+      tapGuardRef.current.set(key, now);
+      action();
+    };
+    return {
+      onPointerDown: (e: React.PointerEvent) => {
+        // Prevent the input/textarea from blurring which can hide the button
+        // before the click handler runs on iOS/Android.
+        e.preventDefault();
+        e.stopPropagation();
+      },
+      onPointerUp: (e: React.PointerEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        trigger();
+      },
+      onClick: (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        trigger();
+      },
+    };
+  };
+
   const markAsRead = async () => {
     if (!conversation) return;
 
