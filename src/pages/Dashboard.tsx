@@ -810,7 +810,7 @@ const Dashboard = () => {
             animate={{ opacity: 1 }}
             transition={{ delay: 0.2 }}
             className={`flex-1 flex flex-col min-h-0 chat-active ${
-              selectedConversation ? 'fixed inset-0 z-[60] lg:relative lg:inset-auto lg:z-auto' : 'hidden lg:flex'
+              selectedConversation ? 'fixed inset-0 z-40 lg:relative lg:inset-auto lg:z-auto' : 'hidden lg:flex'
             }`}
           >
             <ChatWindow
