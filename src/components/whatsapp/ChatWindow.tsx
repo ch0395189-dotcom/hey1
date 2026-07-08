@@ -618,6 +618,25 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
       tapGuardRef.current.set(key, now);
       action();
     };
+    const isIOS = typeof navigator !== 'undefined' &&
+      (/iPad|iPhone|iPod/.test(navigator.userAgent) ||
+       (navigator.platform === 'MacIntel' && (navigator as any).maxTouchPoints > 1));
+
+    if (isIOS) {
+      // iOS Safari: any preventDefault on pointerdown/touchstart of a button
+      // suppresses the synthesized click. Keep handlers minimal: touchend
+      // fires the action, click is the desktop/fallback path. No
+      // preventDefault anywhere so the tap is never swallowed.
+      return {
+        onTouchEnd: () => { trigger(); },
+        onClick: (e: React.MouseEvent) => {
+          // Avoid double-trigger when both touchend and click fire.
+          e.stopPropagation();
+          trigger();
+        },
+      };
+    }
+
     return {
       // Use mousedown (not pointerdown) to prevent input blur. On iOS Safari
       // calling preventDefault() on pointerdown/touchstart of a <button>
