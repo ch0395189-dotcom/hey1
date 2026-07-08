@@ -168,6 +168,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const mobileActionTimerRef = useRef<number | null>(null);
   const { toast } = useToast();
 
   // Fetch account connection type when conversation changes
@@ -593,6 +594,16 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
     setRefreshing(true);
     await fetchMessages();
     setRefreshing(false);
+  };
+
+  const deferMobileAction = (action: () => void) => {
+    if (mobileActionTimerRef.current) {
+      window.clearTimeout(mobileActionTimerRef.current);
+    }
+    mobileActionTimerRef.current = window.setTimeout(() => {
+      action();
+      mobileActionTimerRef.current = null;
+    }, 0);
   };
 
   const markAsRead = async () => {
@@ -1468,12 +1479,18 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                 aria-haspopup="menu"
                 aria-expanded={moreMenuOpen}
                 onPointerDown={(e) => {
-                  // En WebView móvil (Capacitor) Radix a veces no abre con el pointerdown sintético.
-                  // Forzamos apertura manual y evitamos el doble disparo.
-                  e.preventDefault();
-                  setMoreMenuOpen((v) => !v);
+                  if (!isMobile) return;
+                  // iOS/Android: open manually on the first touch. Do not toggle
+                  // here; some browsers also emit a delayed click and can close it.
+                  e.stopPropagation();
+                  setMoreMenuOpen(true);
                 }}
-                onClick={(e) => { e.preventDefault(); }}
+                onClick={(e) => {
+                  if (!isMobile) return;
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setMoreMenuOpen(true);
+                }}
               >
                 <MoreVertical className="w-5 h-5 md:w-4 md:h-4" />
               </button>
@@ -2038,8 +2055,11 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
               variant="outline"
               className="shrink-0 h-10 w-10 md:h-11 md:w-11 rounded-full border-emerald-500/40 hover:bg-emerald-500/10"
               onPointerDown={(e) => {
-                // iOS Safari: prevent input blur from hiding this button before click fires
+                // iOS/Android: prevent input blur from hiding this button before
+                // click fires, then open the dialog from the touch event itself.
                 e.preventDefault();
+                e.stopPropagation();
+                deferMobileAction(() => setVoicePreviewOpen(true));
               }}
               onClick={(e) => {
                 e.preventDefault();
