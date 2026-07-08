@@ -606,6 +606,38 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
     }, 0);
   };
 
+  // Consistent tap handlers: prevent input blur on pointerdown, fire on
+  // pointerup (mobile) OR click (desktop / synthesized), with a short guard
+  // so the same tap doesn't trigger twice.
+  const tapGuardRef = useRef<Map<string, number>>(new Map());
+  const makeTapHandlers = (key: string, action: () => void) => {
+    const trigger = () => {
+      const now = Date.now();
+      const last = tapGuardRef.current.get(key) ?? 0;
+      if (now - last < 400) return;
+      tapGuardRef.current.set(key, now);
+      action();
+    };
+    return {
+      onPointerDown: (e: React.PointerEvent) => {
+        // Prevent the input/textarea from blurring which can hide the button
+        // before the click handler runs on iOS/Android.
+        e.preventDefault();
+        e.stopPropagation();
+      },
+      onPointerUp: (e: React.PointerEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        trigger();
+      },
+      onClick: (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        trigger();
+      },
+    };
+  };
+
   const markAsRead = async () => {
     if (!conversation) return;
 
@@ -1478,26 +1510,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                 aria-label="Más opciones"
                 aria-haspopup="menu"
                 aria-expanded={moreMenuOpen}
-                onPointerDown={(e) => {
-                  if (!isMobile) return;
-                  // iOS/Android: open manually on the first touch. Do not toggle
-                  // here; some browsers also emit a delayed click and can close it.
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setMoreMenuOpen(true);
-                }}
-                onTouchEnd={(e) => {
-                  if (!isMobile) return;
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setMoreMenuOpen(true);
-                }}
-                onClick={(e) => {
-                  if (!isMobile) return;
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setMoreMenuOpen(true);
-                }}
+                {...makeTapHandlers('more-menu', () => setMoreMenuOpen((v) => !v))}
               >
                 <MoreVertical className="w-5 h-5 md:w-4 md:h-4" />
               </button>
@@ -2061,23 +2074,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
               size="icon"
               variant="outline"
               className="shrink-0 h-10 w-10 md:h-11 md:w-11 rounded-full border-emerald-500/40 hover:bg-emerald-500/10"
-              onPointerDown={(e) => {
-                // iOS/Android: prevent input blur from hiding this button before
-                // click fires, then open the dialog from the touch event itself.
-                e.preventDefault();
-                e.stopPropagation();
-                deferMobileAction(() => setVoicePreviewOpen(true));
-              }}
-              onTouchEnd={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setVoicePreviewOpen(true);
-              }}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setVoicePreviewOpen(true);
-              }}
+              {...makeTapHandlers('voice-preview', () => setVoicePreviewOpen(true))}
               disabled={sending || sendingClonedVoice}
               title="Enviar como nota de voz clonada (vista previa)"
             >
