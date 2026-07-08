@@ -2037,7 +2037,15 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
               size="icon"
               variant="outline"
               className="shrink-0 h-10 w-10 md:h-11 md:w-11 rounded-full border-emerald-500/40 hover:bg-emerald-500/10"
-              onClick={() => setVoicePreviewOpen(true)}
+              onPointerDown={(e) => {
+                // iOS Safari: prevent input blur from hiding this button before click fires
+                e.preventDefault();
+              }}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setVoicePreviewOpen(true);
+              }}
               disabled={sending || sendingClonedVoice}
               title="Enviar como nota de voz clonada (vista previa)"
             >
