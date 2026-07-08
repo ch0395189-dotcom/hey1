@@ -619,19 +619,22 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
       action();
     };
     return {
-      onPointerDown: (e: React.PointerEvent) => {
-        // Prevent the input/textarea from blurring which can hide the button
-        // before the click handler runs on iOS/Android.
+      // Use mousedown (not pointerdown) to prevent input blur. On iOS Safari
+      // calling preventDefault() on pointerdown/touchstart of a <button>
+      // suppresses the synthesized click, so the tap does nothing. mousedown
+      // preventDefault is the classic pattern that keeps the click alive
+      // while still preventing the textarea from losing focus.
+      onMouseDown: (e: React.MouseEvent) => {
         e.preventDefault();
-        e.stopPropagation();
       },
-      onPointerUp: (e: React.PointerEvent) => {
+      onTouchEnd: (e: React.TouchEvent) => {
+        // Fire on touchend for iOS to guarantee the action runs even if
+        // the click event is swallowed by the disappearing keyboard.
         e.preventDefault();
         e.stopPropagation();
         trigger();
       },
       onClick: (e: React.MouseEvent) => {
-        e.preventDefault();
         e.stopPropagation();
         trigger();
       },
