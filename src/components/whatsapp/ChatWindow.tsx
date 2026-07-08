@@ -1510,26 +1510,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                 aria-label="Más opciones"
                 aria-haspopup="menu"
                 aria-expanded={moreMenuOpen}
-                onPointerDown={(e) => {
-                  if (!isMobile) return;
-                  // iOS/Android: open manually on the first touch. Do not toggle
-                  // here; some browsers also emit a delayed click and can close it.
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setMoreMenuOpen(true);
-                }}
-                onTouchEnd={(e) => {
-                  if (!isMobile) return;
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setMoreMenuOpen(true);
-                }}
-                onClick={(e) => {
-                  if (!isMobile) return;
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setMoreMenuOpen(true);
-                }}
+                {...makeTapHandlers('more-menu', () => setMoreMenuOpen((v) => !v))}
               >
                 <MoreVertical className="w-5 h-5 md:w-4 md:h-4" />
               </button>
