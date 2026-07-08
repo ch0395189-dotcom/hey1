@@ -1482,6 +1482,13 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                   if (!isMobile) return;
                   // iOS/Android: open manually on the first touch. Do not toggle
                   // here; some browsers also emit a delayed click and can close it.
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setMoreMenuOpen(true);
+                }}
+                onTouchEnd={(e) => {
+                  if (!isMobile) return;
+                  e.preventDefault();
                   e.stopPropagation();
                   setMoreMenuOpen(true);
                 }}
@@ -2060,6 +2067,11 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                 e.preventDefault();
                 e.stopPropagation();
                 deferMobileAction(() => setVoicePreviewOpen(true));
+              }}
+              onTouchEnd={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setVoicePreviewOpen(true);
               }}
               onClick={(e) => {
                 e.preventDefault();
