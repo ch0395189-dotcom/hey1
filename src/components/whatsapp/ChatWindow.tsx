@@ -2074,23 +2074,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
               size="icon"
               variant="outline"
               className="shrink-0 h-10 w-10 md:h-11 md:w-11 rounded-full border-emerald-500/40 hover:bg-emerald-500/10"
-              onPointerDown={(e) => {
-                // iOS/Android: prevent input blur from hiding this button before
-                // click fires, then open the dialog from the touch event itself.
-                e.preventDefault();
-                e.stopPropagation();
-                deferMobileAction(() => setVoicePreviewOpen(true));
-              }}
-              onTouchEnd={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setVoicePreviewOpen(true);
-              }}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setVoicePreviewOpen(true);
-              }}
+              {...makeTapHandlers('voice-preview', () => setVoicePreviewOpen(true))}
               disabled={sending || sendingClonedVoice}
               title="Enviar como nota de voz clonada (vista previa)"
             >
