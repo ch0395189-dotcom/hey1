@@ -51,11 +51,46 @@ export function useWebPush() {
         throw new Error("Tu navegador no soporta notificaciones push.");
       }
 
-      // Request permission
+      // iOS 16.4+ requires the PWA to be installed to Home Screen.
+      const ua = navigator.userAgent;
+      const isIOS = /iPad|iPhone|iPod/.test(ua) && !/CriOS|FxiOS/.test(ua);
+      const isStandalone =
+        window.matchMedia("(display-mode: standalone)").matches ||
+        // @ts-ignore
+        (window.navigator as any).standalone === true;
+      if (isIOS && !isStandalone) {
+        throw new Error(
+          "En iPhone debes instalar la app: Compartir → Añadir a pantalla de inicio, ábrela desde el ícono y vuelve a intentar.",
+        );
+      }
+      if (isIOS) {
+        // Detect iOS < 16.4
+        const m = ua.match(/OS (\d+)_(\d+)/);
+        if (m) {
+          const major = parseInt(m[1], 10);
+          const minor = parseInt(m[2], 10);
+          if (major < 16 || (major === 16 && minor < 4)) {
+            throw new Error("iOS 16.4 o superior es necesario para notificaciones push.");
+          }
+        }
+      }
+
+      // Request permission FIRST while still in the user gesture (iOS strict).
       const permission = await Notification.requestPermission();
       if (permission !== "granted") {
         throw new Error("Permiso denegado. Habilítalo en los ajustes del navegador.");
       }
+
+      // Ensure SW is registered (main.tsx registers on load, but be defensive
+      // on iOS PWA where the timing can vary).
+      let reg = await navigator.serviceWorker.getRegistration("/");
+      if (!reg) {
+        reg = await navigator.serviceWorker.register("/sw.js", {
+          scope: "/",
+          updateViaCache: "none",
+        });
+      }
+      await navigator.serviceWorker.ready;
 
       // Get public VAPID key
       const { data: keyData, error: keyErr } = await supabase.functions.invoke("push-subscribe", {
@@ -65,13 +100,18 @@ export function useWebPush() {
         throw new Error("No se pudo obtener la clave de notificaciones.");
       }
 
-      const reg = await navigator.serviceWorker.ready;
       let sub = await reg.pushManager.getSubscription();
       if (!sub) {
-        sub = await reg.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(keyData.publicKey),
-        });
+        try {
+          sub = await reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(keyData.publicKey),
+          });
+        } catch (e: any) {
+          throw new Error(
+            "No se pudo suscribir a notificaciones: " + (e?.message || String(e)),
+          );
+        }
       }
 
       const { error: subErr } = await supabase.functions.invoke("push-subscribe", {
