@@ -17,6 +17,8 @@ import { FaWhatsapp, FaFacebookMessenger, FaInstagram, FaTiktok } from "react-ic
 import { useAutoRefreshSettings, intervalOptions, RefreshInterval } from "@/hooks/useAutoRefresh";
 import { useWebPush } from "@/hooks/useWebPush";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
 
 interface PlatformTones {
   whatsapp: NotificationTone;
@@ -89,6 +91,31 @@ export const NotificationSettingsPanel = ({
       toast.success("Notificaciones push activadas en este dispositivo");
     } catch (e: any) {
       toast.error(e?.message || "No se pudo activar");
+    }
+  };
+
+  const [testing, setTesting] = useState(false);
+  const handleTestPush = async () => {
+    setTesting(true);
+    try {
+      const { data: userRes } = await supabase.auth.getUser();
+      const uid = userRes?.user?.id;
+      if (!uid) throw new Error("Sesión no encontrada");
+      const { data, error } = await supabase.functions.invoke("send-push-notification", {
+        body: {
+          userId: uid,
+          title: "Hey Hey ✅",
+          body: "Notificación de prueba recibida",
+          tag: `test-${Date.now()}`,
+        },
+      });
+      if (error) throw error;
+      if ((data as any)?.sent > 0) toast.success(`Enviada a ${(data as any).sent} dispositivo(s)`);
+      else toast.warning("No hay dispositivos suscritos. Activa primero en tu celular.");
+    } catch (e: any) {
+      toast.error(e?.message || "No se pudo enviar prueba");
+    } finally {
+      setTesting(false);
     }
   };
 
@@ -270,6 +297,10 @@ export const NotificationSettingsPanel = ({
             </Button>
           </div>
         )}
+        <Button variant="secondary" size="sm" className="w-full" onClick={handleTestPush} disabled={testing}>
+          {testing && <Loader2 className="w-3 h-3 mr-2 animate-spin" />}
+          Enviar notificación de prueba
+        </Button>
       </div>
 
       <div className="space-y-4 pt-4 border-t">
