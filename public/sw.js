@@ -3,7 +3,7 @@
 // Service Worker for Hey Hey - Push Notifications
 // IMPORTANT: This SW does NOT cache HTML/JS/CSS to avoid stale content issues.
 // Bump CACHE_VERSION on every release to force old caches to be cleared.
-const CACHE_VERSION = 'heyhey-v8';
+const CACHE_VERSION = 'heyhey-v9';
 
 // Set to true to force a full logout on every release (clears Supabase auth
 // tokens too). Leave false to preserve sessions across updates.
@@ -98,6 +98,38 @@ self.addEventListener('push', (event) => {
     }
   } catch (e) {
     console.log('[SW] Error parsing push data:', e);
+  }
+
+  // ---- E2E verification: ACK back to the server before showing anything ----
+  if (data.verifyToken && data.verifyUrl) {
+    event.waitUntil((async () => {
+      let acked = false;
+      try {
+        const res = await fetch(data.verifyUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'ack', token: data.verifyToken }),
+          keepalive: true,
+        });
+        acked = res.ok;
+      } catch (e) {
+        console.log('[SW] verify ack failed:', e);
+      }
+      // iOS/Chrome require a user-visible notification for every push.
+      await self.registration.showNotification(
+        acked ? 'Hey Hey ✅ Verificado' : 'Hey Hey ⚠️ Verificación',
+        {
+          body: acked
+            ? 'Este dispositivo recibe notificaciones correctamente.'
+            : 'Recibimos el push, pero no pudimos confirmar el ACK.',
+          icon: '/pwa-192x192.png',
+          badge: '/pwa-192x192.png',
+          tag: data.tag || 'verify',
+          data: { url: '/dashboard', verify: true },
+        },
+      );
+    })());
+    return;
   }
 
   const options = {
