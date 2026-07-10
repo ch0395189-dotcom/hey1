@@ -88,9 +88,18 @@ export function useWebPush() {
         newId !== lastUserId
       ) {
         lastUserId = newId;
-        // Defer to next tick so the client has the fresh token attached.
+        // Defer so the client has the fresh token attached, then re-upsert
+        // AND fire an end-to-end verification against the new user_id.
         setTimeout(() => {
-          refresh();
+          refresh().then(async () => {
+            try {
+              const reg = await navigator.serviceWorker.ready;
+              const sub = await reg.pushManager.getSubscription();
+              if (sub) verify().catch(() => {});
+            } catch {
+              /* noop */
+            }
+          });
         }, 0);
       }
     });
@@ -180,6 +189,8 @@ export function useWebPush() {
       if (subErr) throw subErr;
 
       setStatus("subscribed");
+      // Auto-verify end-to-end delivery to the freshly registered endpoint.
+      verify().catch(() => {});
       return true;
     } finally {
       setLoading(false);
