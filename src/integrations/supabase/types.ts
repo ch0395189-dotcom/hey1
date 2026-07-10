@@ -932,6 +932,33 @@ export type Database = {
         }
         Relationships: []
       }
+      push_verifications: {
+        Row: {
+          ack_at: string | null
+          endpoint: string
+          sent_at: string
+          token: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          ack_at?: string | null
+          endpoint: string
+          sent_at?: string
+          token?: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          ack_at?: string | null
+          endpoint?: string
+          sent_at?: string
+          token?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       scheduled_messages: {
         Row: {
           account_id: string

@@ -13,9 +13,15 @@ function urlBase64ToUint8Array(base64String: string): ArrayBuffer {
 
 export type PushStatus = "unsupported" | "denied" | "default" | "granted-no-sub" | "subscribed";
 
+export type VerifyState =
+  | { phase: "idle" }
+  | { phase: "running"; sent: number; ackedEndpoints: string[] }
+  | { phase: "done"; sent: number; ackedEndpoints: string[]; timedOut: boolean };
+
 export function useWebPush() {
   const [status, setStatus] = useState<PushStatus>("default");
   const [loading, setLoading] = useState(false);
+  const [verifyState, setVerifyState] = useState<VerifyState>({ phase: "idle" });
 
   const refresh = useCallback(async () => {
     if (typeof window === "undefined") return;
@@ -82,9 +88,18 @@ export function useWebPush() {
         newId !== lastUserId
       ) {
         lastUserId = newId;
-        // Defer to next tick so the client has the fresh token attached.
+        // Defer so the client has the fresh token attached, then re-upsert
+        // AND fire an end-to-end verification against the new user_id.
         setTimeout(() => {
-          refresh();
+          refresh().then(async () => {
+            try {
+              const reg = await navigator.serviceWorker.ready;
+              const sub = await reg.pushManager.getSubscription();
+              if (sub) verify().catch(() => {});
+            } catch {
+              /* noop */
+            }
+          });
         }, 0);
       }
     });
@@ -174,6 +189,8 @@ export function useWebPush() {
       if (subErr) throw subErr;
 
       setStatus("subscribed");
+      // Auto-verify end-to-end delivery to the freshly registered endpoint.
+      verify().catch(() => {});
       return true;
     } finally {
       setLoading(false);
@@ -197,5 +214,77 @@ export function useWebPush() {
     }
   }, []);
 
-  return { status, loading, subscribe, unsubscribe, refresh };
+  // ---------- End-to-end delivery verification ----------
+  const verify = useCallback(async (opts?: { timeoutMs?: number }) => {
+    const timeoutMs = opts?.timeoutMs ?? 15000;
+    setVerifyState({ phase: "running", sent: 0, ackedEndpoints: [] });
+    try {
+      const { data, error } = await supabase.functions.invoke("push-verify", {
+        body: { action: "start" },
+      });
+      if (error) throw error;
+      const tokens: Array<{ endpoint: string; token: string }> = (data as any)?.tokens || [];
+      const sent = (data as any)?.sent || 0;
+      if (tokens.length === 0) {
+        setVerifyState({ phase: "done", sent: 0, ackedEndpoints: [], timedOut: false });
+        return { sent: 0, acked: [] as string[], timedOut: false };
+      }
+      setVerifyState({ phase: "running", sent, ackedEndpoints: [] });
+
+      const tokenList = tokens.map((t) => t.token);
+      const endpointByToken: Record<string, string> = Object.fromEntries(
+        tokens.map((t) => [t.token, t.endpoint]),
+      );
+      const started = Date.now();
+      let ackedTokens = new Set<string>();
+
+      while (Date.now() - started < timeoutMs && ackedTokens.size < tokenList.length) {
+        await new Promise((r) => setTimeout(r, 1500));
+        const { data: st } = await supabase.functions.invoke("push-verify", {
+          body: { action: "status", tokens: tokenList },
+        });
+        const rows: Array<{ token: string; ack_at: string | null }> = (st as any)?.rows || [];
+        rows.forEach((r) => {
+          if (r.ack_at) ackedTokens.add(r.token);
+        });
+        const ackedEndpoints = Array.from(ackedTokens).map((t) => endpointByToken[t]);
+        setVerifyState({ phase: "running", sent, ackedEndpoints });
+      }
+
+      const ackedEndpoints = Array.from(ackedTokens).map((t) => endpointByToken[t]);
+      const timedOut = ackedTokens.size < tokenList.length;
+      setVerifyState({ phase: "done", sent, ackedEndpoints, timedOut });
+      return { sent, acked: ackedEndpoints, timedOut };
+    } catch (e) {
+      setVerifyState({ phase: "done", sent: 0, ackedEndpoints: [], timedOut: true });
+      throw e;
+    }
+  }, []);
+
+  // Auto-verify after any re-upsert (subscribe or account change).
+  // Fire-and-forget; UI can subscribe to verifyState to render progress.
+  const refreshWithVerify = useCallback(async () => {
+    await refresh();
+    // Only try when we actually have a subscription for the current user.
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      if (sub) {
+        verify().catch(() => {});
+      }
+    } catch {
+      /* noop */
+    }
+  }, [refresh, verify]);
+
+  return {
+    status,
+    loading,
+    subscribe,
+    unsubscribe,
+    refresh,
+    verify,
+    verifyState,
+    refreshWithVerify,
+  };
 }
