@@ -325,6 +325,47 @@ export const NotificationSettingsPanel = ({
           {testing && <Loader2 className="w-3 h-3 mr-2 animate-spin" />}
           Enviar notificación de prueba
         </Button>
+
+        {/* Verificación end-to-end */}
+        <div className="rounded-md border border-border bg-muted/30 p-3 space-y-2">
+          <div className="flex items-center gap-2 text-xs font-medium">
+            <ShieldCheck className="w-3.5 h-3.5" />
+            Verificación end-to-end
+          </div>
+          <p className="text-[11px] text-muted-foreground leading-snug">
+            Envía un push firmado con un token único y confirma que llega al dispositivo correcto de tu cuenta actual.
+          </p>
+          {verifyState.phase === "running" && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Loader2 className="w-3 h-3 animate-spin" />
+              Esperando ACK… ({verifyState.ackedEndpoints.length}/{verifyState.sent})
+            </div>
+          )}
+          {verifyState.phase === "done" && verifyState.sent > 0 && !verifyState.timedOut && (
+            <div className="flex items-center gap-2 text-xs text-green-600 font-medium">
+              <ShieldCheck className="w-3.5 h-3.5" />
+              Confirmado en {verifyState.ackedEndpoints.length}/{verifyState.sent} dispositivo(s)
+            </div>
+          )}
+          {verifyState.phase === "done" && (verifyState.sent === 0 || verifyState.timedOut) && (
+            <div className="flex items-center gap-2 text-xs text-amber-600 font-medium">
+              <ShieldAlert className="w-3.5 h-3.5" />
+              {verifyState.sent === 0
+                ? "Sin dispositivos suscritos"
+                : `Sin ACK de ${verifyState.sent - verifyState.ackedEndpoints.length} dispositivo(s)`}
+            </div>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full"
+            onClick={handleVerify}
+            disabled={verifyState.phase === "running" || pushStatus !== "subscribed"}
+          >
+            {verifyState.phase === "running" && <Loader2 className="w-3 h-3 mr-2 animate-spin" />}
+            Verificar entrega end-to-end
+          </Button>
+        </div>
       </div>
 
       <div className="space-y-4 pt-4 border-t">
