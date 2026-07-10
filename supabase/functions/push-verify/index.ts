@@ -53,10 +53,18 @@ Deno.serve(async (req) => {
       const VAPID_SUBJECT = Deno.env.get("VAPID_SUBJECT") || "mailto:soporte@heyhey.site";
       webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 
-      const { data: subs, error: subsErr } = await supabase
-        .from("push_subscriptions")
-        .select("*")
-        .eq("user_id", user.id);
+      // Optional targeting: verify a single endpoint or a list of endpoints.
+      const targetEndpoints: string[] | null = Array.isArray(body?.endpoints)
+        ? body.endpoints.filter((e: unknown) => typeof e === "string" && e.length > 0)
+        : body?.endpoint
+          ? [String(body.endpoint)]
+          : null;
+
+      let query = supabase.from("push_subscriptions").select("*").eq("user_id", user.id);
+      if (targetEndpoints && targetEndpoints.length > 0) {
+        query = query.in("endpoint", targetEndpoints);
+      }
+      const { data: subs, error: subsErr } = await query;
       if (subsErr) return json({ ok: false, error: subsErr.message });
       if (!subs || subs.length === 0) {
         return json({ ok: true, sent: 0, tokens: [], message: "Sin dispositivos" });
@@ -106,6 +114,42 @@ Deno.serve(async (req) => {
       }
 
       return json({ ok: true, sent: tokens.length, total: subs.length, tokens });
+    }
+
+    // ---------- LIST: enumerate current user's devices ----------
+    if (action === "list") {
+      const authHeader = req.headers.get("Authorization") || "";
+      const jwt = authHeader.replace(/^Bearer\s+/i, "");
+      const { data: userRes } = await supabase.auth.getUser(jwt);
+      const user = userRes?.user;
+      if (!user) return json({ ok: false, error: "No autenticado" });
+      const { data, error } = await supabase
+        .from("push_subscriptions")
+        .select("endpoint, user_agent, last_seen_at, created_at")
+        .eq("user_id", user.id)
+        .order("last_seen_at", { ascending: false });
+      if (error) return json({ ok: false, error: error.message });
+      // Attach latest verification per endpoint
+      const endpoints = (data || []).map((d: any) => d.endpoint);
+      let latestByEndpoint: Record<string, { ack_at: string | null; sent_at: string }> = {};
+      if (endpoints.length > 0) {
+        const { data: v } = await supabase
+          .from("push_verifications")
+          .select("endpoint, sent_at, ack_at")
+          .eq("user_id", user.id)
+          .in("endpoint", endpoints)
+          .order("sent_at", { ascending: false });
+        (v || []).forEach((row: any) => {
+          if (!latestByEndpoint[row.endpoint]) {
+            latestByEndpoint[row.endpoint] = { ack_at: row.ack_at, sent_at: row.sent_at };
+          }
+        });
+      }
+      const devices = (data || []).map((d: any) => ({
+        ...d,
+        last_verification: latestByEndpoint[d.endpoint] || null,
+      }));
+      return json({ ok: true, devices });
     }
 
     // ---------- STATUS: poll ack state for a set of tokens ----------
