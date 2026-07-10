@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Volume2, Bell, Play, MessageCircle, RefreshCw, Smartphone, Loader2 } from "lucide-react";
+import { Volume2, Bell, Play, MessageCircle, RefreshCw, Smartphone, Loader2, ShieldCheck, ShieldAlert } from "lucide-react";
 import { Share, Plus } from "lucide-react";
 import { NotificationTone, Platform } from "@/hooks/useNotificationSettings";
 import { useNotificationSound } from "@/hooks/useNotificationSound";
@@ -73,7 +73,14 @@ export const NotificationSettingsPanel = ({
   onRequestDesktopPermission,
 }: NotificationSettingsPanelProps) => {
   const { playPreview } = useNotificationSound();
-  const { status: pushStatus, loading: pushLoading, subscribe: pushSubscribe, unsubscribe: pushUnsubscribe } = useWebPush();
+  const {
+    status: pushStatus,
+    loading: pushLoading,
+    subscribe: pushSubscribe,
+    unsubscribe: pushUnsubscribe,
+    verify: pushVerify,
+    verifyState,
+  } = useWebPush();
   const { 
     enabled: autoRefreshEnabled, 
     interval: autoRefreshInterval, 
@@ -91,6 +98,23 @@ export const NotificationSettingsPanel = ({
       toast.success("Notificaciones push activadas en este dispositivo");
     } catch (e: any) {
       toast.error(e?.message || "No se pudo activar");
+    }
+  };
+
+  const handleVerify = async () => {
+    try {
+      const res = await pushVerify();
+      if (res.acked.length > 0 && !res.timedOut) {
+        toast.success(`Verificado en ${res.acked.length}/${res.sent} dispositivo(s)`);
+      } else if (res.acked.length > 0) {
+        toast.warning(`Solo ${res.acked.length}/${res.sent} dispositivo(s) confirmaron`);
+      } else if (res.sent === 0) {
+        toast.warning("No hay dispositivos suscritos para verificar");
+      } else {
+        toast.error("Ningún dispositivo confirmó la recepción");
+      }
+    } catch (e: any) {
+      toast.error(e?.message || "Verificación fallida");
     }
   };
 
