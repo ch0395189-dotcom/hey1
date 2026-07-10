@@ -34,7 +34,24 @@ export function useWebPush() {
     try {
       const reg = await navigator.serviceWorker.ready;
       const sub = await reg.pushManager.getSubscription();
-      setStatus(sub ? "subscribed" : "granted-no-sub");
+      if (sub) {
+        // Re-upsert the endpoint under the CURRENT auth user, in case
+        // the device was previously subscribed by another account.
+        try {
+          await supabase.functions.invoke("push-subscribe", {
+            body: {
+              action: "subscribe",
+              subscription: sub.toJSON(),
+              userAgent: navigator.userAgent,
+            },
+          });
+        } catch (e) {
+          console.warn("push resync failed", e);
+        }
+        setStatus("subscribed");
+      } else {
+        setStatus("granted-no-sub");
+      }
     } catch {
       setStatus("granted-no-sub");
     }
