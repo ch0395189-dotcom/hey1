@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Volume2, Bell, Play, MessageCircle, RefreshCw, Smartphone, Loader2, ShieldCheck, ShieldAlert } from "lucide-react";
+import { Volume2, Bell, Play, MessageCircle, RefreshCw, Smartphone, Loader2, ShieldCheck, ShieldAlert, Trash2, MonitorSmartphone } from "lucide-react";
 import { Share, Plus } from "lucide-react";
 import { NotificationTone, Platform } from "@/hooks/useNotificationSettings";
 import { useNotificationSound } from "@/hooks/useNotificationSound";
@@ -18,7 +18,7 @@ import { useAutoRefreshSettings, intervalOptions, RefreshInterval } from "@/hook
 import { useWebPush } from "@/hooks/useWebPush";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 interface PlatformTones {
   whatsapp: NotificationTone;
@@ -80,7 +80,35 @@ export const NotificationSettingsPanel = ({
     unsubscribe: pushUnsubscribe,
     verify: pushVerify,
     verifyState,
+    listDevices,
+    currentEndpoint,
   } = useWebPush();
+  const [devices, setDevices] = useState<Awaited<ReturnType<typeof listDevices>>>([]);
+  const [devicesLoading, setDevicesLoading] = useState(false);
+  const [verifyingEndpoint, setVerifyingEndpoint] = useState<string | null>(null);
+
+  const reloadDevices = async () => {
+    setDevicesLoading(true);
+    try {
+      const list = await listDevices();
+      setDevices(list);
+    } catch {
+      /* silent */
+    } finally {
+      setDevicesLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    reloadDevices();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pushStatus, currentEndpoint]);
+
+  // Refresh device list once a verification finishes so the "last ACK" column updates.
+  useEffect(() => {
+    if (verifyState.phase === "done") reloadDevices();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [verifyState.phase]);
   const { 
     enabled: autoRefreshEnabled, 
     interval: autoRefreshInterval, 
@@ -116,6 +144,60 @@ export const NotificationSettingsPanel = ({
     } catch (e: any) {
       toast.error(e?.message || "Verificación fallida");
     }
+  };
+
+  const handleVerifyEndpoint = async (endpoint: string) => {
+    setVerifyingEndpoint(endpoint);
+    try {
+      const res = await pushVerify({ endpoint });
+      if (res.acked.length > 0 && !res.timedOut) {
+        toast.success("Dispositivo verificado correctamente");
+      } else if (res.sent === 0) {
+        toast.error("Ese dispositivo ya no está suscrito");
+      } else {
+        toast.error("No se recibió ACK del dispositivo");
+      }
+    } catch (e: any) {
+      toast.error(e?.message || "Verificación fallida");
+    } finally {
+      setVerifyingEndpoint(null);
+    }
+  };
+
+  const handleRemoveEndpoint = async (endpoint: string) => {
+    try {
+      const { error } = await supabase.functions.invoke("push-subscribe", {
+        body: { action: "unsubscribe", subscription: { endpoint } },
+      });
+      if (error) throw error;
+      toast.success("Dispositivo eliminado");
+      reloadDevices();
+    } catch (e: any) {
+      toast.error(e?.message || "No se pudo eliminar");
+    }
+  };
+
+  const describeUA = (ua: string | null) => {
+    if (!ua) return "Dispositivo desconocido";
+    if (/iPhone|iPad|iPod/.test(ua)) return "iPhone / iPad";
+    if (/Android/.test(ua)) return /Chrome/.test(ua) ? "Android · Chrome" : "Android";
+    if (/Edg\//.test(ua)) return "Escritorio · Edge";
+    if (/Chrome/.test(ua)) return "Escritorio · Chrome";
+    if (/Firefox/.test(ua)) return "Escritorio · Firefox";
+    if (/Safari/.test(ua)) return "Escritorio · Safari";
+    return ua.slice(0, 40);
+  };
+
+  const formatAgo = (iso: string | null | undefined) => {
+    if (!iso) return "nunca";
+    const diff = Date.now() - new Date(iso).getTime();
+    const s = Math.floor(diff / 1000);
+    if (s < 60) return `hace ${s}s`;
+    const m = Math.floor(s / 60);
+    if (m < 60) return `hace ${m}m`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `hace ${h}h`;
+    return `hace ${Math.floor(h / 24)}d`;
   };
 
   const [testing, setTesting] = useState(false);
