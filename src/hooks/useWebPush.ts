@@ -61,6 +61,39 @@ export function useWebPush() {
     refresh();
   }, [refresh]);
 
+  // Re-upsert push subscription whenever the auth user changes, so the
+  // endpoint stays bound to the currently-signed-in user_id.
+  useEffect(() => {
+    let lastUserId: string | null = null;
+
+    supabase.auth.getUser().then(({ data }) => {
+      lastUserId = data.user?.id ?? null;
+    });
+
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      const newId = session?.user?.id ?? null;
+      if (event === "SIGNED_OUT") {
+        lastUserId = null;
+        return;
+      }
+      if (
+        (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") &&
+        newId &&
+        newId !== lastUserId
+      ) {
+        lastUserId = newId;
+        // Defer to next tick so the client has the fresh token attached.
+        setTimeout(() => {
+          refresh();
+        }, 0);
+      }
+    });
+
+    return () => {
+      sub.subscription.unsubscribe();
+    };
+  }, [refresh]);
+
   const subscribe = useCallback(async () => {
     setLoading(true);
     try {
