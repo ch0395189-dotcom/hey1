@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Volume2, Bell, Play, MessageCircle, RefreshCw, Smartphone, Loader2, ShieldCheck, ShieldAlert } from "lucide-react";
+import { Volume2, Bell, Play, MessageCircle, RefreshCw, Smartphone, Loader2, ShieldCheck, ShieldAlert, Trash2, MonitorSmartphone } from "lucide-react";
 import { Share, Plus } from "lucide-react";
 import { NotificationTone, Platform } from "@/hooks/useNotificationSettings";
 import { useNotificationSound } from "@/hooks/useNotificationSound";
@@ -18,7 +18,7 @@ import { useAutoRefreshSettings, intervalOptions, RefreshInterval } from "@/hook
 import { useWebPush } from "@/hooks/useWebPush";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 interface PlatformTones {
   whatsapp: NotificationTone;
@@ -80,7 +80,35 @@ export const NotificationSettingsPanel = ({
     unsubscribe: pushUnsubscribe,
     verify: pushVerify,
     verifyState,
+    listDevices,
+    currentEndpoint,
   } = useWebPush();
+  const [devices, setDevices] = useState<Awaited<ReturnType<typeof listDevices>>>([]);
+  const [devicesLoading, setDevicesLoading] = useState(false);
+  const [verifyingEndpoint, setVerifyingEndpoint] = useState<string | null>(null);
+
+  const reloadDevices = async () => {
+    setDevicesLoading(true);
+    try {
+      const list = await listDevices();
+      setDevices(list);
+    } catch {
+      /* silent */
+    } finally {
+      setDevicesLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    reloadDevices();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pushStatus, currentEndpoint]);
+
+  // Refresh device list once a verification finishes so the "last ACK" column updates.
+  useEffect(() => {
+    if (verifyState.phase === "done") reloadDevices();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [verifyState.phase]);
   const { 
     enabled: autoRefreshEnabled, 
     interval: autoRefreshInterval, 
@@ -116,6 +144,60 @@ export const NotificationSettingsPanel = ({
     } catch (e: any) {
       toast.error(e?.message || "Verificación fallida");
     }
+  };
+
+  const handleVerifyEndpoint = async (endpoint: string) => {
+    setVerifyingEndpoint(endpoint);
+    try {
+      const res = await pushVerify({ endpoint });
+      if (res.acked.length > 0 && !res.timedOut) {
+        toast.success("Dispositivo verificado correctamente");
+      } else if (res.sent === 0) {
+        toast.error("Ese dispositivo ya no está suscrito");
+      } else {
+        toast.error("No se recibió ACK del dispositivo");
+      }
+    } catch (e: any) {
+      toast.error(e?.message || "Verificación fallida");
+    } finally {
+      setVerifyingEndpoint(null);
+    }
+  };
+
+  const handleRemoveEndpoint = async (endpoint: string) => {
+    try {
+      const { error } = await supabase.functions.invoke("push-subscribe", {
+        body: { action: "unsubscribe", subscription: { endpoint } },
+      });
+      if (error) throw error;
+      toast.success("Dispositivo eliminado");
+      reloadDevices();
+    } catch (e: any) {
+      toast.error(e?.message || "No se pudo eliminar");
+    }
+  };
+
+  const describeUA = (ua: string | null) => {
+    if (!ua) return "Dispositivo desconocido";
+    if (/iPhone|iPad|iPod/.test(ua)) return "iPhone / iPad";
+    if (/Android/.test(ua)) return /Chrome/.test(ua) ? "Android · Chrome" : "Android";
+    if (/Edg\//.test(ua)) return "Escritorio · Edge";
+    if (/Chrome/.test(ua)) return "Escritorio · Chrome";
+    if (/Firefox/.test(ua)) return "Escritorio · Firefox";
+    if (/Safari/.test(ua)) return "Escritorio · Safari";
+    return ua.slice(0, 40);
+  };
+
+  const formatAgo = (iso: string | null | undefined) => {
+    if (!iso) return "nunca";
+    const diff = Date.now() - new Date(iso).getTime();
+    const s = Math.floor(diff / 1000);
+    if (s < 60) return `hace ${s}s`;
+    const m = Math.floor(s / 60);
+    if (m < 60) return `hace ${m}m`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `hace ${h}h`;
+    return `hace ${Math.floor(h / 24)}d`;
   };
 
   const [testing, setTesting] = useState(false);
@@ -330,7 +412,7 @@ export const NotificationSettingsPanel = ({
         <div className="rounded-md border border-border bg-muted/30 p-3 space-y-2">
           <div className="flex items-center gap-2 text-xs font-medium">
             <ShieldCheck className="w-3.5 h-3.5" />
-            Verificación end-to-end
+            Verificación end-to-end (todos los dispositivos)
           </div>
           <p className="text-[11px] text-muted-foreground leading-snug">
             Envía un push firmado con un token único y confirma que llega al dispositivo correcto de tu cuenta actual.
@@ -360,11 +442,102 @@ export const NotificationSettingsPanel = ({
             size="sm"
             className="w-full"
             onClick={handleVerify}
-            disabled={verifyState.phase === "running" || pushStatus !== "subscribed"}
+            disabled={verifyState.phase === "running" || devices.length === 0}
           >
             {verifyState.phase === "running" && <Loader2 className="w-3 h-3 mr-2 animate-spin" />}
-            Verificar entrega end-to-end
+            Verificar todos
           </Button>
+        </div>
+
+        {/* Lista de dispositivos suscritos */}
+        <div className="rounded-md border border-border bg-background p-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-xs font-medium">
+              <MonitorSmartphone className="w-3.5 h-3.5" />
+              Mis dispositivos ({devices.length})
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 px-2 text-xs"
+              onClick={reloadDevices}
+              disabled={devicesLoading}
+            >
+              {devicesLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : "Actualizar"}
+            </Button>
+          </div>
+          {devices.length === 0 && (
+            <p className="text-[11px] text-muted-foreground">
+              No hay dispositivos suscritos aún.
+            </p>
+          )}
+          {devices.map((d) => {
+            const isRunning =
+              verifyState.phase === "running" &&
+              verifyState.targetEndpoint === d.endpoint;
+            const lastAck = d.last_verification?.ack_at;
+            const lastSent = d.last_verification?.sent_at;
+            const ackOK =
+              lastAck &&
+              lastSent &&
+              new Date(lastAck).getTime() >= new Date(lastSent).getTime();
+            return (
+              <div
+                key={d.endpoint}
+                className="flex items-center gap-2 border rounded-md p-2 text-xs"
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 font-medium">
+                    {describeUA(d.user_agent)}
+                    {d.isCurrent && (
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-primary/15 text-primary uppercase tracking-wide">
+                        Este equipo
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground truncate">
+                    Visto {formatAgo(d.last_seen_at)}
+                    {lastSent && (
+                      <>
+                        {" · "}
+                        {ackOK ? (
+                          <span className="text-green-600">
+                            ✓ ACK {formatAgo(lastAck!)}
+                          </span>
+                        ) : (
+                          <span className="text-amber-600">
+                            ⚠︎ sin ACK ({formatAgo(lastSent)})
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2 text-xs"
+                  disabled={verifyState.phase === "running"}
+                  onClick={() => handleVerifyEndpoint(d.endpoint)}
+                >
+                  {isRunning ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <ShieldCheck className="w-3 h-3" />
+                  )}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 w-7 p-0 text-destructive"
+                  onClick={() => handleRemoveEndpoint(d.endpoint)}
+                  title="Quitar dispositivo"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </Button>
+              </div>
+            );
+          })}
         </div>
       </div>
 

@@ -15,13 +15,23 @@ export type PushStatus = "unsupported" | "denied" | "default" | "granted-no-sub"
 
 export type VerifyState =
   | { phase: "idle" }
-  | { phase: "running"; sent: number; ackedEndpoints: string[] }
-  | { phase: "done"; sent: number; ackedEndpoints: string[]; timedOut: boolean };
+  | { phase: "running"; sent: number; ackedEndpoints: string[]; targetEndpoint?: string | null }
+  | { phase: "done"; sent: number; ackedEndpoints: string[]; timedOut: boolean; targetEndpoint?: string | null };
+
+export interface PushDevice {
+  endpoint: string;
+  user_agent: string | null;
+  last_seen_at: string;
+  created_at: string;
+  last_verification: { ack_at: string | null; sent_at: string } | null;
+  isCurrent?: boolean;
+}
 
 export function useWebPush() {
   const [status, setStatus] = useState<PushStatus>("default");
   const [loading, setLoading] = useState(false);
   const [verifyState, setVerifyState] = useState<VerifyState>({ phase: "idle" });
+  const [currentEndpoint, setCurrentEndpoint] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     if (typeof window === "undefined") return;
@@ -41,6 +51,7 @@ export function useWebPush() {
       const reg = await navigator.serviceWorker.ready;
       const sub = await reg.pushManager.getSubscription();
       if (sub) {
+        setCurrentEndpoint(sub.endpoint);
         // Re-upsert the endpoint under the CURRENT auth user, in case
         // the device was previously subscribed by another account.
         try {
@@ -56,6 +67,7 @@ export function useWebPush() {
         }
         setStatus("subscribed");
       } else {
+        setCurrentEndpoint(null);
         setStatus("granted-no-sub");
       }
     } catch {
@@ -215,21 +227,22 @@ export function useWebPush() {
   }, []);
 
   // ---------- End-to-end delivery verification ----------
-  const verify = useCallback(async (opts?: { timeoutMs?: number }) => {
+  const verify = useCallback(async (opts?: { timeoutMs?: number; endpoint?: string | null }) => {
     const timeoutMs = opts?.timeoutMs ?? 15000;
-    setVerifyState({ phase: "running", sent: 0, ackedEndpoints: [] });
+    const target = opts?.endpoint ?? null;
+    setVerifyState({ phase: "running", sent: 0, ackedEndpoints: [], targetEndpoint: target });
     try {
       const { data, error } = await supabase.functions.invoke("push-verify", {
-        body: { action: "start" },
+        body: target ? { action: "start", endpoint: target } : { action: "start" },
       });
       if (error) throw error;
       const tokens: Array<{ endpoint: string; token: string }> = (data as any)?.tokens || [];
       const sent = (data as any)?.sent || 0;
       if (tokens.length === 0) {
-        setVerifyState({ phase: "done", sent: 0, ackedEndpoints: [], timedOut: false });
+        setVerifyState({ phase: "done", sent: 0, ackedEndpoints: [], timedOut: false, targetEndpoint: target });
         return { sent: 0, acked: [] as string[], timedOut: false };
       }
-      setVerifyState({ phase: "running", sent, ackedEndpoints: [] });
+      setVerifyState({ phase: "running", sent, ackedEndpoints: [], targetEndpoint: target });
 
       const tokenList = tokens.map((t) => t.token);
       const endpointByToken: Record<string, string> = Object.fromEntries(
@@ -248,18 +261,27 @@ export function useWebPush() {
           if (r.ack_at) ackedTokens.add(r.token);
         });
         const ackedEndpoints = Array.from(ackedTokens).map((t) => endpointByToken[t]);
-        setVerifyState({ phase: "running", sent, ackedEndpoints });
+        setVerifyState({ phase: "running", sent, ackedEndpoints, targetEndpoint: target });
       }
 
       const ackedEndpoints = Array.from(ackedTokens).map((t) => endpointByToken[t]);
       const timedOut = ackedTokens.size < tokenList.length;
-      setVerifyState({ phase: "done", sent, ackedEndpoints, timedOut });
+      setVerifyState({ phase: "done", sent, ackedEndpoints, timedOut, targetEndpoint: target });
       return { sent, acked: ackedEndpoints, timedOut };
     } catch (e) {
-      setVerifyState({ phase: "done", sent: 0, ackedEndpoints: [], timedOut: true });
+      setVerifyState({ phase: "done", sent: 0, ackedEndpoints: [], timedOut: true, targetEndpoint: target });
       throw e;
     }
   }, []);
+
+  const listDevices = useCallback(async (): Promise<PushDevice[]> => {
+    const { data, error } = await supabase.functions.invoke("push-verify", {
+      body: { action: "list" },
+    });
+    if (error) throw error;
+    const devices: PushDevice[] = (data as any)?.devices || [];
+    return devices.map((d) => ({ ...d, isCurrent: d.endpoint === currentEndpoint }));
+  }, [currentEndpoint]);
 
   // Auto-verify after any re-upsert (subscribe or account change).
   // Fire-and-forget; UI can subscribe to verifyState to render progress.
@@ -286,5 +308,7 @@ export function useWebPush() {
     verify,
     verifyState,
     refreshWithVerify,
+    listDevices,
+    currentEndpoint,
   };
 }
