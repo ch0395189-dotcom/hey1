@@ -412,7 +412,7 @@ export const NotificationSettingsPanel = ({
         <div className="rounded-md border border-border bg-muted/30 p-3 space-y-2">
           <div className="flex items-center gap-2 text-xs font-medium">
             <ShieldCheck className="w-3.5 h-3.5" />
-            Verificación end-to-end
+            Verificación end-to-end (todos los dispositivos)
           </div>
           <p className="text-[11px] text-muted-foreground leading-snug">
             Envía un push firmado con un token único y confirma que llega al dispositivo correcto de tu cuenta actual.
@@ -442,11 +442,102 @@ export const NotificationSettingsPanel = ({
             size="sm"
             className="w-full"
             onClick={handleVerify}
-            disabled={verifyState.phase === "running" || pushStatus !== "subscribed"}
+            disabled={verifyState.phase === "running" || devices.length === 0}
           >
             {verifyState.phase === "running" && <Loader2 className="w-3 h-3 mr-2 animate-spin" />}
-            Verificar entrega end-to-end
+            Verificar todos
           </Button>
+        </div>
+
+        {/* Lista de dispositivos suscritos */}
+        <div className="rounded-md border border-border bg-background p-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-xs font-medium">
+              <MonitorSmartphone className="w-3.5 h-3.5" />
+              Mis dispositivos ({devices.length})
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 px-2 text-xs"
+              onClick={reloadDevices}
+              disabled={devicesLoading}
+            >
+              {devicesLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : "Actualizar"}
+            </Button>
+          </div>
+          {devices.length === 0 && (
+            <p className="text-[11px] text-muted-foreground">
+              No hay dispositivos suscritos aún.
+            </p>
+          )}
+          {devices.map((d) => {
+            const isRunning =
+              verifyState.phase === "running" &&
+              verifyState.targetEndpoint === d.endpoint;
+            const lastAck = d.last_verification?.ack_at;
+            const lastSent = d.last_verification?.sent_at;
+            const ackOK =
+              lastAck &&
+              lastSent &&
+              new Date(lastAck).getTime() >= new Date(lastSent).getTime();
+            return (
+              <div
+                key={d.endpoint}
+                className="flex items-center gap-2 border rounded-md p-2 text-xs"
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 font-medium">
+                    {describeUA(d.user_agent)}
+                    {d.isCurrent && (
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-primary/15 text-primary uppercase tracking-wide">
+                        Este equipo
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground truncate">
+                    Visto {formatAgo(d.last_seen_at)}
+                    {lastSent && (
+                      <>
+                        {" · "}
+                        {ackOK ? (
+                          <span className="text-green-600">
+                            ✓ ACK {formatAgo(lastAck!)}
+                          </span>
+                        ) : (
+                          <span className="text-amber-600">
+                            ⚠︎ sin ACK ({formatAgo(lastSent)})
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2 text-xs"
+                  disabled={verifyState.phase === "running"}
+                  onClick={() => handleVerifyEndpoint(d.endpoint)}
+                >
+                  {isRunning ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <ShieldCheck className="w-3 h-3" />
+                  )}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 w-7 p-0 text-destructive"
+                  onClick={() => handleRemoveEndpoint(d.endpoint)}
+                  title="Quitar dispositivo"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </Button>
+              </div>
+            );
+          })}
         </div>
       </div>
 
