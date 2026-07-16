@@ -1,0 +1,116 @@
+{
+  "version": 1,
+  "sdk_version": "0.22.2",
+  "path": "/functions/v1/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://gnnucexcnkuevxfepwmw.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "heyhey-mcp",
+      "version": "0.1.0",
+      "title": "HeyHey"
+    },
+    "tools": [
+      {
+        "name": "list_conversations",
+        "title": "List conversations",
+        "description": "List the signed-in user's most recent HeyHey conversations across all connected WhatsApp/messaging accounts. Returns id, customer name/phone, platform, unread count and last update.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "description": "Maximum conversations to return (1-100)."
+            },
+            "only_unread": {
+              "type": "boolean",
+              "default": false,
+              "description": "If true, only return conversations with unread inbound messages."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_conversation_messages",
+        "title": "Get conversation messages",
+        "description": "Return the most recent messages in a HeyHey conversation the signed-in user has access to. Each message includes direction (inbound/outbound), text content, type and timestamp.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "conversation_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "HeyHey conversation UUID (from list_conversations)."
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 30,
+              "description": "Maximum messages to return (1-200, newest first)."
+            }
+          },
+          "required": [
+            "conversation_id"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "send_whatsapp_message",
+        "title": "Send WhatsApp message",
+        "description": "Send a plain text WhatsApp message inside an existing HeyHey conversation on behalf of the signed-in user. Meta's 24h service window applies for Cloud API accounts.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "openWorldHint": true
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "conversation_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "HeyHey conversation UUID to reply to."
+            },
+            "text": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Message text to send."
+            }
+          },
+          "required": [
+            "conversation_id",
+            "text"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}

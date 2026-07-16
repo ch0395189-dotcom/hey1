@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,13 @@ const Register = () => {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const getRedirectTarget = () => {
+    const params = new URLSearchParams(location.search);
+    const redirectTo = params.get("redirectTo");
+    if (redirectTo?.startsWith("/") && !redirectTo.startsWith("//")) return redirectTo;
+    return "/dashboard";
+  };
   const { toast } = useToast();
   const { trackCompleteRegistration, trackLead } = useMetaPixel();
 
@@ -28,7 +35,7 @@ const Register = () => {
         email: email.trim().toLowerCase(),
         password,
         options: {
-          emailRedirectTo: window.location.origin,
+          emailRedirectTo: window.location.origin + getRedirectTarget(),
           data: {
             full_name: name.trim(),
           },
@@ -43,7 +50,7 @@ const Register = () => {
       });
       trackCompleteRegistration({ content_name: 'Registro', status: 'complete' });
       trackLead({ content_name: 'Nuevo usuario' });
-      navigate("/dashboard");
+      navigate(getRedirectTarget());
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -143,7 +150,7 @@ const Register = () => {
 
           <p className="text-center text-muted-foreground mt-6">
             ¿Ya tienes cuenta?{" "}
-            <Link to="/login" className="text-primary hover:underline font-medium">
+            <Link to={`/login${location.search}`} className="text-primary hover:underline font-medium">
               Inicia sesión
             </Link>
           </p>
