@@ -3,7 +3,47 @@
 // Service Worker for Hey Hey - Push Notifications
 // IMPORTANT: This SW does NOT cache HTML/JS/CSS to avoid stale content issues.
 // Bump CACHE_VERSION on every release to force old caches to be cleared.
-const CACHE_VERSION = 'heyhey-v9';
+const CACHE_VERSION = 'heyhey-v10';
+
+const NOTIFICATION_ICON = '/pwa-192x192.png';
+
+function notificationOptions(options) {
+  const base = {
+    body: options.body || 'Tienes una nueva notificación',
+    icon: options.icon || NOTIFICATION_ICON,
+    badge: options.badge || NOTIFICATION_ICON,
+    tag: options.tag || `heyhey-${Date.now()}`,
+    data: options.data || { url: '/dashboard' },
+  };
+
+  // Safari/iOS Web Push rejects Chromium-only fields such as actions/vibrate.
+  const isApplePush = self.registration?.pushManager?.supportedContentEncodings?.includes('aes128gcm') === false;
+  if (isApplePush) return base;
+
+  return {
+    ...base,
+    requireInteraction: options.requireInteraction ?? false,
+    silent: false,
+    renotify: true,
+    vibrate: [200, 100, 200],
+    actions: options.actions,
+  };
+}
+
+async function showHeyHeyNotification(title, options) {
+  try {
+    await self.registration.showNotification(title || 'Hey Hey', notificationOptions(options || {}));
+  } catch (error) {
+    console.log('[SW] showNotification fallback:', error);
+    await self.registration.showNotification(title || 'Hey Hey', {
+      body: options?.body || 'Tienes una nueva notificación',
+      icon: NOTIFICATION_ICON,
+      badge: NOTIFICATION_ICON,
+      tag: options?.tag || `heyhey-${Date.now()}`,
+      data: options?.data || { url: '/dashboard' },
+    });
+  }
+}
 
 // Set to true to force a full logout on every release (clears Supabase auth
 // tokens too). Leave false to preserve sessions across updates.
@@ -116,14 +156,12 @@ self.addEventListener('push', (event) => {
         console.log('[SW] verify ack failed:', e);
       }
       // iOS/Chrome require a user-visible notification for every push.
-      await self.registration.showNotification(
+      await showHeyHeyNotification(
         acked ? 'Hey Hey ✅ Verificado' : 'Hey Hey ⚠️ Verificación',
         {
           body: acked
             ? 'Este dispositivo recibe notificaciones correctamente.'
             : 'Recibimos el push, pero no pudimos confirmar el ACK.',
-          icon: '/pwa-192x192.png',
-          badge: '/pwa-192x192.png',
           tag: data.tag || 'verify',
           data: { url: '/dashboard', verify: true },
         },
@@ -134,13 +172,10 @@ self.addEventListener('push', (event) => {
 
   const options = {
     body: data.body,
-    icon: data.icon || '/pwa-192x192.png',
-    badge: data.badge || '/pwa-192x192.png',
+    icon: data.icon || NOTIFICATION_ICON,
+    badge: data.badge || NOTIFICATION_ICON,
     tag: data.tag || 'new-message',
     requireInteraction: true,
-    silent: false,
-    renotify: true,
-    vibrate: [200, 100, 200],
     data: {
       url: '/dashboard',
       conversationId: data.conversationId,
@@ -152,7 +187,7 @@ self.addEventListener('push', (event) => {
     ],
   };
 
-  event.waitUntil(self.registration.showNotification(data.title, options));
+  event.waitUntil(showHeyHeyNotification(data.title, options));
 });
 
 // Notification click event
@@ -190,15 +225,11 @@ self.addEventListener('message', (event) => {
 
   if (event.data?.type === 'NEW_MESSAGE') {
     const { title, body, conversationId, platform } = event.data;
-    self.registration.showNotification(title, {
+    showHeyHeyNotification(title, {
       body,
-      icon: '/pwa-192x192.png',
-      badge: '/pwa-192x192.png',
+      icon: NOTIFICATION_ICON,
+      badge: NOTIFICATION_ICON,
       tag: `message-${conversationId}`,
-      requireInteraction: false,
-      silent: false,
-      renotify: true,
-      vibrate: [200, 100, 200],
       data: { url: '/dashboard', conversationId, platform },
     });
   }
