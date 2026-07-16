@@ -23,7 +23,17 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const { userId, title, body, url, conversationId, platform, tag, icon } = await req.json();
+    const {
+      userId,
+      title,
+      body,
+      url,
+      conversationId,
+      platform,
+      tag,
+      icon,
+      verifyDelivery = false,
+    } = await req.json();
 
     if (!userId) {
       return new Response(JSON.stringify({ error: "userId requerido" }), {
@@ -52,25 +62,48 @@ Deno.serve(async (req) => {
       });
     }
 
-    const payload = JSON.stringify({
-      title: title || "Hey Hey",
-      body: body || "Tienes una nueva notificación",
-      url: url || "/dashboard",
-      conversationId,
-      platform: platform || "whatsapp",
-      tag: tag || `notif-${Date.now()}`,
-      icon: icon || "/pwa-192x192.png",
-    });
-
     let sent = 0;
     const toDelete: string[] = [];
+    const deliveryTokens: Array<{ endpoint: string; token: string }> = [];
 
     await Promise.all(
       subs.map(async (s: any) => {
         try {
+          let verifyToken: string | null = null;
+          if (verifyDelivery) {
+            const { data: row, error: insErr } = await supabase
+              .from("push_verifications")
+              .insert({
+                user_id: userId,
+                endpoint: s.endpoint,
+                user_agent: s.user_agent ?? null,
+              })
+              .select("token")
+              .single();
+            if (!insErr && row?.token) {
+              verifyToken = row.token;
+              deliveryTokens.push({ endpoint: s.endpoint, token: row.token });
+            }
+          }
+
+          const payload = JSON.stringify({
+            title: title || "Hey Hey",
+            body: body || "Tienes una nueva notificación",
+            url: url || "/dashboard",
+            conversationId,
+            platform: platform || "whatsapp",
+            tag: tag || `notif-${Date.now()}`,
+            icon: icon || "/pwa-192x192.png",
+            verifyToken,
+            verifyUrl: verifyToken
+              ? `${Deno.env.get("SUPABASE_URL")!}/functions/v1/push-verify`
+              : undefined,
+          });
+
           await webpush.sendNotification(
             { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
-            payload
+            payload,
+            { TTL: 60 * 60 * 24, urgency: "high" },
           );
           sent++;
         } catch (err: any) {
@@ -87,7 +120,7 @@ Deno.serve(async (req) => {
       await supabase.from("push_subscriptions").delete().in("endpoint", toDelete);
     }
 
-    return new Response(JSON.stringify({ ok: true, sent, total: subs.length, removed: toDelete.length }), {
+    return new Response(JSON.stringify({ ok: true, sent, total: subs.length, removed: toDelete.length, tokens: deliveryTokens }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

@@ -27,6 +27,12 @@ export interface PushDevice {
   isCurrent?: boolean;
 }
 
+function assertFunctionOk(data: any, fallback = "La función no respondió correctamente") {
+  if (data?.error || data?.ok === false) {
+    throw new Error(data.error || fallback);
+  }
+}
+
 export function useWebPush() {
   const [status, setStatus] = useState<PushStatus>("default");
   const [loading, setLoading] = useState(false);
@@ -55,17 +61,21 @@ export function useWebPush() {
         // Re-upsert the endpoint under the CURRENT auth user, in case
         // the device was previously subscribed by another account.
         try {
-          await supabase.functions.invoke("push-subscribe", {
+          const { data, error } = await supabase.functions.invoke("push-subscribe", {
             body: {
               action: "subscribe",
               subscription: sub.toJSON(),
               userAgent: navigator.userAgent,
             },
           });
+          if (error) throw error;
+          assertFunctionOk(data, "No se pudo sincronizar este dispositivo");
+          setStatus("subscribed");
         } catch (e) {
           console.warn("push resync failed", e);
+          setStatus("granted-no-sub");
+          return;
         }
-        setStatus("subscribed");
       } else {
         setCurrentEndpoint(null);
         setStatus("granted-no-sub");
@@ -173,6 +183,7 @@ export function useWebPush() {
       const { data: keyData, error: keyErr } = await supabase.functions.invoke("push-subscribe", {
         body: { action: "get-public-key" },
       });
+      assertFunctionOk(keyData, "No se pudo obtener la clave de notificaciones.");
       if (keyErr || !keyData?.publicKey) {
         throw new Error("No se pudo obtener la clave de notificaciones.");
       }
@@ -191,7 +202,7 @@ export function useWebPush() {
         }
       }
 
-      const { error: subErr } = await supabase.functions.invoke("push-subscribe", {
+      const { data: subData, error: subErr } = await supabase.functions.invoke("push-subscribe", {
         body: {
           action: "subscribe",
           subscription: sub.toJSON(),
@@ -199,6 +210,7 @@ export function useWebPush() {
         },
       });
       if (subErr) throw subErr;
+      assertFunctionOk(subData, "No se pudo guardar este dispositivo en tu cuenta.");
 
       setStatus("subscribed");
       // Auto-verify end-to-end delivery to the freshly registered endpoint.
@@ -215,9 +227,11 @@ export function useWebPush() {
       const reg = await navigator.serviceWorker.ready;
       const sub = await reg.pushManager.getSubscription();
       if (sub) {
-        await supabase.functions.invoke("push-subscribe", {
+        const { data, error } = await supabase.functions.invoke("push-subscribe", {
           body: { action: "unsubscribe", subscription: sub.toJSON() },
         });
+        if (error) throw error;
+        assertFunctionOk(data, "No se pudo desactivar este dispositivo.");
         await sub.unsubscribe();
       }
       setStatus("granted-no-sub");
@@ -236,6 +250,7 @@ export function useWebPush() {
         body: target ? { action: "start", endpoint: target } : { action: "start" },
       });
       if (error) throw error;
+      assertFunctionOk(data, "No se pudo iniciar la verificación.");
       const tokens: Array<{ endpoint: string; token: string }> = (data as any)?.tokens || [];
       const sent = (data as any)?.sent || 0;
       if (tokens.length === 0) {
@@ -256,6 +271,7 @@ export function useWebPush() {
         const { data: st } = await supabase.functions.invoke("push-verify", {
           body: { action: "status", tokens: tokenList },
         });
+        assertFunctionOk(st, "No se pudo consultar la verificación.");
         const rows: Array<{ token: string; ack_at: string | null }> = (st as any)?.rows || [];
         rows.forEach((r) => {
           if (r.ack_at) ackedTokens.add(r.token);
@@ -279,6 +295,7 @@ export function useWebPush() {
       body: { action: "list" },
     });
     if (error) throw error;
+    assertFunctionOk(data, "No se pudieron cargar los dispositivos.");
     const devices: PushDevice[] = (data as any)?.devices || [];
     return devices.map((d) => ({ ...d, isCurrent: d.endpoint === currentEndpoint }));
   }, [currentEndpoint]);
