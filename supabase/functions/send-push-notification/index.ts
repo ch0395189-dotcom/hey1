@@ -69,7 +69,7 @@ Deno.serve(async (req) => {
     await Promise.all(
       subs.map(async (s: any) => {
         try {
-          let deliveryToken: string | null = null;
+          let verifyToken: string | null = null;
           if (verifyDelivery) {
             const { data: row, error: insErr } = await supabase
               .from("push_verifications")
@@ -81,7 +81,7 @@ Deno.serve(async (req) => {
               .select("token")
               .single();
             if (!insErr && row?.token) {
-              deliveryToken = row.token;
+              verifyToken = row.token;
               deliveryTokens.push({ endpoint: s.endpoint, token: row.token });
             }
           }
@@ -94,8 +94,8 @@ Deno.serve(async (req) => {
             platform: platform || "whatsapp",
             tag: tag || `notif-${Date.now()}`,
             icon: icon || "/pwa-192x192.png",
-            deliveryToken,
-            deliveryUrl: deliveryToken
+            verifyToken,
+            verifyUrl: verifyToken
               ? `${Deno.env.get("SUPABASE_URL")!}/functions/v1/push-verify`
               : undefined,
           });
