@@ -143,29 +143,22 @@ self.addEventListener('push', (event) => {
   // ---- E2E verification: ACK back to the server before showing anything ----
   if (data.verifyToken && data.verifyUrl) {
     event.waitUntil((async () => {
-      let acked = false;
+      // iOS/Chrome require a user-visible notification promptly for every push.
+      await showHeyHeyNotification('Hey Hey ✅ Verificado', {
+        body: 'Este dispositivo recibió la prueba de notificaciones correctamente.',
+        tag: data.tag || 'verify',
+        data: { url: '/dashboard', verify: true },
+      });
+
       try {
-        const res = await fetch(data.verifyUrl, {
+        await fetch(data.verifyUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action: 'ack', token: data.verifyToken }),
-          keepalive: true,
         });
-        acked = res.ok;
       } catch (e) {
         console.log('[SW] verify ack failed:', e);
       }
-      // iOS/Chrome require a user-visible notification for every push.
-      await showHeyHeyNotification(
-        acked ? 'Hey Hey ✅ Verificado' : 'Hey Hey ⚠️ Verificación',
-        {
-          body: acked
-            ? 'Este dispositivo recibe notificaciones correctamente.'
-            : 'Recibimos el push, pero no pudimos confirmar el ACK.',
-          tag: data.tag || 'verify',
-          data: { url: '/dashboard', verify: true },
-        },
-      );
     })());
     return;
   }
