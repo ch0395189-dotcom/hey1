@@ -27,6 +27,7 @@ const OAuthConsent = lazy(() => import("./pages/OAuthConsent"));
 import { InstallAppBanner } from "@/components/install/InstallAppBanner";
 import { UpdateBanner } from "@/components/UpdateBanner";
 import { ImpersonationBanner } from "@/components/admin/ImpersonationBanner";
+import { NativePushBootstrap } from "@/components/NativePushBootstrap";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -53,6 +54,7 @@ const App = () => {
         <BrowserRouter>
           <UpdateBanner />
           <ImpersonationBanner />
+          <NativePushBootstrap />
           <Suspense fallback={null}>
             <Routes>
               <Route path="/" element={<Landing />} />
