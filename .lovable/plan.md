@@ -1,62 +1,130 @@
-## Objetivo
-Cuando un admin entre a un usuario, ver y operar **todo el dashboard como ese usuario**: bandeja, chatbot, plantillas, contactos, plataformas, equipo, créditos, plan, configuración. Con banner permanente "MODO ADMIN — actuando como X" y botón salir.
+# Migración a app nativa con Capacitor + FCM/APNs
 
-## Enfoque
-No generamos sesión falsa. Mantenemos la sesión real del admin y agregamos un **"effective user id"** global. RLS ya cubre lectura/escritura para admin en la mayoría de tablas; ampliamos lo que falte. El frontend lee de un contexto en vez de `user.id` directo.
+Objetivo: publicar Hey Hey como app nativa iOS y Android con **push garantizado en background y app cerrada**, manteniendo el mismo código React que ya tienes.
 
-## Cambios
+---
 
-### 1. Contexto de impersonación (frontend)
-- `src/contexts/ImpersonationContext.tsx`: provee `{ realUserId, effectiveUserId, targetEmail, targetName, isImpersonating, stopImpersonation() }`. Persiste `impersonate_user_id` en `sessionStorage` para sobrevivir recargas.
-- `src/hooks/useEffectiveUser.ts`: reemplaza el patrón `supabase.auth.getUser()` en queries. Devuelve `effectiveUserId`.
-- Wrap `<App>` con el provider.
+## Requisitos que debes tener listos ANTES
 
-### 2. Ruta
-- `/admin/impersonate/:userId` → guarda el id en el contexto + sessionStorage y redirige a `/dashboard`.
-- Botón "Entrar como" en `UsersTable` y `PhoneNumbersTable` (reemplaza/al lado del actual "Inbox").
+| Item | Costo | Dónde |
+|---|---|---|
+| Cuenta Apple Developer | 99 USD/año | developer.apple.com |
+| Google Play Console | 25 USD (único) | play.google.com/console |
+| Proyecto Firebase (para FCM) | Gratis | console.firebase.google.com |
+| Mac con Xcode (solo para iOS) | — | Requerido para compilar/firmar iOS |
+| Android Studio | Gratis | Requerido para compilar/firmar Android |
 
-### 3. Banner global
-- `src/components/admin/ImpersonationBanner.tsx` fijo arriba del layout cuando `isImpersonating`. Muestra email/nombre + botón "Salir del modo admin" → limpia sessionStorage y vuelve a `/admin`.
+> Sin Mac no se puede firmar ni subir la build de iOS. Android sí se puede desde Windows/Linux.
 
-### 4. Refactor de queries
-Reemplazar `user.id` por `effectiveUserId` en los hooks/componentes que cargan datos del usuario (no en login/registro/auth). Ámbito mínimo:
-- Dashboard, ConversationsList, ChatWindow, WhatsAppSetup, ExternalWhatsAppSetup
-- ChatbotConfig, KnowledgeBase, KeywordManager, FlowBuilder
-- ContactsList, ContactTags, TagManager, BulkMessageDialog
-- PlatformSetup, TikTokWhatsAppNotifySettings
-- TeamManagement, AssignAgentMenu
-- CreditBalance, CreditUsageHistory, CreditPackages
-- Settings (ApiKeysSettings, AutoRefreshSettings, VoiceClonesManager, NotificationSettingsPanel)
-- StatisticsPanel, useMessageLimit, usePlanLimits, useCredits, useTeam, useSubscriptionGuard
-- SendTemplateDialog, WhatsAppTemplateList/Creator
+---
 
-Auth (Login, Register, ResetPassword, useAdminCheck, push subs) sigue usando `auth.uid()`.
+## Arquitectura después de la migración
 
-### 5. RLS para admin
-Migración que añade políticas `USING (has_role(auth.uid(),'admin'))` (SELECT + INSERT + UPDATE + DELETE donde aplique) en las tablas que aún no las tienen:
-- whatsapp_accounts, platform_accounts
-- chatbot_configs, chatbot_flow_nodes, chatbot_keywords, chatbot_knowledge_base
-- contact_tags, conversation_tags
-- scheduled_messages, user_voice_clones, user_api_keys
-- subscriptions, user_credits, monthly_message_usage, team_agents, push_subscriptions
+```text
+                    ┌──────────────────────────┐
+                    │  Hey Hey (React + Vite)  │
+                    └────────────┬─────────────┘
+                                 │ Capacitor bridge
+                ┌────────────────┼────────────────┐
+                ▼                                 ▼
+        ┌───────────────┐               ┌───────────────┐
+        │   iOS nativo  │               │ Android nativo│
+        │   APNs token  │               │   FCM token   │
+        └───────┬───────┘               └───────┬───────┘
+                └──────────────┬────────────────┘
+                               ▼
+           Edge Function `native-push-register`
+                (guarda token por user + platform)
+                               │
+                               ▼
+           Edge Function `send-native-push`
+              (Firebase Admin SDK → FCM / APNs)
+```
 
-(conversations, messages, chatbot_conversation_state ya tienen políticas admin del plan anterior.)
+Web Push (VAPID) actual **se conserva** para navegadores de escritorio. Los nativos usan token FCM/APNs.
 
-### 6. Edge functions
-Las edge functions que reciben `accountId/conversationId` explícitos ya funcionan con service role. Para las que infieren el usuario de `auth.getUser()` (ej. envío de plantillas, send-message), agregar parámetro opcional `actAsUserId` y validar que el caller sea admin antes de aceptarlo:
-- whatsapp-send-message, whatsapp-send-external, whatsapp-create-template, whatsapp-list-templates, whatsapp-edit-template
-- tiktok-send-message, messenger-send-message, instagram-send-message
-- bold-checkout (NO se toca: el admin no debe pagar por el usuario)
+---
 
-### 7. Auditoría
-Nueva tabla `admin_impersonation_log` (admin_id, target_user_id, started_at, ended_at). Se inserta al entrar/salir. Visible en el panel admin con un visor simple.
+## Fase 1 — Preparar Capacitor en el repo
 
-## Seguridad
-- Banner rojo permanente, imposible ocultar.
-- `useAdminCheck` bloquea la ruta y el provider rechaza setear `effectiveUserId` si no es admin.
-- Log auditable de cada sesión de impersonación.
-- Logout normal limpia el sessionStorage.
+1. Ya existe `capacitor.config.ts` apuntando al preview de Lovable. Lo dejo así para desarrollo con hot reload.
+2. Instalar plugin oficial de push: `@capacitor/push-notifications`.
+3. Crear `src/lib/nativePush.ts` que:
+   - Detecta si corre bajo Capacitor (`Capacitor.isNativePlatform()`).
+   - Solicita permiso y registra el token (`PushNotifications.register()`).
+   - Envía el token a la Edge Function `native-push-register` con `{ user_id, platform: 'ios' | 'android', token }`.
+   - Escucha `pushNotificationReceived` (foreground) y `pushNotificationActionPerformed` (tap) para navegar a la conversación.
+4. En `useWebPush.ts` / hook de inicialización: si es nativo, saltar el flujo VAPID y usar `nativePush.ts`.
 
-## Fuera de alcance
-- No se cambia el email del admin ni se generan tokens del usuario.
-- Pagos con tarjeta del usuario (checkout Bold) quedan deshabilitados durante impersonación.
+## Fase 2 — Backend de tokens nativos
+
+1. Nueva tabla `native_push_tokens (id, user_id, platform, token, device_name, last_seen_at, created_at)` con RLS: el usuario solo ve/edita los suyos; `service_role` puede todo. GRANT a `authenticated` y `service_role`.
+2. Edge Function `native-push-register` (verify_jwt = false, validar `auth.getUser(token)` en código, upsert por token único).
+3. Edge Function `send-native-push`:
+   - Lee tokens del user.
+   - Usa **Firebase Admin SDK vía HTTP v1** (una sola API para FCM y APNs — configuras APNs dentro de Firebase con la .p8 de Apple).
+   - Marca tokens inválidos y los borra al recibir `UNREGISTERED` / `NOT_REGISTERED`.
+4. Ajustar `whatsapp-webhook-v2` y demás disparadores para llamar además a `send-native-push` (o wrapper unificado `notify-user`).
+
+## Fase 3 — Configuración Firebase / APNs (lo hace el usuario, guío paso a paso)
+
+**Android (FCM):**
+1. Crear proyecto Firebase → añadir app Android con package `app.lovable.06d98cdb8a334aee8f8471ecd386a16f`.
+2. Descargar `google-services.json` → colocar en `android/app/`.
+3. Subir la Service Account JSON de Firebase como secret `FIREBASE_SERVICE_ACCOUNT` (uso `add_secret`).
+
+**iOS (APNs vía Firebase):**
+1. En Apple Developer: crear App ID con **Push Notifications** capability, y una key `.p8` de APNs (guardar Key ID + Team ID).
+2. En Firebase → añadir app iOS con el mismo bundle → subir la `.p8`, Key ID y Team ID.
+3. Descargar `GoogleService-Info.plist` → colocar en `ios/App/App/`.
+4. En Xcode: activar **Push Notifications** y **Background Modes → Remote notifications**.
+
+## Fase 4 — Compilación local (usuario ejecuta)
+
+```bash
+git pull
+npm install
+npx cap add ios
+npx cap add android
+npm run build
+npx cap sync
+npx cap open ios      # firma con Apple Developer, envía a TestFlight
+npx cap open android  # genera AAB firmado, sube a Play Console (Internal testing)
+```
+
+## Fase 5 — Publicación en stores
+
+- **TestFlight** (iOS): review interno ~24h. Luego App Store review ~1-3 días.
+- **Google Play Internal Testing**: minutos. Producción: 1-3 días.
+- Ambas requieren: iconos, screenshots (3-8 por tamaño), política de privacidad (ya tienes `/privacy`), descripción, categoría.
+
+---
+
+## Detalles técnicos
+
+- **Sin cambios en el frontend web actual**: los usuarios en desktop siguen recibiendo Web Push VAPID. Solo iOS/Android instalado desde stores usa FCM/APNs.
+- **Hot reload en dev**: `capacitor.config.ts` ya apunta al preview de Lovable → cambios en React se ven en el simulador sin recompilar.
+- **App cerrada**: FCM/APNs entregan notificaciones aunque el proceso esté muerto — este es el objetivo principal de la migración.
+- **Deep link**: al tocar la notificación, `pushNotificationActionPerformed` recibe `data.conversationId` y navega a `/dashboard?conv=...` (ya soportado por tu URL state).
+- **Deduplicación**: si un usuario tiene web + nativo, `notify-user` prioriza nativo cuando el token existe para ese dispositivo.
+
+---
+
+## Lo que hago yo en este chat
+
+1. Instalar `@capacitor/push-notifications`.
+2. Crear `src/lib/nativePush.ts` + integrar en el bootstrap del dashboard.
+3. Crear migración de `native_push_tokens` con RLS + GRANT.
+4. Desplegar Edge Functions `native-push-register` y `send-native-push`.
+5. Añadir wrapper `notify-user` y engancharlo donde hoy se llama `send-push-notification`.
+6. Guiarte para conseguir `google-services.json`, `.p8` de APNs y `GoogleService-Info.plist`, y pedirte los secrets con `add_secret` cuando estén listos.
+
+## Lo que haces tú fuera del chat
+
+1. Pagar Apple Developer + Play Console.
+2. Crear proyecto Firebase y app iOS/Android.
+3. Descargar los archivos de config y pegármelos (o subirlos como secrets).
+4. Ejecutar los comandos `npx cap ...` en tu Mac / PC.
+5. Subir a TestFlight y Play Console.
+
+¿Arranco con la Fase 1 y 2 (código + backend) mientras tú abres las cuentas de developer?
