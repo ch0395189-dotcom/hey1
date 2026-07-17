@@ -2,8 +2,20 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  hydrateNativeSession,
+  installNativeSessionMirror,
+} from "@/lib/nativeSessionPersist";
 
-createRoot(document.getElementById("root")!).render(<App />);
+// On native (Capacitor) restore the auth session from Capacitor Preferences
+// BEFORE mounting React so the Supabase client picks it up on first read.
+// On web this is a no-op and resolves immediately.
+async function boot() {
+  await hydrateNativeSession();
+  await installNativeSessionMirror();
+  createRoot(document.getElementById("root")!).render(<App />);
+}
+void boot();
 
 // ============================================================
 //  Build-version poller — surfaces the "Update available" banner
