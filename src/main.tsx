@@ -2,8 +2,20 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  hydrateNativeSession,
+  installNativeSessionMirror,
+} from "@/lib/nativeSessionPersist";
 
-createRoot(document.getElementById("root")!).render(<App />);
+// On native (Capacitor) restore the auth session from Capacitor Preferences
+// BEFORE mounting React so the Supabase client picks it up on first read.
+// On web this is a no-op and resolves immediately.
+async function boot() {
+  await hydrateNativeSession();
+  await installNativeSessionMirror();
+  createRoot(document.getElementById("root")!).render(<App />);
+}
+void boot();
 
 // ============================================================
 //  Build-version poller — surfaces the "Update available" banner
@@ -164,7 +176,15 @@ const isPreviewHost =
   (window.location.hostname.includes("id-preview--") ||
     window.location.hostname.includes("lovableproject.com"));
 
-if (isPreviewHost || isInIframe) {
+// On Capacitor (native app) we use FCM/APNs for push; the web Service Worker
+// is unnecessary and its version-poll/reload loop can wipe the WebView
+// context, which the user has seen as "the app logs me out when I close it".
+const isNativeApp =
+  typeof window !== "undefined" &&
+  // @ts-ignore - Capacitor injects this global at runtime on native builds
+  (window as any).Capacitor?.isNativePlatform?.() === true;
+
+if (isPreviewHost || isInIframe || isNativeApp) {
   // Clean up any leftover SW registrations in preview/iframe
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.getRegistrations().then((regs) => {
