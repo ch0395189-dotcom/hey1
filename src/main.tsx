@@ -6,6 +6,7 @@ import {
   hydrateNativeSession,
   installNativeSessionMirror,
 } from "@/lib/nativeSessionPersist";
+import { installNativeKeyboardHandling } from "@/lib/nativeKeyboard";
 
 // On native (Capacitor) restore the auth session from Capacitor Preferences
 // BEFORE mounting React so the Supabase client picks it up on first read.
@@ -13,6 +14,7 @@ import {
 async function boot() {
   await hydrateNativeSession();
   await installNativeSessionMirror();
+  void installNativeKeyboardHandling();
   createRoot(document.getElementById("root")!).render(<App />);
 }
 void boot();
