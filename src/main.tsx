@@ -176,7 +176,15 @@ const isPreviewHost =
   (window.location.hostname.includes("id-preview--") ||
     window.location.hostname.includes("lovableproject.com"));
 
-if (isPreviewHost || isInIframe) {
+// On Capacitor (native app) we use FCM/APNs for push; the web Service Worker
+// is unnecessary and its version-poll/reload loop can wipe the WebView
+// context, which the user has seen as "the app logs me out when I close it".
+const isNativeApp =
+  typeof window !== "undefined" &&
+  // @ts-ignore - Capacitor injects this global at runtime on native builds
+  (window as any).Capacitor?.isNativePlatform?.() === true;
+
+if (isPreviewHost || isInIframe || isNativeApp) {
   // Clean up any leftover SW registrations in preview/iframe
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.getRegistrations().then((regs) => {
