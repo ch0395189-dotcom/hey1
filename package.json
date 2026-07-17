@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "build:dev": "vite build --mode development",
+    "build:android": "node scripts/build-android.js",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
