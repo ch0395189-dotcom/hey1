@@ -198,7 +198,12 @@
   /* Mobile chat input spacing for bottom navigation */
   @media (max-width: 767px) {
     .chat-input-mobile {
-      padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px)) !important;
+      padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px)) !important;
+    }
+
+    /* When the keyboard is open we don't need the big system-bar offset */
+    body.keyboard-open .chat-input-mobile {
+      padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px)) !important;
     }
     
     .dashboard-content-mobile {
