@@ -16,6 +16,14 @@ const config: CapacitorConfig = {
     androidScheme: 'https',
     iosScheme: 'capacitor',
   },
+  plugins: {
+    Keyboard: {
+      // Resize the WebView when the keyboard opens so the message input
+      // is pushed up and stays visible while typing.
+      resize: 'native' as any,
+      resizeOnFullScreen: true,
+    },
+  },
 };
 
 export default config;
