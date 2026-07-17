@@ -1975,8 +1975,8 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
         </div>
       )}
 
-      {/* Message Input - safe area bottom for iOS home indicator */}
-      <form onSubmit={handleSendMessage} className="shrink-0 p-2 md:p-4 border-t border-border bg-card safe-area-bottom">
+      {/* Message Input - extra bottom padding on mobile so Android/iOS system bars don't cover the buttons */}
+      <form onSubmit={handleSendMessage} className="shrink-0 p-2 md:p-4 border-t border-border bg-card safe-area-bottom chat-input-mobile">
         <div className="max-w-3xl mx-auto flex items-end gap-1.5 md:gap-2">
           <input
             type="file"
