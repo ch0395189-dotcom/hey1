@@ -2035,7 +2035,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="shrink-0 h-9 md:h-10 gap-1.5 px-2.5 border-primary/40 text-primary hover:bg-primary/10"
+                    className="shrink-0 hidden md:inline-flex h-9 md:h-10 gap-1.5 px-2.5 border-primary/40 text-primary hover:bg-primary/10"
                     title="Enviar plantilla aprobada"
                   >
                     <FileText className="w-4 h-4" />
