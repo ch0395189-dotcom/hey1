@@ -16,7 +16,7 @@ function json(body: unknown, status = 200) {
 
 /**
  * FCM HTTP v1 sender.
- * Uses a Firebase service-account JSON stored in FIREBASE_SERVICE_ACCOUNT.
+ * Uses a Firebase service-account JSON stored in FIREBASE_SERVICE_ACCOUNT_JSON.
  * Sends to both Android and iOS tokens (Firebase forwards APNs internally
  * when the iOS app is configured with the .p8 key in Firebase Console).
  */
@@ -87,8 +87,8 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const sa_raw = Deno.env.get("FIREBASE_SERVICE_ACCOUNT");
-    if (!sa_raw) return json({ error: "FIREBASE_SERVICE_ACCOUNT not configured" }, 200);
+    const sa_raw = Deno.env.get("FIREBASE_SERVICE_ACCOUNT_JSON") || Deno.env.get("FIREBASE_SERVICE_ACCOUNT");
+    if (!sa_raw) return json({ error: "FIREBASE_SERVICE_ACCOUNT_JSON not configured" }, 200);
     const sa = JSON.parse(sa_raw);
     const projectId: string = sa.project_id;
 

@@ -50,6 +50,22 @@ export async function hydrateNativeSession(): Promise<void> {
   }
 }
 
+/** Persist current auth-token keys from localStorage into native storage. */
+export async function persistCurrentNativeSession(): Promise<void> {
+  if (!isNative()) return;
+  try {
+    const { Preferences } = await import("@capacitor/preferences");
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key || !AUTH_KEY_RE.test(key)) continue;
+      const value = localStorage.getItem(key);
+      if (value) await Preferences.set({ key, value });
+    }
+  } catch (e) {
+    console.warn("[NativeSession] persist failed", e);
+  }
+}
+
 /**
  * Start mirroring auth-token writes from localStorage to Preferences.
  * Safe to call multiple times; only sets up listeners once.
@@ -97,4 +113,22 @@ export async function installNativeSessionMirror(): Promise<void> {
     origRemove(key);
     if (AUTH_KEY_RE.test(key)) void write(key, null);
   };
+
+  // 3. On native lifecycle transitions, force one last copy before Android/iOS
+  // suspends the WebView. This is APK-only and does not affect the web app.
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") void persistCurrentNativeSession();
+  });
+  window.addEventListener("pagehide", () => void persistCurrentNativeSession());
+  window.addEventListener("beforeunload", () => void persistCurrentNativeSession());
+
+  try {
+    const { App } = await import("@capacitor/app");
+    await App.addListener("pause", () => void persistCurrentNativeSession());
+    await App.addListener("appStateChange", ({ isActive }) => {
+      if (!isActive) void persistCurrentNativeSession();
+    });
+  } catch (e) {
+    console.warn("[NativeSession] app lifecycle listeners failed", e);
+  }
 }
