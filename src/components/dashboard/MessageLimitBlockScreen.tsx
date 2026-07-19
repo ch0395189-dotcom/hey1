@@ -9,6 +9,7 @@ import { WhatsAppMessagePackages } from "@/components/credits/WhatsAppMessagePac
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useBoldCheckout } from "@/hooks/useBoldCheckout";
+import { clearNativeSessionBackups } from "@/lib/nativeSessionPersist";
 import { MessageUsage } from "@/hooks/useMessageLimit";
 
 interface Props {
@@ -25,6 +26,7 @@ export const MessageLimitBlockScreen = ({ usage, plan }: Props) => {
   const handleLogout = async () => {
     try { window.sessionStorage.setItem('heyhey-explicit-logout', 'true'); } catch {}
     await supabase.auth.signOut();
+    await clearNativeSessionBackups();
     toast({ title: "Sesión cerrada" });
     navigate("/");
   };
