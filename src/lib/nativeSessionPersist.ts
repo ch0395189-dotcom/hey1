@@ -21,6 +21,22 @@ import { Capacitor } from "@capacitor/core";
 const AUTH_KEY_RE = /^sb-.*-auth-token$/;
 const EXPLICIT_LOGOUT_MARKER = "heyhey-explicit-logout";
 
+function hasUsableAuthValue(value: string | null): value is string {
+  if (!value) return false;
+  try {
+    const parsed = JSON.parse(value) as Record<string, unknown>;
+    const refreshToken =
+      typeof parsed.refresh_token === "string"
+        ? parsed.refresh_token
+        : typeof (parsed.currentSession as Record<string, unknown> | undefined)?.refresh_token === "string"
+          ? String((parsed.currentSession as Record<string, unknown>).refresh_token)
+          : "";
+    return refreshToken.length > 10;
+  } catch {
+    return false;
+  }
+}
+
 function isNative(): boolean {
   try {
     return Capacitor.isNativePlatform();
@@ -59,9 +75,10 @@ export async function hydrateNativeSession(): Promise<void> {
     let restored = false;
     for (const k of keys) {
       if (!AUTH_KEY_RE.test(k)) continue;
-      if (localStorage.getItem(k)) continue; // already present
+      const current = localStorage.getItem(k);
+      if (hasUsableAuthValue(current)) continue; // already present and usable
       const { value } = await Preferences.get({ key: k });
-      if (value) {
+      if (hasUsableAuthValue(value)) {
         try {
           localStorage.setItem(k, value);
           restored = true;
@@ -86,7 +103,7 @@ export async function persistCurrentNativeSession(): Promise<void> {
       const key = localStorage.key(i);
       if (!key || !AUTH_KEY_RE.test(key)) continue;
       const value = localStorage.getItem(key);
-      if (value) await Preferences.set({ key, value });
+      if (hasUsableAuthValue(value)) await Preferences.set({ key, value });
     }
   } catch (e) {
     console.warn("[NativeSession] persist failed", e);
@@ -147,9 +164,23 @@ export async function installNativeSessionMirror(): Promise<void> {
   const origSet = localStorage.setItem.bind(localStorage);
   const origRemove = localStorage.removeItem.bind(localStorage);
   const origClear = localStorage.clear.bind(localStorage);
+  const proto = Object.getPrototypeOf(localStorage) as Storage;
+  const protoSet = proto.setItem;
+  const protoRemove = proto.removeItem;
+  const protoClear = proto.clear;
+
+  const onAuthWrite = (key: string, value: string | null) => {
+    if (!AUTH_KEY_RE.test(key)) return;
+    if (value === null) {
+      if (shouldClearNativeAuthBackup()) void write(key, null);
+      return;
+    }
+    if (hasUsableAuthValue(value)) void write(key, value);
+  };
+
   localStorage.setItem = function (key: string, value: string) {
     origSet(key, value);
-    if (AUTH_KEY_RE.test(key)) void write(key, value);
+    onAuthWrite(key, value);
   };
   localStorage.removeItem = function (key: string) {
     const previousValue = AUTH_KEY_RE.test(key) ? localStorage.getItem(key) : null;
@@ -161,7 +192,7 @@ export async function installNativeSessionMirror(): Promise<void> {
       if (shouldClearNativeAuthBackup()) void write(key, null);
       else if (previousValue) {
         origSet(key, previousValue);
-        void write(key, previousValue);
+        onAuthWrite(key, previousValue);
       }
     }
   };
@@ -173,7 +204,36 @@ export async function installNativeSessionMirror(): Promise<void> {
     } else {
       Object.entries(authSnapshot).forEach(([key, value]) => {
         origSet(key, value);
-        void write(key, value);
+        onAuthWrite(key, value);
+      });
+    }
+  };
+
+  // Some Android WebView builds ignore instance-level Storage overrides.
+  // Patch the prototype too, before the auth client starts writing tokens.
+  proto.setItem = function (key: string, value: string) {
+    protoSet.call(this, key, value);
+    onAuthWrite(key, value);
+  };
+  proto.removeItem = function (key: string) {
+    const previousValue = AUTH_KEY_RE.test(key) ? localStorage.getItem(key) : null;
+    protoRemove.call(this, key);
+    if (!AUTH_KEY_RE.test(key)) return;
+    if (shouldClearNativeAuthBackup()) void write(key, null);
+    else if (previousValue) {
+      protoSet.call(this, key, previousValue);
+      onAuthWrite(key, previousValue);
+    }
+  };
+  proto.clear = function () {
+    const authSnapshot = snapshotAuthKeys();
+    protoClear.call(this);
+    if (shouldClearNativeAuthBackup()) {
+      Object.keys(authSnapshot).forEach((key) => void write(key, null));
+    } else {
+      Object.entries(authSnapshot).forEach(([key, value]) => {
+        protoSet.call(this, key, value);
+        onAuthWrite(key, value);
       });
     }
   };

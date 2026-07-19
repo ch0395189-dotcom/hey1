@@ -42,21 +42,25 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Fan out to native push (FCM/APNs) in parallel — fire and forget.
-    // Non-blocking so web push always goes through even if native fails
-    // or FIREBASE_SERVICE_ACCOUNT isn't configured yet.
+    let nativeResult: Record<string, unknown> | null = null;
+
+    // Fan out to native push (FCM/APNs) and await it. Edge runtimes may stop
+    // background fetches as soon as this function returns; awaiting guarantees
+    // APK devices receive the push even when the app is fully closed.
     try {
       const nativeUrl = `${Deno.env.get("SUPABASE_URL")!}/functions/v1/send-native-push`;
-      fetch(nativeUrl, {
+      const nativeRes = await fetch(nativeUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!}`,
         },
         body: JSON.stringify({ userId, title, body, url, conversationId, platform }),
-      }).catch((e) => console.warn("native push fanout failed", e));
+      });
+      nativeResult = await nativeRes.json().catch(() => ({ ok: false, error: "native push invalid response" }));
     } catch (e) {
       console.warn("native push fanout error", e);
+      nativeResult = { ok: false, error: String(e) };
     }
 
     const { data: subs, error } = await supabase
@@ -73,7 +77,7 @@ Deno.serve(async (req) => {
     }
 
     if (!subs || subs.length === 0) {
-      return new Response(JSON.stringify({ ok: true, sent: 0, message: "Sin suscripciones" }), {
+      return new Response(JSON.stringify({ ok: true, sent: 0, native: nativeResult, message: "Sin suscripciones" }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -137,7 +141,7 @@ Deno.serve(async (req) => {
       await supabase.from("push_subscriptions").delete().in("endpoint", toDelete);
     }
 
-    return new Response(JSON.stringify({ ok: true, sent, total: subs.length, removed: toDelete.length, tokens: deliveryTokens }), {
+    return new Response(JSON.stringify({ ok: true, sent, total: subs.length, removed: toDelete.length, tokens: deliveryTokens, native: nativeResult }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

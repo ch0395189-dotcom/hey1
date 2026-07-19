@@ -30,7 +30,7 @@ import { useNotificationSettings } from "@/hooks/useNotificationSettings";
 import { useSessionPersistence } from "@/hooks/useSessionPersistence";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { usePushHeartbeat } from "@/hooks/usePushHeartbeat";
-import { clearNativeSessionBackups } from "@/lib/nativeSessionPersist";
+import { clearNativeSessionBackups, hydrateNativeSession } from "@/lib/nativeSessionPersist";
 import type { User } from "@supabase/supabase-js";
 import { ConversationsList } from "@/components/whatsapp/ConversationsList";
 import { ChatWindow } from "@/components/whatsapp/ChatWindow";
@@ -448,12 +448,17 @@ const Dashboard = () => {
     let cancelled = false;
     (async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (cancelled) return;
-        if (session?.user) {
-          setUser(session.user);
-          checkWhatsAppAccounts();
-          return;
+        const delays = isNativeApp() ? [0, 500, 1200, 2500, 5000] : [0, 500];
+        for (const delay of delays) {
+          if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
+          await hydrateNativeSession();
+          const { data: { session } } = await supabase.auth.getSession();
+          if (cancelled) return;
+          if (session?.user) {
+            setUser(session.user);
+            checkWhatsAppAccounts();
+            return;
+          }
         }
         const { data: refreshed } = await supabase.auth.refreshSession();
         if (cancelled) return;
@@ -462,10 +467,17 @@ const Dashboard = () => {
           checkWhatsAppAccounts();
           return;
         }
+        if (isNativeApp()) {
+          // In APK cold starts Android can briefly create the WebView before
+          // native Preferences are available. Never kick a native user to login
+          // from this guard; keep the loading state and let lifecycle listeners
+          // recover the session when the app is foregrounded.
+          return;
+        }
         const redirectTarget = `${window.location.pathname}${window.location.search}${window.location.hash}`;
         navigate(`/login?redirectTo=${encodeURIComponent(redirectTarget)}`, { replace: true });
       } catch {
-        if (!cancelled) {
+        if (!cancelled && !isNativeApp()) {
           const redirectTarget = `${window.location.pathname}${window.location.search}${window.location.hash}`;
           navigate(`/login?redirectTo=${encodeURIComponent(redirectTarget)}`, { replace: true });
         }
