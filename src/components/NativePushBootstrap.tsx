@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { initNativePush, isNative, setNativePushNavigator } from "@/lib/nativePush";
 import { hydrateNativeSession, persistCurrentNativeSession } from "@/lib/nativeSessionPersist";
+import { restoreSupabaseSessionFromNativeBackup } from "@/lib/nativeSupabaseSession";
 
 /**
  * Mounts once at the app root. If running under Capacitor (iOS/Android
@@ -29,6 +30,10 @@ export function NativePushBootstrap() {
     const start = async () => {
       await hydrateNativeSession();
       let { data } = await supabase.auth.getSession();
+      if (!data.session) {
+        const restored = await restoreSupabaseSessionFromNativeBackup("native push bootstrap");
+        if (restored) data = { session: restored } as typeof data;
+      }
       if (!data.session) {
         const refreshed = await supabase.auth.refreshSession();
         data = refreshed.data;

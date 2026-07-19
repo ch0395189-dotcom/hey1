@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { User } from '@supabase/supabase-js';
 import { hydrateNativeSession, persistCurrentNativeSession } from '@/lib/nativeSessionPersist';
 import { logSessionEvent } from '@/lib/sessionDiagnostics';
+import { restoreSupabaseSessionFromNativeBackup } from '@/lib/nativeSupabaseSession';
 
 const MIN_REFRESH_INTERVAL_MS = 30000;
 const REFRESH_THRESHOLD_MS = 10 * 60 * 1000;
@@ -56,6 +57,11 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
           logSessionEvent('refresh-error', 'network error during refresh (kept session)', { message: error.message });
           return null;
         }
+        const restored = await restoreSupabaseSessionFromNativeBackup('refresh error');
+        if (restored?.user) {
+          sessionValidRef.current = true;
+          return restored;
+        }
         logSessionEvent('refresh-error', 'auth error during refresh', { message: error.message });
         return null;
       }
@@ -68,7 +74,7 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
         return data.session;
       }
       
-      return null;
+      return await restoreSupabaseSessionFromNativeBackup('refresh returned no session');
     } catch (err) {
       console.error('[Session] Unexpected refresh error:', err);
       logSessionEvent('refresh-error', 'unexpected refresh exception', { error: String(err) });
@@ -87,8 +93,11 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
         console.warn('[Session] getSession error:', error.message);
         return null;
       }
-      if (session?.user) void persistCurrentNativeSession();
-      return session;
+      if (session?.user) {
+        void persistCurrentNativeSession();
+        return session;
+      }
+      return await restoreSupabaseSessionFromNativeBackup('getSession returned no session');
     } catch (err) {
       console.error('[Session] Check error:', err);
       return null;
@@ -253,6 +262,16 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
                   }
                 }
 
+                const restored = await restoreSupabaseSessionFromNativeBackup('initial session recovery fallback');
+                if (restored?.user) {
+                  sessionValidRef.current = true;
+                  initialCheckDoneRef.current = true;
+                  setIsInitializing(false);
+                  logSessionEvent('recovered', 'restored from native backup after initial retries', { email: restored.user.email ?? null });
+                  onSessionRestoredRef.current?.(restored.user);
+                  return;
+                }
+
                 if (!mounted || bootstrapCancelled) return;
 
                 console.log('[Session] No session after retries — letting route guard decide');
@@ -298,7 +317,7 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
                 // en localStorage (refresh token válido) la restablecerá.
                 (async () => {
                   await new Promise((r) => setTimeout(r, 500));
-                  const s = await checkSession();
+                  const s = (await checkSession()) || (await restoreSupabaseSessionFromNativeBackup('spurious signed out'));
                   if (s?.user) {
                     console.log('[Session] Sesión recuperada tras SIGNED_OUT espurio');
                     sessionValidRef.current = true;

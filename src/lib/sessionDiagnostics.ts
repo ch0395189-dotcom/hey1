@@ -29,6 +29,7 @@ export type SessionEventType =
   | "expired"
   | "signed-out-explicit"
   | "signed-out-spurious"
+  | "native-restore"
   | "visibility-check"
   | "online-check";
 

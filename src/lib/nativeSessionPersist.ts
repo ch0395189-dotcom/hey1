@@ -22,6 +22,44 @@ import { logSessionEvent } from "./sessionDiagnostics";
 const AUTH_KEY_RE = /^sb-.*-auth-token$/;
 const EXPLICIT_LOGOUT_MARKER = "heyhey-explicit-logout";
 
+export interface NativeAuthBackup {
+  key: string;
+  value: string;
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: number | null;
+  userEmail: string | null;
+}
+
+function getSupabaseAuthStorageKey(): string | null {
+  try {
+    const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+    if (!url) return null;
+    const host = new URL(url).hostname;
+    const ref = host.split(".")[0];
+    return ref ? `sb-${ref}-auth-token` : null;
+  } catch {
+    return null;
+  }
+}
+
+function parseAuthBackup(key: string, value: string | null): NativeAuthBackup | null {
+  if (!value || !AUTH_KEY_RE.test(key)) return null;
+  try {
+    const parsed = JSON.parse(value) as Record<string, unknown>;
+    const session = ((parsed.currentSession as Record<string, unknown> | undefined) ?? parsed) as Record<string, unknown>;
+    const accessToken = typeof session.access_token === "string" ? session.access_token : "";
+    const refreshToken = typeof session.refresh_token === "string" ? session.refresh_token : "";
+    if (accessToken.length < 20 || refreshToken.length < 10) return null;
+    const expiresAt = typeof session.expires_at === "number" ? session.expires_at : null;
+    const user = session.user as Record<string, unknown> | undefined;
+    const userEmail = typeof user?.email === "string" ? user.email : null;
+    return { key, value, accessToken, refreshToken, expiresAt, userEmail };
+  } catch {
+    return null;
+  }
+}
+
 function hasUsableAuthValue(value: string | null): value is string {
   if (!value) return false;
   try {
@@ -35,6 +73,51 @@ function hasUsableAuthValue(value: string | null): value is string {
     return refreshToken.length > 10;
   } catch {
     return false;
+  }
+}
+
+export async function getNativeAuthBackup(): Promise<NativeAuthBackup | null> {
+  if (!isNative()) return null;
+  try {
+    const { Preferences } = await import("@capacitor/preferences");
+    const preferredKey = getSupabaseAuthStorageKey();
+    if (preferredKey) {
+      const { value } = await Preferences.get({ key: preferredKey });
+      const backup = parseAuthBackup(preferredKey, value);
+      if (backup) return backup;
+    }
+
+    const { keys } = await Preferences.keys();
+    for (const key of keys) {
+      if (!AUTH_KEY_RE.test(key) || key === preferredKey) continue;
+      const { value } = await Preferences.get({ key });
+      const backup = parseAuthBackup(key, value);
+      if (backup) return backup;
+    }
+  } catch (e) {
+    logSessionEvent("native-restore", "could not read native backup", { error: String(e) });
+  }
+  return null;
+}
+
+export async function persistNativeSessionValue(session: unknown): Promise<void> {
+  if (!isNative() || !session) return;
+  const key = getSupabaseAuthStorageKey();
+  if (!key) return;
+  try {
+    const value = JSON.stringify(session);
+    if (!hasUsableAuthValue(value)) return;
+    localStorage.setItem(key, value);
+    const { Preferences } = await import("@capacitor/preferences");
+    await Preferences.set({ key, value });
+    const backup = parseAuthBackup(key, value);
+    logSessionEvent("persist", "explicit session saved to native backup", {
+      key,
+      email: backup?.userEmail ?? null,
+      expiresAt: backup?.expiresAt ?? null,
+    });
+  } catch (e) {
+    logSessionEvent("persist", "explicit session save failed", { error: String(e) });
   }
 }
 
