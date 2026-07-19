@@ -2,6 +2,7 @@ import { useEffect, useCallback, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import type { User } from '@supabase/supabase-js';
+import { hydrateNativeSession, persistCurrentNativeSession } from '@/lib/nativeSessionPersist';
 
 const MIN_REFRESH_INTERVAL_MS = 30000;
 const REFRESH_THRESHOLD_MS = 10 * 60 * 1000;
@@ -44,6 +45,7 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
     lastRefreshRef.current = now;
 
     try {
+      await hydrateNativeSession();
       const { data, error } = await supabase.auth.refreshSession();
       
       if (error) {
@@ -60,6 +62,7 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
       if (data.session) {
         console.log('[Session] Token refreshed successfully');
         sessionValidRef.current = true;
+        void persistCurrentNativeSession();
         return data.session;
       }
       
@@ -75,11 +78,13 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
   // Check session validity without refreshing
   const checkSession = useCallback(async () => {
     try {
+      await hydrateNativeSession();
       const { data: { session }, error } = await supabase.auth.getSession();
       if (error) {
         console.warn('[Session] getSession error:', error.message);
         return null;
       }
+      if (session?.user) void persistCurrentNativeSession();
       return session;
     } catch (err) {
       console.error('[Session] Check error:', err);
@@ -194,6 +199,7 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
           case 'TOKEN_REFRESHED':
             if (session?.user) {
               console.log('[Session] User authenticated:', session.user.email);
+              void persistCurrentNativeSession();
               sessionValidRef.current = true;
               initialCheckDoneRef.current = true;
               setIsInitializing(false);
