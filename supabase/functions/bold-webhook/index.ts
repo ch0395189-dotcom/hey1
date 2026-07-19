@@ -87,12 +87,11 @@ serve(async (req) => {
     const isValidSignature = await verifySignature(body, signature);
 
     if (!isValidSignature) {
-      // Do NOT reject — log and continue. Bold sometimes sends with a
-      // different signature header/format depending on the integration
-      // and we don't want to silently drop legitimate payments. The
-      // body is still validated by checking the reference against our
-      // own pending payments table.
-      console.warn('Webhook signature mismatch — processing anyway. headers:', JSON.stringify(Object.fromEntries(req.headers)));
+      console.warn('Webhook signature mismatch — rejecting request. headers:', JSON.stringify(Object.fromEntries(req.headers)));
+      return new Response(
+        JSON.stringify({ error: 'invalid signature' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     let payload: any;
