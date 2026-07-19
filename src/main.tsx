@@ -5,11 +5,10 @@ import {
   installNativeSessionMirror,
 } from "@/lib/nativeSessionPersist";
 import { installNativeKeyboardHandling } from "@/lib/nativeKeyboard";
+import { Capacitor } from "@capacitor/core";
 
 const isNativeApp =
-  typeof window !== "undefined" &&
-  // @ts-ignore - Capacitor injects this global at runtime on native builds
-  (window as any).Capacitor?.isNativePlatform?.() === true;
+  typeof window !== "undefined" && Capacitor.isNativePlatform();
 
 // On native (Capacitor) restore the auth session from Capacitor Preferences
 // BEFORE mounting React so the Supabase client picks it up on first read.

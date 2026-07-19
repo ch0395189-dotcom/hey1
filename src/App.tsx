@@ -28,11 +28,10 @@ import { InstallAppBanner } from "@/components/install/InstallAppBanner";
 import { UpdateBanner } from "@/components/UpdateBanner";
 import { ImpersonationBanner } from "@/components/admin/ImpersonationBanner";
 import { NativePushBootstrap } from "@/components/NativePushBootstrap";
+import { Capacitor } from "@capacitor/core";
 
 const isNativeAppShell =
-  typeof window !== "undefined" &&
-  // @ts-ignore - Capacitor injects this global at runtime on native builds
-  (window as any).Capacitor?.isNativePlatform?.() === true;
+  typeof window !== "undefined" && Capacitor.isNativePlatform();
 
 const queryClient = new QueryClient({
   defaultOptions: {
