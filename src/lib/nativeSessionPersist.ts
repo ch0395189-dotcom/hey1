@@ -19,6 +19,7 @@ import { Capacitor } from "@capacitor/core";
  */
 
 const AUTH_KEY_RE = /^sb-.*-auth-token$/;
+const EXPLICIT_LOGOUT_MARKER = "heyhey-explicit-logout";
 
 function isNative(): boolean {
   try {
@@ -28,12 +29,34 @@ function isNative(): boolean {
   }
 }
 
+function shouldClearNativeAuthBackup(): boolean {
+  try {
+    return window.sessionStorage.getItem(EXPLICIT_LOGOUT_MARKER) === "true";
+  } catch {
+    return false;
+  }
+}
+
+function snapshotAuthKeys(): Record<string, string> {
+  const snapshot: Record<string, string> = {};
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key || !AUTH_KEY_RE.test(key)) continue;
+      const value = localStorage.getItem(key);
+      if (value) snapshot[key] = value;
+    }
+  } catch {}
+  return snapshot;
+}
+
 /** Restore auth-token keys from Capacitor Preferences into localStorage. */
 export async function hydrateNativeSession(): Promise<void> {
   if (!isNative()) return;
   try {
     const { Preferences } = await import("@capacitor/preferences");
     const { keys } = await Preferences.keys();
+    let restored = false;
     for (const k of keys) {
       if (!AUTH_KEY_RE.test(k)) continue;
       if (localStorage.getItem(k)) continue; // already present
@@ -41,9 +64,13 @@ export async function hydrateNativeSession(): Promise<void> {
       if (value) {
         try {
           localStorage.setItem(k, value);
+          restored = true;
           console.log("[NativeSession] restored", k);
         } catch {}
       }
+    }
+    if (restored) {
+      window.dispatchEvent(new CustomEvent("native-session-hydrated"));
     }
   } catch (e) {
     console.warn("[NativeSession] hydrate failed", e);
@@ -63,6 +90,20 @@ export async function persistCurrentNativeSession(): Promise<void> {
     }
   } catch (e) {
     console.warn("[NativeSession] persist failed", e);
+  }
+}
+
+/** Remove native auth backups only for an explicit user logout. */
+export async function clearNativeSessionBackups(): Promise<void> {
+  if (!isNative()) return;
+  try {
+    const { Preferences } = await import("@capacitor/preferences");
+    const { keys } = await Preferences.keys();
+    await Promise.all(
+      keys.filter((k) => AUTH_KEY_RE.test(k)).map((key) => Preferences.remove({ key }))
+    );
+  } catch (e) {
+    console.warn("[NativeSession] clear backups failed", e);
   }
 }
 
@@ -105,13 +146,30 @@ export async function installNativeSessionMirror(): Promise<void> {
   // 2. Intercept setItem/removeItem so future writes propagate to native.
   const origSet = localStorage.setItem.bind(localStorage);
   const origRemove = localStorage.removeItem.bind(localStorage);
+  const origClear = localStorage.clear.bind(localStorage);
   localStorage.setItem = function (key: string, value: string) {
     origSet(key, value);
     if (AUTH_KEY_RE.test(key)) void write(key, value);
   };
   localStorage.removeItem = function (key: string) {
+    const previousValue = AUTH_KEY_RE.test(key) ? localStorage.getItem(key) : null;
     origRemove(key);
-    if (AUTH_KEY_RE.test(key)) void write(key, null);
+    if (AUTH_KEY_RE.test(key)) {
+      // Supabase can briefly remove the auth key during native cold starts,
+      // token refresh races, or app resume after a notification. Do not delete
+      // the durable native backup unless the user explicitly tapped logout.
+      if (shouldClearNativeAuthBackup()) void write(key, null);
+      else if (previousValue) void write(key, previousValue);
+    }
+  };
+  localStorage.clear = function () {
+    const authSnapshot = snapshotAuthKeys();
+    origClear();
+    if (shouldClearNativeAuthBackup()) {
+      Object.keys(authSnapshot).forEach((key) => void write(key, null));
+    } else {
+      Object.entries(authSnapshot).forEach(([key, value]) => void write(key, value));
+    }
   };
 
   // 3. On native lifecycle transitions, force one last copy before Android/iOS
