@@ -33,13 +33,45 @@ export const PaymentAlertBanner = () => {
           .order('sent_at', { ascending: false }),
         supabase
           .from('subscriptions')
-          .select('plan')
+          .select('plan, status, current_period_end, trial_end')
           .eq('user_id', session.user.id)
           .single(),
       ]);
 
-      if (alertsRes.data) setAlerts(alertsRes.data);
       if (subRes.data) setCurrentPlan(subRes.data.plan);
+
+      const now = new Date();
+      const sub = subRes.data;
+      const periodEnd = sub?.current_period_end ? new Date(sub.current_period_end) : null;
+      const trialEnd = sub?.trial_end ? new Date(sub.trial_end) : null;
+      const subActive =
+        (sub?.status === 'active' && periodEnd && periodEnd > now) ||
+        (sub?.status === 'trialing' && trialEnd && trialEnd > now);
+
+      const pending = alertsRes.data ?? [];
+
+      if (subActive && pending.length > 0) {
+        // La suscripción está al día: auto-resolver alertas de cobro pendientes
+        const idsToResolve = pending
+          .filter((a) => {
+            // Considerar renovada si el periodo cubre o supera la fecha del cobro
+            if (!periodEnd && !trialEnd) return true;
+            const reference = periodEnd ?? trialEnd!;
+            return reference > new Date(a.sent_at);
+          })
+          .map((a) => a.id);
+
+        if (idsToResolve.length > 0) {
+          await supabase
+            .from('payment_alerts')
+            .update({ status: 'paid', paid_at: new Date().toISOString() })
+            .in('id', idsToResolve);
+        }
+
+        setAlerts(pending.filter((a) => !idsToResolve.includes(a.id)));
+      } else {
+        setAlerts(pending);
+      }
     };
 
     fetchData();
