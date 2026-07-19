@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { WhatsAppFloatingButton } from "@/components/ui/WhatsAppFloatingButton";
 import { persistCurrentNativeSession, persistNativeSessionValue } from "@/lib/nativeSessionPersist";
+import { restoreSupabaseSessionFromNativeBackup } from "@/lib/nativeSupabaseSession";
 
 const Login = () => {
   const location = useLocation();
@@ -57,7 +58,10 @@ const Login = () => {
   useEffect(() => {
     const checkExistingSession = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        let { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user) {
+          session = await restoreSupabaseSessionFromNativeBackup("login screen session check");
+        }
         if (session?.user) {
           console.log('[Login] Existing session found, redirecting to dashboard');
           window.location.replace(getRedirectTarget());
