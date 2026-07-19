@@ -34,7 +34,7 @@ export async function installNativeKeyboardHandling(): Promise<void> {
       requestAnimationFrame(() => {
         const el = document.activeElement as HTMLElement | null;
         if (el && typeof el.scrollIntoView === "function") {
-          el.scrollIntoView({ block: "center", behavior: "smooth" });
+          el.scrollIntoView({ block: "nearest", behavior: "auto" });
         }
       });
     });
@@ -42,7 +42,7 @@ export async function installNativeKeyboardHandling(): Promise<void> {
     Keyboard.addListener("keyboardDidShow", () => {
       const el = document.activeElement as HTMLElement | null;
       if (el && typeof el.scrollIntoView === "function") {
-        el.scrollIntoView({ block: "center", behavior: "smooth" });
+        el.scrollIntoView({ block: "nearest", behavior: "auto" });
       }
     });
 

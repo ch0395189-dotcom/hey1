@@ -28,12 +28,16 @@ import { InstallAppBanner } from "@/components/install/InstallAppBanner";
 import { UpdateBanner } from "@/components/UpdateBanner";
 import { ImpersonationBanner } from "@/components/admin/ImpersonationBanner";
 import { NativePushBootstrap } from "@/components/NativePushBootstrap";
+import { Capacitor } from "@capacitor/core";
+
+const isNativeAppShell =
+  typeof window !== "undefined" && Capacitor.isNativePlatform();
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 1000 * 60, // 1 minute
-      refetchOnWindowFocus: true,
+      refetchOnWindowFocus: !isNativeAppShell,
       refetchOnReconnect: true,
       retry: 2,
     },

@@ -172,13 +172,19 @@ export async function installNativeSessionMirror(): Promise<void> {
   const onAuthWrite = (key: string, value: string | null) => {
     if (!AUTH_KEY_RE.test(key)) return;
     if (value === null) {
-      // Always mirror deletions to native backup. Fighting Supabase's own
-      // removeItem calls prevents users from signing in with fresh
-      // credentials because a stale/expired token keeps being resurrected.
-      void write(key, null);
+      // On Android WebView, Supabase can briefly remove the local auth key
+      // during refresh/cold-start races. If we mirror that deletion, the APK
+      // loses the durable native backup and opens logged out next time.
+      // Only erase the native backup when the user explicitly taps logout.
+      if (shouldClearNativeAuthBackup()) void write(key, null);
       return;
     }
-    if (hasUsableAuthValue(value)) void write(key, value);
+    if (hasUsableAuthValue(value)) {
+      try {
+        window.sessionStorage.removeItem(EXPLICIT_LOGOUT_MARKER);
+      } catch {}
+      void write(key, value);
+    }
   };
 
   localStorage.setItem = function (key: string, value: string) {
@@ -192,7 +198,9 @@ export async function installNativeSessionMirror(): Promise<void> {
   localStorage.clear = function () {
     const authSnapshot = snapshotAuthKeys();
     origClear();
-    Object.keys(authSnapshot).forEach((key) => void write(key, null));
+    if (shouldClearNativeAuthBackup()) {
+      Object.keys(authSnapshot).forEach((key) => void write(key, null));
+    }
   };
 
   // Some Android WebView builds ignore instance-level Storage overrides.
@@ -208,7 +216,9 @@ export async function installNativeSessionMirror(): Promise<void> {
   proto.clear = function () {
     const authSnapshot = snapshotAuthKeys();
     protoClear.call(this);
-    Object.keys(authSnapshot).forEach((key) => void write(key, null));
+    if (shouldClearNativeAuthBackup()) {
+      Object.keys(authSnapshot).forEach((key) => void write(key, null));
+    }
   };
 
   // 3. On native lifecycle transitions, force one last copy before Android/iOS

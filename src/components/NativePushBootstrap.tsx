@@ -38,7 +38,7 @@ export function NativePushBootstrap() {
         initNativePush({ requestPermission: false });
       }
     };
-    start();
+    const startupTimer = window.setTimeout(start, 2500);
 
     const onAppResume = async () => {
       await start();
@@ -62,6 +62,7 @@ export function NativePushBootstrap() {
       }
     });
     return () => {
+      window.clearTimeout(startupTimer);
       sub.subscription.unsubscribe();
       window.removeEventListener("focus", onAppResume);
       document.removeEventListener("visibilitychange", onVisibilityChange);

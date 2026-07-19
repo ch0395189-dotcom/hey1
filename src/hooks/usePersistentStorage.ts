@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { Capacitor } from "@capacitor/core";
 
 /**
  * Helps on older/low-storage phones where the browser may evict site storage
@@ -10,6 +11,10 @@ export const usePersistentStorage = () => {
 
     const run = async () => {
       try {
+        const isNativeApp =
+          typeof window !== "undefined" && Capacitor.isNativePlatform();
+        if (isNativeApp) return;
+
         const storage = (navigator as any).storage;
         if (!storage?.persisted || !storage?.persist) return;
 
