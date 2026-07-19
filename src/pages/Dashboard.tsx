@@ -30,6 +30,7 @@ import { useNotificationSettings } from "@/hooks/useNotificationSettings";
 import { useSessionPersistence } from "@/hooks/useSessionPersistence";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { usePushHeartbeat } from "@/hooks/usePushHeartbeat";
+import { clearNativeSessionBackups } from "@/lib/nativeSessionPersist";
 import type { User } from "@supabase/supabase-js";
 import { ConversationsList } from "@/components/whatsapp/ConversationsList";
 import { ChatWindow } from "@/components/whatsapp/ChatWindow";
@@ -483,6 +484,7 @@ const Dashboard = () => {
     }
     await clearImpersonation();
     await supabase.auth.signOut();
+    await clearNativeSessionBackups();
     toast({
       title: "Sesión cerrada",
       description: "Has cerrado sesión correctamente.",
