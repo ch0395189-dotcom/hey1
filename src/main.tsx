@@ -1,7 +1,5 @@
 import { createRoot } from "react-dom/client";
-import App from "./App.tsx";
 import "./index.css";
-import { supabase } from "@/integrations/supabase/client";
 import {
   hydrateNativeSession,
   installNativeSessionMirror,
@@ -15,6 +13,10 @@ async function boot() {
   await hydrateNativeSession();
   await installNativeSessionMirror();
   void installNativeKeyboardHandling();
+  // Import App only after native session hydration. App imports pages/hooks that
+  // import the auth client; loading it too early makes the APK miss the restored
+  // localStorage session after the app is fully closed.
+  const { default: App } = await import("./App.tsx");
   createRoot(document.getElementById("root")!).render(<App />);
 }
 void boot();
@@ -107,6 +109,7 @@ async function forceLogoutAndRedirect(buildId: string) {
 
   // 1. Sign out from Supabase (revokes refresh token server-side too).
   try {
+    const { supabase } = await import("@/integrations/supabase/client");
     await supabase.auth.signOut({ scope: "global" });
   } catch (e) {
     console.warn("[Version] supabase signOut failed", e);

@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { Capacitor } from "@capacitor/core";
 import { supabase } from "@/integrations/supabase/client";
 
 const LAST_CHECK_KEY = "push-last-validated-at";
@@ -29,6 +30,7 @@ function urlBase64ToUint8Array(base64String: string): ArrayBuffer {
 export function usePushHeartbeat() {
   useEffect(() => {
     if (typeof window === "undefined") return;
+    if (Capacitor.isNativePlatform()) return;
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
     if (!("Notification" in window) || Notification.permission !== "granted") return;
 

@@ -22,17 +22,18 @@ export function NativePushBootstrap() {
       }
     });
 
-    // Init after there's a signed-in session, so the token registration
-    // upload carries a valid JWT.
+    // Init after there's a signed-in session, so the token registration upload
+    // carries a valid JWT. This does NOT prompt; the APK settings button asks
+    // for permission. If permission was already granted, it silently refreshes.
     const start = async () => {
       const { data } = await supabase.auth.getSession();
-      if (data.session) initNativePush();
+      if (data.session) initNativePush({ requestPermission: false });
     };
     start();
 
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {
       if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
-        initNativePush();
+        initNativePush({ requestPermission: false });
       }
     });
     return () => sub.subscription.unsubscribe();

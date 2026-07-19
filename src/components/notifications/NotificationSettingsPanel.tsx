@@ -19,6 +19,15 @@ import { useWebPush } from "@/hooks/useWebPush";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useState } from "react";
+import {
+  getNativePushStatus,
+  initNativePush,
+  isNative,
+  listNativePushDevices,
+  unregisterNativePush,
+  type NativePushDevice,
+  type NativePushStatus,
+} from "@/lib/nativePush";
 
 interface PlatformTones {
   whatsapp: NotificationTone;
@@ -86,8 +95,13 @@ export const NotificationSettingsPanel = ({
   const [devices, setDevices] = useState<Awaited<ReturnType<typeof listDevices>>>([]);
   const [devicesLoading, setDevicesLoading] = useState(false);
   const [verifyingEndpoint, setVerifyingEndpoint] = useState<string | null>(null);
+  const nativeMode = isNative();
+  const [nativeStatus, setNativeStatus] = useState<NativePushStatus>(nativeMode ? "prompt" : "web");
+  const [nativeDevices, setNativeDevices] = useState<NativePushDevice[]>([]);
+  const [nativeLoading, setNativeLoading] = useState(false);
 
   const reloadDevices = async () => {
+    if (nativeMode) return;
     setDevicesLoading(true);
     try {
       const list = await listDevices();
@@ -103,6 +117,33 @@ export const NotificationSettingsPanel = ({
     reloadDevices();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pushStatus, currentEndpoint]);
+
+  const reloadNative = async () => {
+    if (!nativeMode) return;
+    setNativeLoading(true);
+    try {
+      const status = await getNativePushStatus();
+      setNativeStatus(status);
+      if (status === "registered" || status === "granted") {
+        setNativeDevices(await listNativePushDevices());
+      } else {
+        setNativeDevices([]);
+      }
+    } catch {
+      setNativeDevices([]);
+    } finally {
+      setNativeLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!nativeMode) return;
+    reloadNative();
+    const onRegistered = () => reloadNative();
+    window.addEventListener("native-push-registered", onRegistered);
+    return () => window.removeEventListener("native-push-registered", onRegistered);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nativeMode]);
 
   // Refresh device list once a verification finishes so the "last ACK" column updates.
   useEffect(() => {
@@ -126,6 +167,38 @@ export const NotificationSettingsPanel = ({
       toast.success("Notificaciones push activadas en este dispositivo");
     } catch (e: any) {
       toast.error(e?.message || "No se pudo activar");
+    }
+  };
+
+  const handleEnableNativePush = async () => {
+    setNativeLoading(true);
+    try {
+      const res = await initNativePush({ requestPermission: true });
+      setNativeStatus(res.status);
+      if (res.ok) {
+        toast.success("Notificaciones activadas en la APK");
+        setTimeout(reloadNative, 800);
+      } else if (res.status === "denied") {
+        toast.error("Permiso bloqueado. Actívalo en Ajustes del teléfono → HeyHey → Notificaciones.");
+      } else {
+        toast.error(res.error || "No se pudo activar notificaciones");
+      }
+    } finally {
+      setNativeLoading(false);
+    }
+  };
+
+  const handleDisableNativePush = async () => {
+    setNativeLoading(true);
+    try {
+      await unregisterNativePush();
+      setNativeStatus(await getNativePushStatus());
+      setNativeDevices([]);
+      toast.success("Notificaciones desactivadas en esta APK");
+    } catch (e: any) {
+      toast.error(e?.message || "No se pudo desactivar");
+    } finally {
+      setNativeLoading(false);
     }
   };
 
@@ -207,6 +280,16 @@ export const NotificationSettingsPanel = ({
       const { data: userRes } = await supabase.auth.getUser();
       const uid = userRes?.user?.id;
       if (!uid) throw new Error("Sesión no encontrada");
+      if (nativeMode) {
+        const { data, error } = await supabase.functions.invoke("native-push-register", {
+          body: { action: "test" },
+        });
+        if (error || (data as any)?.error) throw new Error((data as any)?.error || error?.message || "No se pudo enviar prueba");
+        if ((data as any)?.sent > 0) toast.success(`Enviada a ${(data as any).sent} APK/dispositivo(s)`);
+        else toast.warning("No hay APK registrada. Activa primero las notificaciones.");
+        await reloadNative();
+        return;
+      }
       const { data, error } = await supabase.functions.invoke("send-push-notification", {
         body: {
           userId: uid,
@@ -236,6 +319,7 @@ export const NotificationSettingsPanel = ({
     (window.navigator as any).standalone === true
   );
   const iosNeedsInstall = isIOS && !isStandalone;
+  const maskToken = (token: string) => `${token.slice(0, 8)}…${token.slice(-6)}`;
 
   return (
     <div className="space-y-6 p-1">
@@ -356,7 +440,71 @@ export const NotificationSettingsPanel = ({
       </div>
 
       {/* Auto-refresh Settings */}
-      {/* Mobile Push Notifications (Web Push real con app cerrada) */}
+      {/* Mobile Push Notifications */}
+      {nativeMode ? (
+      <div className="space-y-3 pt-4 border-t">
+        <div className="flex items-center gap-2 text-sm font-medium">
+          <Smartphone className="w-4 h-4" />
+          Notificaciones APK (Android/iOS)
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Activa avisos nativos para recibir mensajes aunque cierres la APK.
+        </p>
+        {nativeStatus === "denied" && (
+          <p className="text-xs text-destructive">
+            El permiso está bloqueado. Ábrelo en Ajustes del teléfono → HeyHey → Notificaciones.
+          </p>
+        )}
+        {nativeStatus !== "registered" ? (
+          <Button variant="outline" size="sm" className="w-full" onClick={handleEnableNativePush} disabled={nativeLoading}>
+            {nativeLoading && <Loader2 className="w-3 h-3 mr-2 animate-spin" />}
+            Activar notificaciones en esta APK
+          </Button>
+        ) : (
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs text-green-600 font-medium">✓ Activadas en esta APK</span>
+            <Button variant="ghost" size="sm" onClick={handleDisableNativePush} disabled={nativeLoading}>
+              Desactivar
+            </Button>
+          </div>
+        )}
+        <Button variant="secondary" size="sm" className="w-full" onClick={handleTestPush} disabled={testing || nativeLoading}>
+          {(testing || nativeLoading) && <Loader2 className="w-3 h-3 mr-2 animate-spin" />}
+          Enviar notificación de prueba
+        </Button>
+        <div className="rounded-md border border-border bg-background p-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-xs font-medium">
+              <MonitorSmartphone className="w-3.5 h-3.5" />
+              APK registradas ({nativeDevices.length})
+            </div>
+            <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={reloadNative} disabled={nativeLoading}>
+              {nativeLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : "Actualizar"}
+            </Button>
+          </div>
+          {nativeDevices.length === 0 && (
+            <p className="text-[11px] text-muted-foreground">No hay APK registradas aún.</p>
+          )}
+          {nativeDevices.map((d) => (
+            <div key={d.token} className="flex items-center gap-2 border rounded-md p-2 text-xs">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5 font-medium">
+                  {d.platform === "ios" ? "iPhone / iPad" : "Android APK"}
+                  {d.isCurrent && (
+                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-primary/15 text-primary uppercase tracking-wide">
+                      Esta APK
+                    </span>
+                  )}
+                </div>
+                <div className="text-[10px] text-muted-foreground truncate">
+                  Token {maskToken(d.token)} · Visto {formatAgo(d.last_seen_at)}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      ) : (
       <div className="space-y-3 pt-4 border-t">
         <div className="flex items-center gap-2 text-sm font-medium">
           <Smartphone className="w-4 h-4" />
@@ -540,6 +688,7 @@ export const NotificationSettingsPanel = ({
           })}
         </div>
       </div>
+      )}
 
       <div className="space-y-4 pt-4 border-t">
         <div className="flex items-center gap-2 text-sm font-medium">
