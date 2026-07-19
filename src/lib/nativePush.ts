@@ -1,5 +1,6 @@
 import { Capacitor } from "@capacitor/core";
 import { supabase } from "@/integrations/supabase/client";
+import { hydrateNativeSession, persistCurrentNativeSession } from "@/lib/nativeSessionPersist";
 
 /**
  * Native push (FCM Android / APNs iOS) via Capacitor.
@@ -98,11 +99,26 @@ async function installNativePushListeners(
   });
 
   // User tapped a notification (from background/closed)
-  PushNotifications.addListener("pushNotificationActionPerformed", (action) => {
+  PushNotifications.addListener("pushNotificationActionPerformed", async (action) => {
     const data = action.notification.data as Record<string, string> | undefined;
     const conv = data?.conversationId;
     const url = data?.url || (conv ? `/dashboard?conv=${conv}` : "/dashboard");
     console.log("[NativePush] tapped →", url);
+
+    // When Android/iOS launches the APK from a notification, Capacitor creates
+    // a fresh WebView. Rehydrate the auth token from native Preferences before
+    // routing to /dashboard so route guards don't see a false signed-out state.
+    await hydrateNativeSession();
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) {
+        await supabase.auth.refreshSession();
+      }
+      await persistCurrentNativeSession();
+    } catch (e) {
+      console.warn("[NativePush] session rehydrate on tap failed", e);
+    }
+
     if (navigateHandler) navigateHandler(url);
     else window.location.assign(url);
   });
