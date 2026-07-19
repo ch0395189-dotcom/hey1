@@ -206,6 +206,7 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
               sessionValidRef.current = true;
               initialCheckDoneRef.current = true;
               setIsInitializing(false);
+              logSessionEvent(event === 'SIGNED_IN' ? 'signed-in' : 'token-refreshed', session.user.email ?? undefined, { expiresAt: session.expires_at ?? null });
               // Use setTimeout to avoid potential deadlocks
               setTimeout(() => {
                 onSessionRestoredRef.current?.(session.user);
@@ -220,11 +221,13 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
               sessionValidRef.current = true;
               initialCheckDoneRef.current = true;
               setIsInitializing(false);
+              logSessionEvent('initial-session', session.user.email ?? undefined, { expiresAt: session.expires_at ?? null });
               setTimeout(() => {
                 onSessionRestoredRef.current?.(session.user);
               }, 0);
             } else {
               console.log('[Session] No initial session, trying to recover...');
+              logSessionEvent('no-initial-session', 'starting recovery retries');
               // Try to recover session with retries. CRITICAL: do NOT redirect
               // to /login from here — the absence of an INITIAL_SESSION can be
               // caused by a flaky network on cold mobile starts. We only flip
