@@ -27,7 +27,20 @@ export function NativePushBootstrap() {
     // Init after there's a signed-in session, so the token registration upload
     // carries a valid JWT. This does NOT prompt; the APK settings button asks
     // for permission. If permission was already granted, it silently refreshes.
+    let running = false;
+    let lastRunAt = 0;
     const start = async () => {
+      // Guard against re-entrancy: hydrateNativeSession dispatches
+      // `native-session-hydrated`, focus/visibility fire on the same tick,
+      // and each pass could call refreshSession(). Without this guard the
+      // APK spams /token and Supabase Auth returns 429 "Possible abuse
+      // attempt", which then blocks legitimate password logins.
+      if (running) return;
+      const now = Date.now();
+      if (now - lastRunAt < 15000) return;
+      running = true;
+      lastRunAt = now;
+      try {
       await hydrateNativeSession();
       let { data } = await supabase.auth.getSession();
       if (!data.session) {
@@ -42,6 +55,9 @@ export function NativePushBootstrap() {
         await persistCurrentNativeSession();
         initNativePush({ requestPermission: false });
       }
+      } finally {
+        running = false;
+      }
     };
     const startupTimer = window.setTimeout(start, 500);
 
@@ -53,12 +69,8 @@ export function NativePushBootstrap() {
       if (document.visibilityState === "visible") void onAppResume();
     };
 
-    const onSessionHydrated = () => {
-      void start();
-    };
     window.addEventListener("focus", onAppResume);
     document.addEventListener("visibilitychange", onVisibilityChange);
-    window.addEventListener("native-session-hydrated", onSessionHydrated);
 
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {
       if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
@@ -71,7 +83,6 @@ export function NativePushBootstrap() {
       sub.subscription.unsubscribe();
       window.removeEventListener("focus", onAppResume);
       document.removeEventListener("visibilitychange", onVisibilityChange);
-      window.removeEventListener("native-session-hydrated", onSessionHydrated);
     };
   }, [navigate]);
 
