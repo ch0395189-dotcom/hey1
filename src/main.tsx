@@ -1,6 +1,5 @@
 import { createRoot } from "react-dom/client";
 import "./index.css";
-import App from "./App.tsx";
 import {
   hydrateNativeSession,
   installNativeSessionMirror,
@@ -14,6 +13,10 @@ async function boot() {
   await hydrateNativeSession();
   await installNativeSessionMirror();
   void installNativeKeyboardHandling();
+  // Import App only after native session hydration. App imports pages/hooks
+  // that import the auth client; loading it too early makes the APK miss the
+  // restored localStorage session after the app is fully closed.
+  const { default: App } = await import("./App.tsx");
   createRoot(document.getElementById("root")!).render(<App />);
 }
 void boot();
