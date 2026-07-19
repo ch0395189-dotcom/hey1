@@ -48,7 +48,16 @@ function normalizePrivateKey(input: string): string {
   } catch {
     // Keep the original value if it was not JSON-quoted.
   }
-  return key.replace(/\\n/g, "\n").replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim();
+  return key
+    // Handles \n, \\n, \\\n... variants caused by copy/paste or double JSON encoding.
+    .replace(/\\+n/g, "\n")
+    .replace(/\\+r/g, "")
+    // Handles keys pasted as one line with a literal "n" around PEM markers.
+    .replace(/-----BEGIN PRIVATE KEY-----n/, "-----BEGIN PRIVATE KEY-----\n")
+    .replace(/n-----END PRIVATE KEY-----/, "\n-----END PRIVATE KEY-----")
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .trim();
 }
 
 function parseServiceAccount(raw: string): {
