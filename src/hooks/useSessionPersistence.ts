@@ -247,6 +247,7 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
                     sessionValidRef.current = true;
                     initialCheckDoneRef.current = true;
                     setIsInitializing(false);
+                    logSessionEvent('recovered', `recovered after ${delay}ms`, { email: s.user.email ?? null });
                     onSessionRestoredRef.current?.(s.user);
                     return;
                   }
@@ -257,6 +258,7 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
                 console.log('[Session] No session after retries — letting route guard decide');
                 initialCheckDoneRef.current = true;
                 setIsInitializing(false);
+                logSessionEvent('recovery-failed', 'no session after all retries');
                 // Do NOT call onSessionLost / navigate here. If the user was
                 // never logged in, the page they land on already shows login.
                 // If they WERE logged in, Supabase will fire SIGNED_OUT only
