@@ -86,6 +86,10 @@ const Login = () => {
     setLoading(true);
 
     try {
+      try {
+        window.sessionStorage.removeItem("heyhey-explicit-logout");
+      } catch {}
+
       const { error } = await supabase.auth.signInWithPassword({
         email: email.trim().toLowerCase(),
         password,

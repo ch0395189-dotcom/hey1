@@ -179,7 +179,12 @@ export async function installNativeSessionMirror(): Promise<void> {
       if (shouldClearNativeAuthBackup()) void write(key, null);
       return;
     }
-    if (hasUsableAuthValue(value)) void write(key, value);
+    if (hasUsableAuthValue(value)) {
+      try {
+        window.sessionStorage.removeItem(EXPLICIT_LOGOUT_MARKER);
+      } catch {}
+      void write(key, value);
+    }
   };
 
   localStorage.setItem = function (key: string, value: string) {
