@@ -29,11 +29,16 @@ import { UpdateBanner } from "@/components/UpdateBanner";
 import { ImpersonationBanner } from "@/components/admin/ImpersonationBanner";
 import { NativePushBootstrap } from "@/components/NativePushBootstrap";
 
+const isNativeAppShell =
+  typeof window !== "undefined" &&
+  // @ts-ignore - Capacitor injects this global at runtime on native builds
+  (window as any).Capacitor?.isNativePlatform?.() === true;
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 1000 * 60, // 1 minute
-      refetchOnWindowFocus: true,
+      refetchOnWindowFocus: !isNativeAppShell,
       refetchOnReconnect: true,
       retry: 2,
     },

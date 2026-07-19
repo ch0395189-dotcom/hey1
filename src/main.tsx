@@ -6,10 +6,18 @@ import {
 } from "@/lib/nativeSessionPersist";
 import { installNativeKeyboardHandling } from "@/lib/nativeKeyboard";
 
+const isNativeApp =
+  typeof window !== "undefined" &&
+  // @ts-ignore - Capacitor injects this global at runtime on native builds
+  (window as any).Capacitor?.isNativePlatform?.() === true;
+
 // On native (Capacitor) restore the auth session from Capacitor Preferences
 // BEFORE mounting React so the Supabase client picks it up on first read.
 // On web this is a no-op and resolves immediately.
 async function boot() {
+  if (isNativeApp) {
+    document.documentElement.dataset.nativeApp = "true";
+  }
   await hydrateNativeSession();
   await installNativeSessionMirror();
   void installNativeKeyboardHandling();
@@ -29,6 +37,7 @@ void boot();
 // ============================================================
 (() => {
   if (typeof window === "undefined") return;
+  if (isNativeApp) return;
 
   const inIframe = (() => {
     try {
@@ -184,11 +193,6 @@ const isPreviewHost =
 // On Capacitor (native app) we use FCM/APNs for push; the web Service Worker
 // is unnecessary and its version-poll/reload loop can wipe the WebView
 // context, which the user has seen as "the app logs me out when I close it".
-const isNativeApp =
-  typeof window !== "undefined" &&
-  // @ts-ignore - Capacitor injects this global at runtime on native builds
-  (window as any).Capacitor?.isNativePlatform?.() === true;
-
 if (isPreviewHost || isInIframe || isNativeApp) {
   // Clean up any leftover SW registrations in preview/iframe
   if ("serviceWorker" in navigator) {

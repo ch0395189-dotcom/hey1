@@ -68,7 +68,7 @@ async function installNativePushListeners(
   PushNotifications.addListener("registration", async (t) => {
     const platform = Capacitor.getPlatform() as "ios" | "android";
     localStorage.setItem(NATIVE_PUSH_TOKEN_KEY, t.value);
-    console.log("[NativePush] token:", platform, t.value.slice(0, 12) + "…");
+    console.log("[NativePush] token registered:", platform);
     try {
       const { data, error } = await supabase.functions.invoke("native-push-register", {
         body: {
