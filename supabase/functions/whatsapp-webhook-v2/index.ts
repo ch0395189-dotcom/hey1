@@ -7,6 +7,18 @@ const corsHeaders = {
     'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
+function runInBackground(task: Promise<unknown>) {
+  const runtime = (globalThis as unknown as {
+    EdgeRuntime?: { waitUntil?: (promise: Promise<unknown>) => void };
+  }).EdgeRuntime;
+
+  if (runtime?.waitUntil) {
+    runtime.waitUntil(task);
+  } else {
+    task.catch((err) => console.error('Background task error:', err));
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Advanced OTP / code extractor for cross-network "unsupported" messages.
 // Recursively walks any JSON payload, collects every string value, and tries
@@ -653,7 +665,7 @@ Deno.serve(async (req) => {
               // de que la invocación termine, reduciendo latencia percibida.
               // Skip for unsupported messages (cross-network/SMS) — no real content to notify about.
               if (!isUnsupported) {
-                (async () => {
+                runInBackground((async () => {
                   try {
                     const { data: convInfo } = await supabase
                       .from('conversations')
@@ -682,7 +694,7 @@ Deno.serve(async (req) => {
                   } catch (pushErr) {
                     console.error('Push notification error (bg):', pushErr);
                   }
-                })();
+                })());
               }
 
               // AI Support Agent (HeyHey) takes priority over node-based chatbot
