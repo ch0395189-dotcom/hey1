@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import type { User } from '@supabase/supabase-js';
 import { hydrateNativeSession, persistCurrentNativeSession } from '@/lib/nativeSessionPersist';
+import { logSessionEvent } from '@/lib/sessionDiagnostics';
 
 const MIN_REFRESH_INTERVAL_MS = 30000;
 const REFRESH_THRESHOLD_MS = 10 * 60 * 1000;
