@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import type { User } from '@supabase/supabase-js';
 import { hydrateNativeSession, persistCurrentNativeSession } from '@/lib/nativeSessionPersist';
+import { logSessionEvent } from '@/lib/sessionDiagnostics';
 
 const MIN_REFRESH_INTERVAL_MS = 30000;
 const REFRESH_THRESHOLD_MS = 10 * 60 * 1000;
@@ -50,12 +51,12 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
       
       if (error) {
         console.warn('[Session] Refresh error:', error.message);
-        // Don't immediately sign out - token might still be valid
-        // Check if it's a network error vs auth error
         if (error.message.includes('network') || error.message.includes('fetch') || error.message.includes('Failed')) {
           console.log('[Session] Network error during refresh, keeping session');
+          logSessionEvent('refresh-error', 'network error during refresh (kept session)', { message: error.message });
           return null;
         }
+        logSessionEvent('refresh-error', 'auth error during refresh', { message: error.message });
         return null;
       }
       
@@ -63,12 +64,14 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
         console.log('[Session] Token refreshed successfully');
         sessionValidRef.current = true;
         void persistCurrentNativeSession();
+        logSessionEvent('token-refreshed', 'token refreshed', { expiresAt: data.session.expires_at ?? null });
         return data.session;
       }
       
       return null;
     } catch (err) {
       console.error('[Session] Unexpected refresh error:', err);
+      logSessionEvent('refresh-error', 'unexpected refresh exception', { error: String(err) });
       return null;
     } finally {
       refreshInProgressRef.current = false;
@@ -203,6 +206,7 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
               sessionValidRef.current = true;
               initialCheckDoneRef.current = true;
               setIsInitializing(false);
+              logSessionEvent(event === 'SIGNED_IN' ? 'signed-in' : 'token-refreshed', session.user.email ?? undefined, { expiresAt: session.expires_at ?? null });
               // Use setTimeout to avoid potential deadlocks
               setTimeout(() => {
                 onSessionRestoredRef.current?.(session.user);
@@ -217,11 +221,13 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
               sessionValidRef.current = true;
               initialCheckDoneRef.current = true;
               setIsInitializing(false);
+              logSessionEvent('initial-session', session.user.email ?? undefined, { expiresAt: session.expires_at ?? null });
               setTimeout(() => {
                 onSessionRestoredRef.current?.(session.user);
               }, 0);
             } else {
               console.log('[Session] No initial session, trying to recover...');
+              logSessionEvent('no-initial-session', 'starting recovery retries');
               // Try to recover session with retries. CRITICAL: do NOT redirect
               // to /login from here — the absence of an INITIAL_SESSION can be
               // caused by a flaky network on cold mobile starts. We only flip
@@ -241,6 +247,7 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
                     sessionValidRef.current = true;
                     initialCheckDoneRef.current = true;
                     setIsInitializing(false);
+                    logSessionEvent('recovered', `recovered after ${delay}ms`, { email: s.user.email ?? null });
                     onSessionRestoredRef.current?.(s.user);
                     return;
                   }
@@ -251,6 +258,7 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
                 console.log('[Session] No session after retries — letting route guard decide');
                 initialCheckDoneRef.current = true;
                 setIsInitializing(false);
+                logSessionEvent('recovery-failed', 'no session after all retries');
                 // Do NOT call onSessionLost / navigate here. If the user was
                 // never logged in, the page they land on already shows login.
                 // If they WERE logged in, Supabase will fire SIGNED_OUT only
@@ -278,12 +286,14 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
                   console.warn('[Session] Could not clear explicit logout marker');
                 }
                 sessionValidRef.current = false;
+                logSessionEvent('signed-out-explicit', 'user tapped logout');
                 onSessionLostRef.current?.();
                 navigate(redirectOnLost);
               } else {
                 console.log(
                   '[Session] SIGNED_OUT recibido sin acción del usuario — intentando recuperar sesión silenciosamente'
                 );
+                logSessionEvent('signed-out-spurious', 'SIGNED_OUT without explicit logout — attempting silent recovery');
                 // Intento de recuperación: si Supabase aún tiene la sesión
                 // en localStorage (refresh token válido) la restablecerá.
                 (async () => {
@@ -292,7 +302,10 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
                   if (s?.user) {
                     console.log('[Session] Sesión recuperada tras SIGNED_OUT espurio');
                     sessionValidRef.current = true;
+                    logSessionEvent('recovered', 'recovered after spurious SIGNED_OUT');
                     onSessionRestoredRef.current?.(s.user);
+                  } else {
+                    logSessionEvent('recovery-failed', 'no session after spurious SIGNED_OUT');
                   }
                   // Si no se pudo, NO redirigimos. La app seguirá funcionando
                   // con caché y al próximo refresh manual / reload el usuario
@@ -319,6 +332,7 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
         const session = await checkSession();
         const expiresAt = session?.expires_at ? session.expires_at * 1000 : 0;
         if (session?.user && expiresAt - Date.now() < REFRESH_THRESHOLD_MS) {
+          logSessionEvent('expiring-soon', 'periodic check triggered refresh', { msUntilExpiry: expiresAt - Date.now() });
           safeRefreshSession();
         }
       }

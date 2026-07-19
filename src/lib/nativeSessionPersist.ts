@@ -1,4 +1,5 @@
 import { Capacitor } from "@capacitor/core";
+import { logSessionEvent } from "./sessionDiagnostics";
 
 /**
  * Native session durability.
@@ -73,6 +74,7 @@ export async function hydrateNativeSession(): Promise<void> {
     const { Preferences } = await import("@capacitor/preferences");
     const { keys } = await Preferences.keys();
     let restored = false;
+    let restoredKeys = 0;
     for (const k of keys) {
       if (!AUTH_KEY_RE.test(k)) continue;
       const current = localStorage.getItem(k);
@@ -82,6 +84,7 @@ export async function hydrateNativeSession(): Promise<void> {
         try {
           localStorage.setItem(k, value);
           restored = true;
+          restoredKeys += 1;
           console.log("[NativeSession] restored", k);
         } catch {}
       }
@@ -89,8 +92,13 @@ export async function hydrateNativeSession(): Promise<void> {
     if (restored) {
       window.dispatchEvent(new CustomEvent("native-session-hydrated"));
     }
+    logSessionEvent("hydrate", restored ? "restored from native backup" : "no restore needed", {
+      restoredKeys,
+      nativeKeys: keys.filter((k) => AUTH_KEY_RE.test(k)).length,
+    });
   } catch (e) {
     console.warn("[NativeSession] hydrate failed", e);
+    logSessionEvent("hydrate", "hydrate error", { error: String(e) });
   }
 }
 
@@ -99,14 +107,22 @@ export async function persistCurrentNativeSession(): Promise<void> {
   if (!isNative()) return;
   try {
     const { Preferences } = await import("@capacitor/preferences");
+    let persistedKeys = 0;
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
       if (!key || !AUTH_KEY_RE.test(key)) continue;
       const value = localStorage.getItem(key);
-      if (hasUsableAuthValue(value)) await Preferences.set({ key, value });
+      if (hasUsableAuthValue(value)) {
+        await Preferences.set({ key, value });
+        persistedKeys += 1;
+      }
+    }
+    if (persistedKeys > 0) {
+      logSessionEvent("persist", "mirrored to native backup", { persistedKeys });
     }
   } catch (e) {
     console.warn("[NativeSession] persist failed", e);
+    logSessionEvent("persist", "persist error", { error: String(e) });
   }
 }
 
@@ -119,8 +135,12 @@ export async function clearNativeSessionBackups(): Promise<void> {
     await Promise.all(
       keys.filter((k) => AUTH_KEY_RE.test(k)).map((key) => Preferences.remove({ key }))
     );
+    logSessionEvent("clear-backup", "native backup cleared", {
+      cleared: keys.filter((k) => AUTH_KEY_RE.test(k)).length,
+    });
   } catch (e) {
     console.warn("[NativeSession] clear backups failed", e);
+    logSessionEvent("clear-backup", "clear error", { error: String(e) });
   }
 }
 
@@ -176,7 +196,12 @@ export async function installNativeSessionMirror(): Promise<void> {
       // during refresh/cold-start races. If we mirror that deletion, the APK
       // loses the durable native backup and opens logged out next time.
       // Only erase the native backup when the user explicitly taps logout.
-      if (shouldClearNativeAuthBackup()) void write(key, null);
+      if (shouldClearNativeAuthBackup()) {
+        void write(key, null);
+        logSessionEvent("clear-backup", "explicit logout removed key", { key });
+      } else {
+        logSessionEvent("mirror-remove-ignored", "webview cleared token; keeping native backup", { key });
+      }
       return;
     }
     if (hasUsableAuthValue(value)) {
@@ -200,6 +225,9 @@ export async function installNativeSessionMirror(): Promise<void> {
     origClear();
     if (shouldClearNativeAuthBackup()) {
       Object.keys(authSnapshot).forEach((key) => void write(key, null));
+      logSessionEvent("clear-backup", "explicit logout via localStorage.clear");
+    } else if (Object.keys(authSnapshot).length) {
+      logSessionEvent("mirror-clear-ignored", "localStorage.clear ignored for native backup");
     }
   };
 
@@ -218,6 +246,9 @@ export async function installNativeSessionMirror(): Promise<void> {
     protoClear.call(this);
     if (shouldClearNativeAuthBackup()) {
       Object.keys(authSnapshot).forEach((key) => void write(key, null));
+      logSessionEvent("clear-backup", "explicit logout via proto.clear");
+    } else if (Object.keys(authSnapshot).length) {
+      logSessionEvent("mirror-clear-ignored", "proto.clear ignored for native backup");
     }
   };
 

@@ -28,6 +28,7 @@ import {
   type NativePushDevice,
   type NativePushStatus,
 } from "@/lib/nativePush";
+import { SessionDiagnosticsPanel } from "@/components/settings/SessionDiagnosticsPanel";
 
 interface PlatformTones {
   whatsapp: NotificationTone;
@@ -731,6 +732,8 @@ export const NotificationSettingsPanel = ({
           </div>
         )}
       </div>
+
+      {isNative() && <SessionDiagnosticsPanel />}
     </div>
   );
 };
