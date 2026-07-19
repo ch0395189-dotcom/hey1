@@ -332,6 +332,7 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
         const session = await checkSession();
         const expiresAt = session?.expires_at ? session.expires_at * 1000 : 0;
         if (session?.user && expiresAt - Date.now() < REFRESH_THRESHOLD_MS) {
+          logSessionEvent('expiring-soon', 'periodic check triggered refresh', { msUntilExpiry: expiresAt - Date.now() });
           safeRefreshSession();
         }
       }
