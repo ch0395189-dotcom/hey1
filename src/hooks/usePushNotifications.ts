@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { Capacitor } from '@capacitor/core';
 
 interface PushNotificationData {
   title: string;
@@ -22,6 +23,12 @@ export const usePushNotifications = (): UsePushNotificationsReturn => {
   const swRegistrationRef = useRef<ServiceWorkerRegistration | null>(null);
 
   useEffect(() => {
+    if (Capacitor.isNativePlatform()) {
+      setIsSupported(false);
+      setIsRegistered(false);
+      return;
+    }
+
     // Check if service workers and push are supported
     const supported = 'serviceWorker' in navigator && 'PushManager' in window;
     setIsSupported(supported);
@@ -41,6 +48,8 @@ export const usePushNotifications = (): UsePushNotificationsReturn => {
   }, []);
 
   const registerServiceWorker = useCallback(async (): Promise<boolean> => {
+    if (Capacitor.isNativePlatform()) return false;
+
     if (!isSupported) {
       console.warn('[Push] Push notifications not supported');
       return false;
@@ -81,6 +90,8 @@ export const usePushNotifications = (): UsePushNotificationsReturn => {
   }, [isSupported]);
 
   const sendNotification = useCallback((data: PushNotificationData) => {
+    if (Capacitor.isNativePlatform()) return;
+
     if (!swRegistrationRef.current?.active) {
       console.warn('[Push] No active service worker');
       return;

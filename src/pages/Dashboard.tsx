@@ -53,6 +53,7 @@ import { SuspendedServiceScreen } from "@/components/dashboard/SuspendedServiceS
 import { MessageLimitBlockScreen } from "@/components/dashboard/MessageLimitBlockScreen";
 import { useMessageLimit } from "@/hooks/useMessageLimit";
 import { NotificationSettingsPanel } from "@/components/notifications/NotificationSettingsPanel";
+import { isNative as isNativeApp } from "@/lib/nativePush";
 import {
   Dialog,
   DialogContent,
@@ -150,6 +151,7 @@ const Dashboard = () => {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showMobileNewMessage, setShowMobileNewMessage] = useState(false);
   const [accountCheckFinished, setAccountCheckFinished] = useState(false);
+  const nativeApp = isNativeApp();
 
   // Wrap setSelectedConversation to also update URL
   const setSelectedConversation = useCallback((conv: Conversation | null) => {
@@ -956,8 +958,14 @@ const Dashboard = () => {
               onClick={() => { setShowMobileMenu(false); setShowMobileNotifications(true); }}
               className="flex flex-col items-center gap-2 p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
             >
-              {soundEnabled ? <Volume2 className="w-6 h-6 text-primary" /> : <VolumeX className="w-6 h-6 text-muted-foreground" />}
-              <span className="text-xs font-medium">Sonido</span>
+              {nativeApp ? (
+                <Bell className="w-6 h-6 text-primary" />
+              ) : soundEnabled ? (
+                <Volume2 className="w-6 h-6 text-primary" />
+              ) : (
+                <VolumeX className="w-6 h-6 text-muted-foreground" />
+              )}
+              <span className="text-xs font-medium">{nativeApp ? "Notificaciones" : "Sonido"}</span>
             </button>
             <button
               onClick={() => { setShowMobileMenu(false); setShowChatbot(true); }}
