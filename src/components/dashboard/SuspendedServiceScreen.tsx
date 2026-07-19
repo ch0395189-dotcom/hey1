@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useBoldCheckout } from "@/hooks/useBoldCheckout";
+import { clearNativeSessionBackups } from "@/lib/nativeSessionPersist";
 
 interface SuspendedServiceScreenProps {
   plan: string | null;
@@ -87,6 +88,7 @@ export const SuspendedServiceScreen = ({ plan, daysExpired, reason }: SuspendedS
       window.sessionStorage.setItem('heyhey-explicit-logout', 'true');
     } catch {}
     await supabase.auth.signOut();
+    await clearNativeSessionBackups();
     toast({ title: "Sesión cerrada" });
     navigate("/");
   };
