@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.heyhey.app',
-  appName: 'hey1',
+  appName: 'Hey Hey',
   webDir: 'dist',
   // Pin schemes so localStorage origin is stable across app installs/updates.
   // If the scheme changes between builds, the WebView treats it as a new
