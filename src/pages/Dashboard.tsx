@@ -17,7 +17,8 @@ import {
   Key,
   Menu,
   Send,
-  Loader2
+  Loader2,
+  Bell
 } from "lucide-react";
 import { NewMessageDialog } from "@/components/whatsapp/NewMessageDialog";
 import { supabase } from "@/integrations/supabase/client";
