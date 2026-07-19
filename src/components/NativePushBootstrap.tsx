@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { initNativePush, isNative, setNativePushNavigator } from "@/lib/nativePush";
+import { hydrateNativeSession, persistCurrentNativeSession } from "@/lib/nativeSessionPersist";
 
 /**
  * Mounts once at the app root. If running under Capacitor (iOS/Android
@@ -26,17 +27,46 @@ export function NativePushBootstrap() {
     // carries a valid JWT. This does NOT prompt; the APK settings button asks
     // for permission. If permission was already granted, it silently refreshes.
     const start = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (data.session) initNativePush({ requestPermission: false });
+      await hydrateNativeSession();
+      let { data } = await supabase.auth.getSession();
+      if (!data.session) {
+        const refreshed = await supabase.auth.refreshSession();
+        data = refreshed.data;
+      }
+      if (data.session) {
+        await persistCurrentNativeSession();
+        initNativePush({ requestPermission: false });
+      }
     };
     start();
 
+    const onAppResume = async () => {
+      await start();
+    };
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") void onAppResume();
+    };
+
+    const onSessionHydrated = () => {
+      void start();
+    };
+    window.addEventListener("focus", onAppResume);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("native-session-hydrated", onSessionHydrated);
+
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {
       if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+        void persistCurrentNativeSession();
         initNativePush({ requestPermission: false });
       }
     });
-    return () => sub.subscription.unsubscribe();
+    return () => {
+      sub.subscription.unsubscribe();
+      window.removeEventListener("focus", onAppResume);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("native-session-hydrated", onSessionHydrated);
+    };
   }, [navigate]);
 
   return null;
