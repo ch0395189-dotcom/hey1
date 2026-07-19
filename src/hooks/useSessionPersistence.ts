@@ -51,12 +51,12 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
       
       if (error) {
         console.warn('[Session] Refresh error:', error.message);
-        // Don't immediately sign out - token might still be valid
-        // Check if it's a network error vs auth error
         if (error.message.includes('network') || error.message.includes('fetch') || error.message.includes('Failed')) {
           console.log('[Session] Network error during refresh, keeping session');
+          logSessionEvent('refresh-error', 'network error during refresh (kept session)', { message: error.message });
           return null;
         }
+        logSessionEvent('refresh-error', 'auth error during refresh', { message: error.message });
         return null;
       }
       
@@ -64,12 +64,14 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
         console.log('[Session] Token refreshed successfully');
         sessionValidRef.current = true;
         void persistCurrentNativeSession();
+        logSessionEvent('token-refreshed', 'token refreshed', { expiresAt: data.session.expires_at ?? null });
         return data.session;
       }
       
       return null;
     } catch (err) {
       console.error('[Session] Unexpected refresh error:', err);
+      logSessionEvent('refresh-error', 'unexpected refresh exception', { error: String(err) });
       return null;
     } finally {
       refreshInProgressRef.current = false;
