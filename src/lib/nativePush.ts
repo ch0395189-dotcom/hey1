@@ -2,6 +2,7 @@ import { Capacitor } from "@capacitor/core";
 import { supabase } from "@/integrations/supabase/client";
 import { hydrateNativeSession, persistCurrentNativeSession } from "@/lib/nativeSessionPersist";
 import { restoreSupabaseSessionFromNativeBackup } from "@/lib/nativeSupabaseSession";
+import { logSessionEvent } from "@/lib/sessionDiagnostics";
 
 /**
  * Native push (FCM Android / APNs iOS) via Capacitor.
@@ -16,6 +17,7 @@ let listenersInstalled = false;
 let registrationPromise: Promise<NativePushInitResult> | null = null;
 let navigateHandler: ((url: string) => void) | null = null;
 const NATIVE_PUSH_TOKEN_KEY = "heyhey-native-push-token";
+const PUSH_REGISTER_RETRY_DELAYS = [0, 1000, 3000, 7000];
 
 export type NativePushStatus = "web" | "unsupported" | "prompt" | "denied" | "granted" | "registered";
 
@@ -81,6 +83,53 @@ async function removeStoredNativePushToken(): Promise<void> {
   } catch {}
 }
 
+async function wait(ms: number): Promise<void> {
+  await new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+async function registerNativePushTokenWithRetry(
+  token: string,
+  platform: "ios" | "android",
+): Promise<boolean> {
+  for (let attempt = 0; attempt < PUSH_REGISTER_RETRY_DELAYS.length; attempt += 1) {
+    const delay = PUSH_REGISTER_RETRY_DELAYS[attempt];
+    if (delay > 0) await wait(delay);
+
+    try {
+      await restoreSupabaseSessionFromNativeBackup(`native push register attempt ${attempt + 1}`);
+      const { data, error } = await supabase.functions.invoke("native-push-register", {
+        body: {
+          action: "register",
+          token,
+          platform,
+          deviceName: navigator.userAgent,
+        },
+      });
+
+      if (!error && !(data as any)?.error) {
+        logSessionEvent("native-push-register", "device token registered", { attempt: attempt + 1, platform });
+        window.dispatchEvent(new CustomEvent("native-push-registered"));
+        return true;
+      }
+
+      logSessionEvent("native-push-register-retry", "register attempt failed", {
+        attempt: attempt + 1,
+        platform,
+        error: error?.message || (data as any)?.error || "unknown",
+      });
+    } catch (e) {
+      logSessionEvent("native-push-register-retry", "register attempt threw", {
+        attempt: attempt + 1,
+        platform,
+        error: String(e),
+      });
+    }
+  }
+
+  console.warn("[NativePush] register failed after retries");
+  return false;
+}
+
 export async function syncStoredNativePushToken(): Promise<boolean> {
   if (!isNative()) return false;
   const token = await getStoredNativePushToken();
@@ -91,20 +140,7 @@ export async function syncStoredNativePushToken(): Promise<boolean> {
   if (!session?.user) return false;
 
   const platform = Capacitor.getPlatform() as "ios" | "android";
-  const { data, error } = await supabase.functions.invoke("native-push-register", {
-    body: {
-      action: "register",
-      token,
-      platform,
-      deviceName: navigator.userAgent,
-    },
-  });
-  if (error || (data as any)?.error) {
-    console.warn("[NativePush] stored token sync error", error || (data as any)?.error);
-    return false;
-  }
-  window.dispatchEvent(new CustomEvent("native-push-registered"));
-  return true;
+  return registerNativePushTokenWithRetry(token, platform);
 }
 
 export async function getNativePushStatus(): Promise<NativePushStatus> {
@@ -131,24 +167,7 @@ async function installNativePushListeners(
     const platform = Capacitor.getPlatform() as "ios" | "android";
     await storeNativePushToken(t.value);
     console.log("[NativePush] token registered:", platform);
-    try {
-      await restoreSupabaseSessionFromNativeBackup("native push registration");
-      const { data, error } = await supabase.functions.invoke("native-push-register", {
-        body: {
-          action: "register",
-          token: t.value,
-          platform,
-          deviceName: navigator.userAgent,
-        },
-      });
-      if (error || (data as any)?.error) {
-        console.warn("[NativePush] register error", error || (data as any)?.error);
-      } else {
-        window.dispatchEvent(new CustomEvent("native-push-registered"));
-      }
-    } catch (e) {
-      console.warn("[NativePush] register failed", e);
-    }
+    await registerNativePushTokenWithRetry(t.value, platform);
   });
 
   PushNotifications.addListener("registrationError", (err) => {
