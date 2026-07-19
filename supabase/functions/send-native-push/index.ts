@@ -48,7 +48,7 @@ function normalizePrivateKey(input: string): string {
   } catch {
     // Keep the original value if it was not JSON-quoted.
   }
-  return key
+  key = key
     // Handles \n, \\n, \\\n... variants caused by copy/paste or double JSON encoding.
     .replace(/\\+n/g, "\n")
     .replace(/\\+r/g, "")
@@ -58,6 +58,19 @@ function normalizePrivateKey(input: string): string {
     .replace(/\r\n/g, "\n")
     .replace(/\r/g, "\n")
     .trim();
+
+  // Some copy/paste flows strip line breaks completely but keep the PEM
+  // markers. Re-wrap the base64 body so WebCrypto receives valid PKCS#8 PEM.
+  const match = key.match(/-----BEGIN PRIVATE KEY-----(.*?)-----END PRIVATE KEY-----/s);
+  if (match) {
+    const body = match[1].replace(/[^A-Za-z0-9+/=]/g, "");
+    if (body) {
+      const wrapped = body.match(/.{1,64}/g)?.join("\n") || body;
+      key = `-----BEGIN PRIVATE KEY-----\n${wrapped}\n-----END PRIVATE KEY-----`;
+    }
+  }
+
+  return key;
 }
 
 function parseServiceAccount(raw: string): {
@@ -114,6 +127,28 @@ function pemToArrayBuffer(pem: string): ArrayBuffer {
   return buf;
 }
 
+async function importPrivateKey(privateKey: string): Promise<CryptoKey> {
+  const keyData = pemToArrayBuffer(privateKey);
+  try {
+    return await crypto.subtle.importKey(
+      "pkcs8",
+      keyData,
+      { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+      false,
+      ["sign"],
+    );
+  } catch (e) {
+    console.error("Firebase private_key import failed", {
+      message: e instanceof Error ? e.message : String(e),
+      hasBeginMarker: /-----BEGIN PRIVATE KEY-----/.test(privateKey),
+      hasEndMarker: /-----END PRIVATE KEY-----/.test(privateKey),
+    });
+    throw new Error(
+      "Firebase private_key invalid: replace FIREBASE_SERVICE_ACCOUNT_JSON with the complete service-account JSON downloaded from Firebase, including the PKCS#8 BEGIN PRIVATE KEY value",
+    );
+  }
+}
+
 async function getAccessToken(sa: { client_email: string; private_key: string }) {
   if (cachedAccessToken && cachedAccessToken.exp - 60 > Math.floor(Date.now() / 1000)) {
     return cachedAccessToken.token;
@@ -128,14 +163,7 @@ async function getAccessToken(sa: { client_email: string; private_key: string })
     iat: now,
   };
   const toSign = `${await b64url(JSON.stringify(header))}.${await b64url(JSON.stringify(claim))}`;
-  const keyData = pemToArrayBuffer(sa.private_key);
-  const key = await crypto.subtle.importKey(
-    "pkcs8",
-    keyData,
-    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
-    false,
-    ["sign"],
-  );
+  const key = await importPrivateKey(sa.private_key);
   const sig = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", key, new TextEncoder().encode(toSign));
   const jwt = `${toSign}.${await b64url(sig)}`;
 
