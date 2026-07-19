@@ -8,7 +8,7 @@ import { MessageCircle, Mail, Lock, ArrowLeft, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { WhatsAppFloatingButton } from "@/components/ui/WhatsAppFloatingButton";
-import { persistCurrentNativeSession } from "@/lib/nativeSessionPersist";
+import { persistCurrentNativeSession, persistNativeSessionValue } from "@/lib/nativeSessionPersist";
 
 const Login = () => {
   const location = useLocation();
@@ -90,7 +90,7 @@ const Login = () => {
         window.sessionStorage.removeItem("heyhey-explicit-logout");
       } catch {}
 
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim().toLowerCase(),
         password,
       });
@@ -99,6 +99,7 @@ const Login = () => {
 
       // APK only: copy the fresh token to native storage before the hard
       // redirect, so Android cold starts reopen with the same session.
+      if (data.session) await persistNativeSessionValue(data.session);
       await persistCurrentNativeSession();
 
       toast({

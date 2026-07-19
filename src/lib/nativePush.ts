@@ -1,6 +1,7 @@
 import { Capacitor } from "@capacitor/core";
 import { supabase } from "@/integrations/supabase/client";
 import { hydrateNativeSession, persistCurrentNativeSession } from "@/lib/nativeSessionPersist";
+import { restoreSupabaseSessionFromNativeBackup } from "@/lib/nativeSupabaseSession";
 
 /**
  * Native push (FCM Android / APNs iOS) via Capacitor.
@@ -45,6 +46,67 @@ export function setNativePushNavigator(fn: (url: string) => void) {
   navigateHandler = fn;
 }
 
+async function getStoredNativePushToken(): Promise<string | null> {
+  try {
+    const local = localStorage.getItem(NATIVE_PUSH_TOKEN_KEY);
+    if (local) return local;
+    if (!isNative()) return null;
+    const { Preferences } = await import("@capacitor/preferences");
+    const { value } = await Preferences.get({ key: NATIVE_PUSH_TOKEN_KEY });
+    if (value) {
+      localStorage.setItem(NATIVE_PUSH_TOKEN_KEY, value);
+      return value;
+    }
+  } catch {}
+  return null;
+}
+
+async function storeNativePushToken(token: string): Promise<void> {
+  try {
+    localStorage.setItem(NATIVE_PUSH_TOKEN_KEY, token);
+    if (isNative()) {
+      const { Preferences } = await import("@capacitor/preferences");
+      await Preferences.set({ key: NATIVE_PUSH_TOKEN_KEY, value: token });
+    }
+  } catch {}
+}
+
+async function removeStoredNativePushToken(): Promise<void> {
+  try {
+    localStorage.removeItem(NATIVE_PUSH_TOKEN_KEY);
+    if (isNative()) {
+      const { Preferences } = await import("@capacitor/preferences");
+      await Preferences.remove({ key: NATIVE_PUSH_TOKEN_KEY });
+    }
+  } catch {}
+}
+
+export async function syncStoredNativePushToken(): Promise<boolean> {
+  if (!isNative()) return false;
+  const token = await getStoredNativePushToken();
+  if (!token) return false;
+
+  const restored = await restoreSupabaseSessionFromNativeBackup("native push token sync");
+  const session = restored || (await supabase.auth.getSession()).data.session;
+  if (!session?.user) return false;
+
+  const platform = Capacitor.getPlatform() as "ios" | "android";
+  const { data, error } = await supabase.functions.invoke("native-push-register", {
+    body: {
+      action: "register",
+      token,
+      platform,
+      deviceName: navigator.userAgent,
+    },
+  });
+  if (error || (data as any)?.error) {
+    console.warn("[NativePush] stored token sync error", error || (data as any)?.error);
+    return false;
+  }
+  window.dispatchEvent(new CustomEvent("native-push-registered"));
+  return true;
+}
+
 export async function getNativePushStatus(): Promise<NativePushStatus> {
   if (!isNative()) return "web";
   try {
@@ -52,7 +114,7 @@ export async function getNativePushStatus(): Promise<NativePushStatus> {
     const perm = await PushNotifications.checkPermissions();
     if (perm.receive === "denied") return "denied";
     if (perm.receive === "prompt" || perm.receive === "prompt-with-rationale") return "prompt";
-    const token = localStorage.getItem(NATIVE_PUSH_TOKEN_KEY);
+    const token = await getStoredNativePushToken();
     return token ? "registered" : "granted";
   } catch {
     return "unsupported";
@@ -67,9 +129,10 @@ async function installNativePushListeners(
 
   PushNotifications.addListener("registration", async (t) => {
     const platform = Capacitor.getPlatform() as "ios" | "android";
-    localStorage.setItem(NATIVE_PUSH_TOKEN_KEY, t.value);
+    await storeNativePushToken(t.value);
     console.log("[NativePush] token registered:", platform);
     try {
+      await restoreSupabaseSessionFromNativeBackup("native push registration");
       const { data, error } = await supabase.functions.invoke("native-push-register", {
         body: {
           action: "register",
@@ -159,6 +222,7 @@ export async function initNativePush(
       }
 
       initialized = true;
+      await syncStoredNativePushToken().catch(() => false);
       await PushNotifications.register();
       return { ok: true, status: "registered" } as NativePushInitResult;
     } catch (e: any) {
@@ -174,7 +238,7 @@ export async function initNativePush(
 
 export async function listNativePushDevices(): Promise<NativePushDevice[]> {
   if (!isNative()) return [];
-  const currentToken = localStorage.getItem(NATIVE_PUSH_TOKEN_KEY);
+  const currentToken = await getStoredNativePushToken();
   const { data, error } = await supabase.functions.invoke("native-push-register", {
     body: { action: "list" },
   });
@@ -188,12 +252,12 @@ export async function unregisterNativePush(): Promise<void> {
   if (!isNative()) return;
   try {
     const { PushNotifications } = await import("@capacitor/push-notifications");
-    const token = localStorage.getItem(NATIVE_PUSH_TOKEN_KEY);
+    const token = await getStoredNativePushToken();
     if (token) {
       await supabase.functions.invoke("native-push-register", {
         body: { action: "unregister", token },
       });
-      localStorage.removeItem(NATIVE_PUSH_TOKEN_KEY);
+      await removeStoredNativePushToken();
     }
     await PushNotifications.unregister();
     await PushNotifications.removeAllListeners();
