@@ -281,14 +281,8 @@ export const NotificationSettingsPanel = ({
       const uid = userRes?.user?.id;
       if (!uid) throw new Error("Sesión no encontrada");
       if (nativeMode) {
-        const { data, error } = await supabase.functions.invoke("send-native-push", {
-          body: {
-            userId: uid,
-            title: "Hey Hey ✅",
-            body: "Notificación de prueba recibida en la APK",
-            url: "/dashboard",
-            platform: "whatsapp",
-          },
+        const { data, error } = await supabase.functions.invoke("native-push-register", {
+          body: { action: "test" },
         });
         if (error || (data as any)?.error) throw new Error((data as any)?.error || error?.message || "No se pudo enviar prueba");
         if ((data as any)?.sent > 0) toast.success(`Enviada a ${(data as any).sent} APK/dispositivo(s)`);

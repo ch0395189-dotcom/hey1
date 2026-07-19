@@ -78,6 +78,26 @@ Deno.serve(async (req) => {
       return json({ ok: true, devices: data ?? [] });
     }
 
+    if (action === "test") {
+      const nativeUrl = `${Deno.env.get("SUPABASE_URL")!}/functions/v1/send-native-push`;
+      const res = await fetch(nativeUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!}`,
+        },
+        body: JSON.stringify({
+          userId,
+          title: "Hey Hey ✅",
+          body: "Notificación de prueba recibida en la APK",
+          url: "/dashboard",
+          platform: "whatsapp",
+        }),
+      });
+      const result = await res.json().catch(() => ({}));
+      return json({ ok: true, ...result });
+    }
+
     return json({ error: "Unknown action" }, 200);
   } catch (e) {
     console.error("native-push-register error", e);
