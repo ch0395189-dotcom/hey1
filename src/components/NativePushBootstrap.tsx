@@ -44,13 +44,15 @@ export function NativePushBootstrap() {
       await start();
     };
 
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") void onAppResume();
+    };
+
     const onSessionHydrated = () => {
       void start();
     };
     window.addEventListener("focus", onAppResume);
-    document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible") void onAppResume();
-    });
+    document.addEventListener("visibilitychange", onVisibilityChange);
     window.addEventListener("native-session-hydrated", onSessionHydrated);
 
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {
@@ -62,6 +64,7 @@ export function NativePushBootstrap() {
     return () => {
       sub.subscription.unsubscribe();
       window.removeEventListener("focus", onAppResume);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
       window.removeEventListener("native-session-hydrated", onSessionHydrated);
     };
   }, [navigate]);
