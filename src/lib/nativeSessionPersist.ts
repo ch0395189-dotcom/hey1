@@ -159,7 +159,10 @@ export async function installNativeSessionMirror(): Promise<void> {
       // token refresh races, or app resume after a notification. Do not delete
       // the durable native backup unless the user explicitly tapped logout.
       if (shouldClearNativeAuthBackup()) void write(key, null);
-      else if (previousValue) void write(key, previousValue);
+      else if (previousValue) {
+        origSet(key, previousValue);
+        void write(key, previousValue);
+      }
     }
   };
   localStorage.clear = function () {
@@ -168,7 +171,10 @@ export async function installNativeSessionMirror(): Promise<void> {
     if (shouldClearNativeAuthBackup()) {
       Object.keys(authSnapshot).forEach((key) => void write(key, null));
     } else {
-      Object.entries(authSnapshot).forEach(([key, value]) => void write(key, value));
+      Object.entries(authSnapshot).forEach(([key, value]) => {
+        origSet(key, value);
+        void write(key, value);
+      });
     }
   };
 
