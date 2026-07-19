@@ -172,7 +172,10 @@ export async function installNativeSessionMirror(): Promise<void> {
   const onAuthWrite = (key: string, value: string | null) => {
     if (!AUTH_KEY_RE.test(key)) return;
     if (value === null) {
-      if (shouldClearNativeAuthBackup()) void write(key, null);
+      // Always mirror deletions to native backup. Fighting Supabase's own
+      // removeItem calls prevents users from signing in with fresh
+      // credentials because a stale/expired token keeps being resurrected.
+      void write(key, null);
       return;
     }
     if (hasUsableAuthValue(value)) void write(key, value);
@@ -183,30 +186,13 @@ export async function installNativeSessionMirror(): Promise<void> {
     onAuthWrite(key, value);
   };
   localStorage.removeItem = function (key: string) {
-    const previousValue = AUTH_KEY_RE.test(key) ? localStorage.getItem(key) : null;
     origRemove(key);
-    if (AUTH_KEY_RE.test(key)) {
-      // Supabase can briefly remove the auth key during native cold starts,
-      // token refresh races, or app resume after a notification. Do not delete
-      // the durable native backup unless the user explicitly tapped logout.
-      if (shouldClearNativeAuthBackup()) void write(key, null);
-      else if (previousValue) {
-        origSet(key, previousValue);
-        onAuthWrite(key, previousValue);
-      }
-    }
+    if (AUTH_KEY_RE.test(key)) onAuthWrite(key, null);
   };
   localStorage.clear = function () {
     const authSnapshot = snapshotAuthKeys();
     origClear();
-    if (shouldClearNativeAuthBackup()) {
-      Object.keys(authSnapshot).forEach((key) => void write(key, null));
-    } else {
-      Object.entries(authSnapshot).forEach(([key, value]) => {
-        origSet(key, value);
-        onAuthWrite(key, value);
-      });
-    }
+    Object.keys(authSnapshot).forEach((key) => void write(key, null));
   };
 
   // Some Android WebView builds ignore instance-level Storage overrides.
@@ -216,26 +202,13 @@ export async function installNativeSessionMirror(): Promise<void> {
     onAuthWrite(key, value);
   };
   proto.removeItem = function (key: string) {
-    const previousValue = AUTH_KEY_RE.test(key) ? localStorage.getItem(key) : null;
     protoRemove.call(this, key);
-    if (!AUTH_KEY_RE.test(key)) return;
-    if (shouldClearNativeAuthBackup()) void write(key, null);
-    else if (previousValue) {
-      protoSet.call(this, key, previousValue);
-      onAuthWrite(key, previousValue);
-    }
+    if (AUTH_KEY_RE.test(key)) onAuthWrite(key, null);
   };
   proto.clear = function () {
     const authSnapshot = snapshotAuthKeys();
     protoClear.call(this);
-    if (shouldClearNativeAuthBackup()) {
-      Object.keys(authSnapshot).forEach((key) => void write(key, null));
-    } else {
-      Object.entries(authSnapshot).forEach(([key, value]) => {
-        protoSet.call(this, key, value);
-        onAuthWrite(key, value);
-      });
-    }
+    Object.keys(authSnapshot).forEach((key) => void write(key, null));
   };
 
   // 3. On native lifecycle transitions, force one last copy before Android/iOS
