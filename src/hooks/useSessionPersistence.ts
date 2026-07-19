@@ -286,12 +286,14 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
                   console.warn('[Session] Could not clear explicit logout marker');
                 }
                 sessionValidRef.current = false;
+                logSessionEvent('signed-out-explicit', 'user tapped logout');
                 onSessionLostRef.current?.();
                 navigate(redirectOnLost);
               } else {
                 console.log(
                   '[Session] SIGNED_OUT recibido sin acción del usuario — intentando recuperar sesión silenciosamente'
                 );
+                logSessionEvent('signed-out-spurious', 'SIGNED_OUT without explicit logout — attempting silent recovery');
                 // Intento de recuperación: si Supabase aún tiene la sesión
                 // en localStorage (refresh token válido) la restablecerá.
                 (async () => {
@@ -300,7 +302,10 @@ export const useSessionPersistence = (options: UseSessionPersistenceOptions = {}
                   if (s?.user) {
                     console.log('[Session] Sesión recuperada tras SIGNED_OUT espurio');
                     sessionValidRef.current = true;
+                    logSessionEvent('recovered', 'recovered after spurious SIGNED_OUT');
                     onSessionRestoredRef.current?.(s.user);
+                  } else {
+                    logSessionEvent('recovery-failed', 'no session after spurious SIGNED_OUT');
                   }
                   // Si no se pudo, NO redirigimos. La app seguirá funcionando
                   // con caché y al próximo refresh manual / reload el usuario
