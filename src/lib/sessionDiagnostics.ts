@@ -30,6 +30,8 @@ export type SessionEventType =
   | "signed-out-explicit"
   | "signed-out-spurious"
   | "native-restore"
+  | "native-push-register"
+  | "native-push-register-retry"
   | "visibility-check"
   | "online-check";
 

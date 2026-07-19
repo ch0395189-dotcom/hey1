@@ -64,6 +64,7 @@ const Login = () => {
         }
         if (session?.user) {
           console.log('[Login] Existing session found, redirecting to dashboard');
+          await persistCurrentNativeSession();
           window.location.replace(getRedirectTarget());
           return;
         }
@@ -78,7 +79,13 @@ const Login = () => {
     // Also listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' && session?.user) {
-        window.location.replace(getRedirectTarget());
+        setTimeout(() => {
+          void (async () => {
+            await persistNativeSessionValue(session);
+            await persistCurrentNativeSession();
+            window.location.replace(getRedirectTarget());
+          })();
+        }, 0);
       }
     });
 

@@ -161,14 +161,18 @@ export async function hydrateNativeSession(): Promise<void> {
     for (const k of keys) {
       if (!AUTH_KEY_RE.test(k)) continue;
       const current = localStorage.getItem(k);
-      if (hasUsableAuthValue(current)) continue; // already present and usable
       const { value } = await Preferences.get({ key: k });
       if (hasUsableAuthValue(value)) {
         try {
-          localStorage.setItem(k, value);
-          restored = true;
-          restoredKeys += 1;
-          console.log("[NativeSession] restored", k);
+          // In APK builds, Capacitor Preferences is the durable source of truth.
+          // Always copy it back over localStorage on boot because Android WebView
+          // can leave stale auth values that still look usable but fail refresh.
+          if (current !== value) {
+            localStorage.setItem(k, value);
+            restored = true;
+            restoredKeys += 1;
+            console.log("[NativeSession] restored", k);
+          }
         } catch {}
       }
     }

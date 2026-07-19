@@ -43,7 +43,7 @@ export function NativePushBootstrap() {
         initNativePush({ requestPermission: false });
       }
     };
-    const startupTimer = window.setTimeout(start, 2500);
+    const startupTimer = window.setTimeout(start, 500);
 
     const onAppResume = async () => {
       await start();
