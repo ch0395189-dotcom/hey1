@@ -10,6 +10,12 @@ export const usePersistentStorage = () => {
 
     const run = async () => {
       try {
+        const isNativeApp =
+          typeof window !== "undefined" &&
+          // @ts-ignore - Capacitor injects this global at runtime on native builds
+          (window as any).Capacitor?.isNativePlatform?.() === true;
+        if (isNativeApp) return;
+
         const storage = (navigator as any).storage;
         if (!storage?.persisted || !storage?.persist) return;
 
