@@ -6,6 +6,7 @@ import {
 } from "@/lib/nativeSessionPersist";
 import { installNativeKeyboardHandling } from "@/lib/nativeKeyboard";
 import { Capacitor } from "@capacitor/core";
+import { logSessionEvent } from "@/lib/sessionDiagnostics";
 
 const isNativeApp =
   typeof window !== "undefined" && Capacitor.isNativePlatform();
@@ -17,6 +18,10 @@ async function boot() {
   if (isNativeApp) {
     document.documentElement.dataset.nativeApp = "true";
   }
+  logSessionEvent("boot", isNativeApp ? "native app boot" : "web app boot", {
+    platform: Capacitor.getPlatform(),
+    userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "",
+  });
   await hydrateNativeSession();
   await installNativeSessionMirror();
   void installNativeKeyboardHandling();
