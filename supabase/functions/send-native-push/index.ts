@@ -127,10 +127,34 @@ Deno.serve(async (req) => {
               conversationId: conversationId ?? "",
               platform: platform || "whatsapp",
             },
-            android: { priority: "HIGH" },
+            android: {
+              priority: "HIGH",
+              // notification block ensures the OS shows a heads-up banner
+              // AND plays sound even when the app is closed / swiped away.
+              notification: {
+                sound: "default",
+                channel_id: "heyhey_messages",
+                default_sound: true,
+                default_vibrate_timings: true,
+                notification_priority: "PRIORITY_HIGH",
+                visibility: "PUBLIC",
+              },
+            },
             apns: {
-              headers: { "apns-priority": "10" },
-              payload: { aps: { sound: "default", "content-available": 1 } },
+              headers: {
+                "apns-priority": "10",
+                "apns-push-type": "alert",
+              },
+              payload: {
+                aps: {
+                  sound: "default",
+                  "mutable-content": 1,
+                  alert: {
+                    title: title || "Hey Hey",
+                    body: body || "Tienes una nueva notificación",
+                  },
+                },
+              },
             },
           },
         };
