@@ -32,11 +32,81 @@ async function b64url(input: ArrayBuffer | string): Promise<string> {
   return btoa(str).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
 }
 
+function normalizePrivateKey(input: string): string {
+  let key = String(input || "").trim();
+  // Some secret managers store the JSON with literal "\\n" sequences instead
+  // of real newlines. WebCrypto requires a valid PKCS#8 PEM, so normalize both
+  // escaped and Windows line endings before extracting the DER bytes.
+  try {
+    if (
+      (key.startsWith('"') && key.endsWith('"')) ||
+      (key.startsWith("'") && key.endsWith("'"))
+    ) {
+      const parsed = JSON.parse(key);
+      if (typeof parsed === "string") key = parsed;
+    }
+  } catch {
+    // Keep the original value if it was not JSON-quoted.
+  }
+  return key
+    // Handles \n, \\n, \\\n... variants caused by copy/paste or double JSON encoding.
+    .replace(/\\+n/g, "\n")
+    .replace(/\\+r/g, "")
+    // Handles keys pasted as one line with a literal "n" around PEM markers.
+    .replace(/-----BEGIN PRIVATE KEY-----n/, "-----BEGIN PRIVATE KEY-----\n")
+    .replace(/n-----END PRIVATE KEY-----/, "\n-----END PRIVATE KEY-----")
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .trim();
+}
+
+function parseServiceAccount(raw: string): {
+  client_email: string;
+  private_key: string;
+  project_id: string;
+} {
+  let value: unknown = raw.trim();
+
+  // Accept normal JSON, JSON accidentally stored as a quoted string, or a
+  // base64-encoded JSON blob. This prevents silent push failures caused by how
+  // the Firebase key was pasted into the backend secret.
+  for (let i = 0; i < 3 && typeof value === "string"; i++) {
+    const text = value.trim();
+    try {
+      value = JSON.parse(text);
+      continue;
+    } catch {}
+    try {
+      value = JSON.parse(atob(text));
+      continue;
+    } catch {}
+    break;
+  }
+
+  const sa = value as Record<string, unknown>;
+  const client_email = typeof sa?.client_email === "string" ? sa.client_email : "";
+  const private_key = normalizePrivateKey(
+    typeof sa?.private_key === "string" ? sa.private_key : "",
+  );
+  const project_id = typeof sa?.project_id === "string" ? sa.project_id : "";
+
+  if (!client_email || !private_key || !project_id) {
+    throw new Error("Firebase service account incomplete: client_email, private_key, and project_id are required");
+  }
+
+  return { client_email, private_key, project_id };
+}
+
 function pemToArrayBuffer(pem: string): ArrayBuffer {
-  const b64 = pem
+  const normalized = normalizePrivateKey(pem);
+  if (/-----BEGIN RSA PRIVATE KEY-----/.test(normalized)) {
+    throw new Error("Firebase private_key must be PKCS#8 (BEGIN PRIVATE KEY), not RSA PRIVATE KEY");
+  }
+  const b64 = normalized
     .replace(/-----BEGIN [A-Z ]+-----/g, "")
     .replace(/-----END [A-Z ]+-----/g, "")
     .replace(/\s+/g, "");
+  if (!b64) throw new Error("Firebase private_key is empty after PEM normalization");
   const raw = atob(b64);
   const buf = new ArrayBuffer(raw.length);
   const view = new Uint8Array(buf);
@@ -89,7 +159,7 @@ Deno.serve(async (req) => {
   try {
     const sa_raw = Deno.env.get("FIREBASE_SERVICE_ACCOUNT_JSON") || Deno.env.get("FIREBASE_SERVICE_ACCOUNT");
     if (!sa_raw) return json({ error: "FIREBASE_SERVICE_ACCOUNT_JSON not configured" }, 200);
-    const sa = JSON.parse(sa_raw);
+    const sa = parseServiceAccount(sa_raw);
     const projectId: string = sa.project_id;
 
     const supabase = createClient(

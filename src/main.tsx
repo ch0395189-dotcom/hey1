@@ -23,7 +23,9 @@ async function boot() {
     userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "",
   });
   await hydrateNativeSession();
-  await installNativeSessionMirror();
+  // Do not block the first screen on native Preferences writes; the session is
+  // already hydrated above, and the mirror can attach in the background.
+  void installNativeSessionMirror();
   void installNativeKeyboardHandling();
   // Import App only after native session hydration. App imports pages/hooks
   // that import the auth client; loading it too early makes the APK miss the
