@@ -732,6 +732,8 @@ export const NotificationSettingsPanel = ({
           </div>
         )}
       </div>
+
+      {isNative() && <SessionDiagnosticsPanel />}
     </div>
   );
 };
