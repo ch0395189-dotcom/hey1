@@ -19,10 +19,11 @@ import { ExpiredPlansOutreach } from '@/components/admin/ExpiredPlansOutreach';
 import { CtwaAnalytics } from '@/components/admin/CtwaAnalytics';
 import { ReassignableNumbers } from '@/components/admin/ReassignableNumbers';
 import { AddWhatsAppNumber } from '@/components/admin/AddWhatsAppNumber';
+import { NewAndRenewals } from '@/components/admin/NewAndRenewals';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Shield, Users, CreditCard, Bell, Coins, BarChart3, Bot, Phone, Mail, UserX, Link2, ShieldAlert, MailWarning, Clock, Megaphone, RotateCcw, PhoneCall } from 'lucide-react';
+import { ArrowLeft, Shield, Users, CreditCard, Bell, Coins, BarChart3, Bot, Phone, Mail, UserX, Link2, ShieldAlert, MailWarning, Clock, Megaphone, RotateCcw, PhoneCall, Repeat } from 'lucide-react';
 
 const Admin = () => {
   const navigate = useNavigate();
@@ -129,6 +130,10 @@ const Admin = () => {
               <PhoneCall className="h-4 w-4" />
               <span className="hidden sm:inline">Nuevo número</span>
             </TabsTrigger>
+            <TabsTrigger value="new-renewals" className="flex items-center gap-2">
+              <Repeat className="h-4 w-4" />
+              <span className="hidden sm:inline">Nuevos y Renovaciones</span>
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="users">
@@ -208,6 +213,10 @@ const Admin = () => {
 
           <TabsContent value="add-number">
             <AddWhatsAppNumber />
+          </TabsContent>
+
+          <TabsContent value="new-renewals">
+            <NewAndRenewals />
           </TabsContent>
         </Tabs>
       </main>
