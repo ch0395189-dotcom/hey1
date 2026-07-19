@@ -155,6 +155,30 @@ export async function hydrateNativeSession(): Promise<void> {
   if (!isNative()) return;
   try {
     const { Preferences } = await import("@capacitor/preferences");
+    const preferredKey = getSupabaseAuthStorageKey();
+    if (preferredKey) {
+      const current = localStorage.getItem(preferredKey);
+      const { value } = await Preferences.get({ key: preferredKey });
+      if (hasUsableAuthValue(value)) {
+        let restored = false;
+        try {
+          if (current !== value) {
+            localStorage.setItem(preferredKey, value);
+            restored = true;
+            console.log("[NativeSession] restored", preferredKey);
+          }
+        } catch {}
+        if (restored) {
+          window.dispatchEvent(new CustomEvent("native-session-hydrated"));
+        }
+        logSessionEvent("hydrate", restored ? "restored preferred native backup" : "preferred backup already active", {
+          restoredKeys: restored ? 1 : 0,
+          nativeKeys: 1,
+        });
+        return;
+      }
+    }
+
     const { keys } = await Preferences.keys();
     let restored = false;
     let restoredKeys = 0;
