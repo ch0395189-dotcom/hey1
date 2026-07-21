@@ -35,6 +35,7 @@ import type { User } from "@supabase/supabase-js";
 import { ConversationsList } from "@/components/whatsapp/ConversationsList";
 import { ChatWindow } from "@/components/whatsapp/ChatWindow";
 import { WhatsAppSetup } from "@/components/whatsapp/WhatsAppSetup";
+import { ReconnectWhatsAppButton } from "@/components/whatsapp/ReconnectWhatsAppButton";
 import { ChatbotConfig } from "@/components/chatbot/ChatbotConfig";
 import { ContactsList } from "@/components/contacts/ContactsList";
 import { StatisticsPanel } from "@/components/statistics/StatisticsPanel";
