@@ -11,6 +11,7 @@ interface ExchangeTokenRequest {
   phone_number_id?: string;
   waba_id?: string;
   redirect_uri?: string;
+  variant?: string;
 }
 
 interface TokenResponse {
@@ -62,8 +63,17 @@ Deno.serve(async (req) => {
     let wabaIdFromSession: string | undefined = body.waba_id;
     let phoneNumberIdFromSession: string | undefined = body.phone_number_id;
 
-    const META_APP_ID = Deno.env.get('META_APP_ID');
-    const META_APP_SECRET = Deno.env.get('META_APP_SECRET');
+    // Pick app credentials based on variant sent by the frontend (primary | backup).
+    // Falls back to primary automatically if backup secrets are missing.
+    const useBackup = body.variant === 'backup';
+    const BACKUP_ID = Deno.env.get('META_APP_ID_BACKUP');
+    const BACKUP_SECRET = Deno.env.get('META_APP_SECRET_BACKUP');
+    const PRIMARY_ID = Deno.env.get('META_APP_ID');
+    const PRIMARY_SECRET = Deno.env.get('META_APP_SECRET');
+
+    const META_APP_ID = (useBackup && BACKUP_ID) ? BACKUP_ID : PRIMARY_ID;
+    const META_APP_SECRET = (useBackup && BACKUP_SECRET) ? BACKUP_SECRET : PRIMARY_SECRET;
+    console.log('whatsapp-exchange-token: variant=', useBackup && BACKUP_ID ? 'backup' : 'primary');
 
     if (!META_APP_ID || !META_APP_SECRET) {
       return new Response(
