@@ -255,19 +255,37 @@ Deno.serve(async (req) => {
     }
 
     // Step 4: Subscribe the WABA to webhooks (non-blocking)
-    try {
-      const subscribeUrl = `https://graph.facebook.com/v21.0/${wabaId}/subscribed_apps`;
-      const subscribeResponse = await fetch(subscribeUrl, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-      });
-      const subscribeData = await subscribeResponse.json();
-      console.log('Subscribe response:', JSON.stringify(subscribeData, null, 2));
-    } catch (e) {
-      console.warn('Subscribe failed (non-blocking):', e);
+    // Step 4: Subscribe the WABA to webhooks — CRITICAL for incoming messages.
+    // We retry a few times because Meta occasionally returns transient
+    // permissions errors immediately after Embedded Signup while the token
+    // propagates. We also capture the outcome so the client can react.
+    let subscribeOk = false;
+    let subscribeError: string | null = null;
+    for (let attempt = 0; attempt < 3 && !subscribeOk; attempt++) {
+      if (attempt > 0) await new Promise((r) => setTimeout(r, 1500 * attempt));
+      try {
+        const subscribeUrl = `https://graph.facebook.com/v21.0/${wabaId}/subscribed_apps`;
+        const subscribeResponse = await fetch(subscribeUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        const subscribeData = await subscribeResponse.json();
+        console.log(`Subscribe attempt ${attempt + 1} response:`, JSON.stringify(subscribeData));
+        if (subscribeData?.success === true || subscribeResponse.ok && !subscribeData?.error) {
+          subscribeOk = true;
+          break;
+        }
+        subscribeError = subscribeData?.error?.message || `HTTP ${subscribeResponse.status}`;
+      } catch (e) {
+        subscribeError = e instanceof Error ? e.message : String(e);
+        console.warn(`Subscribe attempt ${attempt + 1} threw:`, subscribeError);
+      }
+    }
+    if (!subscribeOk) {
+      console.error('Webhook subscribe FAILED after retries:', subscribeError);
     }
 
     // Step 5: Register phone number with Cloud API (prevents error #133010)
@@ -378,6 +396,8 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
+        webhook_subscribed: subscribeOk,
+        webhook_error: subscribeOk ? null : subscribeError,
         account: {
           id: whatsappAccount.id,
           phone_number: whatsappAccount.phone_number,
