@@ -585,6 +585,9 @@ const Dashboard = () => {
           <PaymentAlertBanner />
           <MessageLimitBanner />
           <QualityAlertBanner />
+          <div className="flex justify-end">
+            <ReconnectWhatsAppButton onReconnected={checkWhatsAppAccounts} />
+          </div>
         </div>
       )}
       
