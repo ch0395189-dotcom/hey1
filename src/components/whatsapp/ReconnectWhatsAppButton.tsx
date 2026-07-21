@@ -34,18 +34,107 @@ const REQUIRED_PERMISSIONS = [
 interface Props {
   onReconnected?: () => void;
   variant?: "banner" | "button";
+  /**
+   * IDs de las cuentas de WhatsApp del usuario. El botón se auto-oculta si
+   * detecta que las cuentas están sanas (recibieron mensajes recientes y no
+   * están pausadas por calidad). Solo aparece cuando algo huele mal.
+   */
+  accountIds?: string[];
 }
 
 /**
  * Botón guiado para volver a autorizar los permisos de Meta y re-suscribir
  * el webhook de WhatsApp cuando dejan de llegar los mensajes entrantes.
  */
-export const ReconnectWhatsAppButton = ({ onReconnected, variant = "button" }: Props) => {
+export const ReconnectWhatsAppButton = ({ onReconnected, variant = "button", accountIds }: Props) => {
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<"intro" | "connecting">("intro");
   const [metaConfig, setMetaConfig] = useState<{ appId: string; configId: string }>({ appId: "", configId: "" });
   const [fbLoaded, setFbLoaded] = useState(false);
+  const [needsReconnect, setNeedsReconnect] = useState<boolean | null>(null);
   const { toast } = useToast();
+
+  // Health check: solo mostrar el botón cuando el WhatsApp del usuario
+  // parece dañado (pausado por calidad, o sin mensajes entrantes recientes
+  // en una cuenta con más de 24h de antigüedad).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!accountIds || accountIds.length === 0) {
+        if (!cancelled) setNeedsReconnect(false);
+        return;
+      }
+      try {
+        const { data: accounts } = await supabase
+          .from("whatsapp_accounts")
+          .select("id, connection_type, quality_paused, quality_rating, created_at")
+          .in("id", accountIds);
+
+        if (!accounts || accounts.length === 0) {
+          if (!cancelled) setNeedsReconnect(false);
+          return;
+        }
+
+        // Solo aplica a cuentas Meta (no a WuzAPI/QR externas)
+        const metaAccounts = accounts.filter(
+          (a: any) => !a.connection_type || a.connection_type === "meta"
+        );
+        if (metaAccounts.length === 0) {
+          if (!cancelled) setNeedsReconnect(false);
+          return;
+        }
+
+        // Señal 1: alguna cuenta pausada por calidad o en RED
+        const qualityBroken = metaAccounts.some(
+          (a: any) => a.quality_paused || a.quality_rating === "RED"
+        );
+        if (qualityBroken) {
+          if (!cancelled) setNeedsReconnect(true);
+          return;
+        }
+
+        // Señal 2: cuentas con más de 24h y sin mensajes entrantes en 3 días
+        const now = Date.now();
+        const dayMs = 24 * 60 * 60 * 1000;
+        const matureAccounts = metaAccounts.filter(
+          (a: any) => now - new Date(a.created_at).getTime() > dayMs
+        );
+        if (matureAccounts.length === 0) {
+          if (!cancelled) setNeedsReconnect(false);
+          return;
+        }
+
+        const matureIds = matureAccounts.map((a: any) => a.id);
+        const { data: convs } = await supabase
+          .from("conversations")
+          .select("id, whatsapp_account_id")
+          .in("whatsapp_account_id", matureIds);
+
+        const convIds = (convs || []).map((c: any) => c.id);
+        if (convIds.length === 0) {
+          // Cuenta madura sin ninguna conversación: probablemente webhook roto
+          if (!cancelled) setNeedsReconnect(true);
+          return;
+        }
+
+        const threeDaysAgo = new Date(now - 3 * dayMs).toISOString();
+        const { count } = await supabase
+          .from("messages")
+          .select("id", { count: "exact", head: true })
+          .eq("direction", "incoming")
+          .gte("created_at", threeDaysAgo)
+          .in("conversation_id", convIds);
+
+        if (!cancelled) setNeedsReconnect((count ?? 0) === 0);
+      } catch (e) {
+        console.warn("[ReconnectButton] health check failed", e);
+        if (!cancelled) setNeedsReconnect(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [accountIds?.join(",")]);
 
   const isMobileEnv =
     typeof window !== "undefined" &&
