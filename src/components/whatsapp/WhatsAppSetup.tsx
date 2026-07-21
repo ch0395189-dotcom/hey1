@@ -356,7 +356,7 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
 
       console.log('Calling whatsapp-exchange-token with:', params);
       const { data, error } = await supabase.functions.invoke('whatsapp-exchange-token', {
-        body: params,
+        body: { ...params, variant: metaConfig.variant },
       });
 
       console.log('Exchange response:', { data, error });
