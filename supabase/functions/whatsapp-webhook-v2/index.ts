@@ -226,7 +226,7 @@ Deno.serve(async (req) => {
       }
 
       // Fallback: Accept known verification tokens for initial setup
-      const knownTokens = ['heyhey_webhook_2024', 'verify_1bxwu72vphvj'];
+      const knownTokens = ['heyhey_webhook_2024', 'heyhey_webhook_2026', 'verify_1bxwu72vphvj'];
       if (knownTokens.includes(token)) {
         console.log('Webhook verified with known token');
         return new Response(challenge, {
