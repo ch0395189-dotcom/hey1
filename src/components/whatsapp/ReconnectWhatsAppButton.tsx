@@ -264,6 +264,9 @@ export const ReconnectWhatsAppButton = ({ onReconnected, variant = "button", acc
     else startDesktopSignup();
   };
 
+  // Ocultar completamente hasta confirmar que hace falta reconectar.
+  if (needsReconnect !== true) return null;
+
   const trigger =
     variant === "banner" ? (
       <Alert className="border-amber-500/40 bg-amber-500/5">
