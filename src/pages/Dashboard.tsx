@@ -586,7 +586,10 @@ const Dashboard = () => {
           <MessageLimitBanner />
           <QualityAlertBanner />
           <div className="flex justify-end">
-            <ReconnectWhatsAppButton onReconnected={checkWhatsAppAccounts} />
+            <ReconnectWhatsAppButton
+              onReconnected={checkWhatsAppAccounts}
+              accountIds={whatsappAccounts.map((a) => a.id)}
+            />
           </div>
         </div>
       )}
