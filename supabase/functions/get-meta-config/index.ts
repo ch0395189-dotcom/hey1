@@ -12,19 +12,36 @@ serve(async (req) => {
   }
 
   try {
-    // These are public configuration IDs, not secrets
-    // Support both legacy and new env var names to avoid config mismatches.
-    const metaAppId = Deno.env.get("META_APP_ID") || Deno.env.get("VITE_META_APP_ID") || "";
-    const metaConfigId =
-      Deno.env.get("META_CONFIG_ID") || Deno.env.get("VITE_META_CONFIG_ID") || "";
+    // Support two Meta apps: primary (default) and backup (for new users / failover).
+    // Frontend can request either variant via ?variant=backup or { variant: "backup" } body.
+    const url = new URL(req.url);
+    let variant = url.searchParams.get("variant") || "";
+    if (!variant && req.method === "POST") {
+      try {
+        const body = await req.json();
+        if (body?.variant) variant = String(body.variant);
+      } catch (_e) { /* ignore */ }
+    }
 
-    console.log("get-meta-config: metaAppIdPresent=", Boolean(metaAppId));
-    console.log("get-meta-config: metaConfigIdPresent=", Boolean(metaConfigId));
+    const primaryAppId = Deno.env.get("META_APP_ID") || Deno.env.get("VITE_META_APP_ID") || "";
+    const primaryConfigId =
+      Deno.env.get("META_CONFIG_ID") || Deno.env.get("VITE_META_CONFIG_ID") || "";
+    const backupAppId = Deno.env.get("META_APP_ID_BACKUP") || "";
+    const backupConfigId = Deno.env.get("META_CONFIG_ID_BACKUP") || "";
+
+    const useBackup = variant === "backup" && backupAppId && backupConfigId;
+    const appId = useBackup ? backupAppId : primaryAppId;
+    const configId = useBackup ? backupConfigId : primaryConfigId;
+
+    console.log("get-meta-config: variant=", useBackup ? "backup" : "primary",
+      "appIdPresent=", Boolean(appId), "configIdPresent=", Boolean(configId));
 
     return new Response(
       JSON.stringify({
-        appId: metaAppId,
-        configId: metaConfigId,
+        appId,
+        configId,
+        variant: useBackup ? "backup" : "primary",
+        hasBackup: Boolean(backupAppId && backupConfigId),
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
