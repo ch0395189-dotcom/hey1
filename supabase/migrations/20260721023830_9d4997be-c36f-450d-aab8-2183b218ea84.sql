@@ -1,0 +1,1 @@
+DELETE FROM public.whatsapp_accounts WHERE id IN ('e7c263b7-5dcf-49e0-8e5e-91a955c57ffc','8bffb1d0-4d53-475a-a00d-233178b36c32');
