@@ -155,7 +155,7 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
   const [fbLoaded, setFbLoaded] = useState(false);
-  const [metaConfig, setMetaConfig] = useState<{ appId: string; configId: string }>({ appId: '', configId: '' });
+  const [metaConfig, setMetaConfig] = useState<{ appId: string; configId: string; variant: 'primary' | 'backup' }>({ appId: '', configId: '', variant: 'primary' });
   const [configLoading, setConfigLoading] = useState(true);
   const [expandedAccount, setExpandedAccount] = useState<string | null>(null);
   const [templateRefresh, setTemplateRefresh] = useState(0);
@@ -206,15 +206,22 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
       `&response_type=code` +
       `&override_default_response_type=true` +
       `&extras=${extras}`;
+    try { sessionStorage.setItem('meta_variant', metaConfig.variant); } catch (_e) { /* ignore */ }
     window.location.href = oauthUrl;
   };
 
   // Fetch Meta configuration from Edge Function
-  const fetchMetaConfig = useCallback(async () => {
+  const fetchMetaConfig = useCallback(async (variant: 'primary' | 'backup') => {
     try {
-      const { data, error } = await supabase.functions.invoke('get-meta-config');
+      const { data, error } = await supabase.functions.invoke('get-meta-config', {
+        body: { variant },
+      });
       if (error) throw error;
-      setMetaConfig({ appId: data.appId || '', configId: data.configId || '' });
+      setMetaConfig({
+        appId: data.appId || '',
+        configId: data.configId || '',
+        variant: (data.variant as 'primary' | 'backup') || variant,
+      });
     } catch (error) {
       console.error('Error fetching meta config:', error);
     } finally {
@@ -266,10 +273,20 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Load accounts first, then decide which Meta app to use.
+  // New users (0 accounts) → backup app by default. Existing users → primary.
   useEffect(() => {
-    fetchMetaConfig();
-    fetchAccounts();
-  }, [fetchMetaConfig, fetchAccounts]);
+    (async () => {
+      await fetchAccounts();
+    })();
+  }, [fetchAccounts]);
+
+  useEffect(() => {
+    if (loading) return;
+    const variant: 'primary' | 'backup' = accounts.length === 0 ? 'backup' : 'primary';
+    fetchMetaConfig(variant);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, accounts.length]);
 
   // Fallback: if Meta redirects back with ?code=..., finish linking automatically
   useEffect(() => {
@@ -286,9 +303,16 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
       try {
         setConnecting(true);
         console.log('Detected OAuth code in URL, calling whatsapp-exchange-token...');
+        let storedVariant: string | null = null;
+        try { storedVariant = sessionStorage.getItem('meta_variant'); } catch (_e) { /* ignore */ }
         const { data, error } = await supabase.functions.invoke('whatsapp-exchange-token', {
-          body: { code, redirect_uri: `https://www.heyhey.site${window.location.pathname}` },
+          body: {
+            code,
+            redirect_uri: `https://www.heyhey.site${window.location.pathname}`,
+            variant: storedVariant === 'backup' ? 'backup' : 'primary',
+          },
         });
+        try { sessionStorage.removeItem('meta_variant'); } catch (_e) { /* ignore */ }
         console.log('Exchange response (from URL code):', { data, error });
         if (error) throw error;
         if (data?.error || !data?.account) {
@@ -332,7 +356,7 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
 
       console.log('Calling whatsapp-exchange-token with:', params);
       const { data, error } = await supabase.functions.invoke('whatsapp-exchange-token', {
-        body: params,
+        body: { ...params, variant: metaConfig.variant },
       });
 
       console.log('Exchange response:', { data, error });
