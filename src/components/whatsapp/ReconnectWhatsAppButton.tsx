@@ -13,13 +13,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { CheckCircle2, RefreshCw, Loader2, AlertTriangle, ExternalLink } from "lucide-react";
 
-declare global {
-  interface Window {
-    FB?: any;
-    fbAsyncInit?: () => void;
-  }
-}
-
 const REQUIRED_PERMISSIONS = [
   {
     key: "whatsapp_business_messaging",
