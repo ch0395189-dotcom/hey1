@@ -49,7 +49,7 @@ interface Props {
 export const ReconnectWhatsAppButton = ({ onReconnected, variant = "button", accountIds }: Props) => {
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<"intro" | "connecting">("intro");
-  const [metaConfig, setMetaConfig] = useState<{ appId: string; configId: string }>({ appId: "", configId: "" });
+  const [metaConfig, setMetaConfig] = useState<{ appId: string; configId: string; variant: 'primary' | 'backup' }>({ appId: "", configId: "", variant: 'backup' });
   const [fbLoaded, setFbLoaded] = useState(false);
   const [needsReconnect, setNeedsReconnect] = useState<boolean | null>(null);
   const { toast } = useToast();
@@ -145,8 +145,13 @@ export const ReconnectWhatsAppButton = ({ onReconnected, variant = "button", acc
   useEffect(() => {
     (async () => {
       try {
-        const { data } = await supabase.functions.invoke("get-meta-config");
-        setMetaConfig({ appId: data?.appId || "", configId: data?.configId || "" });
+        // Forzar app de RESPALDO (portafolio principal restringido)
+        const { data } = await supabase.functions.invoke("get-meta-config", { body: { variant: 'backup' } });
+        setMetaConfig({
+          appId: data?.appId || "",
+          configId: data?.configId || "",
+          variant: (data?.variant as 'primary' | 'backup') || 'backup',
+        });
       } catch (e) {
         console.error("get-meta-config failed", e);
       }
@@ -176,7 +181,7 @@ export const ReconnectWhatsAppButton = ({ onReconnected, variant = "button", acc
   const exchange = useCallback(
     async (params: { code?: string; access_token?: string; phone_number_id?: string; waba_id?: string; redirect_uri?: string }) => {
       try {
-        const { data, error } = await supabase.functions.invoke("whatsapp-exchange-token", { body: params });
+        const { data, error } = await supabase.functions.invoke("whatsapp-exchange-token", { body: { ...params, variant: metaConfig.variant } });
         if (error) throw error;
         if (data?.error || !data?.account?.id) {
           throw new Error(data?.message || data?.error || "No se pudo reconectar la cuenta.");
@@ -197,7 +202,7 @@ export const ReconnectWhatsAppButton = ({ onReconnected, variant = "button", acc
         setStep("intro");
       }
     },
-    [onReconnected, toast]
+    [onReconnected, toast, metaConfig.variant]
   );
 
   const startMobileRedirect = () => {

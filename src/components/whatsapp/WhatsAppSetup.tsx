@@ -283,8 +283,10 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
 
   useEffect(() => {
     if (loading) return;
-    const variant: 'primary' | 'backup' = accounts.length === 0 ? 'backup' : 'primary';
-    fetchMetaConfig(variant);
+    // Portafolio principal restringido: forzar app de RESPALDO para TODOS
+    // (nuevos y reconexiones). Los usuarios ya conectados siguen funcionando
+    // con su token existente hasta que necesiten reconectar.
+    fetchMetaConfig('backup');
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, accounts.length]);
 
