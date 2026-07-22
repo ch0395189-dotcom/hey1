@@ -161,6 +161,11 @@ export const ReconnectWhatsAppButton = ({ onReconnected, variant = "button", acc
   useEffect(() => {
     if (!open || !metaConfig.appId || isMobileEnv) return;
     if (window.FB) {
+      try {
+        window.FB.init({ appId: metaConfig.appId, cookie: true, xfbml: true, version: "v21.0" });
+      } catch (e) {
+        console.warn("FB.init re-run failed", e);
+      }
       setFbLoaded(true);
       return;
     }
