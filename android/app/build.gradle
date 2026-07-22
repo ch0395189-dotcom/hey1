@@ -14,15 +14,15 @@ def appVersionCode = versionProps['VERSION_CODE'].toInteger()
 def appVersionName = versionProps['VERSION_NAME'].toString()
 
 android {
-    namespace "com.heyhey.app"
-    compileSdk 36
+    namespace = "com.heyhey.app"
+    compileSdk = 36
     defaultConfig {
-        applicationId "com.heyhey.app"
-        minSdkVersion 24
-        targetSdkVersion 36
-        versionCode appVersionCode
-        versionName appVersionName
-        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        applicationId = "com.heyhey.app"
+        minSdk = 24
+        targetSdk = 36
+        versionCode = appVersionCode
+        versionName = appVersionName
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
              // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
