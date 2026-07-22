@@ -163,6 +163,27 @@ async function installNativePushListeners(
   if (listenersInstalled) return;
   listenersInstalled = true;
 
+  // Aseguramos que el canal `heyhey_messages` exista con importancia ALTA
+  // ANTES de registrar el token. Sin esto, algunos Android crean el canal
+  // con importancia por defecto (silencioso) y las notificaciones no suenan
+  // cuando la app está cerrada.
+  try {
+    if (Capacitor.getPlatform() === "android") {
+      await PushNotifications.createChannel({
+        id: "heyhey_messages",
+        name: "Mensajes de Hey Hey",
+        description: "Notificaciones de nuevos mensajes de WhatsApp",
+        importance: 5, // IMPORTANCE_HIGH → banner + sonido con la app cerrada
+        visibility: 1, // VISIBILITY_PUBLIC
+        sound: "default",
+        vibration: true,
+        lights: true,
+      });
+    }
+  } catch (e) {
+    console.warn("[NativePush] createChannel failed", e);
+  }
+
   PushNotifications.addListener("registration", async (t) => {
     const platform = Capacitor.getPlatform() as "ios" | "android";
     await storeNativePushToken(t.value);
