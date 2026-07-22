@@ -207,6 +207,15 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
       `&override_default_response_type=true` +
       `&extras=${extras}`;
     try { sessionStorage.setItem('meta_variant', metaConfig.variant); } catch (_e) { /* ignore */ }
+    console.log('[MobileOAuth] redirecting with', { appId: metaConfig.appId, configId: metaConfig.configId, variant: metaConfig.variant });
+    if (metaConfig.variant !== 'backup') {
+      toast({
+        title: 'Configuración incorrecta',
+        description: 'La app de Meta cargada no es la de respaldo. Recarga la página (Ctrl+Shift+R o borra el caché del navegador móvil) y vuelve a intentarlo.',
+        variant: 'destructive',
+      });
+      return;
+    }
     window.location.href = oauthUrl;
   };
 
