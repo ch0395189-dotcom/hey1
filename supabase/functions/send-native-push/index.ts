@@ -190,6 +190,27 @@ Deno.serve(async (req) => {
     const sa = parseServiceAccount(sa_raw);
     const projectId: string = sa.project_id;
 
+    // Diagnostic: GET or POST { diagnose: true } returns the Firebase project
+    // this server is authenticated against, so the APK's google-services.json
+    // can be matched to it (fixes SENDER_ID_MISMATCH).
+    const reqUrl = new URL(req.url);
+    let diagnose = reqUrl.searchParams.get("diagnose") === "1" || req.method === "GET";
+    if (!diagnose && req.method === "POST") {
+      try {
+        const clone = req.clone();
+        const peek = await clone.json();
+        if (peek?.diagnose === true) diagnose = true;
+      } catch {}
+    }
+    if (diagnose) {
+      return json({
+        ok: true,
+        firebase_project_id: projectId,
+        client_email: sa.client_email,
+        hint: "El google-services.json del APK debe tener este mismo project_id. sender_id (project_number) lo ves en Firebase Console > Configuración del proyecto.",
+      });
+    }
+
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
