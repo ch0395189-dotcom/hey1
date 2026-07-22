@@ -1,5 +1,18 @@
 apply plugin: 'com.android.application'
 
+// Leemos la versión desde android/app/version.properties para poder
+// autoincrementar versionCode y actualizar versionName en cada build.
+def versionPropsFile = file('version.properties')
+def versionProps = new Properties()
+if (versionPropsFile.exists()) {
+    versionProps.load(new FileInputStream(versionPropsFile))
+} else {
+    versionProps['VERSION_CODE'] = '1'
+    versionProps['VERSION_NAME'] = '1.0'
+}
+def appVersionCode = versionProps['VERSION_CODE'].toInteger()
+def appVersionName = versionProps['VERSION_NAME'].toString()
+
 android {
     namespace = "com.heyhey.app"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -7,8 +20,8 @@ android {
         applicationId "com.heyhey.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode appVersionCode
+        versionName appVersionName
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -20,6 +33,31 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    // Renombra el APK a hey-hey-<versionName>.apk (ej: hey-hey-1.0.apk)
+    applicationVariants.all { variant ->
+        variant.outputs.all { output ->
+            outputFileName = "hey-hey-${variant.versionName}.apk"
+        }
+    }
+}
+
+// Autoincrementa el versionCode y el último dígito de versionName (1.0 -> 1.1 -> 1.2 ...)
+// cada vez que ejecutes assembleDebug o assembleRelease.
+tasks.whenTaskAdded { task ->
+    if (task.name == 'assembleDebug' || task.name == 'assembleRelease') {
+        task.doFirst {
+            def newVersionCode = appVersionCode + 1
+            def parts = appVersionName.tokenize('.')
+            def major = parts[0]
+            def minor = (parts.size() > 1 ? parts[1].toInteger() : 0) + 1
+            def newVersionName = "${major}.${minor}"
+            versionProps['VERSION_CODE'] = newVersionCode.toString()
+            versionProps['VERSION_NAME'] = newVersionName
+            versionProps.store(versionPropsFile.newWriter(), null)
+            println "🔖 Nueva versión: ${newVersionName} (code ${newVersionCode})"
         }
     }
 }
