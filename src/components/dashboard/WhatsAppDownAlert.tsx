@@ -1,15 +1,17 @@
 import { useEffect, useState } from "react";
-import { AlertOctagon } from "lucide-react";
+import { AlertOctagon, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Props {
   accountIds: string[];
 }
 
+type Severity = "blocked" | "at_risk";
 interface DownAccount {
   id: string;
   phone_number: string;
   reason: string;
+  severity: Severity;
 }
 
 /**
@@ -55,7 +57,19 @@ export function WhatsAppDownAlert({ accountIds }: Props) {
             results.push({
               id: a.id,
               phone_number: a.phone_number,
+              severity: "blocked",
               reason: "Meta marcó tu número como bloqueado o de baja calidad.",
+            });
+            continue;
+          }
+
+          if (rating === "YELLOW" || rating === "MEDIUM") {
+            results.push({
+              id: a.id,
+              phone_number: a.phone_number,
+              severity: "at_risk",
+              reason:
+                "Meta bajó la calidad de tu número. Si sigue empeorando podría bloquearlo.",
             });
             continue;
           }
@@ -72,6 +86,7 @@ export function WhatsAppDownAlert({ accountIds }: Props) {
             results.push({
               id: a.id,
               phone_number: a.phone_number,
+              severity: "blocked",
               reason: "No estamos recibiendo mensajes en este número.",
             });
             continue;
@@ -86,6 +101,7 @@ export function WhatsAppDownAlert({ accountIds }: Props) {
             results.push({
               id: a.id,
               phone_number: a.phone_number,
+              severity: "blocked",
               reason: "No estamos recibiendo mensajes en este número.",
             });
           }
@@ -109,25 +125,64 @@ export function WhatsAppDownAlert({ accountIds }: Props) {
 
   return (
     <div className="space-y-2">
-      {down.map((a) => (
-        <div
-          key={a.id}
-          className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 flex items-start gap-3"
-          role="alert"
-        >
-          <AlertOctagon className="h-5 w-5 mt-0.5 shrink-0 text-destructive" />
-          <div className="flex-1 min-w-0 text-sm">
-            <div className="font-semibold text-destructive">
-              Tu número {a.phone_number} ha sido bloqueado
+      {down.map((a) => {
+        const blocked = a.severity === "blocked";
+        return (
+          <div
+            key={a.id}
+            className={
+              blocked
+                ? "rounded-lg border border-destructive/50 bg-destructive/10 p-4 flex items-start gap-3"
+                : "rounded-lg border border-yellow-500/50 bg-yellow-500/10 p-4 flex items-start gap-3"
+            }
+            role="alert"
+          >
+            {blocked ? (
+              <AlertOctagon className="h-5 w-5 mt-0.5 shrink-0 text-destructive" />
+            ) : (
+              <AlertTriangle className="h-5 w-5 mt-0.5 shrink-0 text-yellow-600 dark:text-yellow-400" />
+            )}
+            <div className="flex-1 min-w-0 text-sm">
+              <div
+                className={
+                  blocked
+                    ? "font-semibold text-destructive"
+                    : "font-semibold text-yellow-700 dark:text-yellow-300"
+                }
+              >
+                {blocked
+                  ? `Tu número ${a.phone_number} ha sido bloqueado`
+                  : `Tu número ${a.phone_number} está en riesgo de bloqueo`}
+              </div>
+              <p
+                className={
+                  blocked
+                    ? "mt-1 text-destructive/90"
+                    : "mt-1 text-yellow-800 dark:text-yellow-200"
+                }
+              >
+                {a.reason}{" "}
+                {blocked ? (
+                  <>
+                    Por favor, revisa tu aplicación de Meta y sigue los pasos
+                    que te indiquen. Si no puedes recuperarlo,{" "}
+                    <strong>
+                      elimina este número de HeyHey y conecta uno nuevo
+                    </strong>
+                    .
+                  </>
+                ) : (
+                  <>
+                    Evita enviar mensajes masivos, responde rápido a tus
+                    clientes y pide que <strong>no te reporten</strong> como
+                    spam para recuperar la calidad.
+                  </>
+                )}
+              </p>
             </div>
-            <p className="mt-1 text-destructive/90">
-              {a.reason} Por favor, revisa tu aplicación de Meta y sigue los
-              pasos que te indiquen. Si no puedes recuperarlo,{" "}
-              <strong>elimina este número de HeyHey y conecta uno nuevo</strong>.
-            </p>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
