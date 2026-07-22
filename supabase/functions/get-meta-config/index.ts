@@ -12,8 +12,9 @@ serve(async (req) => {
   }
 
   try {
-    // Support two Meta apps: primary (default) and backup (for new users / failover).
-    // Frontend can request either variant via ?variant=backup or { variant: "backup" } body.
+    // The old primary Meta app is permanently disabled for NEW connection flows.
+    // Always serve the backup app as the canonical Meta configuration, even if
+    // older cached clients call this function without { variant: "backup" }.
     const url = new URL(req.url);
     let variant = url.searchParams.get("variant") || "";
     if (!variant && req.method === "POST") {
@@ -23,24 +24,20 @@ serve(async (req) => {
       } catch (_e) { /* ignore */ }
     }
 
-    const primaryAppId = Deno.env.get("META_APP_ID") || Deno.env.get("VITE_META_APP_ID") || "";
-    const primaryConfigId =
-      Deno.env.get("META_CONFIG_ID") || Deno.env.get("VITE_META_CONFIG_ID") || "";
     const backupAppId = Deno.env.get("META_APP_ID_BACKUP") || "";
     const backupConfigId = Deno.env.get("META_CONFIG_ID_BACKUP") || "";
 
-    const useBackup = variant === "backup" && backupAppId && backupConfigId;
-    const appId = useBackup ? backupAppId : primaryAppId;
-    const configId = useBackup ? backupConfigId : primaryConfigId;
+    const appId = backupAppId;
+    const configId = backupConfigId;
 
-    console.log("get-meta-config: variant=", useBackup ? "backup" : "primary",
+    console.log("get-meta-config: requested=", variant || "default", "served= backup",
       "appIdPresent=", Boolean(appId), "configIdPresent=", Boolean(configId));
 
     return new Response(
       JSON.stringify({
         appId,
         configId,
-        variant: useBackup ? "backup" : "primary",
+        variant: "backup",
         hasBackup: Boolean(backupAppId && backupConfigId),
       }),
       {
