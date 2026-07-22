@@ -145,8 +145,13 @@ export const ReconnectWhatsAppButton = ({ onReconnected, variant = "button", acc
   useEffect(() => {
     (async () => {
       try {
-        const { data } = await supabase.functions.invoke("get-meta-config");
-        setMetaConfig({ appId: data?.appId || "", configId: data?.configId || "" });
+        // Forzar app de RESPALDO (portafolio principal restringido)
+        const { data } = await supabase.functions.invoke("get-meta-config", { body: { variant: 'backup' } });
+        setMetaConfig({
+          appId: data?.appId || "",
+          configId: data?.configId || "",
+          variant: (data?.variant as 'primary' | 'backup') || 'backup',
+        });
       } catch (e) {
         console.error("get-meta-config failed", e);
       }
