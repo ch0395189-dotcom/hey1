@@ -53,11 +53,13 @@ tasks.whenTaskAdded { task ->
             def parts = appVersionName.tokenize('.')
             def major = parts[0]
             def minor = (parts.size() > 1 ? parts[1].toInteger() : 0) + 1
-            def newVersionName = "${major}.${minor}"
-            versionProps['VERSION_CODE'] = newVersionCode.toString()
-            versionProps['VERSION_NAME'] = newVersionName
-            versionProps.store(versionPropsFile.newWriter(), null)
-            println "🔖 Nueva versión: ${newVersionName} (code ${newVersionCode})"
+            def newVersionName = (major + '.' + minor).toString()
+            versionProps.setProperty('VERSION_CODE', newVersionCode.toString())
+            versionProps.setProperty('VERSION_NAME', newVersionName)
+            def writer = versionPropsFile.newWriter()
+            versionProps.store(writer, null)
+            writer.close()
+            println "Nueva version: " + newVersionName + " (code " + newVersionCode + ")"
         }
     }
 }
