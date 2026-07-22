@@ -15,11 +15,11 @@ def appVersionName = versionProps['VERSION_NAME'].toString()
 
 android {
     namespace "com.heyhey.app"
-    compileSdkVersion 36
+    compileSdk 36
     defaultConfig {
         applicationId "com.heyhey.app"
-        minSdkVersion 24
-        targetSdkVersion 36
+        minSdk 24
+        targetSdk 36
         versionCode appVersionCode
         versionName appVersionName
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
