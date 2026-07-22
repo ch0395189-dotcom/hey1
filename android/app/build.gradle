@@ -39,7 +39,7 @@ android {
     // Renombra el APK a hey-hey-<versionName>.apk (ej: hey-hey-1.0.apk)
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            outputFileName = "hey-hey-${variant.versionName}.apk"
+            outputFileName = ("hey-hey-" + variant.versionName.toString() + ".apk").toString()
         }
     }
 }
@@ -51,9 +51,9 @@ tasks.whenTaskAdded { task ->
         task.doFirst {
             def newVersionCode = appVersionCode + 1
             def parts = appVersionName.tokenize('.')
-            def major = parts[0]
+            def major = parts[0].toString()
             def minor = (parts.size() > 1 ? parts[1].toInteger() : 0) + 1
-            def newVersionName = (major + '.' + minor).toString()
+            def newVersionName = (major + '.' + minor.toString()).toString()
             versionProps.setProperty('VERSION_CODE', newVersionCode.toString())
             versionProps.setProperty('VERSION_NAME', newVersionName)
             def writer = versionPropsFile.newWriter()

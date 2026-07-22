@@ -6,7 +6,7 @@
  */
 
 import { spawn } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { platform } from 'node:os';
 
@@ -60,16 +60,9 @@ async function main() {
   await run(gradlewPath, ['assembleDebug'], { cwd: resolve(cwd, 'android') });
 
   // Report the output path
-  const apkPath = resolve(
-    cwd,
-    'android',
-    'app',
-    'build',
-    'outputs',
-    'apk',
-    'debug',
-    'app-debug.apk'
-  );
+  const debugOutputDir = resolve(cwd, 'android', 'app', 'build', 'outputs', 'apk', 'debug');
+  const generatedApk = readdirSync(debugOutputDir).find((file) => file.startsWith('hey-hey-') && file.endsWith('.apk'));
+  const apkPath = resolve(debugOutputDir, generatedApk || 'hey-hey.apk');
 
   console.log('\n✅ APK generated successfully!');
   console.log(`📱 Install it on your device:`);
