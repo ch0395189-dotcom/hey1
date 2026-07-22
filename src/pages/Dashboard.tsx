@@ -35,7 +35,7 @@ import type { User } from "@supabase/supabase-js";
 import { ConversationsList } from "@/components/whatsapp/ConversationsList";
 import { ChatWindow } from "@/components/whatsapp/ChatWindow";
 import { WhatsAppSetup } from "@/components/whatsapp/WhatsAppSetup";
-import { ReconnectWhatsAppButton } from "@/components/whatsapp/ReconnectWhatsAppButton";
+import { WhatsAppDownAlert } from "@/components/dashboard/WhatsAppDownAlert";
 import { ChatbotConfig } from "@/components/chatbot/ChatbotConfig";
 import { ContactsList } from "@/components/contacts/ContactsList";
 import { StatisticsPanel } from "@/components/statistics/StatisticsPanel";
@@ -585,12 +585,9 @@ const Dashboard = () => {
           <PaymentAlertBanner />
           <MessageLimitBanner />
           <QualityAlertBanner />
-          <div className="flex justify-end">
-            <ReconnectWhatsAppButton
-              onReconnected={checkWhatsAppAccounts}
-              accountIds={whatsappAccounts.map((a) => a.id)}
-            />
-          </div>
+          <WhatsAppDownAlert
+            accountIds={whatsappAccounts.map((a) => a.id)}
+          />
         </div>
       )}
       
