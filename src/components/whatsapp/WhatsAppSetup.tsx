@@ -231,8 +231,20 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
 
   const loadFacebookSDK = useCallback(() => {
     if (!metaConfig.appId) return;
-    
+
+    // Re-init even if FB already exists so a stale appId (e.g. primary loaded
+    // in a previous route) is replaced with the current one (backup).
     if (window.FB) {
+      try {
+        window.FB.init({
+          appId: metaConfig.appId,
+          cookie: true,
+          xfbml: true,
+          version: 'v21.0',
+        });
+      } catch (e) {
+        console.warn('FB.init re-run failed', e);
+      }
       setFbLoaded(true);
       return;
     }
