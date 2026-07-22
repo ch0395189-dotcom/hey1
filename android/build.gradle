@@ -24,6 +24,30 @@ allprojects {
     }
 }
 
+subprojects { subproject ->
+    plugins.withId('com.android.application') {
+        subproject.android {
+            compileSdkVersion rootProject.ext.compileSdkVersion
+
+            defaultConfig {
+                minSdkVersion rootProject.ext.minSdkVersion
+                targetSdkVersion rootProject.ext.targetSdkVersion
+            }
+        }
+    }
+
+    plugins.withId('com.android.library') {
+        subproject.android {
+            compileSdkVersion rootProject.ext.compileSdkVersion
+
+            defaultConfig {
+                minSdkVersion rootProject.ext.minSdkVersion
+                targetSdkVersion rootProject.ext.targetSdkVersion
+            }
+        }
+    }
+}
+
 task clean(type: Delete) {
     delete rootProject.buildDir
 }
