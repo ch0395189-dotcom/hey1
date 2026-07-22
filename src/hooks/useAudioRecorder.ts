@@ -1,5 +1,33 @@
 import { useState, useRef, useCallback } from 'react';
 import { getBestAudioMimeType } from '@/utils/audioConverter';
+import { Capacitor } from '@capacitor/core';
+
+/**
+ * En APK (Capacitor + Android WebView) `getUserMedia` falla en frío si el
+ * usuario nunca ha aceptado el permiso RECORD_AUDIO. Pedimos explícitamente
+ * el permiso antes de tocar el mic para que salga el diálogo del sistema
+ * y no un error críptico de "Permission denied".
+ */
+async function ensureMicPermission(): Promise<void> {
+  try {
+    if (!Capacitor.isNativePlatform()) return;
+    // Solicitud a nivel Android — usamos el plugin Permissions genérico si
+    // está disponible; si no, dejamos que el WebView pida el permiso al
+    // llamar a getUserMedia (Capacitor 5+ ya reenvía la petición al SO
+    // siempre que el manifest declare RECORD_AUDIO).
+    const mod: any = await import('@capacitor/core');
+    const registerPlugin = mod?.registerPlugin;
+    if (!registerPlugin) return;
+    try {
+      const Perms: any = registerPlugin('Permissions');
+      if (Perms?.request) await Perms.request({ name: 'microphone' });
+    } catch {
+      /* fallback silencioso al prompt nativo del WebView */
+    }
+  } catch {
+    /* noop */
+  }
+}
 
 interface UseAudioRecorderReturn {
   isRecording: boolean;
@@ -52,6 +80,7 @@ export const useAudioRecorder = (): UseAudioRecorderReturn => {
 
   const startRecording = useCallback(async () => {
     try {
+      await ensureMicPermission();
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
       chunksRef.current = [];
@@ -88,6 +117,20 @@ export const useAudioRecorder = (): UseAudioRecorderReturn => {
       startTimer();
     } catch (error) {
       console.error('Error starting recording:', error);
+      const err = error as DOMException;
+      // Traducimos el error del navegador a un mensaje claro para el usuario
+      // (el APK antes fallaba con "NotAllowedError" sin más contexto).
+      if (err?.name === 'NotAllowedError' || err?.name === 'SecurityError') {
+        throw new Error(
+          'Permiso de micrófono denegado. Ve a Ajustes → Aplicaciones → Hey Hey → Permisos y activa el micrófono.'
+        );
+      }
+      if (err?.name === 'NotFoundError') {
+        throw new Error('No se encontró un micrófono disponible en este dispositivo.');
+      }
+      if (err?.name === 'NotReadableError') {
+        throw new Error('El micrófono está en uso por otra app. Ciérrala e intenta de nuevo.');
+      }
       throw error;
     }
   }, [startTimer]);

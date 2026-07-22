@@ -22,15 +22,16 @@ async function boot() {
     platform: Capacitor.getPlatform(),
     userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "",
   });
+  // Precargamos el bundle de App en paralelo con la hidratación de la sesión
+  // nativa. Antes esto era secuencial (hidratar → importar → montar) y el APK
+  // tardaba varios segundos en mostrar la primera pantalla; ahora el import
+  // ocurre mientras Capacitor Preferences responde.
+  const appPromise = import("./App.tsx");
   await hydrateNativeSession();
-  // Do not block the first screen on native Preferences writes; the session is
-  // already hydrated above, and the mirror can attach in the background.
+  // Los mirrors/keyboard listeners no bloquean la UI.
   void installNativeSessionMirror();
   void installNativeKeyboardHandling();
-  // Import App only after native session hydration. App imports pages/hooks
-  // that import the auth client; loading it too early makes the APK miss the
-  // restored localStorage session after the app is fully closed.
-  const { default: App } = await import("./App.tsx");
+  const { default: App } = await appPromise;
   createRoot(document.getElementById("root")!).render(<App />);
 }
 void boot();
