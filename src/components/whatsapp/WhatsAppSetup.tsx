@@ -217,6 +217,10 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
         body: { variant },
       });
       if (error) throw error;
+      console.log('[MetaConfig] fetched', { requested: variant, returned: data?.variant, appId: data?.appId, configId: data?.configId });
+      if (variant === 'backup' && data?.variant !== 'backup') {
+        console.warn('[MetaConfig] Expected backup but got', data?.variant, '— backup secrets may be missing.');
+      }
       setMetaConfig({
         appId: data.appId || '',
         configId: data.configId || '',
