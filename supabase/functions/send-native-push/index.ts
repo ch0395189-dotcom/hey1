@@ -193,8 +193,8 @@ Deno.serve(async (req) => {
     // Diagnostic: GET or POST { diagnose: true } returns the Firebase project
     // this server is authenticated against, so the APK's google-services.json
     // can be matched to it (fixes SENDER_ID_MISMATCH).
-    const url = new URL(req.url);
-    let diagnose = url.searchParams.get("diagnose") === "1" || req.method === "GET";
+    const reqUrl = new URL(req.url);
+    let diagnose = reqUrl.searchParams.get("diagnose") === "1" || req.method === "GET";
     if (!diagnose && req.method === "POST") {
       try {
         const clone = req.clone();
