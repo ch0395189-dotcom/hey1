@@ -69,16 +69,30 @@ Deno.serve(async (req) => {
     );
     const getData = await getResp.json();
 
-    // 2) Debug token to see granted scopes
-    const appId = Deno.env.get("META_APP_ID");
-    const appSecret = Deno.env.get("META_APP_SECRET");
+    // 2) Debug token to see granted scopes. Try backup first for new accounts,
+    // then primary so already-active old-app sessions can still be inspected.
+    const backupAppId = Deno.env.get("META_APP_ID_BACKUP");
+    const backupAppSecret = Deno.env.get("META_APP_SECRET_BACKUP");
+    const primaryAppId = Deno.env.get("META_APP_ID");
+    const primaryAppSecret = Deno.env.get("META_APP_SECRET");
     let scopes: unknown = null;
-    if (appId && appSecret) {
+    for (const app of [
+      { label: "backup", id: backupAppId, secret: backupAppSecret },
+      { label: "primary", id: primaryAppId, secret: primaryAppSecret },
+    ]) {
+      if (!app.id || !app.secret) continue;
       const debugResp = await fetch(
-        `https://graph.facebook.com/v21.0/debug_token?input_token=${encodeURIComponent(token)}&access_token=${appId}|${appSecret}`,
+        `https://graph.facebook.com/v21.0/debug_token?input_token=${encodeURIComponent(token)}&access_token=${app.id}|${app.secret}`,
       );
       const debugData = await debugResp.json();
-      scopes = debugData?.data?.granular_scopes ?? debugData?.data?.scopes ?? debugData;
+      if (debugData?.data?.is_valid || debugData?.data?.granular_scopes || debugData?.data?.scopes) {
+        scopes = {
+          app_variant: app.label,
+          granular_scopes: debugData?.data?.granular_scopes ?? debugData?.data?.scopes ?? debugData,
+        };
+        break;
+      }
+      scopes = debugData;
     }
 
     let subscribeResult: unknown = null;

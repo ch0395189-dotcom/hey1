@@ -63,22 +63,20 @@ Deno.serve(async (req) => {
     let wabaIdFromSession: string | undefined = body.waba_id;
     let phoneNumberIdFromSession: string | undefined = body.phone_number_id;
 
-    // Pick app credentials based on variant sent by the frontend (primary | backup).
-    // Falls back to primary automatically if backup secrets are missing.
-    const useBackup = body.variant === 'backup';
+    // The old primary Meta app is permanently disabled for NEW WhatsApp links.
+    // Force backup credentials server-side so stale mobile bundles or cached
+    // redirects cannot create/update accounts through the restricted app.
     const BACKUP_ID = Deno.env.get('META_APP_ID_BACKUP');
     const BACKUP_SECRET = Deno.env.get('META_APP_SECRET_BACKUP');
-    const PRIMARY_ID = Deno.env.get('META_APP_ID');
-    const PRIMARY_SECRET = Deno.env.get('META_APP_SECRET');
 
-    const META_APP_ID = (useBackup && BACKUP_ID) ? BACKUP_ID : PRIMARY_ID;
-    const META_APP_SECRET = (useBackup && BACKUP_SECRET) ? BACKUP_SECRET : PRIMARY_SECRET;
-    console.log('whatsapp-exchange-token: variant=', useBackup && BACKUP_ID ? 'backup' : 'primary');
+    const META_APP_ID = BACKUP_ID;
+    const META_APP_SECRET = BACKUP_SECRET;
+    console.log('whatsapp-exchange-token: requested_variant=', body.variant || 'default', 'served_variant=backup');
 
     if (!META_APP_ID || !META_APP_SECRET) {
       return new Response(
-        JSON.stringify({ error: 'Meta app credentials not configured' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: 'Meta backup app credentials not configured' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 

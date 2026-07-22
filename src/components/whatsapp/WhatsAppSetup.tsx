@@ -155,7 +155,7 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
   const [fbLoaded, setFbLoaded] = useState(false);
-  const [metaConfig, setMetaConfig] = useState<{ appId: string; configId: string; variant: 'primary' | 'backup' }>({ appId: '', configId: '', variant: 'primary' });
+  const [metaConfig, setMetaConfig] = useState<{ appId: string; configId: string; variant: 'primary' | 'backup' }>({ appId: '', configId: '', variant: 'backup' });
   const [configLoading, setConfigLoading] = useState(true);
   const [expandedAccount, setExpandedAccount] = useState<string | null>(null);
   const [templateRefresh, setTemplateRefresh] = useState(0);
@@ -336,7 +336,7 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
           body: {
             code,
             redirect_uri: `https://www.heyhey.site${window.location.pathname}`,
-            variant: storedVariant === 'backup' ? 'backup' : 'primary',
+            variant: 'backup',
           },
         });
         try { sessionStorage.removeItem('meta_variant'); } catch (_e) { /* ignore */ }
@@ -383,7 +383,7 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
 
       console.log('Calling whatsapp-exchange-token with:', params);
       const { data, error } = await supabase.functions.invoke('whatsapp-exchange-token', {
-        body: { ...params, variant: metaConfig.variant },
+        body: { ...params, variant: 'backup' },
       });
 
       console.log('Exchange response:', { data, error });
