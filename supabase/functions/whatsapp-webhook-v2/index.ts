@@ -661,6 +661,23 @@ Deno.serve(async (req) => {
                 console.error('Error saving message:', msgError);
               }
 
+              // ── Suite Anti-Bloqueo: opt-out automático ─────────────────
+              if (messageType === 'text' && isOptOutMessage(content)) {
+                console.log('🚫 Opt-out detectado, bloqueando conversación:', conversationId);
+                await supabase
+                  .from('conversations')
+                  .update({ blocked_at: new Date().toISOString() })
+                  .eq('id', conversationId)
+                  .is('blocked_at', null);
+                await supabase.from('credit_usage').insert({
+                  user_id: whatsappAccount.user_id,
+                  service_type: 'auto_optout',
+                  credits_used: 0,
+                  description: `Opt-out automático (${customerPhone}): "${(content || '').slice(0, 120)}"`,
+                  metadata: { conversation_id: conversationId, phone: customerPhone },
+                });
+              }
+
               // Send push notification to owner (and assigned agent if any)
               // Fire-and-forget: NO await — el webhook responde a Meta antes
               // de que la invocación termine, reduciendo latencia percibida.

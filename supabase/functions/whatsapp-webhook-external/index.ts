@@ -365,6 +365,24 @@ Deno.serve(async (req) => {
       console.log(`✅ Mensaje guardado: ${message.id}`);
       results.push({ messageId: message.id, from: phoneNumber, accountId: account.id, success: true });
 
+      // ── Suite Anti-Bloqueo: opt-out automático ─────────────────
+      if (messageType === 'text' && isOptOutMessage(messageContent)) {
+        console.log('🚫 Opt-out detectado, bloqueando conversación:', conversation.id);
+        await supabase
+          .from('conversations')
+          .update({ blocked_at: new Date().toISOString() })
+          .eq('id', conversation.id)
+          .is('blocked_at', null);
+        await supabase.from('credit_usage').insert({
+          user_id: account.user_id,
+          service_type: 'auto_optout',
+          credits_used: 0,
+          description: `Opt-out automático (${phoneNumber}): "${(messageContent || '').slice(0, 120)}"`,
+          metadata: { conversation_id: conversation.id, phone: phoneNumber },
+        });
+        continue;
+      }
+
       // Procesar chatbot si está activo
       try {
         const { data: chatbotConfig } = await supabase
