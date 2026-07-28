@@ -41,6 +41,69 @@ export type Database = {
         }
         Relationships: []
       }
+      anti_block_alerts: {
+        Row: {
+          alert_type: string
+          category: string | null
+          conversation_id: string | null
+          created_at: string
+          excerpt: string | null
+          id: string
+          metadata: Json | null
+          pattern: string | null
+          phone: string | null
+          resolved: boolean
+          severity: string | null
+          user_id: string
+          whatsapp_account_id: string | null
+        }
+        Insert: {
+          alert_type: string
+          category?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          excerpt?: string | null
+          id?: string
+          metadata?: Json | null
+          pattern?: string | null
+          phone?: string | null
+          resolved?: boolean
+          severity?: string | null
+          user_id: string
+          whatsapp_account_id?: string | null
+        }
+        Update: {
+          alert_type?: string
+          category?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          excerpt?: string | null
+          id?: string
+          metadata?: Json | null
+          pattern?: string | null
+          phone?: string | null
+          resolved?: boolean
+          severity?: string | null
+          user_id?: string
+          whatsapp_account_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "anti_block_alerts_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "anti_block_alerts_whatsapp_account_id_fkey"
+            columns: ["whatsapp_account_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bold_payments: {
         Row: {
           amount: number
