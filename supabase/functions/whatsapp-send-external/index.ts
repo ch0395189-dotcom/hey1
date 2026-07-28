@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { checkOutboundContent, checkWarmupLimit } from '../_shared/anti-block.ts'
 
 // WhatsApp Send External v2 - Sends messages via WuzAPI/HeyHey
 
@@ -70,7 +71,7 @@ Deno.serve(async (req) => {
     // Fetch account with external API credentials
     const { data: account, error: accountError } = await supabase
       .from('whatsapp_accounts')
-      .select('id, external_service_url, external_api_key, external_instance_id, connection_type, user_id')
+      .select('id, external_service_url, external_api_key, external_instance_id, connection_type, user_id, sensitive_niche_mode, warmup_started_at')
       .eq('id', accountId)
       .single();
 
@@ -106,6 +107,47 @@ Deno.serve(async (req) => {
     if (!apiBaseUrl || !apiToken) {
       return new Response(
         JSON.stringify({ error: 'API configuration missing. Please reconfigure the account.' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // ── Suite Anti-Bloqueo: filtro de contenido saliente ─────────────────
+    if (message) {
+      const contentCheck = await checkOutboundContent(
+        supabase,
+        message,
+        !!(account as any).sensitive_niche_mode,
+      );
+      if (contentCheck.blocked) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            blocked: true,
+            error: 'content_blocked',
+            message: contentCheck.reason,
+            category: contentCheck.category,
+            severity: contentCheck.severity,
+            pattern: contentCheck.pattern,
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    // ── Suite Anti-Bloqueo: warm-up de número nuevo ──────────────────────
+    const warmup = await checkWarmupLimit(
+      supabase,
+      account.id,
+      (account as any).warmup_started_at,
+    );
+    if (warmup.inWarmup && !warmup.allowed) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'warmup_limit_reached',
+          message: warmup.reason,
+          warmup,
+        }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }

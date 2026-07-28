@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { isOptOutMessage } from "../_shared/anti-block.ts";
 
 // WhatsApp Business API Webhook Handler
 const corsHeaders = {
