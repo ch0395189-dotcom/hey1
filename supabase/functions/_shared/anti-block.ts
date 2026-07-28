@@ -92,6 +92,36 @@ export function isOptOutMessage(text: string | null | undefined): boolean {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Alert logging helpers (Suite Anti-Bloqueo)
+// ─────────────────────────────────────────────────────────────────────────────
+export interface AlertRecord {
+  user_id: string;
+  whatsapp_account_id?: string | null;
+  conversation_id?: string | null;
+  alert_type: "content_blocked" | "conversation_blocked" | "warmup_hit";
+  phone?: string | null;
+  category?: string | null;
+  severity?: string | null;
+  pattern?: string | null;
+  excerpt?: string | null;
+  metadata?: Record<string, unknown> | null;
+}
+
+export async function recordAntiBlockAlert(
+  supabase: SupabaseClient,
+  alert: AlertRecord,
+): Promise<void> {
+  try {
+    await supabase.from("anti_block_alerts").insert({
+      ...alert,
+      excerpt: alert.excerpt ? alert.excerpt.slice(0, 240) : null,
+    });
+  } catch (e) {
+    console.error("recordAntiBlockAlert failed", e);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Warm-up daily limits
 // ─────────────────────────────────────────────────────────────────────────────
 const WARMUP_DAILY_LIMITS: Record<number, number> = { 1: 20, 2: 50, 3: 100, 4: 250 };
