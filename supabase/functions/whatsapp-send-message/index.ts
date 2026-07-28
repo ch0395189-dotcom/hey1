@@ -250,7 +250,8 @@ Deno.serve(async (req) => {
           quality_pause_reason,
           quality_rating,
           sensitive_niche_mode,
-          warmup_started_at
+          warmup_started_at,
+          ai_sanitize_enabled
         )
       `)
       .eq('id', conversation_id)
