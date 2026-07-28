@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { isOptOutMessage } from "../_shared/anti-block.ts";
+import { isOptOutMessage, recordAntiBlockAlert } from "../_shared/anti-block.ts";
 
 // WhatsApp Business API Webhook Handler
 const corsHeaders = {
@@ -675,6 +675,15 @@ Deno.serve(async (req) => {
                   credits_used: 0,
                   description: `Opt-out automático (${customerPhone}): "${(content || '').slice(0, 120)}"`,
                   metadata: { conversation_id: conversationId, phone: customerPhone },
+                });
+                await recordAntiBlockAlert(supabase, {
+                  user_id: whatsappAccount.user_id,
+                  whatsapp_account_id: whatsappAccount.id,
+                  conversation_id: conversationId,
+                  alert_type: 'conversation_blocked',
+                  phone: customerPhone,
+                  excerpt: content ?? null,
+                  metadata: { source: 'meta_webhook', trigger: 'opt_out' },
                 });
               }
 
