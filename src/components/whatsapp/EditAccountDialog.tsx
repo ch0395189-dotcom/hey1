@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
@@ -10,7 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Loader2 } from "lucide-react";
+import { Loader2, ShieldAlert, Flame } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -23,6 +24,8 @@ interface WhatsAppAccount {
   display_name: string | null;
   is_active: boolean;
   webhook_verify_token: string | null;
+  sensitive_niche_mode?: boolean | null;
+  warmup_started_at?: string | null;
 }
 
 interface EditAccountDialogProps {
@@ -39,6 +42,9 @@ export const EditAccountDialog = ({
   onAccountUpdated,
 }: EditAccountDialogProps) => {
   const [saving, setSaving] = useState(false);
+  const [sensitiveNiche, setSensitiveNiche] = useState(false);
+  const [warmupOn, setWarmupOn] = useState(false);
+  const [warmupStartedAt, setWarmupStartedAt] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     displayName: "",
     phoneNumberId: "",
@@ -55,8 +61,21 @@ export const EditAccountDialog = ({
         businessAccountId: account.business_account_id || "",
         accessToken: "", // Don't show current token for security
       });
+      setSensitiveNiche(!!account.sensitive_niche_mode);
+      setWarmupOn(!!account.warmup_started_at);
+      setWarmupStartedAt(account.warmup_started_at || null);
     }
   }, [account]);
+
+  const warmupDayLabel = (() => {
+    if (!warmupStartedAt) return null;
+    const started = new Date(warmupStartedAt).getTime();
+    if (Number.isNaN(started)) return null;
+    const day = Math.floor((Date.now() - started) / 86_400_000) + 1;
+    if (day >= 5) return "completado";
+    const limits: Record<number, number> = { 1: 20, 2: 50, 3: 100, 4: 250 };
+    return `Día ${day}/5 · máx ${limits[day] ?? 20} msg hoy`;
+  })();
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
