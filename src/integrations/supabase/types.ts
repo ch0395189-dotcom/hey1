@@ -795,6 +795,36 @@ export type Database = {
         }
         Relationships: []
       }
+      outbound_content_rules: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          is_active: boolean
+          is_regex: boolean
+          pattern: string
+          severity: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_regex?: boolean
+          pattern: string
+          severity?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_regex?: boolean
+          pattern?: string
+          severity?: string
+        }
+        Relationships: []
+      }
       payment_alerts: {
         Row: {
           admin_id: string
@@ -1393,8 +1423,10 @@ export type Database = {
           quality_pause_reason: string | null
           quality_paused: boolean
           quality_rating: string | null
+          sensitive_niche_mode: boolean
           updated_at: string
           user_id: string
+          warmup_started_at: string | null
           webhook_verify_token: string | null
         }
         Insert: {
@@ -1416,8 +1448,10 @@ export type Database = {
           quality_pause_reason?: string | null
           quality_paused?: boolean
           quality_rating?: string | null
+          sensitive_niche_mode?: boolean
           updated_at?: string
           user_id: string
+          warmup_started_at?: string | null
           webhook_verify_token?: string | null
         }
         Update: {
@@ -1439,8 +1473,10 @@ export type Database = {
           quality_pause_reason?: string | null
           quality_paused?: boolean
           quality_rating?: string | null
+          sensitive_niche_mode?: boolean
           updated_at?: string
           user_id?: string
+          warmup_started_at?: string | null
           webhook_verify_token?: string | null
         }
         Relationships: []
