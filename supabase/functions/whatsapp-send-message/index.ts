@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { checkOutboundContent, checkWarmupLimit, recordAntiBlockAlert } from "../_shared/anti-block.ts";
+import { checkOutboundContent, checkWarmupLimit, recordAntiBlockAlert, sanitizeWithAI } from "../_shared/anti-block.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
