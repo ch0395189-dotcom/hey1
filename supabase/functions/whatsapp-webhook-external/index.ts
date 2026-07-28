@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { isOptOutMessage } from '../_shared/anti-block.ts'
+import { isOptOutMessage, recordAntiBlockAlert } from '../_shared/anti-block.ts'
 
 // WhatsApp External Webhook Handler v2 - Receives messages from WuzAPI/HeyHey
 
@@ -379,6 +379,15 @@ Deno.serve(async (req) => {
           credits_used: 0,
           description: `Opt-out automático (${phoneNumber}): "${(messageContent || '').slice(0, 120)}"`,
           metadata: { conversation_id: conversation.id, phone: phoneNumber },
+        });
+        await recordAntiBlockAlert(supabase, {
+          user_id: account.user_id,
+          whatsapp_account_id: account.id,
+          conversation_id: conversation.id,
+          alert_type: 'conversation_blocked',
+          phone: phoneNumber,
+          excerpt: messageContent ?? null,
+          metadata: { source: 'external_webhook', trigger: 'opt_out' },
         });
         continue;
       }
