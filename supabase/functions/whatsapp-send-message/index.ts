@@ -151,7 +151,8 @@ Deno.serve(async (req) => {
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
     const body = await req.json() as SendMessageRequest;
-    const { message, message_type, media_url, media_type, interactive, template_name, template_language, template_body_params } = body;
+    let { message } = body;
+    const { message_type, media_url, media_type, interactive, template_name, template_language, template_body_params } = body;
     let { conversation_id } = body;
 
     // If no conversation_id, create or find conversation by phone_number + whatsapp_account_id
