@@ -586,6 +586,7 @@ const Dashboard = () => {
           <PaymentAlertBanner />
           <MessageLimitBanner />
           <QualityAlertBanner />
+          <AntiBlockAlertBanner />
           <WhatsAppDownAlert
             accountIds={whatsappAccounts.map((a) => a.id)}
           />
