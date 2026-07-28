@@ -98,7 +98,7 @@ export interface AlertRecord {
   user_id: string;
   whatsapp_account_id?: string | null;
   conversation_id?: string | null;
-  alert_type: "content_blocked" | "conversation_blocked" | "warmup_hit";
+  alert_type: "content_blocked" | "conversation_blocked" | "warmup_hit" | "content_sanitized";
   phone?: string | null;
   category?: string | null;
   severity?: string | null;
@@ -124,12 +124,16 @@ export async function recordAntiBlockAlert(
         ? "⚠️ Mensaje bloqueado por filtro"
         : alert.alert_type === "conversation_blocked"
         ? "🚫 Conversación bloqueada (opt-out)"
+        : alert.alert_type === "content_sanitized"
+        ? "✏️ Mensaje reescrito por IA"
         : "🔥 Límite de warm-up alcanzado";
     const body =
       alert.alert_type === "content_blocked"
         ? `Detectamos "${alert.pattern ?? "contenido de riesgo"}" en un envío a ${alert.phone ?? "un contacto"}.`
         : alert.alert_type === "conversation_blocked"
         ? `${alert.phone ?? "Un contacto"} pidió no recibir más mensajes.`
+        : alert.alert_type === "content_sanitized"
+        ? `Reemplazamos "${alert.pattern ?? "una palabra de riesgo"}" antes de enviar a ${alert.phone ?? "un contacto"}.`
         : `Este número está en calentamiento y alcanzó su cuota diaria.`;
     supabase.functions.invoke("send-push-notification", {
       body: {
@@ -199,4 +203,61 @@ export async function checkWarmupLimit(
       ? undefined
       : `Este número está en calentamiento (día ${stage}/5). Alcanzaste el máximo diario de ${dailyLimit} mensajes. Meta bloquea números nuevos que envían demasiado rápido. Reintenta mañana.`,
   };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AI sanitizer — rewrites risky content into a safer version using Lovable AI
+// ─────────────────────────────────────────────────────────────────────────────
+export interface SanitizeResult {
+  changed: boolean;
+  text: string;
+  reason?: string;
+}
+
+export async function sanitizeWithAI(
+  originalText: string,
+  matchedPattern?: string | null,
+  category?: string | null,
+): Promise<SanitizeResult> {
+  const apiKey = Deno.env.get("LOVABLE_API_KEY");
+  if (!apiKey || !originalText) return { changed: false, text: originalText };
+  try {
+    const system =
+      `Eres un editor que reescribe mensajes de WhatsApp para evitar bloqueos por parte de Meta.` +
+      ` Reemplaza palabras o frases sensibles (${category ?? "riesgo"}: "${matchedPattern ?? ""}")` +
+      ` por alternativas suaves, ambiguas o profesionales que conserven el sentido y el tono.` +
+      ` Reglas: (1) devuelve SOLO el mensaje reescrito, sin comentarios;` +
+      ` (2) NO cambies emojis, nombres propios, precios ni datos de contacto;` +
+      ` (3) mantén el idioma original y una longitud similar;` +
+      ` (4) evita promesas absolutas, palabras médicas, esotéricas explícitas, "gratis/urgente/oferta" agresivo,` +
+      ` "hackeo", drogas, apuestas, y cualquier término que Meta suela penalizar.`;
+
+    const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash-lite",
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: originalText },
+        ],
+        temperature: 0.4,
+      }),
+    });
+    if (!resp.ok) {
+      console.warn("sanitizeWithAI: gateway error", resp.status);
+      return { changed: false, text: originalText };
+    }
+    const json = await resp.json();
+    const rewritten: string | undefined = json?.choices?.[0]?.message?.content?.trim();
+    if (!rewritten || rewritten.length < 2) return { changed: false, text: originalText };
+    if (rewritten === originalText) return { changed: false, text: originalText };
+    return { changed: true, text: rewritten, reason: matchedPattern ?? undefined };
+  } catch (e) {
+    console.error("sanitizeWithAI failed", e);
+    return { changed: false, text: originalText };
+  }
 }

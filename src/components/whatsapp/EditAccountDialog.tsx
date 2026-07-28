@@ -11,7 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Loader2, ShieldAlert, Flame } from "lucide-react";
+import { Loader2, ShieldAlert, Flame, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -26,6 +26,7 @@ interface WhatsAppAccount {
   webhook_verify_token: string | null;
   sensitive_niche_mode?: boolean | null;
   warmup_started_at?: string | null;
+  ai_sanitize_enabled?: boolean | null;
 }
 
 interface EditAccountDialogProps {
@@ -45,6 +46,7 @@ export const EditAccountDialog = ({
   const [sensitiveNiche, setSensitiveNiche] = useState(false);
   const [warmupOn, setWarmupOn] = useState(false);
   const [warmupStartedAt, setWarmupStartedAt] = useState<string | null>(null);
+  const [aiSanitize, setAiSanitize] = useState(true);
   const [formData, setFormData] = useState({
     displayName: "",
     phoneNumberId: "",
@@ -64,6 +66,7 @@ export const EditAccountDialog = ({
       setSensitiveNiche(!!account.sensitive_niche_mode);
       setWarmupOn(!!account.warmup_started_at);
       setWarmupStartedAt(account.warmup_started_at || null);
+      setAiSanitize(account.ai_sanitize_enabled !== false);
     }
   }, [account]);
 
@@ -104,6 +107,7 @@ export const EditAccountDialog = ({
         phone_number_id: formData.phoneNumberId,
         business_account_id: formData.businessAccountId,
         sensitive_niche_mode: sensitiveNiche,
+        ai_sanitize_enabled: aiSanitize,
       };
 
       // Warm-up: si el usuario lo enciende y no había fecha, inicia ahora.
@@ -184,6 +188,18 @@ export const EditAccountDialog = ({
                 )}
               </div>
               <Switch checked={warmupOn} onCheckedChange={setWarmupOn} disabled={saving} />
+            </div>
+            <div className="flex items-start justify-between gap-3 pt-2 border-t">
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-1.5 text-sm font-medium">
+                  <Sparkles className="h-4 w-4 text-violet-600" />
+                  Reescritura IA anti-bloqueo
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Cuando el filtro detecte una palabra prohibida por Meta, la IA reescribe el mensaje con un sinónimo seguro y lo envía automáticamente en vez de bloquearlo.
+                </p>
+              </div>
+              <Switch checked={aiSanitize} onCheckedChange={setAiSanitize} disabled={saving} />
             </div>
           </div>
 
