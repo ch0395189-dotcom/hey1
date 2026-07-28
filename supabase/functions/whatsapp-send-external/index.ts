@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { checkOutboundContent, checkWarmupLimit, recordAntiBlockAlert } from '../_shared/anti-block.ts'
+import { checkOutboundContent, checkWarmupLimit, recordAntiBlockAlert, sanitizeWithAI } from '../_shared/anti-block.ts'
 
 // WhatsApp Send External v2 - Sends messages via WuzAPI/HeyHey
 
@@ -57,7 +57,8 @@ Deno.serve(async (req) => {
 
     const userId = claims.user.id;
     const body: SendMessageRequest = await req.json();
-    const { accountId, to, message, mediaUrl, mediaType, fileName, conversationId, createConversation } = body;
+    let { message } = body;
+    const { accountId, to, mediaUrl, mediaType, fileName, conversationId, createConversation } = body;
 
     console.log('📨 Request:', { accountId, to, message: message?.substring(0, 30), hasMedia: !!mediaUrl, mediaType });
 
@@ -71,7 +72,7 @@ Deno.serve(async (req) => {
     // Fetch account with external API credentials
     const { data: account, error: accountError } = await supabase
       .from('whatsapp_accounts')
-      .select('id, external_service_url, external_api_key, external_instance_id, connection_type, user_id, sensitive_niche_mode, warmup_started_at')
+      .select('id, external_service_url, external_api_key, external_instance_id, connection_type, user_id, sensitive_niche_mode, warmup_started_at, ai_sanitize_enabled')
       .eq('id', accountId)
       .single();
 
@@ -119,6 +120,86 @@ Deno.serve(async (req) => {
         !!(account as any).sensitive_niche_mode,
       );
       if (contentCheck.blocked) {
+        if ((account as any).ai_sanitize_enabled !== false) {
+          const sanitized = await sanitizeWithAI(
+            message,
+            contentCheck.pattern,
+            contentCheck.category,
+          );
+          if (sanitized.changed) {
+            const recheck = await checkOutboundContent(
+              supabase,
+              sanitized.text,
+              !!(account as any).sensitive_niche_mode,
+            );
+            if (!recheck.blocked) {
+              message = sanitized.text;
+              await recordAntiBlockAlert(supabase, {
+                user_id: account.user_id,
+                whatsapp_account_id: account.id,
+                conversation_id: conversationId ?? null,
+                alert_type: 'content_sanitized',
+                phone: to,
+                category: contentCheck.category ?? null,
+                severity: contentCheck.severity ?? null,
+                pattern: contentCheck.pattern ?? null,
+                excerpt: sanitized.text,
+                metadata: { source: 'external_send' },
+              });
+              // continue with rewritten message
+            } else {
+              await recordAntiBlockAlert(supabase, {
+                user_id: account.user_id,
+                whatsapp_account_id: account.id,
+                conversation_id: conversationId ?? null,
+                alert_type: 'content_blocked',
+                phone: to,
+                category: contentCheck.category ?? null,
+                severity: contentCheck.severity ?? null,
+                pattern: contentCheck.pattern ?? null,
+                excerpt: message,
+                metadata: { source: 'external_send', ai_rewrite: 'failed' },
+              });
+              return new Response(
+                JSON.stringify({
+                  success: false,
+                  blocked: true,
+                  error: 'content_blocked',
+                  message: contentCheck.reason,
+                  category: contentCheck.category,
+                  severity: contentCheck.severity,
+                  pattern: contentCheck.pattern,
+                }),
+                { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+              );
+            }
+          } else {
+            await recordAntiBlockAlert(supabase, {
+              user_id: account.user_id,
+              whatsapp_account_id: account.id,
+              conversation_id: conversationId ?? null,
+              alert_type: 'content_blocked',
+              phone: to,
+              category: contentCheck.category ?? null,
+              severity: contentCheck.severity ?? null,
+              pattern: contentCheck.pattern ?? null,
+              excerpt: message,
+              metadata: { source: 'external_send' },
+            });
+            return new Response(
+              JSON.stringify({
+                success: false,
+                blocked: true,
+                error: 'content_blocked',
+                message: contentCheck.reason,
+                category: contentCheck.category,
+                severity: contentCheck.severity,
+                pattern: contentCheck.pattern,
+              }),
+              { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+        } else {
         await recordAntiBlockAlert(supabase, {
           user_id: account.user_id,
           whatsapp_account_id: account.id,
@@ -143,6 +224,7 @@ Deno.serve(async (req) => {
           }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
+        }
       }
     }
 
