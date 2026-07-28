@@ -1471,6 +1471,7 @@ export type Database = {
           access_token: string
           ai_agent_enabled: boolean
           ai_agent_prompt: string | null
+          ai_sanitize_enabled: boolean
           business_account_id: string
           connection_type: string | null
           created_at: string
@@ -1496,6 +1497,7 @@ export type Database = {
           access_token: string
           ai_agent_enabled?: boolean
           ai_agent_prompt?: string | null
+          ai_sanitize_enabled?: boolean
           business_account_id: string
           connection_type?: string | null
           created_at?: string
@@ -1521,6 +1523,7 @@ export type Database = {
           access_token?: string
           ai_agent_enabled?: boolean
           ai_agent_prompt?: string | null
+          ai_sanitize_enabled?: boolean
           business_account_id?: string
           connection_type?: string | null
           created_at?: string
