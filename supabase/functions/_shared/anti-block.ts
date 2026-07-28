@@ -112,10 +112,38 @@ export async function recordAntiBlockAlert(
   alert: AlertRecord,
 ): Promise<void> {
   try {
-    await supabase.from("anti_block_alerts").insert({
+    const { data: inserted } = await supabase.from("anti_block_alerts").insert({
       ...alert,
       excerpt: alert.excerpt ? alert.excerpt.slice(0, 240) : null,
-    });
+    }).select('id').maybeSingle();
+
+    // Fire-and-forget push notification so the user can react quickly
+    // even if the dashboard isn't open.
+    const title =
+      alert.alert_type === "content_blocked"
+        ? "⚠️ Mensaje bloqueado por filtro"
+        : alert.alert_type === "conversation_blocked"
+        ? "🚫 Conversación bloqueada (opt-out)"
+        : "🔥 Límite de warm-up alcanzado";
+    const body =
+      alert.alert_type === "content_blocked"
+        ? `Detectamos "${alert.pattern ?? "contenido de riesgo"}" en un envío a ${alert.phone ?? "un contacto"}.`
+        : alert.alert_type === "conversation_blocked"
+        ? `${alert.phone ?? "Un contacto"} pidió no recibir más mensajes.`
+        : `Este número está en calentamiento y alcanzó su cuota diaria.`;
+    supabase.functions.invoke("send-push-notification", {
+      body: {
+        userId: alert.user_id,
+        title,
+        body,
+        data: {
+          type: "anti_block_alert",
+          alert_id: inserted?.id,
+          alert_type: alert.alert_type,
+          conversation_id: alert.conversation_id,
+        },
+      },
+    }).catch((e: unknown) => console.error("push for anti-block alert failed", e));
   } catch (e) {
     console.error("recordAntiBlockAlert failed", e);
   }
