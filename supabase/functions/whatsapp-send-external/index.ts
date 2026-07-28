@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { checkOutboundContent, checkWarmupLimit } from '../_shared/anti-block.ts'
+import { checkOutboundContent, checkWarmupLimit, recordAntiBlockAlert } from '../_shared/anti-block.ts'
 
 // WhatsApp Send External v2 - Sends messages via WuzAPI/HeyHey
 
@@ -119,6 +119,18 @@ Deno.serve(async (req) => {
         !!(account as any).sensitive_niche_mode,
       );
       if (contentCheck.blocked) {
+        await recordAntiBlockAlert(supabase, {
+          user_id: account.user_id,
+          whatsapp_account_id: account.id,
+          conversation_id: conversationId ?? null,
+          alert_type: 'content_blocked',
+          phone: to,
+          category: contentCheck.category ?? null,
+          severity: contentCheck.severity ?? null,
+          pattern: contentCheck.pattern ?? null,
+          excerpt: message,
+          metadata: { source: 'external_send' },
+        });
         return new Response(
           JSON.stringify({
             success: false,
@@ -141,6 +153,14 @@ Deno.serve(async (req) => {
       (account as any).warmup_started_at,
     );
     if (warmup.inWarmup && !warmup.allowed) {
+      await recordAntiBlockAlert(supabase, {
+        user_id: account.user_id,
+        whatsapp_account_id: account.id,
+        conversation_id: conversationId ?? null,
+        alert_type: 'warmup_hit',
+        phone: to,
+        metadata: { warmup },
+      });
       return new Response(
         JSON.stringify({
           success: false,
