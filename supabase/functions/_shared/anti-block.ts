@@ -98,7 +98,7 @@ export interface AlertRecord {
   user_id: string;
   whatsapp_account_id?: string | null;
   conversation_id?: string | null;
-  alert_type: "content_blocked" | "conversation_blocked" | "warmup_hit";
+  alert_type: "content_blocked" | "conversation_blocked" | "warmup_hit" | "content_sanitized";
   phone?: string | null;
   category?: string | null;
   severity?: string | null;
@@ -124,12 +124,16 @@ export async function recordAntiBlockAlert(
         ? "⚠️ Mensaje bloqueado por filtro"
         : alert.alert_type === "conversation_blocked"
         ? "🚫 Conversación bloqueada (opt-out)"
+        : alert.alert_type === "content_sanitized"
+        ? "✏️ Mensaje reescrito por IA"
         : "🔥 Límite de warm-up alcanzado";
     const body =
       alert.alert_type === "content_blocked"
         ? `Detectamos "${alert.pattern ?? "contenido de riesgo"}" en un envío a ${alert.phone ?? "un contacto"}.`
         : alert.alert_type === "conversation_blocked"
         ? `${alert.phone ?? "Un contacto"} pidió no recibir más mensajes.`
+        : alert.alert_type === "content_sanitized"
+        ? `Reemplazamos "${alert.pattern ?? "una palabra de riesgo"}" antes de enviar a ${alert.phone ?? "un contacto"}.`
         : `Este número está en calentamiento y alcanzó su cuota diaria.`;
     supabase.functions.invoke("send-push-notification", {
       body: {
