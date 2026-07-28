@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { checkOutboundContent, checkWarmupLimit } from "../_shared/anti-block.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -246,7 +247,9 @@ Deno.serve(async (req) => {
           user_id,
           quality_paused,
           quality_pause_reason,
-          quality_rating
+          quality_rating,
+          sensitive_niche_mode,
+          warmup_started_at
         )
       `)
       .eq('id', conversation_id)
@@ -275,6 +278,51 @@ Deno.serve(async (req) => {
           error: 'quality_paused',
           message: whatsappAccount.quality_pause_reason || `Tu cuenta está pausada por baja calidad en Meta (${whatsappAccount.quality_rating}). Reanúdala desde el panel cuando hayas reducido el riesgo.`,
           quality_rating: whatsappAccount.quality_rating,
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // ── Suite Anti-Bloqueo: filtro de contenido saliente ─────────────────
+    const outboundText =
+      (message && typeof message === 'string' ? message : '') ||
+      (interactive?.bodyText ?? '') ||
+      '';
+    if (outboundText) {
+      const contentCheck = await checkOutboundContent(
+        supabaseAdmin,
+        outboundText,
+        !!whatsappAccount.sensitive_niche_mode,
+      );
+      if (contentCheck.blocked) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            blocked: true,
+            error: 'content_blocked',
+            message: contentCheck.reason,
+            category: contentCheck.category,
+            severity: contentCheck.severity,
+            pattern: contentCheck.pattern,
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    // ── Suite Anti-Bloqueo: warm-up de número nuevo ──────────────────────
+    const warmup = await checkWarmupLimit(
+      supabaseAdmin,
+      whatsappAccount.id,
+      whatsappAccount.warmup_started_at,
+    );
+    if (warmup.inWarmup && !warmup.allowed) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'warmup_limit_reached',
+          message: warmup.reason,
+          warmup,
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );

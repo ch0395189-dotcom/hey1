@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
@@ -10,7 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Loader2 } from "lucide-react";
+import { Loader2, ShieldAlert, Flame } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -23,6 +24,8 @@ interface WhatsAppAccount {
   display_name: string | null;
   is_active: boolean;
   webhook_verify_token: string | null;
+  sensitive_niche_mode?: boolean | null;
+  warmup_started_at?: string | null;
 }
 
 interface EditAccountDialogProps {
@@ -39,6 +42,9 @@ export const EditAccountDialog = ({
   onAccountUpdated,
 }: EditAccountDialogProps) => {
   const [saving, setSaving] = useState(false);
+  const [sensitiveNiche, setSensitiveNiche] = useState(false);
+  const [warmupOn, setWarmupOn] = useState(false);
+  const [warmupStartedAt, setWarmupStartedAt] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     displayName: "",
     phoneNumberId: "",
@@ -55,8 +61,21 @@ export const EditAccountDialog = ({
         businessAccountId: account.business_account_id || "",
         accessToken: "", // Don't show current token for security
       });
+      setSensitiveNiche(!!account.sensitive_niche_mode);
+      setWarmupOn(!!account.warmup_started_at);
+      setWarmupStartedAt(account.warmup_started_at || null);
     }
   }, [account]);
+
+  const warmupDayLabel = (() => {
+    if (!warmupStartedAt) return null;
+    const started = new Date(warmupStartedAt).getTime();
+    if (Number.isNaN(started)) return null;
+    const day = Math.floor((Date.now() - started) / 86_400_000) + 1;
+    if (day >= 5) return "completado";
+    const limits: Record<number, number> = { 1: 20, 2: 50, 3: 100, 4: 250 };
+    return `Día ${day}/5 · máx ${limits[day] ?? 20} msg hoy`;
+  })();
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -79,12 +98,21 @@ export const EditAccountDialog = ({
     setSaving(true);
 
     try {
-      const updateData: Record<string, string> = {
+      const updateData: Record<string, string | boolean | null> = {
         display_name: formData.displayName,
         phone_number: formData.displayName,
         phone_number_id: formData.phoneNumberId,
         business_account_id: formData.businessAccountId,
+        sensitive_niche_mode: sensitiveNiche,
       };
+
+      // Warm-up: si el usuario lo enciende y no había fecha, inicia ahora.
+      // Si lo apaga, borra la fecha.
+      if (warmupOn && !warmupStartedAt) {
+        updateData.warmup_started_at = new Date().toISOString();
+      } else if (!warmupOn && warmupStartedAt) {
+        updateData.warmup_started_at = null;
+      }
 
       // Only update token if a new one was provided
       if (formData.accessToken.trim()) {
@@ -128,6 +156,37 @@ export const EditAccountDialog = ({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* ── Suite Anti-Bloqueo ─────────────────────────────── */}
+          <div className="rounded-lg border bg-muted/30 p-3 space-y-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-1.5 text-sm font-medium">
+                  <ShieldAlert className="h-4 w-4 text-amber-600" />
+                  Modo Nicho Sensible
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Filtra palabras de alto riesgo (esotérico, hackeo, promesas) antes de enviar. Reduce reportes y bloqueos.
+                </p>
+              </div>
+              <Switch checked={sensitiveNiche} onCheckedChange={setSensitiveNiche} disabled={saving} />
+            </div>
+            <div className="flex items-start justify-between gap-3 pt-2 border-t">
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-1.5 text-sm font-medium">
+                  <Flame className="h-4 w-4 text-orange-500" />
+                  Warm-up (número nuevo)
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Sube el volumen gradualmente 5 días: 20 → 50 → 100 → 250 → normal. Evita bloqueos en las primeras 48 h.
+                </p>
+                {warmupOn && warmupDayLabel && (
+                  <p className="text-xs font-medium text-orange-600">{warmupDayLabel}</p>
+                )}
+              </div>
+              <Switch checked={warmupOn} onCheckedChange={setWarmupOn} disabled={saving} />
+            </div>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="edit-displayName">Nombre *</Label>
             <Input

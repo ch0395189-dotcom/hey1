@@ -191,8 +191,15 @@ export const SendTemplateDialog = ({ accountId, template, onClose, onSent, defau
       }
       setBulkProgress(Math.round(((i + 1) / rows.length) * 100));
       setBulkResults([...results]);
-      // small gap to avoid rate limits
-      await new Promise((res) => setTimeout(res, 350));
+      // Suite Anti-Bloqueo: velocidad humana para reducir marcas de spam de Meta.
+      // Delay aleatorio 4-12 s entre envíos + pausa larga cada 25.
+      if (i < rows.length - 1) {
+        const isBatchBreak = (i + 1) % 25 === 0;
+        const delay = isBatchBreak
+          ? 60_000 + Math.floor(Math.random() * 60_000) // 60-120 s
+          : 4_000 + Math.floor(Math.random() * 8_000);  // 4-12 s
+        await new Promise((res) => setTimeout(res, delay));
+      }
     }
     setSending(false);
     const ok = results.filter((r) => r.ok).length;
