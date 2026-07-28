@@ -156,6 +156,37 @@ export const EditAccountDialog = ({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* ── Suite Anti-Bloqueo ─────────────────────────────── */}
+          <div className="rounded-lg border bg-muted/30 p-3 space-y-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-1.5 text-sm font-medium">
+                  <ShieldAlert className="h-4 w-4 text-amber-600" />
+                  Modo Nicho Sensible
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Filtra palabras de alto riesgo (esotérico, hackeo, promesas) antes de enviar. Reduce reportes y bloqueos.
+                </p>
+              </div>
+              <Switch checked={sensitiveNiche} onCheckedChange={setSensitiveNiche} disabled={saving} />
+            </div>
+            <div className="flex items-start justify-between gap-3 pt-2 border-t">
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-1.5 text-sm font-medium">
+                  <Flame className="h-4 w-4 text-orange-500" />
+                  Warm-up (número nuevo)
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Sube el volumen gradualmente 5 días: 20 → 50 → 100 → 250 → normal. Evita bloqueos en las primeras 48 h.
+                </p>
+                {warmupOn && warmupDayLabel && (
+                  <p className="text-xs font-medium text-orange-600">{warmupDayLabel}</p>
+                )}
+              </div>
+              <Switch checked={warmupOn} onCheckedChange={setWarmupOn} disabled={saving} />
+            </div>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="edit-displayName">Nombre *</Label>
             <Input
