@@ -79,12 +79,21 @@ export const EditAccountDialog = ({
     setSaving(true);
 
     try {
-      const updateData: Record<string, string> = {
+      const updateData: Record<string, string | boolean | null> = {
         display_name: formData.displayName,
         phone_number: formData.displayName,
         phone_number_id: formData.phoneNumberId,
         business_account_id: formData.businessAccountId,
+        sensitive_niche_mode: sensitiveNiche,
       };
+
+      // Warm-up: si el usuario lo enciende y no había fecha, inicia ahora.
+      // Si lo apaga, borra la fecha.
+      if (warmupOn && !warmupStartedAt) {
+        updateData.warmup_started_at = new Date().toISOString();
+      } else if (!warmupOn && warmupStartedAt) {
+        updateData.warmup_started_at = null;
+      }
 
       // Only update token if a new one was provided
       if (formData.accessToken.trim()) {
