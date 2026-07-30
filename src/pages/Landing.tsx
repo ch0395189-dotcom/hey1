@@ -1,5 +1,6 @@
 import Header from "@/components/landing/Header";
 import Hero from "@/components/landing/Hero";
+import DemoVideo from "@/components/landing/DemoVideo";
 import Features from "@/components/landing/Features";
 import Pricing from "@/components/landing/Pricing";
 import Footer from "@/components/landing/Footer";
@@ -30,6 +31,7 @@ const Landing = () => {
     <div className="min-h-screen bg-background">
       <Header />
       <Hero />
+      <DemoVideo />
       <Features />
       <Pricing />
       <Footer />
