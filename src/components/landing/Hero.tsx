@@ -84,7 +84,12 @@ const Hero = () => {
                   <ArrowRight className="ml-2 w-4 h-4 md:w-5 md:h-5" />
                 </Button>
               </Link>
-              <Button size="lg" variant="outline" className="h-12 md:h-14 text-base md:text-lg px-6 md:px-8 w-full sm:w-auto">
+              <Button
+                size="lg"
+                variant="outline"
+                onClick={() => document.getElementById("demo")?.scrollIntoView({ behavior: "smooth" })}
+                className="h-12 md:h-14 text-base md:text-lg px-6 md:px-8 w-full sm:w-auto"
+              >
                 Ver Demo
               </Button>
             </div>
