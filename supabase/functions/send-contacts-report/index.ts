@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { getAuthUser, unauthorized } from "../_shared/auth.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -67,9 +68,15 @@ function buildHtml(contacts: Contact[], reason: string) {
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
   try {
-    const { email, contacts, reason } = await req.json();
-    if (!email || typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return new Response(JSON.stringify({ ok: false, error: 'Email inválido' }), {
+    // Only signed-in users may trigger this, and the report is always sent to
+    // their own registered address — never to an arbitrary one from the body.
+    const authed = await getAuthUser(req);
+    if (!authed) return unauthorized(corsHeaders);
+
+    const { contacts, reason } = await req.json();
+    const email = authed.email;
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return new Response(JSON.stringify({ ok: false, error: 'Tu cuenta no tiene un email válido' }), {
         status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -89,7 +96,7 @@ serve(async (req) => {
     const csvBase64 = btoa(unescape(encodeURIComponent(csv)));
     const stamp = new Date().toISOString().slice(0, 10);
     const reasonText = typeof reason === 'string' && reason.length > 0
-      ? reason
+      ? reason.slice(0, 300).replace(/</g, '&lt;').replace(/>/g, '&gt;')
       : 'Este es el reporte de los contactos que se van a eliminar de tu bandeja de entrada.';
 
     const r = await fetch('https://api.resend.com/emails', {
@@ -117,7 +124,7 @@ serve(async (req) => {
         status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-    return new Response(JSON.stringify({ ok: true, count: contacts.length }), {
+    return new Response(JSON.stringify({ ok: true, count: contacts.length, sent_to: email }), {
       status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (e: any) {

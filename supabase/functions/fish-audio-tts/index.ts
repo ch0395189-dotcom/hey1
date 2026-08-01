@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { isServiceRole, getAuthUser, unauthorized } from "../_shared/auth.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,7 +14,17 @@ serve(async (req) => {
   }
 
   try {
-    const { text, voiceModelId, userId, mode } = await req.json();
+    const { text, voiceModelId, userId: bodyUserId, mode } = await req.json();
+
+    // Auth: never trust a client-supplied userId — resolve it from the JWT.
+    let userId: string | null = null;
+    if (isServiceRole(req)) {
+      userId = bodyUserId ?? null;
+    } else {
+      const authed = await getAuthUser(req);
+      if (!authed) return unauthorized(corsHeaders);
+      userId = authed.id;
+    }
 
     if (!text) {
       return new Response(

@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { isServiceRole, unauthorized } from "../_shared/auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -44,8 +45,7 @@ interface Payload {
   conversation_id: string;
   message_content: string;
   whatsapp_account_id: string;
-  phone_number_id: string;
-  access_token: string;
+  phone_number_id?: string;
   customer_phone: string;
   custom_prompt?: string | null;
 }
@@ -56,17 +56,20 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // This function is only meant to be invoked internally by the WhatsApp
+    // webhook. Reject anything that is not a trusted service-role caller so
+    // nobody can burn AI credits or inject messages into other conversations.
+    if (!isServiceRole(req)) return unauthorized(corsHeaders);
+
     const body = (await req.json()) as Payload;
     const {
       conversation_id,
       message_content,
-      phone_number_id,
-      access_token,
       customer_phone,
       custom_prompt,
     } = body;
 
-    if (!conversation_id || !message_content || !phone_number_id || !access_token || !customer_phone) {
+    if (!conversation_id || !message_content || !customer_phone) {
       return new Response(JSON.stringify({ error: "missing fields" }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -77,6 +80,33 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
+
+    // Never trust a client-supplied Meta token: resolve the WhatsApp account
+    // from the conversation itself.
+    const { data: conv } = await supabase
+      .from("conversations")
+      .select("whatsapp_account_id")
+      .eq("id", conversation_id)
+      .maybeSingle();
+    if (!conv?.whatsapp_account_id) {
+      return new Response(JSON.stringify({ error: "conversation not found" }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const { data: waAccount } = await supabase
+      .from("whatsapp_accounts")
+      .select("access_token, phone_number_id")
+      .eq("id", conv.whatsapp_account_id)
+      .maybeSingle();
+    if (!waAccount?.access_token || !waAccount?.phone_number_id) {
+      return new Response(JSON.stringify({ error: "whatsapp account not available" }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const access_token = waAccount.access_token as string;
+    const phone_number_id = waAccount.phone_number_id as string;
 
     // Cargar los últimos 20 mensajes del chat para dar contexto
     const { data: history } = await supabase

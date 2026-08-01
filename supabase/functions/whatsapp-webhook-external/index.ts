@@ -79,6 +79,38 @@ Deno.serve(async (req) => {
       );
     }
 
+    // --- Authentication: the caller must present the per-account webhook token ---
+    const supabaseUrlAuth = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKeyAuth = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const authClient = createClient(supabaseUrlAuth, supabaseServiceKeyAuth);
+
+    const providedToken =
+      req.headers.get('x-webhook-token') ||
+      req.headers.get('token') ||
+      url.searchParams.get('token');
+
+    if (!accountId || !providedToken) {
+      console.error('❌ Webhook externo sin account_id o token');
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const { data: authAccount } = await authClient
+      .from('whatsapp_accounts')
+      .select('id, webhook_verify_token')
+      .eq('id', accountId)
+      .maybeSingle();
+
+    if (!authAccount?.webhook_verify_token || authAccount.webhook_verify_token !== providedToken) {
+      console.error('❌ Token de webhook externo inválido para la cuenta', accountId);
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const messages = Array.isArray(payload) ? payload : [payload];
 
     // Regla 4: cortar eventos no-Message ANTES de tocar la base de datos.

@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import crypto from "node:crypto";
+import { verifyHmacSha256 } from "../_shared/auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -56,21 +56,26 @@ Deno.serve(async (req) => {
   try {
     const raw = await req.text();
 
-    // Optional signature verification using TIKTOK_APP_SECRET
+    // Mandatory signature verification using TIKTOK_APP_SECRET.
+    // Missing secret or missing/invalid signature => reject.
     const appSecret = Deno.env.get("TIKTOK_APP_SECRET");
+    if (!appSecret) {
+      console.error("TIKTOK_APP_SECRET not configured — rejecting webhook");
+      return new Response(JSON.stringify({ error: "not_configured" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     const sigHeader =
       req.headers.get("x-tiktok-signature") ||
       req.headers.get("x-tt-signature");
-    if (appSecret && sigHeader) {
-      const hmac = crypto.createHmac("sha256", appSecret).update(raw).digest("hex");
-      if (hmac !== sigHeader.replace(/^sha256=/, "")) {
-        console.warn("TikTok lead webhook: invalid signature");
-        // Still return 200 to avoid retries storm; just log.
-        return new Response(JSON.stringify({ ok: false, reason: "bad_signature" }), {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+    const validSig = await verifyHmacSha256(raw, sigHeader, appSecret);
+    if (!validSig) {
+      console.warn("TikTok lead webhook: invalid or missing signature");
+      return new Response(JSON.stringify({ error: "bad_signature" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const payload = JSON.parse(raw);

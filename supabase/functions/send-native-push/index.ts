@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { isServiceRole, getAuthUser, unauthorized } from "../_shared/auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -216,7 +217,17 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    const { userId, title, body, url, conversationId, platform } = await req.json();
+    const { userId: requestedUserId, title, body, url, conversationId, platform } = await req.json();
+
+    // Auth: internal callers use the service role key. Everyone else must be
+    // signed in and may only push to their own devices.
+    let userId = requestedUserId;
+    if (!isServiceRole(req)) {
+      const authed = await getAuthUser(req);
+      if (!authed) return unauthorized(corsHeaders);
+      userId = authed.id;
+    }
+
     if (!userId) return json({ error: "userId required" }, 200);
 
     const { data: tokens, error } = await supabase

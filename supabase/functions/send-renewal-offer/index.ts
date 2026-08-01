@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getAdminUser, forbidden } from "../_shared/auth.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -46,6 +47,9 @@ function buildHtml(name: string) {
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
   try {
+    const admin = await getAdminUser(req);
+    if (!admin) return forbidden(corsHeaders, 'Solo administradores');
+
     const { userIds } = await req.json();
     if (!Array.isArray(userIds) || userIds.length === 0) {
       return new Response(JSON.stringify({ error: 'userIds requerido' }), {

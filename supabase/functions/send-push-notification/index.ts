@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import webpush from "https://esm.sh/web-push@3.6.7";
+import { isServiceRole, getAuthUser, unauthorized } from "../_shared/auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -24,7 +25,7 @@ Deno.serve(async (req) => {
     );
 
     const {
-      userId,
+      userId: requestedUserId,
       title,
       body,
       url,
@@ -34,6 +35,15 @@ Deno.serve(async (req) => {
       icon,
       verifyDelivery = false,
     } = await req.json();
+
+    // Auth: internal callers use the service role key. Everyone else must be
+    // signed in and may only push to their own devices.
+    let userId = requestedUserId;
+    if (!isServiceRole(req)) {
+      const authed = await getAuthUser(req);
+      if (!authed) return unauthorized(corsHeaders);
+      userId = authed.id;
+    }
 
     if (!userId) {
       return new Response(JSON.stringify({ error: "userId requerido" }), {

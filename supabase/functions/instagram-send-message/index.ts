@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { isServiceRole, getAuthUser, ownsPlatformAccount, unauthorized, forbidden } from "../_shared/auth.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -36,6 +37,15 @@ Deno.serve(async (req) => {
         JSON.stringify({ error: 'platform_account_id and recipient_id are required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // Auth: only the owner of the connected account (or an internal service
+    // caller) may send messages from it.
+    if (!isServiceRole(req)) {
+      const authed = await getAuthUser(req);
+      if (!authed) return unauthorized(corsHeaders);
+      const allowed = await ownsPlatformAccount(authed.id, platform_account_id);
+      if (!allowed) return forbidden(corsHeaders, 'No autorizado para esta cuenta');
     }
 
     if (!message_text && !attachment_url) {
