@@ -34,11 +34,17 @@ import { clearNativeSessionBackups, hydrateNativeSession } from "@/lib/nativeSes
 import type { User } from "@supabase/supabase-js";
 import { ConversationsList } from "@/components/whatsapp/ConversationsList";
 import { ChatWindow } from "@/components/whatsapp/ChatWindow";
-import { WhatsAppSetup } from "@/components/whatsapp/WhatsAppSetup";
 import { WhatsAppDownAlert } from "@/components/dashboard/WhatsAppDownAlert";
-import { ChatbotConfig } from "@/components/chatbot/ChatbotConfig";
-import { ContactsList } from "@/components/contacts/ContactsList";
-import { StatisticsPanel } from "@/components/statistics/StatisticsPanel";
+import {
+  WhatsAppSetup,
+  ChatbotConfig,
+  ContactsList,
+  StatisticsPanel,
+  PlatformSetup,
+  ApiKeysSettings,
+  TeamManagement,
+  NotificationSettingsPanel,
+} from "@/components/dashboard/lazyPanels";
 import { TrialBanner } from "@/components/dashboard/TrialBanner";
 import { RenewalBanner } from "@/components/dashboard/RenewalBanner";
 import { PaymentAlertBanner } from "@/components/dashboard/PaymentAlertBanner";
@@ -46,9 +52,6 @@ import { MessageLimitBanner } from "@/components/dashboard/MessageLimitBanner";
 import { QualityAlertBanner } from "@/components/dashboard/QualityAlertBanner";
 import { AntiBlockAlertBanner } from "@/components/dashboard/AntiBlockAlertBanner";
 import { PlatformSidebar, Platform } from "@/components/dashboard/PlatformSidebar";
-import { PlatformSetup } from "@/components/platforms/PlatformSetup";
-import { ApiKeysSettings } from "@/components/settings/ApiKeysSettings";
-import { TeamManagement } from "@/components/team/TeamManagement";
 import { useAdminCheck } from "@/hooks/useAdminCheck";
 import { useSubscriptionGuard } from "@/hooks/useSubscriptionGuard";
 import { useTeam } from "@/hooks/useTeam";
@@ -56,7 +59,6 @@ import { usePaymentSuccessHandler } from "@/hooks/usePaymentSuccessHandler";
 import { SuspendedServiceScreen } from "@/components/dashboard/SuspendedServiceScreen";
 import { MessageLimitBlockScreen } from "@/components/dashboard/MessageLimitBlockScreen";
 import { useMessageLimit } from "@/hooks/useMessageLimit";
-import { NotificationSettingsPanel } from "@/components/notifications/NotificationSettingsPanel";
 import { isNative as isNativeApp } from "@/lib/nativePush";
 import {
   Dialog,
