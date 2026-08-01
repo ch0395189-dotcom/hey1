@@ -339,7 +339,7 @@ export const PlatformSetup = ({ onAccountConnected }: PlatformSetupProps) => {
           } else {
             setAvailablePages(pages);
           }
-          setPendingAccessToken(data.access_token);
+          setPendingAccessToken(data.session_ref);
           setShowPageSelector(true);
         } else if (data.success) {
           const config = platformConfig[platform as keyof typeof platformConfig];
@@ -518,7 +518,7 @@ export const PlatformSetup = ({ onAccountConnected }: PlatformSetupProps) => {
               } else {
                 setAvailablePages(pages);
               }
-              setPendingAccessToken(accessToken);
+              setPendingAccessToken(data.session_ref);
               setShowPageSelector(true);
               setConnecting(false);
             } else if (data.success) {
@@ -585,7 +585,7 @@ export const PlatformSetup = ({ onAccountConnected }: PlatformSetupProps) => {
     try {
       const { data, error } = await supabase.functions.invoke('platform-exchange-token', {
         body: { 
-          access_token: pendingAccessToken, 
+          session_ref: pendingAccessToken, 
           platform: pendingPlatform,
           selected_page_id: pageId
         },

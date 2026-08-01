@@ -122,18 +122,16 @@ export const WhatsAppDiagnostics = ({ accountId, onClose }: WhatsAppDiagnosticsP
 
     // 4. Test webhook endpoint availability
     try {
-      const testUrl = `${webhookUrl}?hub.mode=subscribe&hub.challenge=test123&hub.verify_token=heyhey_webhook_2024`;
-      const response = await fetch(testUrl, { method: 'GET' });
+      // Only probe reachability; verification tokens are never embedded in the client.
+      const response = await fetch(webhookUrl, { method: 'GET' });
       
       if (response.ok) {
         const text = await response.text();
         results.push({
           label: 'Endpoint del Webhook',
-          status: text === 'test123' ? 'success' : 'warning',
-          value: text === 'test123' ? 'Responde correctamente' : 'Respuesta inesperada',
-          details: text === 'test123' 
-            ? 'El endpoint responde correctamente a las verificaciones de Meta'
-            : `Respuesta: ${text.substring(0, 100)}`
+          status: 'success',
+          value: 'Accesible',
+          details: 'El endpoint del webhook responde. La verificación de Meta usa el token propio de la cuenta.'
         });
       } else {
         results.push({

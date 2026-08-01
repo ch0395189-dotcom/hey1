@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { isOptOutMessage, recordAntiBlockAlert } from "../_shared/anti-block.ts";
+import { verifyHmacSha256 } from "../_shared/auth.ts";
 
 // WhatsApp Business API Webhook Handler
 const corsHeaders = {
@@ -226,10 +227,10 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Fallback: Accept known verification tokens for initial setup
-      const knownTokens = ['heyhey_webhook_2024', 'heyhey_webhook_2026', 'verify_1bxwu72vphvj'];
-      if (knownTokens.includes(token)) {
-        console.log('Webhook verified with known token');
+      // Fallback: a single verify token configured as a server-side secret
+      const envToken = Deno.env.get('WHATSAPP_WEBHOOK_VERIFY_TOKEN');
+      if (envToken && token === envToken) {
+        console.log('Webhook verified with configured token');
         return new Response(challenge, {
           status: 200,
           headers: withCors({ 'Content-Type': 'text/plain' }),
@@ -246,8 +247,25 @@ Deno.serve(async (req) => {
   // Handle incoming messages
   if (req.method === 'POST') {
     let payload: WhatsAppWebhookPayload;
+    const rawBody = await req.text();
+
+    // Verify Meta's X-Hub-Signature-256 before processing anything.
+    const appSecret = Deno.env.get('META_APP_SECRET');
+    const appSecretBackup = Deno.env.get('META_APP_SECRET_BACKUP');
+    const signature = req.headers.get('x-hub-signature-256');
+    const sigOk =
+      (appSecret ? await verifyHmacSha256(rawBody, signature, appSecret) : false) ||
+      (appSecretBackup ? await verifyHmacSha256(rawBody, signature, appSecretBackup) : false);
+    if (!sigOk) {
+      console.error('Invalid X-Hub-Signature-256 on WhatsApp webhook');
+      return new Response('Forbidden', {
+        status: 403,
+        headers: withCors({ 'Content-Type': 'text/plain' }),
+      });
+    }
+
     try {
-      payload = await req.json() as WhatsAppWebhookPayload;
+      payload = JSON.parse(rawBody) as WhatsAppWebhookPayload;
     } catch (e) {
       console.error('Invalid JSON payload:', e);
       return new Response('OK', {
@@ -745,8 +763,6 @@ Deno.serve(async (req) => {
                           conversation_id: conversationId,
                           message_content: chatbotContent || content,
                           whatsapp_account_id: whatsappAccount.id,
-                          phone_number_id: phoneNumberId,
-                          access_token: accountData.access_token,
                           customer_phone: customerPhone,
                           custom_prompt: whatsappAccount.ai_agent_prompt,
                         }),

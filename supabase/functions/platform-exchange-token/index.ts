@@ -16,6 +16,7 @@ interface FacebookPage {
 
 interface ExchangeRequest {
   access_token?: string;
+  session_ref?: string;
   code?: string;
   redirect_uri?: string;
   platform: 'messenger' | 'instagram';
@@ -58,7 +59,25 @@ Deno.serve(async (req) => {
 
     const userId = userData.user.id;
     const body: ExchangeRequest = await req.json();
-    const { access_token, code, redirect_uri, platform, selected_page_id } = body;
+    const { access_token, session_ref, code, redirect_uri, platform, selected_page_id } = body;
+
+    // Resolve a previously issued server-side token reference (page-selection step)
+    let refToken: string | null = null;
+    if (session_ref) {
+      const { data: pending } = await supabase
+        .schema('private')
+        .from('oauth_pending_tokens')
+        .select('token, user_id, expires_at')
+        .eq('ref', session_ref)
+        .maybeSingle();
+      if (!pending || pending.user_id !== userId || new Date(pending.expires_at) < new Date()) {
+        return new Response(
+          JSON.stringify({ error: 'Sesión de conexión expirada, vuelve a iniciar el proceso' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      refToken = pending.token as string;
+    }
 
     const appId = Deno.env.get('META_APP_ID');
     const appSecret = Deno.env.get('META_APP_SECRET');
@@ -70,7 +89,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    let shortLivedToken: string;
+    let shortLivedToken: string | null = null;
 
     // If we received a code (from mobile redirect flow), exchange it for access token
     if (code && redirect_uri) {
@@ -92,14 +111,18 @@ Deno.serve(async (req) => {
       shortLivedToken = codeExchangeData.access_token;
     } else if (access_token) {
       shortLivedToken = access_token;
-    } else {
+    } else if (!refToken) {
       return new Response(
         JSON.stringify({ error: 'access_token or code is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Exchange for long-lived token
+    // Exchange for long-lived token (unless we already resolved one server-side)
+    let longLivedUserToken: string;
+    if (refToken) {
+      longLivedUserToken = refToken;
+    } else {
     const longLivedTokenResponse = await fetch(
       `https://graph.facebook.com/v21.0/oauth/access_token?grant_type=fb_exchange_token&client_id=${appId}&client_secret=${appSecret}&fb_exchange_token=${shortLivedToken}`
     );
@@ -114,7 +137,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    const longLivedUserToken = longLivedTokenData.access_token;
+    longLivedUserToken = longLivedTokenData.access_token;
+    }
 
     // First, check what permissions were granted
     console.log('=== CHECKING GRANTED PERMISSIONS ===');
@@ -177,10 +201,27 @@ Deno.serve(async (req) => {
 
     // If no page selected, return the list of pages for user to choose
     if (!selected_page_id) {
+      // Never hand the long-lived Meta token to the browser: store it server-side
+      // and return only an opaque, short-lived reference.
+      const { data: stored, error: storeError } = await supabase
+        .schema('private')
+        .from('oauth_pending_tokens')
+        .insert({ user_id: userId, token: longLivedUserToken })
+        .select('ref')
+        .single();
+
+      if (storeError || !stored) {
+        console.error('Error storing pending oauth token:', storeError);
+        return new Response(
+          JSON.stringify({ error: 'No se pudo iniciar la selección de página' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       return new Response(
         JSON.stringify({ 
           action: 'select_page',
-          access_token: longLivedUserToken, // Return token for subsequent page selection
+          session_ref: stored.ref,
           pages: pages.map(p => ({
             id: p.id,
             name: p.name,

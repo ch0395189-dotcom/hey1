@@ -521,12 +521,12 @@ export const ConversationsList = ({
         tags: (c.tags ?? []).map((t) => t.name).join(', '),
       }));
       const { data, error } = await supabase.functions.invoke('send-contacts-report', {
-        body: { email, contacts: payload, reason },
+        body: { contacts: payload, reason },
       });
       if (error) throw error;
-      const resp = data as { ok?: boolean; error?: string };
+      const resp = data as { ok?: boolean; error?: string; sent_to?: string };
       if (!resp?.ok) throw new Error(resp?.error || 'No se pudo enviar el reporte');
-      toast.success(`Reporte enviado a ${email}`);
+      toast.success(`Reporte enviado a ${resp.sent_to ?? email}`);
       return true;
     } catch (e: any) {
       toast.error(e?.message || 'Error enviando el reporte');

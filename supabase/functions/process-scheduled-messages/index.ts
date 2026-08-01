@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { isCronCaller, getAdminUser, forbidden } from "../_shared/auth.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -11,6 +12,11 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Background job: only the internal scheduler (cron secret / service role)
+    // or a signed-in admin may trigger this.
+    if (!(await isCronCaller(req)) && !(await getAdminUser(req))) {
+      return forbidden(corsHeaders, 'No autorizado');
+    }
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, supabaseServiceKey)

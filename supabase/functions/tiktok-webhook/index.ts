@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { verifyHmacSha256 } from "../_shared/auth.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -76,7 +77,22 @@ Deno.serve(async (req) => {
   // Handle incoming messages
   if (req.method === 'POST') {
     try {
-      const payload = await req.json() as TikTokWebhookPayload;
+      // Verify the webhook signature before trusting any payload.
+      const rawBody = await req.text();
+      const appSecret = Deno.env.get('TIKTOK_APP_SECRET');
+      if (!appSecret) {
+        console.error('TIKTOK_APP_SECRET not configured — rejecting webhook');
+        return new Response('Webhook not configured', { status: 403, headers: corsHeaders });
+      }
+      const signature = req.headers.get('x-tiktok-signature');
+      const altSig = req.headers.get('x-tt-signature');
+      const validSig = await verifyHmacSha256(rawBody, signature ?? altSig, appSecret);
+      if (!validSig) {
+        console.error('Invalid webhook signature');
+        return new Response('Invalid signature', { status: 403, headers: corsHeaders });
+      }
+
+      const payload = JSON.parse(rawBody) as TikTokWebhookPayload;
       console.log('TikTok webhook payload:', JSON.stringify(payload, null, 2));
 
       // Check if this is a message event
