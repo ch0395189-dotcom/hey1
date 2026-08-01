@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -6,10 +6,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { usePersistentStorage } from "@/hooks/usePersistentStorage";
 import { MetaPixelProvider } from "@/components/tracking/MetaPixelProvider";
-import Landing from "./pages/Landing";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
-import Dashboard from "./pages/Dashboard";
+const Landing = lazy(() => import("./pages/Landing"));
+const Login = lazy(() => import("./pages/Login"));
+const Register = lazy(() => import("./pages/Register"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
 // Heavy / less-frequent routes are lazy-loaded so they don't bloat the
 // initial JS bundle. This speeds up first paint for everyone.
 const Admin = lazy(() => import("./pages/Admin"));
@@ -44,7 +44,32 @@ const queryClient = new QueryClient({
   },
 });
 
+// Precarga en segundo plano (cuando el navegador está ocioso) las rutas a las
+// que el usuario casi siempre va después de abrir la app. Así al pulsar
+// "Entrar" o al redirigir al dashboard el chunk ya está en caché.
+function prefetchLikelyRoutes() {
+  if (typeof window === "undefined") return;
+  const run = () => {
+    void import("./pages/Dashboard");
+    void import("./pages/Login");
+  };
+  const ric = (window as unknown as { requestIdleCallback?: (cb: () => void) => void })
+    .requestIdleCallback;
+  if (ric) ric(run);
+  else setTimeout(run, 1200);
+}
+
+const RouteFallback = () => (
+  <div className="min-h-screen flex items-center justify-center bg-background">
+    <div className="h-6 w-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+  </div>
+);
+
 const App = () => {
+  useEffect(() => {
+    prefetchLikelyRoutes();
+  }, []);
+
   // Reduce unexpected logouts on older/low-storage phones by requesting
   // persistent storage (when the browser supports it).
   usePersistentStorage();
@@ -59,7 +84,7 @@ const App = () => {
           <UpdateBanner />
           <ImpersonationBanner />
           <NativePushBootstrap />
-          <Suspense fallback={null}>
+          <Suspense fallback={<RouteFallback />}>
             <Routes>
               <Route path="/" element={<Landing />} />
               <Route path="/login" element={<Login />} />
