@@ -16,7 +16,7 @@ const PanelFallback = () => (
 function lazyPanel<P extends object>(
   loader: () => Promise<{ default: ComponentType<P> }>
 ) {
-  const Lazy = lazy(loader);
+  const Lazy = lazy(loader) as unknown as ComponentType<P>;
   return (props: P) => (
     <Suspense fallback={<PanelFallback />}>
       <Lazy {...props} />
