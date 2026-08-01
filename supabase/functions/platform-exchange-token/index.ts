@@ -89,7 +89,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    let shortLivedToken: string;
+    let shortLivedToken: string | null = null;
 
     // If we received a code (from mobile redirect flow), exchange it for access token
     if (code && redirect_uri) {
@@ -111,14 +111,18 @@ Deno.serve(async (req) => {
       shortLivedToken = codeExchangeData.access_token;
     } else if (access_token) {
       shortLivedToken = access_token;
-    } else {
+    } else if (!refToken) {
       return new Response(
         JSON.stringify({ error: 'access_token or code is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Exchange for long-lived token
+    // Exchange for long-lived token (unless we already resolved one server-side)
+    let longLivedUserToken: string;
+    if (refToken) {
+      longLivedUserToken = refToken;
+    } else {
     const longLivedTokenResponse = await fetch(
       `https://graph.facebook.com/v21.0/oauth/access_token?grant_type=fb_exchange_token&client_id=${appId}&client_secret=${appSecret}&fb_exchange_token=${shortLivedToken}`
     );
@@ -133,7 +137,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    const longLivedUserToken = longLivedTokenData.access_token;
+    longLivedUserToken = longLivedTokenData.access_token;
+    }
 
     // First, check what permissions were granted
     console.log('=== CHECKING GRANTED PERMISSIONS ===');
