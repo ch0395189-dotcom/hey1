@@ -518,7 +518,7 @@ export const PlatformSetup = ({ onAccountConnected }: PlatformSetupProps) => {
               } else {
                 setAvailablePages(pages);
               }
-              setPendingAccessToken(accessToken);
+              setPendingAccessToken(data.session_ref);
               setShowPageSelector(true);
               setConnecting(false);
             } else if (data.success) {
