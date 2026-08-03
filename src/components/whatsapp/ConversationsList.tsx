@@ -878,6 +878,63 @@ export const ConversationsList = ({
           Mostrando conversaciones archivadas
         </div>
       )}
+
+      {/* Auto-cleanup banner */}
+      {!isAgent && !autoCleanDismissed && overflowConversations.length > 0 && (
+        <div className="px-4 py-3 bg-amber-500/10 border-b border-amber-500/30 text-sm space-y-2">
+          <div className="flex items-start gap-2">
+            <Sparkles className="w-4 h-4 mt-0.5 text-amber-500 shrink-0" />
+            <p className="flex-1 text-foreground/90">
+              Tienes <strong>{conversations.length}</strong> conversaciones (límite recomendado: {autoCleanLimit}).
+              Descarga el respaldo y elimina las <strong>{overflowConversations.length}</strong> más antiguas para que la bandeja cargue rápido.
+            </p>
+            <button
+              onClick={() => setAutoCleanDismissed(true)}
+              className="text-muted-foreground hover:text-foreground shrink-0"
+              title="Ocultar"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 px-2 text-xs"
+              onClick={() => handleDownloadCsv(conversations, "contactos-heyhey-completo")}
+            >
+              <Download className="w-3 h-3 mr-1" />
+              Descargar todos
+            </Button>
+            <Button
+              size="sm"
+              variant="destructive"
+              className="h-7 px-2 text-xs"
+              onClick={() => setShowAutoCleanConfirm(true)}
+              disabled={autoCleaning}
+            >
+              <Trash2 className="w-3 h-3 mr-1" />
+              Respaldar y limpiar
+            </Button>
+            <select
+              className="h-7 rounded-md border border-border bg-background text-xs px-2"
+              value={autoCleanLimit}
+              onChange={(e) => {
+                const value = parseInt(e.target.value, 10);
+                setAutoCleanLimitState(value);
+                setAutoCleanLimit(value);
+              }}
+              title="Límite de conversaciones"
+            >
+              <option value={500}>Mantener 500</option>
+              <option value={1000}>Mantener 1.000</option>
+              <option value={2000}>Mantener 2.000</option>
+              <option value={5000}>Mantener 5.000</option>
+              <option value={0}>Sin límite</option>
+            </select>
+          </div>
+        </div>
+      )}
       {viewMode === 'blocked' && (
         <div className="px-4 py-2 bg-destructive/10 text-sm text-destructive flex items-center gap-2">
           <Ban className="w-4 h-4" />
