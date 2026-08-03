@@ -801,22 +801,25 @@ export const PlatformSetup = ({ onAccountConnected }: PlatformSetupProps) => {
                               <Label className="text-xs text-muted-foreground">URL del Webhook</Label>
                               <div className="flex items-center gap-2 mt-1">
                                 <code className="flex-1 p-2 text-xs bg-background rounded border font-mono break-all">
-                                  {platform === 'messenger' 
-                                    ? 'https://zzmwjidgejbacqcluwyh.supabase.co/functions/v1/messenger-webhook'
-                                    : platform === 'instagram'
-                                    ? 'https://zzmwjidgejbacqcluwyh.supabase.co/functions/v1/instagram-webhook'
-                                    : 'https://zzmwjidgejbacqcluwyh.supabase.co/functions/v1/tiktok-webhook'
-                                  }
+                                  {`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${
+                                    platform === 'messenger'
+                                      ? 'messenger-webhook'
+                                      : platform === 'instagram'
+                                      ? 'instagram-webhook'
+                                      : 'tiktok-webhook'
+                                  }`}
                                 </code>
                                 <Button
                                   variant="ghost"
                                   size="icon"
                                   onClick={() => {
-                                    const webhookUrl = platform === 'messenger' 
-                                      ? 'https://zzmwjidgejbacqcluwyh.supabase.co/functions/v1/messenger-webhook'
-                                      : platform === 'instagram'
-                                      ? 'https://zzmwjidgejbacqcluwyh.supabase.co/functions/v1/instagram-webhook'
-                                      : 'https://zzmwjidgejbacqcluwyh.supabase.co/functions/v1/tiktok-webhook';
+                                    const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${
+                                      platform === 'messenger'
+                                        ? 'messenger-webhook'
+                                        : platform === 'instagram'
+                                        ? 'instagram-webhook'
+                                        : 'tiktok-webhook'
+                                    }`;
                                     navigator.clipboard.writeText(webhookUrl);
                                     toast({ title: "URL copiada", description: "La URL del webhook ha sido copiada al portapapeles." });
                                   }}
