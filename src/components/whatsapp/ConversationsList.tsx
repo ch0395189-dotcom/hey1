@@ -1240,6 +1240,15 @@ export const ConversationsList = ({
             <p className="text-xs text-muted-foreground">
               Si escribes un correo, recibirás un reporte con toda la información de los contactos antes de eliminarlos.
             </p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full"
+              onClick={() => handleDownloadCsv(conversations, "contactos-bloqueados")}
+            >
+              <Download className="w-3.5 h-3.5 mr-1" />
+              Descargar archivo con los datos
+            </Button>
           </div>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deletingAllBlocked || sendingReport}>Cancelar</AlertDialogCancel>
