@@ -607,6 +607,7 @@ export const ConversationsList = ({
 
   const handleDeleteSingle = async () => {
     if (!deleteSingleConv) return;
+    if (!deleteSingleConv) return;
     setDeletingSingle(true);
     try {
       const reportOk = await maybeSendReport([deleteSingleConv], 'Contacto eliminado desde la bandeja de entrada.');
