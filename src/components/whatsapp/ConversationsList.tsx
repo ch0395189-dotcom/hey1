@@ -805,6 +805,15 @@ export const ConversationsList = ({
             >
               <Plus className="w-4 h-4" />
             </Button>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="w-8 h-8 shrink-0"
+              onClick={() => handleDownloadCsv(filteredConversations)}
+              title="Descargar contactos (CSV)"
+            >
+              <Download className="w-4 h-4" />
+            </Button>
         </div>
 
         {/* Bulk action bar */}
