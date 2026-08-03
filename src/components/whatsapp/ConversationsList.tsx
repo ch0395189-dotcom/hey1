@@ -1285,6 +1285,15 @@ export const ConversationsList = ({
             <p className="text-xs text-muted-foreground">
               Si escribes un correo, recibirás un reporte con la información del contacto antes de eliminarlo.
             </p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full"
+              onClick={() => deleteSingleConv && handleDownloadCsv([deleteSingleConv], "contacto")}
+            >
+              <Download className="w-3.5 h-3.5 mr-1" />
+              Descargar archivo con los datos
+            </Button>
           </div>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deletingSingle || sendingReport}>Cancelar</AlertDialogCancel>
