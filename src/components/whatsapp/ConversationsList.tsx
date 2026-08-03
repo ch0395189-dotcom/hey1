@@ -227,15 +227,18 @@ export const ConversationsList = ({
         }
       }
 
-      const tagsRes = convIds.length
-        ? await supabase
-            .from('conversation_tags')
-            .select('conversation_id, tag:contact_tags(id, name, color)')
-            .in('conversation_id', convIds)
-        : { data: [] as any[] };
+      const tagRows: any[] = [];
+      for (let i = 0; i < convIds.length; i += 500) {
+        const { data } = await supabase
+          .from('conversation_tags')
+          .select('conversation_id, tag:contact_tags(id, name, color)')
+          .in('conversation_id', convIds.slice(i, i + 500))
+          .limit(2000);
+        if (data) tagRows.push(...data);
+      }
 
       const tagsByConv = new Map<string, { id: string; name: string; color: string }[]>();
-      for (const row of (tagsRes.data || []) as any[]) {
+      for (const row of tagRows) {
         if (!row.tag) continue;
         const arr = tagsByConv.get(row.conversation_id) || [];
         arr.push(row.tag);
