@@ -1307,6 +1307,40 @@ export const ConversationsList = ({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Auto-clean Confirmation */}
+      <AlertDialog open={showAutoCleanConfirm} onOpenChange={setShowAutoCleanConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Respaldar y limpiar conversaciones antiguas</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se descargará automáticamente un archivo CSV con los datos de las {overflowConversations.length} conversaciones
+              más antiguas y luego se eliminarán junto con sus mensajes. Se conservarán las {autoCleanLimit} más recientes.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="report-email-autoclean">Enviar también por correo (opcional)</Label>
+            <Input
+              id="report-email-autoclean"
+              type="email"
+              placeholder="tucorreo@ejemplo.com"
+              value={reportEmail}
+              onChange={(e) => setReportEmail(e.target.value)}
+              disabled={autoCleaning || sendingReport}
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={autoCleaning || sendingReport}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleAutoClean}
+              disabled={autoCleaning || sendingReport}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {autoCleaning ? 'Limpiando...' : 'Descargar y eliminar'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
