@@ -50,7 +50,6 @@ import { RenewalBanner } from "@/components/dashboard/RenewalBanner";
 import { PaymentAlertBanner } from "@/components/dashboard/PaymentAlertBanner";
 import { MessageLimitBanner } from "@/components/dashboard/MessageLimitBanner";
 import { QualityAlertBanner } from "@/components/dashboard/QualityAlertBanner";
-import { AntiBlockAlertBanner } from "@/components/dashboard/AntiBlockAlertBanner";
 import { PlatformSidebar, Platform } from "@/components/dashboard/PlatformSidebar";
 import { useAdminCheck } from "@/hooks/useAdminCheck";
 import { useSubscriptionGuard } from "@/hooks/useSubscriptionGuard";
@@ -588,7 +587,6 @@ const Dashboard = () => {
           <PaymentAlertBanner />
           <MessageLimitBanner />
           <QualityAlertBanner />
-          <AntiBlockAlertBanner />
           <WhatsAppDownAlert
             accountIds={whatsappAccounts.map((a) => a.id)}
           />
