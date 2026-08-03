@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Search, Plus, Archive, Inbox, MessageCircle, RefreshCw, CheckSquare, Trash2, X, Ban, Mic, Image as ImageIcon, Video, FileText, MapPin, User as UserIcon, Smile, Sticker as StickerIcon, Paperclip, ListChecks, ThumbsUp, Smartphone } from "lucide-react";
+import { Search, Plus, Archive, Inbox, MessageCircle, RefreshCw, CheckSquare, Trash2, X, Ban, Mic, Image as ImageIcon, Video, FileText, MapPin, User as UserIcon, Smile, Sticker as StickerIcon, Paperclip, ListChecks, ThumbsUp, Smartphone, Download, Sparkles } from "lucide-react";
 import { Tag as TagIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
@@ -16,6 +16,11 @@ import { PullToRefreshContainer } from "@/components/ui/PullToRefreshContainer";
 import { NewMessageDialog } from "./NewMessageDialog";
 import { toast } from "sonner";
 import { useTeam } from "@/hooks/useTeam";
+import {
+  downloadContactsCsv,
+  getAutoCleanLimit,
+  setAutoCleanLimit,
+} from "@/lib/contactsExport";
 import {
   Popover,
   PopoverContent,
@@ -93,6 +98,12 @@ export const ConversationsList = ({
   // Optional email report before deletion
   const [reportEmail, setReportEmail] = useState("");
   const [sendingReport, setSendingReport] = useState(false);
+
+  // Auto-cleanup (limit of conversations kept in the inbox)
+  const [autoCleanLimit, setAutoCleanLimitState] = useState<number>(() => getAutoCleanLimit());
+  const [showAutoCleanConfirm, setShowAutoCleanConfirm] = useState(false);
+  const [autoCleaning, setAutoCleaning] = useState(false);
+  const [autoCleanDismissed, setAutoCleanDismissed] = useState(false);
 
   // Tag filter state
   const [allTags, setAllTags] = useState<{ id: string; name: string; color: string }[]>([]);
@@ -594,6 +605,54 @@ export const ConversationsList = ({
     }
   };
 
+  const handleDownloadCsv = (convs: Conversation[], prefix = "contactos-heyhey") => {
+    if (convs.length === 0) {
+      toast.info("No hay contactos para descargar");
+      return;
+    }
+    const count = downloadContactsCsv(convs, prefix);
+    toast.success(`Archivo descargado con ${count} contacto(s)`);
+  };
+
+  const purgeConversations = async (ids: string[]) => {
+    const chunkSize = 100;
+    for (let i = 0; i < ids.length; i += chunkSize) {
+      const chunk = ids.slice(i, i + chunkSize);
+      await supabase.from('messages').delete().in('conversation_id', chunk);
+      await supabase.from('chatbot_conversation_state').delete().in('conversation_id', chunk);
+      await supabase.from('conversation_tags').delete().in('conversation_id', chunk);
+      const { error } = await supabase.from('conversations').delete().in('id', chunk);
+      if (error) throw error;
+    }
+  };
+
+  // Oldest conversations above the configured limit
+  const overflowConversations = (() => {
+    if (autoCleanLimit <= 0 || conversations.length <= autoCleanLimit) return [];
+    return [...conversations]
+      .sort((a, b) => new Date(a.last_message_at).getTime() - new Date(b.last_message_at).getTime())
+      .slice(0, conversations.length - autoCleanLimit);
+  })();
+
+  const handleAutoClean = async () => {
+    if (overflowConversations.length === 0) return;
+    setAutoCleaning(true);
+    try {
+      handleDownloadCsv(overflowConversations, "respaldo-contactos-eliminados");
+      await maybeSendReport(overflowConversations, 'Limpieza automática de conversaciones antiguas.');
+      await purgeConversations(overflowConversations.map(c => c.id));
+      toast.success(`${overflowConversations.length} conversación(es) antigua(s) eliminada(s)`);
+      setShowAutoCleanConfirm(false);
+      setReportEmail("");
+      fetchConversations();
+    } catch (error) {
+      console.error('Error auto-cleaning:', error);
+      toast.error('Error al limpiar conversaciones antiguas');
+    } finally {
+      setAutoCleaning(false);
+    }
+  };
+
   const handleDeleteSingle = async () => {
     if (!deleteSingleConv) return;
     setDeletingSingle(true);
@@ -746,6 +805,15 @@ export const ConversationsList = ({
             >
               <Plus className="w-4 h-4" />
             </Button>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="w-8 h-8 shrink-0"
+              onClick={() => handleDownloadCsv(filteredConversations)}
+              title="Descargar contactos (CSV)"
+            >
+              <Download className="w-4 h-4" />
+            </Button>
         </div>
 
         {/* Bulk action bar */}
@@ -808,6 +876,63 @@ export const ConversationsList = ({
         <div className="px-4 py-2 bg-muted/50 text-sm text-muted-foreground flex items-center gap-2">
           <Archive className="w-4 h-4" />
           Mostrando conversaciones archivadas
+        </div>
+      )}
+
+      {/* Auto-cleanup banner */}
+      {!isAgent && !autoCleanDismissed && overflowConversations.length > 0 && (
+        <div className="px-4 py-3 bg-amber-500/10 border-b border-amber-500/30 text-sm space-y-2">
+          <div className="flex items-start gap-2">
+            <Sparkles className="w-4 h-4 mt-0.5 text-amber-500 shrink-0" />
+            <p className="flex-1 text-foreground/90">
+              Tienes <strong>{conversations.length}</strong> conversaciones (límite recomendado: {autoCleanLimit}).
+              Descarga el respaldo y elimina las <strong>{overflowConversations.length}</strong> más antiguas para que la bandeja cargue rápido.
+            </p>
+            <button
+              onClick={() => setAutoCleanDismissed(true)}
+              className="text-muted-foreground hover:text-foreground shrink-0"
+              title="Ocultar"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 px-2 text-xs"
+              onClick={() => handleDownloadCsv(conversations, "contactos-heyhey-completo")}
+            >
+              <Download className="w-3 h-3 mr-1" />
+              Descargar todos
+            </Button>
+            <Button
+              size="sm"
+              variant="destructive"
+              className="h-7 px-2 text-xs"
+              onClick={() => setShowAutoCleanConfirm(true)}
+              disabled={autoCleaning}
+            >
+              <Trash2 className="w-3 h-3 mr-1" />
+              Respaldar y limpiar
+            </Button>
+            <select
+              className="h-7 rounded-md border border-border bg-background text-xs px-2"
+              value={autoCleanLimit}
+              onChange={(e) => {
+                const value = parseInt(e.target.value, 10);
+                setAutoCleanLimitState(value);
+                setAutoCleanLimit(value);
+              }}
+              title="Límite de conversaciones"
+            >
+              <option value={500}>Mantener 500</option>
+              <option value={1000}>Mantener 1.000</option>
+              <option value={2000}>Mantener 2.000</option>
+              <option value={5000}>Mantener 5.000</option>
+              <option value={0}>Sin límite</option>
+            </select>
+          </div>
         </div>
       )}
       {viewMode === 'blocked' && (
@@ -1074,6 +1199,15 @@ export const ConversationsList = ({
             <p className="text-xs text-muted-foreground">
               Si escribes un correo, recibirás un reporte con toda la información de los contactos antes de eliminarlos.
             </p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full"
+              onClick={() => handleDownloadCsv(conversations.filter(c => selectedIds.has(c.id)))}
+            >
+              <Download className="w-3.5 h-3.5 mr-1" />
+              Descargar archivo con los datos
+            </Button>
           </div>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={bulkLoading || sendingReport}>Cancelar</AlertDialogCancel>
@@ -1106,6 +1240,15 @@ export const ConversationsList = ({
             <p className="text-xs text-muted-foreground">
               Si escribes un correo, recibirás un reporte con toda la información de los contactos antes de eliminarlos.
             </p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full"
+              onClick={() => handleDownloadCsv(conversations, "contactos-bloqueados")}
+            >
+              <Download className="w-3.5 h-3.5 mr-1" />
+              Descargar archivo con los datos
+            </Button>
           </div>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deletingAllBlocked || sendingReport}>Cancelar</AlertDialogCancel>
@@ -1142,6 +1285,15 @@ export const ConversationsList = ({
             <p className="text-xs text-muted-foreground">
               Si escribes un correo, recibirás un reporte con la información del contacto antes de eliminarlo.
             </p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full"
+              onClick={() => deleteSingleConv && handleDownloadCsv([deleteSingleConv], "contacto")}
+            >
+              <Download className="w-3.5 h-3.5 mr-1" />
+              Descargar archivo con los datos
+            </Button>
           </div>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deletingSingle || sendingReport}>Cancelar</AlertDialogCancel>
@@ -1151,6 +1303,40 @@ export const ConversationsList = ({
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {sendingReport ? 'Enviando reporte...' : deletingSingle ? 'Eliminando...' : 'Eliminar'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Auto-clean Confirmation */}
+      <AlertDialog open={showAutoCleanConfirm} onOpenChange={setShowAutoCleanConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Respaldar y limpiar conversaciones antiguas</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se descargará automáticamente un archivo CSV con los datos de las {overflowConversations.length} conversaciones
+              más antiguas y luego se eliminarán junto con sus mensajes. Se conservarán las {autoCleanLimit} más recientes.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="report-email-autoclean">Enviar también por correo (opcional)</Label>
+            <Input
+              id="report-email-autoclean"
+              type="email"
+              placeholder="tucorreo@ejemplo.com"
+              value={reportEmail}
+              onChange={(e) => setReportEmail(e.target.value)}
+              disabled={autoCleaning || sendingReport}
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={autoCleaning || sendingReport}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleAutoClean}
+              disabled={autoCleaning || sendingReport}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {autoCleaning ? 'Limpiando...' : 'Descargar y eliminar'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
