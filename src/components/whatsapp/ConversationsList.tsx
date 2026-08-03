@@ -605,8 +605,55 @@ export const ConversationsList = ({
     }
   };
 
+  const handleDownloadCsv = (convs: Conversation[], prefix = "contactos-heyhey") => {
+    if (convs.length === 0) {
+      toast.info("No hay contactos para descargar");
+      return;
+    }
+    const count = downloadContactsCsv(convs, prefix);
+    toast.success(`Archivo descargado con ${count} contacto(s)`);
+  };
+
+  const purgeConversations = async (ids: string[]) => {
+    const chunkSize = 100;
+    for (let i = 0; i < ids.length; i += chunkSize) {
+      const chunk = ids.slice(i, i + chunkSize);
+      await supabase.from('messages').delete().in('conversation_id', chunk);
+      await supabase.from('chatbot_conversation_state').delete().in('conversation_id', chunk);
+      await supabase.from('conversation_tags').delete().in('conversation_id', chunk);
+      const { error } = await supabase.from('conversations').delete().in('id', chunk);
+      if (error) throw error;
+    }
+  };
+
+  // Oldest conversations above the configured limit
+  const overflowConversations = (() => {
+    if (autoCleanLimit <= 0 || conversations.length <= autoCleanLimit) return [];
+    return [...conversations]
+      .sort((a, b) => new Date(a.last_message_at).getTime() - new Date(b.last_message_at).getTime())
+      .slice(0, conversations.length - autoCleanLimit);
+  })();
+
+  const handleAutoClean = async () => {
+    if (overflowConversations.length === 0) return;
+    setAutoCleaning(true);
+    try {
+      handleDownloadCsv(overflowConversations, "respaldo-contactos-eliminados");
+      await maybeSendReport(overflowConversations, 'Limpieza automática de conversaciones antiguas.');
+      await purgeConversations(overflowConversations.map(c => c.id));
+      toast.success(`${overflowConversations.length} conversación(es) antigua(s) eliminada(s)`);
+      setShowAutoCleanConfirm(false);
+      setReportEmail("");
+      fetchConversations();
+    } catch (error) {
+      console.error('Error auto-cleaning:', error);
+      toast.error('Error al limpiar conversaciones antiguas');
+    } finally {
+      setAutoCleaning(false);
+    }
+  };
+
   const handleDeleteSingle = async () => {
-    if (!deleteSingleConv) return;
     if (!deleteSingleConv) return;
     setDeletingSingle(true);
     try {
