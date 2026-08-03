@@ -212,29 +212,19 @@ export const ConversationsList = ({
       const convs = data || [];
       const convIds = convs.map((c) => c.id);
 
-      // Fetch the latest message PER conversation. A single batched
-      // `IN (...)` query is capped at 1000 rows by PostgREST, so when a user
-      // has many conversations/messages the oldest conversations end up
-      // showing "Sin mensajes" even though they have history. We fetch
-      // one-by-one in parallel chunks to keep it both correct and fast.
+      // Fetch the latest message PER conversation with a single RPC call.
+      // Doing one request per conversation used to freeze the app (blank
+      // screen) for accounts with thousands of conversations.
       const lastMessageByConv = new Map<string, any>();
-      const CHUNK = 25;
+      const CHUNK = 500;
       for (let i = 0; i < convIds.length; i += CHUNK) {
         const chunk = convIds.slice(i, i + CHUNK);
-        const results = await Promise.all(
-          chunk.map((cid) =>
-            supabase
-              .from('messages')
-              .select('conversation_id, content, direction, message_type, media_url, created_at')
-              .eq('conversation_id', cid)
-              .order('created_at', { ascending: false })
-              .limit(1)
-              .maybeSingle()
-          )
-        );
-        results.forEach((r, idx) => {
-          if (r.data) lastMessageByConv.set(chunk[idx], r.data);
+        const { data: previews } = await supabase.rpc('get_conversation_previews', {
+          _conv_ids: chunk,
         });
+        for (const p of (previews || []) as any[]) {
+          lastMessageByConv.set(p.conversation_id, p);
+        }
       }
 
       const tagsRes = convIds.length
