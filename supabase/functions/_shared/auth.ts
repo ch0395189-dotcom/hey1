@@ -121,16 +121,18 @@ export async function isCronCaller(req: Request): Promise<boolean> {
   if (isServiceRole(req)) return true;
   const provided = req.headers.get("x-cron-secret");
   if (!provided) return false;
+  const envSecret = Deno.env.get("CRON_SECRET");
+  if (envSecret && safeEqual(provided, envSecret)) return true;
   const admin = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
-  const { data } = await admin
-    .schema("private")
-    .from("app_secrets")
-    .select("value")
-    .eq("name", "cron_secret")
-    .maybeSingle();
-  if (!data?.value) return false;
-  return safeEqual(provided, data.value as string);
+  // private schema is not exposed through the Data API, so validate through a
+  // security-definer RPC instead of querying the table directly.
+  const { data, error } = await admin.rpc("verify_cron_secret", { _secret: provided });
+  if (error) {
+    console.error("verify_cron_secret failed:", error.message);
+    return false;
+  }
+  return data === true;
 }
