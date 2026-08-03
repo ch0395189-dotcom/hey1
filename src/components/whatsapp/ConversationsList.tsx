@@ -99,6 +99,12 @@ export const ConversationsList = ({
   const [reportEmail, setReportEmail] = useState("");
   const [sendingReport, setSendingReport] = useState(false);
 
+  // Auto-cleanup (limit of conversations kept in the inbox)
+  const [autoCleanLimit, setAutoCleanLimitState] = useState<number>(() => getAutoCleanLimit());
+  const [showAutoCleanConfirm, setShowAutoCleanConfirm] = useState(false);
+  const [autoCleaning, setAutoCleaning] = useState(false);
+  const [autoCleanDismissed, setAutoCleanDismissed] = useState(false);
+
   // Tag filter state
   const [allTags, setAllTags] = useState<{ id: string; name: string; color: string }[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<Set<string>>(new Set());
