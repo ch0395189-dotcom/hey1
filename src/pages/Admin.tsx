@@ -20,10 +20,11 @@ import { CtwaAnalytics } from '@/components/admin/CtwaAnalytics';
 import { ReassignableNumbers } from '@/components/admin/ReassignableNumbers';
 import { AddWhatsAppNumber } from '@/components/admin/AddWhatsAppNumber';
 import { NewAndRenewals } from '@/components/admin/NewAndRenewals';
+import { BoldPaymentsMonitor } from '@/components/admin/BoldPaymentsMonitor';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Shield, Users, CreditCard, Bell, Coins, BarChart3, Bot, Phone, Mail, UserX, Link2, ShieldAlert, MailWarning, Clock, Megaphone, RotateCcw, PhoneCall, Repeat } from 'lucide-react';
+import { ArrowLeft, Shield, Users, CreditCard, Bell, Coins, BarChart3, Bot, Phone, Mail, UserX, Link2, ShieldAlert, MailWarning, Clock, Megaphone, RotateCcw, PhoneCall, Repeat, Activity } from 'lucide-react';
 
 const Admin = () => {
   const navigate = useNavigate();
@@ -89,6 +90,10 @@ const Admin = () => {
             <TabsTrigger value="payments" className="flex items-center gap-2">
               <CreditCard className="h-4 w-4" />
               <span className="hidden sm:inline">Pagos</span>
+            </TabsTrigger>
+            <TabsTrigger value="bold-monitor" className="flex items-center gap-2">
+              <Activity className="h-4 w-4" />
+              <span className="hidden sm:inline">Monitor Bold</span>
             </TabsTrigger>
             <TabsTrigger value="credits" className="flex items-center gap-2">
               <Coins className="h-4 w-4" />
@@ -171,6 +176,10 @@ const Admin = () => {
 
           <TabsContent value="payments">
             <ManualPayments />
+          </TabsContent>
+
+          <TabsContent value="bold-monitor">
+            <BoldPaymentsMonitor />
           </TabsContent>
 
           <TabsContent value="credits" className="space-y-6">
