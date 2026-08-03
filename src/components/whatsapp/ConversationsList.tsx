@@ -818,17 +818,18 @@ export const ConversationsList = ({
 
         {/* Bulk action bar */}
         {selectMode && (
-          <div className="flex items-center gap-2 mb-3">
-            <Button variant="outline" size="sm" onClick={selectAll}>
+          <div className="flex flex-wrap items-center gap-2 mb-3">
+            <Button variant="outline" size="sm" className="shrink-0" onClick={selectAll}>
               {selectedIds.size === filteredConversations.length ? 'Deseleccionar' : 'Seleccionar todo'}
             </Button>
-            <span className="text-xs text-muted-foreground flex-1">
+            <span className="text-xs text-muted-foreground">
               {selectedIds.size} seleccionada(s)
             </span>
             {canArchive && (
             <Button 
               variant="outline" 
-              size="sm" 
+              size="sm"
+              className="shrink-0"
               onClick={handleBulkArchive} 
               disabled={selectedIds.size === 0 || bulkLoading}
             >
@@ -840,6 +841,7 @@ export const ConversationsList = ({
             <Button
               variant="outline"
               size="sm"
+              className="shrink-0"
               onClick={handleBulkBlock}
               disabled={selectedIds.size === 0 || bulkLoading}
             >
@@ -850,7 +852,8 @@ export const ConversationsList = ({
             {!isAgent && (
             <Button 
               variant="destructive" 
-              size="sm" 
+              size="sm"
+              className="shrink-0 ml-auto"
               onClick={() => setShowDeleteConfirm(true)} 
               disabled={selectedIds.size === 0 || bulkLoading}
             >
