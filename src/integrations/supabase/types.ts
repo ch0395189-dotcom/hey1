@@ -1667,6 +1667,17 @@ export type Database = {
         Returns: boolean
       }
       get_agent_limit: { Args: { _user_id: string }; Returns: number }
+      get_conversation_previews: {
+        Args: { _conv_ids: string[] }
+        Returns: {
+          content: string
+          conversation_id: string
+          created_at: string
+          direction: string
+          media_url: string
+          message_type: string
+        }[]
+      }
       get_message_limit: { Args: { _user_id: string }; Returns: number }
       get_my_message_usage: {
         Args: never
