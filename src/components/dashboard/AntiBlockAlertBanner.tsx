@@ -19,10 +19,20 @@ interface AntiBlockAlert {
   created_at: string;
 }
 
-const TYPE_META: Record<
-  AntiBlockAlert["alert_type"],
-  { icon: typeof Filter; label: string; tone: string }
-> = {
+type TypeMeta = { icon: typeof Filter; label: string; tone: string };
+
+const DEFAULT_META: TypeMeta = {
+  icon: ShieldAlert,
+  label: "Alerta anti-bloqueo",
+  tone: "bg-muted border-border text-foreground",
+};
+
+const TYPE_META: Record<string, TypeMeta> = {
+  content_sanitized: {
+    icon: ShieldAlert,
+    label: "Contenido reescrito por IA",
+    tone: "bg-blue-50 border-blue-300 text-blue-900 dark:bg-blue-950/40 dark:text-blue-100 dark:border-blue-800",
+  },
   content_blocked: {
     icon: Filter,
     label: "Mensaje bloqueado por filtro",
@@ -123,7 +133,7 @@ export function AntiBlockAlertBanner() {
       </div>
       <ul className="space-y-1.5">
         {alerts.map((a) => {
-          const meta = TYPE_META[a.alert_type];
+          const meta = TYPE_META[a.alert_type] ?? DEFAULT_META;
           const Icon = meta.icon;
           return (
             <li
