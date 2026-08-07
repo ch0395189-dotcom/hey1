@@ -19,7 +19,8 @@ import {
   Send,
   Loader2,
   Bell,
-  Phone
+  Phone,
+  CalendarDays
 } from "lucide-react";
 import { NewMessageDialog } from "@/components/whatsapp/NewMessageDialog";
 import { supabase } from "@/integrations/supabase/client";
@@ -44,6 +45,7 @@ import {
   PlatformSetup,
   ApiKeysSettings,
   TeamManagement,
+  AppointmentsPanel,
   NotificationSettingsPanel,
 } from "@/components/dashboard/lazyPanels";
 import { TrialBanner } from "@/components/dashboard/TrialBanner";
@@ -92,7 +94,7 @@ import {
 } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-type ActiveView = 'inbox' | 'contacts' | 'statistics' | 'team';
+type ActiveView = 'inbox' | 'contacts' | 'statistics' | 'team' | 'appointments';
 
 interface Conversation {
   id: string;
@@ -648,6 +650,15 @@ const Dashboard = () => {
             <Users className="w-5 h-5" />
           </Button>
           )}
+          <Button
+            variant="ghost"
+            size="icon"
+            className={`w-10 h-10 rounded-xl ${activeView === 'appointments' ? 'bg-primary-foreground/20 text-primary-foreground' : 'text-primary-foreground/70 hover:bg-primary-foreground/10 hover:text-primary-foreground'}`}
+            onClick={() => setActiveView('appointments')}
+            title="Citas"
+          >
+            <CalendarDays className="w-5 h-5" />
+          </Button>
           <Button 
             variant="ghost" 
             size="icon" 
@@ -936,6 +947,22 @@ const Dashboard = () => {
           </div>
         </motion.div>
       )}
+
+      {activeView === 'appointments' && (
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="flex-1 flex flex-col bg-background"
+        >
+          <div className="h-14 px-4 bg-primary flex items-center gap-2">
+            <CalendarDays className="w-5 h-5 text-primary-foreground" />
+            <h1 className="text-primary-foreground font-semibold text-lg">Citas</h1>
+          </div>
+          <div className="flex-1 min-h-0 overflow-auto pb-20 lg:pb-0">
+            <AppointmentsPanel />
+          </div>
+        </motion.div>
+      )}
       </div>
 
       {/* Mobile FAB - Support - hide when conversation is open */}
@@ -1039,6 +1066,13 @@ const Dashboard = () => {
             >
               <Bot className="w-6 h-6 text-muted-foreground" />
               <span className="text-xs font-medium">Chatbot</span>
+            </button>
+            <button
+              onClick={() => { setShowMobileMenu(false); setActiveView('appointments'); }}
+              className="flex flex-col items-center gap-2 p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
+            >
+              <CalendarDays className="w-6 h-6 text-muted-foreground" />
+              <span className="text-xs font-medium">Citas</span>
             </button>
             {!isAgent && (
               <button
