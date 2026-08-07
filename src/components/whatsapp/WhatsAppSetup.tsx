@@ -952,10 +952,14 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
           />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium">
-              Plan {planLimits.planLabel}: {planLimits.currentCount} / {planLimits.whatsappLimit} cuentas de WhatsApp
+              {planLimits.isAdmin
+                ? `Administrador: ${planLimits.currentCount} cuentas de WhatsApp (ilimitadas)`
+                : `Plan ${planLimits.planLabel}: ${planLimits.currentCount} / ${planLimits.whatsappLimit} cuentas de WhatsApp`}
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {planLimits.canAddWhatsAppAccount
+              {planLimits.isAdmin
+                ? "Como administrador puedes conectar todos los números que necesites."
+                : planLimits.canAddWhatsAppAccount
                 ? `Puedes conectar ${planLimits.whatsappLimit - planLimits.currentCount} cuenta(s) más en este plan.`
                 : "Has alcanzado el límite de tu plan. Mejora tu plan para conectar más cuentas."}
             </p>
