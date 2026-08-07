@@ -41,6 +41,7 @@ interface FlowNode {
   button_options: ButtonOption[];
   media_url: string | null;
   media_type: string | null;
+  appointment_settings?: AppointmentSettings | null;
 }
 
 interface AppointmentSettings {
