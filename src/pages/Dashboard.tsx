@@ -947,6 +947,22 @@ const Dashboard = () => {
           </div>
         </motion.div>
       )}
+
+      {activeView === 'appointments' && (
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="flex-1 flex flex-col bg-background"
+        >
+          <div className="h-14 px-4 bg-primary flex items-center gap-2">
+            <CalendarDays className="w-5 h-5 text-primary-foreground" />
+            <h1 className="text-primary-foreground font-semibold text-lg">Citas</h1>
+          </div>
+          <div className="flex-1 min-h-0 overflow-auto pb-20 lg:pb-0">
+            <AppointmentsPanel />
+          </div>
+        </motion.div>
+      )}
       </div>
 
       {/* Mobile FAB - Support - hide when conversation is open */}
