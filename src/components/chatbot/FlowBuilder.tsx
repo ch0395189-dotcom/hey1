@@ -67,6 +67,20 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
   });
   const [uploadingMedia, setUploadingMedia] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [ctaMode, setCtaMode] = useState<'whatsapp' | 'url'>('whatsapp');
+  const [ctaPhone, setCtaPhone] = useState('');
+  const [ctaPrefill, setCtaPrefill] = useState('');
+
+  const buildWaLink = (phone: string, prefill: string) => {
+    const digits = (phone || '').replace(/\D/g, '');
+    if (!digits) return '';
+    const text = prefill.trim();
+    return `https://wa.me/${digits}${text ? `?text=${encodeURIComponent(text)}` : ''}`;
+  };
+
+  const setCtaOption = (title: string, url: string) => {
+    setNewNode((prev) => ({ ...prev, button_options: [{ id: 'cta', title, url }] }));
+  };
 
   useEffect(() => {
     fetchNodes();
