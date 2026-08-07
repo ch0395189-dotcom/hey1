@@ -326,6 +326,26 @@ Deno.serve(async (req) => {
     let responseMessage: string | null = null;
     let currentNode: FlowNode | null = null;
     let interactiveResponse: ChatResponse['interactive'] | null = null;
+
+    // ── Modo "agendar cita": si hay una recolección de datos en curso,
+    // procesamos la respuesta del cliente antes que cualquier otro flujo.
+    const apptCtx = (conversationState.context || {})?.appointment;
+    if (apptCtx && apptCtx.active) {
+      const handled = await handleAppointmentAnswer(
+        supabase,
+        conversationState,
+        apptCtx,
+        message_content,
+        platformAccount,
+        customerIdentifier,
+        conversation_id,
+        chatbotConfig.whatsapp_account_id,
+      );
+      return new Response(JSON.stringify({ processed: true, action: 'appointment', step: handled }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     if (chatbotConfig.mode === 'manual' || chatbotConfig.mode === 'hybrid') {
       // Global "back to main menu" handler — works from any node
       const backToMenuKeywords = [
