@@ -844,6 +844,22 @@ function buildInteractiveResponse(node: FlowNode): ChatResponse['interactive'] |
     return null;
   }
 
+  if (node.interactive_type === 'cta_url') {
+    const opt = node.button_options[0];
+    if (!opt?.url) return null;
+    return {
+      type: 'cta_url',
+      body: { text: node.content },
+      action: {
+        name: 'cta_url',
+        parameters: {
+          display_text: (opt.title || 'Abrir enlace').substring(0, 20),
+          url: opt.url,
+        },
+      },
+    };
+  }
+
   if (node.interactive_type === 'buttons') {
     // Reply buttons (max 3)
     return {
