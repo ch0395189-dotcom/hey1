@@ -1067,6 +1067,13 @@ const Dashboard = () => {
               <Bot className="w-6 h-6 text-muted-foreground" />
               <span className="text-xs font-medium">Chatbot</span>
             </button>
+            <button
+              onClick={() => { setShowMobileMenu(false); setActiveView('appointments'); }}
+              className="flex flex-col items-center gap-2 p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
+            >
+              <CalendarDays className="w-6 h-6 text-muted-foreground" />
+              <span className="text-xs font-medium">Citas</span>
+            </button>
             {!isAgent && (
               <button
                 onClick={() => { setShowMobileMenu(false); setActiveView('team'); }}
