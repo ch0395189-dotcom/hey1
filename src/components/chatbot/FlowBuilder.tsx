@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Plus, Trash2, ChevronRight, MessageSquare, ArrowRight, User, CircleStop, MousePointer, List, Pencil, Upload, Image, Video, Music, FileText, X, CalendarDays } from 'lucide-react';
+import { Plus, Trash2, ChevronRight, MessageSquare, ArrowRight, User, CircleStop, MousePointer, List, Pencil, Upload, Image, Video, Music, FileText, X, CalendarDays, Link as LinkIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MediaCaptureButtons } from './MediaCaptureButtons';
 import { AppointmentConfig, defaultAppointmentSettings, type AppointmentSettings } from './AppointmentConfig';
@@ -21,6 +21,7 @@ interface ButtonOption {
   id: string;
   title: string;
   description?: string;
+  url?: string; // URL para botón CTA (interactive_type = 'cta_url')
   response_type?: 'text' | 'media' | 'flow'; // Tipo de respuesta cuando se clickea
   response_content?: string; // Contenido de la respuesta (texto o URL de media)
   child_node_id?: string; // ID del nodo hijo si es tipo 'flow'
@@ -37,7 +38,7 @@ interface FlowNode {
   content: string;
   action_type: string | null;
   position: number;
-  interactive_type: 'none' | 'buttons' | 'list';
+  interactive_type: 'none' | 'buttons' | 'list' | 'cta_url';
   button_options: ButtonOption[];
   media_url: string | null;
   media_type: string | null;
@@ -58,7 +59,7 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
     title: '',
     content: '',
     action_type: null as string | null,
-    interactive_type: 'none' as 'none' | 'buttons' | 'list',
+    interactive_type: 'none' as 'none' | 'buttons' | 'list' | 'cta_url',
     button_options: [] as ButtonOption[],
     media_url: null as string | null,
     media_type: null as string | null,
@@ -214,11 +215,20 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
       }
     }
 
+    if (newNode.interactive_type === 'cta_url') {
+      const url = newNode.button_options[0]?.url?.trim() || '';
+      if (!/^https?:\/\/.+/i.test(url)) {
+        toast.error('Ingresa un enlace válido que empiece por https://');
+        return;
+      }
+    }
+
     // Clean up button options - ensure valid IDs and include response data
     const cleanedOptions = newNode.button_options.map((opt, idx) => ({
       id: opt.id || `opt_${idx + 1}`,
       title: opt.title.trim().substring(0, 20), // WhatsApp limit
       description: opt.description?.trim().substring(0, 72) || undefined, // WhatsApp limit
+      url: opt.url?.trim() || undefined,
       response_type: opt.response_type || 'text',
       response_content: opt.response_content?.trim() || undefined,
     }));
@@ -391,6 +401,14 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
           <span className="text-xs px-2 py-0.5 bg-purple-500/10 text-purple-600 rounded-full flex items-center gap-1">
             <List className="h-3 w-3" />
             Lista ({node.button_options?.length || 0})
+          </span>
+        );
+      }
+      if (node.interactive_type === 'cta_url') {
+        return (
+          <span className="text-xs px-2 py-0.5 bg-emerald-500/10 text-emerald-600 rounded-full flex items-center gap-1">
+            <LinkIcon className="h-3 w-3" />
+            Enlace
           </span>
         );
       }
@@ -720,11 +738,20 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
                 <Label>Tipo de Interacción</Label>
                 <Select
                   value={newNode.interactive_type}
-                  onValueChange={(value: 'none' | 'buttons' | 'list') => {
+                  onValueChange={(value: 'none' | 'buttons' | 'list' | 'cta_url') => {
                     setNewNode({ 
                       ...newNode, 
                       interactive_type: value,
-                      button_options: value === 'none' ? [] : newNode.button_options,
+                      button_options:
+                        value === 'none'
+                          ? []
+                          : value === 'cta_url'
+                            ? [{
+                                id: 'cta',
+                                title: newNode.button_options[0]?.title || 'Abrir enlace',
+                                url: newNode.button_options[0]?.url || '',
+                              }]
+                            : newNode.button_options,
                     });
                   }}
                 >
@@ -735,12 +762,62 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
                     <SelectItem value="none">Texto simple</SelectItem>
                     <SelectItem value="buttons">Botones de respuesta rápida (máx. 3)</SelectItem>
                     <SelectItem value="list">Lista de opciones (máx. 10)</SelectItem>
+                    <SelectItem value="cta_url">Botón con enlace (abre una URL)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
+              {/* CTA URL button */}
+              {newNode.interactive_type === 'cta_url' && (
+                <div className="space-y-3 p-3 border rounded-lg bg-background">
+                  <Label className="flex items-center gap-2">
+                    <LinkIcon className="h-4 w-4" /> Botón con enlace
+                  </Label>
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">Texto del botón (máx. 20)</Label>
+                    <Input
+                      value={newNode.button_options[0]?.title || ''}
+                      onChange={(e) =>
+                        setNewNode({
+                          ...newNode,
+                          button_options: [{
+                            id: 'cta',
+                            title: e.target.value,
+                            url: newNode.button_options[0]?.url || '',
+                          }],
+                        })
+                      }
+                      placeholder="Abrir enlace"
+                      maxLength={20}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">Enlace (URL)</Label>
+                    <Input
+                      value={newNode.button_options[0]?.url || ''}
+                      onChange={(e) =>
+                        setNewNode({
+                          ...newNode,
+                          button_options: [{
+                            id: 'cta',
+                            title: newNode.button_options[0]?.title || 'Abrir enlace',
+                            url: e.target.value,
+                          }],
+                        })
+                      }
+                      placeholder="https://w.app/2xqyz0"
+                      inputMode="url"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    El cliente verá un botón que abre el enlace al tocarlo. Requiere conexión por API oficial de Meta;
+                    en cuentas conectadas por QR el enlace se envía como texto.
+                  </p>
+                </div>
+              )}
+
               {/* Button/List Options */}
-              {newNode.interactive_type !== 'none' && (
+              {(newNode.interactive_type === 'buttons' || newNode.interactive_type === 'list') && (
                 <div className="space-y-3 p-3 border rounded-lg bg-background">
                   <div className="flex items-center justify-between">
                     <Label className="flex items-center gap-2">

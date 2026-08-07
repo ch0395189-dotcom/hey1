@@ -23,6 +23,7 @@ interface ButtonOption {
   id: string;
   title: string;
   description?: string;
+  url?: string;
   response_type?: 'text' | 'media' | 'flow';
   response_content?: string;
 }
@@ -37,7 +38,7 @@ interface FlowNode {
   content: string;
   action_type: string | null;
   position: number;
-  interactive_type: 'none' | 'buttons' | 'list';
+  interactive_type: 'none' | 'buttons' | 'list' | 'cta_url';
   button_options: ButtonOption[];
   media_url: string | null;
   media_type: string | null;
@@ -61,11 +62,13 @@ interface ChatResponse {
   type: 'text' | 'interactive';
   text?: string;
   interactive?: {
-    type: 'button' | 'list';
+    type: 'button' | 'list' | 'cta_url';
     header?: { type: 'text'; text: string };
     body: { text: string };
     footer?: { text: string };
     action: {
+      name?: string; // For cta_url type
+      parameters?: { display_text: string; url: string }; // For cta_url type
       button?: string; // For list type
       buttons?: Array<{ type: 'reply'; reply: { id: string; title: string } }>; // For button type
       sections?: Array<{ title: string; rows: Array<{ id: string; title: string; description?: string }> }>; // For list type
@@ -825,6 +828,8 @@ async function sendNodeResponse(
           textMessage += `${idx + 1}. ${row.title}${row.description ? ' - ' + row.description : ''}\n`;
         });
       });
+    } else if (interactiveResponse.type === 'cta_url' && interactiveResponse.action?.parameters) {
+      textMessage += `\n\n👉 ${interactiveResponse.action.parameters.url}`;
     }
     await sendPlatformMessage(platformAccount, customerIdentifier, textMessage);
   } else {
@@ -837,6 +842,22 @@ async function sendNodeResponse(
 function buildInteractiveResponse(node: FlowNode): ChatResponse['interactive'] | null {
   if (!node.button_options || node.button_options.length === 0) {
     return null;
+  }
+
+  if (node.interactive_type === 'cta_url') {
+    const opt = node.button_options[0];
+    if (!opt?.url) return null;
+    return {
+      type: 'cta_url',
+      body: { text: node.content },
+      action: {
+        name: 'cta_url',
+        parameters: {
+          display_text: (opt.title || 'Abrir enlace').substring(0, 20),
+          url: opt.url,
+        },
+      },
+    };
   }
 
   if (node.interactive_type === 'buttons') {
