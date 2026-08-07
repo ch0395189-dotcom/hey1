@@ -19,7 +19,8 @@ import {
   Send,
   Loader2,
   Bell,
-  Phone
+  Phone,
+  CalendarDays
 } from "lucide-react";
 import { NewMessageDialog } from "@/components/whatsapp/NewMessageDialog";
 import { supabase } from "@/integrations/supabase/client";
@@ -44,6 +45,7 @@ import {
   PlatformSetup,
   ApiKeysSettings,
   TeamManagement,
+  AppointmentsPanel,
   NotificationSettingsPanel,
 } from "@/components/dashboard/lazyPanels";
 import { TrialBanner } from "@/components/dashboard/TrialBanner";
@@ -92,7 +94,7 @@ import {
 } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-type ActiveView = 'inbox' | 'contacts' | 'statistics' | 'team';
+type ActiveView = 'inbox' | 'contacts' | 'statistics' | 'team' | 'appointments';
 
 interface Conversation {
   id: string;
