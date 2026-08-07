@@ -23,6 +23,7 @@ interface ButtonOption {
   id: string;
   title: string;
   description?: string;
+  url?: string;
   response_type?: 'text' | 'media' | 'flow';
   response_content?: string;
 }
@@ -37,7 +38,7 @@ interface FlowNode {
   content: string;
   action_type: string | null;
   position: number;
-  interactive_type: 'none' | 'buttons' | 'list';
+  interactive_type: 'none' | 'buttons' | 'list' | 'cta_url';
   button_options: ButtonOption[];
   media_url: string | null;
   media_type: string | null;
@@ -61,11 +62,13 @@ interface ChatResponse {
   type: 'text' | 'interactive';
   text?: string;
   interactive?: {
-    type: 'button' | 'list';
+    type: 'button' | 'list' | 'cta_url';
     header?: { type: 'text'; text: string };
     body: { text: string };
     footer?: { text: string };
     action: {
+      name?: string; // For cta_url type
+      parameters?: { display_text: string; url: string }; // For cta_url type
       button?: string; // For list type
       buttons?: Array<{ type: 'reply'; reply: { id: string; title: string } }>; // For button type
       sections?: Array<{ title: string; rows: Array<{ id: string; title: string; description?: string }> }>; // For list type
