@@ -742,7 +742,16 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
                     setNewNode({ 
                       ...newNode, 
                       interactive_type: value,
-                      button_options: value === 'none' ? [] : newNode.button_options,
+                      button_options:
+                        value === 'none'
+                          ? []
+                          : value === 'cta_url'
+                            ? [{
+                                id: 'cta',
+                                title: newNode.button_options[0]?.title || 'Abrir enlace',
+                                url: newNode.button_options[0]?.url || '',
+                              }]
+                            : newNode.button_options,
                     });
                   }}
                 >
@@ -753,12 +762,62 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
                     <SelectItem value="none">Texto simple</SelectItem>
                     <SelectItem value="buttons">Botones de respuesta rápida (máx. 3)</SelectItem>
                     <SelectItem value="list">Lista de opciones (máx. 10)</SelectItem>
+                    <SelectItem value="cta_url">Botón con enlace (abre una URL)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
+              {/* CTA URL button */}
+              {newNode.interactive_type === 'cta_url' && (
+                <div className="space-y-3 p-3 border rounded-lg bg-background">
+                  <Label className="flex items-center gap-2">
+                    <LinkIcon className="h-4 w-4" /> Botón con enlace
+                  </Label>
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">Texto del botón (máx. 20)</Label>
+                    <Input
+                      value={newNode.button_options[0]?.title || ''}
+                      onChange={(e) =>
+                        setNewNode({
+                          ...newNode,
+                          button_options: [{
+                            id: 'cta',
+                            title: e.target.value,
+                            url: newNode.button_options[0]?.url || '',
+                          }],
+                        })
+                      }
+                      placeholder="Abrir enlace"
+                      maxLength={20}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">Enlace (URL)</Label>
+                    <Input
+                      value={newNode.button_options[0]?.url || ''}
+                      onChange={(e) =>
+                        setNewNode({
+                          ...newNode,
+                          button_options: [{
+                            id: 'cta',
+                            title: newNode.button_options[0]?.title || 'Abrir enlace',
+                            url: e.target.value,
+                          }],
+                        })
+                      }
+                      placeholder="https://w.app/2xqyz0"
+                      inputMode="url"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    El cliente verá un botón que abre el enlace al tocarlo. Requiere conexión por API oficial de Meta;
+                    en cuentas conectadas por QR el enlace se envía como texto.
+                  </p>
+                </div>
+              )}
+
               {/* Button/List Options */}
-              {newNode.interactive_type !== 'none' && (
+              {(newNode.interactive_type === 'buttons' || newNode.interactive_type === 'list') && (
                 <div className="space-y-3 p-3 border rounded-lg bg-background">
                   <div className="flex items-center justify-between">
                     <Label className="flex items-center gap-2">
