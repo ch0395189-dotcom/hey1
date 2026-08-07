@@ -1527,3 +1527,201 @@ Contexto adicional: ${JSON.stringify(context)}`;
     return 'Lo siento, hubo un error procesando tu mensaje. Por favor intenta de nuevo.';
   }
 }
+
+// ─────────────────────────────────────────────────────────────
+// Agendamiento de citas (nodo de acción "schedule")
+// ─────────────────────────────────────────────────────────────
+
+interface ApptStep {
+  key: string;
+  flag: keyof AppointmentSettings;
+  question: (s: AppointmentSettings) => string;
+}
+
+const APPOINTMENT_STEPS: ApptStep[] = [
+  {
+    key: 'customer_name',
+    flag: 'ask_name',
+    question: () => '😊 Para agendar tu cita, ¿cuál es tu *nombre completo*?',
+  },
+  {
+    key: 'customer_phone',
+    flag: 'ask_phone',
+    question: () => '📱 ¿A qué *número de teléfono* te podemos contactar?',
+  },
+  {
+    key: 'birth_date',
+    flag: 'ask_birthdate',
+    question: () => '🎂 ¿Cuál es tu *fecha de nacimiento*? (día/mes/año)',
+  },
+  {
+    key: 'appointment_date',
+    flag: 'ask_date',
+    question: (s) =>
+      `📅 ¿Para qué *fecha* quieres tu cita?${s.available_days ? `\n\nDías disponibles: ${s.available_days}` : ''}`,
+  },
+  {
+    key: 'appointment_time',
+    flag: 'ask_time',
+    question: (s) =>
+      `🕐 ¿A qué *hora* te queda mejor?${s.available_hours ? `\n\nHorario: ${s.available_hours}` : ''}`,
+  },
+];
+
+function activeApptSteps(settings: AppointmentSettings): ApptStep[] {
+  return APPOINTMENT_STEPS.filter((step) => settings[step.flag] !== false);
+}
+
+const DEFAULT_APPT_SETTINGS: AppointmentSettings = {
+  ask_name: true,
+  ask_phone: true,
+  ask_birthdate: true,
+  ask_date: true,
+  ask_time: true,
+  confirmation_message:
+    '✅ Listo {nombre}, tu cita quedó agendada para el {fecha} a las {hora}. ¡Te esperamos!',
+};
+
+async function startAppointmentFlow(
+  supabase: any,
+  state: ConversationState,
+  node: FlowNode,
+  platformAccount: PlatformAccountData,
+  customerIdentifier: string,
+  conversationId: string,
+  whatsappAccountId: string,
+): Promise<void> {
+  const settings: AppointmentSettings = { ...DEFAULT_APPT_SETTINGS, ...(node.appointment_settings || {}) };
+  const steps = activeApptSteps(settings);
+
+  if (steps.length === 0) {
+    await saveAppointment(supabase, conversationId, whatsappAccountId, {}, customerIdentifier);
+    return;
+  }
+
+  const context = {
+    ...(state.context || {}),
+    appointment: {
+      active: true,
+      step: 0,
+      node_id: node.id,
+      settings,
+      answers: {} as Record<string, string>,
+    },
+  };
+
+  await supabase
+    .from('chatbot_conversation_state')
+    .update({ context })
+    .eq('id', state.id);
+
+  const question = steps[0].question(settings);
+  await sendPlatformMessage(platformAccount, customerIdentifier, question);
+  await saveOutboundMessage(supabase, conversationId, question);
+}
+
+async function handleAppointmentAnswer(
+  supabase: any,
+  state: ConversationState,
+  apptCtx: any,
+  answer: string,
+  platformAccount: PlatformAccountData,
+  customerIdentifier: string,
+  conversationId: string,
+  whatsappAccountId: string,
+): Promise<string> {
+  const settings: AppointmentSettings = { ...DEFAULT_APPT_SETTINGS, ...(apptCtx.settings || {}) };
+  const steps = activeApptSteps(settings);
+  const stepIndex: number = apptCtx.step ?? 0;
+  const answers: Record<string, string> = { ...(apptCtx.answers || {}) };
+
+  // Permitir cancelar en cualquier momento
+  const lower = answer.trim().toLowerCase();
+  if (['cancelar', 'cancel', 'salir'].includes(lower)) {
+    const context = { ...(state.context || {}) };
+    delete context.appointment;
+    await supabase.from('chatbot_conversation_state').update({ context }).eq('id', state.id);
+    const msg = 'Listo, cancelé el agendamiento. Escríbeme *menú* cuando quieras volver a empezar.';
+    await sendPlatformMessage(platformAccount, customerIdentifier, msg);
+    await saveOutboundMessage(supabase, conversationId, msg);
+    return 'cancelled';
+  }
+
+  const currentStep = steps[stepIndex];
+  if (currentStep) {
+    answers[currentStep.key] = answer.trim();
+  }
+
+  const nextIndex = stepIndex + 1;
+
+  if (nextIndex < steps.length) {
+    const context = {
+      ...(state.context || {}),
+      appointment: { ...apptCtx, settings, step: nextIndex, answers },
+    };
+    await supabase.from('chatbot_conversation_state').update({ context }).eq('id', state.id);
+    const question = steps[nextIndex].question(settings);
+    await sendPlatformMessage(platformAccount, customerIdentifier, question);
+    await saveOutboundMessage(supabase, conversationId, question);
+    return `step_${nextIndex}`;
+  }
+
+  // Terminamos: guardar la cita
+  await saveAppointment(supabase, conversationId, whatsappAccountId, answers, customerIdentifier);
+
+  const context = { ...(state.context || {}) };
+  delete context.appointment;
+  await supabase
+    .from('chatbot_conversation_state')
+    .update({ context, current_node_id: null })
+    .eq('id', state.id);
+
+  const template = settings.confirmation_message || DEFAULT_APPT_SETTINGS.confirmation_message!;
+  const confirmation = template
+    .replace(/\{nombre\}/gi, answers.customer_name || '')
+    .replace(/\{telefono\}/gi, answers.customer_phone || customerIdentifier)
+    .replace(/\{fecha\}/gi, answers.appointment_date || '')
+    .replace(/\{hora\}/gi, answers.appointment_time || '')
+    .replace(/\{nacimiento\}/gi, answers.birth_date || '');
+
+  await sendPlatformMessage(platformAccount, customerIdentifier, confirmation);
+  await saveOutboundMessage(supabase, conversationId, confirmation);
+  return 'completed';
+}
+
+async function saveAppointment(
+  supabase: any,
+  conversationId: string,
+  whatsappAccountId: string,
+  answers: Record<string, string>,
+  customerIdentifier: string,
+): Promise<void> {
+  try {
+    const { data: account } = await supabase
+      .from('whatsapp_accounts')
+      .select('user_id')
+      .eq('id', whatsappAccountId)
+      .maybeSingle();
+
+    if (!account?.user_id) {
+      console.error('No se pudo resolver el dueño de la cuenta para guardar la cita');
+      return;
+    }
+
+    const { error } = await supabase.from('appointments').insert({
+      user_id: account.user_id,
+      whatsapp_account_id: whatsappAccountId,
+      conversation_id: conversationId,
+      customer_name: answers.customer_name || null,
+      customer_phone: answers.customer_phone || customerIdentifier,
+      birth_date: answers.birth_date || null,
+      appointment_date: answers.appointment_date || null,
+      appointment_time: answers.appointment_time || null,
+      status: 'pending',
+    });
+
+    if (error) console.error('Error guardando la cita:', error.message);
+  } catch (err) {
+    console.error('saveAppointment error:', err);
+  }
+}
