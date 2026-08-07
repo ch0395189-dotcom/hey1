@@ -232,7 +232,11 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
     if (newNode.interactive_type === 'cta_url') {
       const url = newNode.button_options[0]?.url?.trim() || '';
       if (!/^https?:\/\/.+/i.test(url)) {
-        toast.error('Ingresa un enlace válido que empiece por https://');
+        toast.error(
+          ctaMode === 'whatsapp'
+            ? 'Ingresa un número de WhatsApp válido con indicativo'
+            : 'Ingresa un enlace válido que empiece por https://'
+        );
         return;
       }
     }
