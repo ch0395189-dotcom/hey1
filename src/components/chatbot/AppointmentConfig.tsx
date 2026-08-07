@@ -8,6 +8,7 @@ export interface AppointmentSettings {
   enabled: boolean;
   ask_name: boolean;
   ask_phone: boolean;
+  ask_birthdate: boolean;
   ask_date: boolean;
   ask_time: boolean;
   confirmation_message: string;
@@ -19,6 +20,7 @@ export const defaultAppointmentSettings: AppointmentSettings = {
   enabled: false,
   ask_name: true,
   ask_phone: true,
+  ask_birthdate: true,
   ask_date: true,
   ask_time: true,
   confirmation_message: '✅ Tu cita ha sido agendada para el {fecha} a las {hora}. ¡Te esperamos!',
@@ -51,6 +53,10 @@ export const AppointmentConfig = ({ settings, onChange }: AppointmentConfigProps
         <div className="flex items-center justify-between gap-2">
           <Label className="text-sm">Pedir teléfono</Label>
           <Switch checked={settings.ask_phone} onCheckedChange={(v) => update('ask_phone', v)} />
+        </div>
+        <div className="flex items-center justify-between gap-2">
+          <Label className="text-sm">Pedir fecha de nacimiento</Label>
+          <Switch checked={settings.ask_birthdate} onCheckedChange={(v) => update('ask_birthdate', v)} />
         </div>
         <div className="flex items-center justify-between gap-2">
           <Label className="text-sm">Pedir fecha</Label>
@@ -90,7 +96,7 @@ export const AppointmentConfig = ({ settings, onChange }: AppointmentConfigProps
           rows={2}
         />
         <p className="text-xs text-muted-foreground">
-          Variables: {'{nombre}'}, {'{fecha}'}, {'{hora}'}, {'{telefono}'}
+          Variables: {'{nombre}'}, {'{fecha}'}, {'{hora}'}, {'{telefono}'}, {'{nacimiento}'}
         </p>
       </div>
     </div>

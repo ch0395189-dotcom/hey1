@@ -104,6 +104,69 @@ export type Database = {
           },
         ]
       }
+      appointments: {
+        Row: {
+          appointment_date: string | null
+          appointment_time: string | null
+          birth_date: string | null
+          conversation_id: string | null
+          created_at: string
+          customer_name: string | null
+          customer_phone: string | null
+          id: string
+          notes: string | null
+          status: string
+          updated_at: string
+          user_id: string
+          whatsapp_account_id: string | null
+        }
+        Insert: {
+          appointment_date?: string | null
+          appointment_time?: string | null
+          birth_date?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          customer_name?: string | null
+          customer_phone?: string | null
+          id?: string
+          notes?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+          whatsapp_account_id?: string | null
+        }
+        Update: {
+          appointment_date?: string | null
+          appointment_time?: string | null
+          birth_date?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          customer_name?: string | null
+          customer_phone?: string | null
+          id?: string
+          notes?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+          whatsapp_account_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointments_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_whatsapp_account_id_fkey"
+            columns: ["whatsapp_account_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bold_payments: {
         Row: {
           amount: number
@@ -298,6 +361,7 @@ export type Database = {
       chatbot_flow_nodes: {
         Row: {
           action_type: string | null
+          appointment_settings: Json | null
           button_options: Json | null
           chatbot_config_id: string
           content: string
@@ -316,6 +380,7 @@ export type Database = {
         }
         Insert: {
           action_type?: string | null
+          appointment_settings?: Json | null
           button_options?: Json | null
           chatbot_config_id: string
           content: string
@@ -334,6 +399,7 @@ export type Database = {
         }
         Update: {
           action_type?: string | null
+          appointment_settings?: Json | null
           button_options?: Json | null
           chatbot_config_id?: string
           content?: string

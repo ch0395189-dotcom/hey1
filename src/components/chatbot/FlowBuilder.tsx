@@ -239,6 +239,10 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
           button_options: cleanedOptions,
           media_url: newNode.media_url,
           media_type: newNode.media_type,
+          appointment_settings:
+            newNode.node_type === 'action' && newNode.action_type === 'schedule'
+              ? (newNode.appointment_settings as any)
+              : null,
         })
         .eq('id', editingNode.id);
 
@@ -269,6 +273,10 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
           button_options: cleanedOptions,
           media_url: newNode.media_url,
           media_type: newNode.media_type,
+          appointment_settings:
+            newNode.node_type === 'action' && newNode.action_type === 'schedule'
+              ? (newNode.appointment_settings as any)
+              : null,
         })
         .select()
         .single();
@@ -318,7 +326,7 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
       button_options: node.button_options || [],
       media_url: node.media_url || null,
       media_type: node.media_type || null,
-      appointment_settings: node.appointment_settings || defaultAppointmentSettings,
+      appointment_settings: { ...defaultAppointmentSettings, ...(node.appointment_settings || {}) },
     });
     setShowAddForm(true);
   };
