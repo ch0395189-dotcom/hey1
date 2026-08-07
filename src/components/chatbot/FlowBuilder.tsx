@@ -38,7 +38,7 @@ interface FlowNode {
   content: string;
   action_type: string | null;
   position: number;
-  interactive_type: 'none' | 'buttons' | 'list';
+  interactive_type: 'none' | 'buttons' | 'list' | 'cta_url';
   button_options: ButtonOption[];
   media_url: string | null;
   media_type: string | null;
@@ -59,7 +59,7 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
     title: '',
     content: '',
     action_type: null as string | null,
-    interactive_type: 'none' as 'none' | 'buttons' | 'list',
+    interactive_type: 'none' as 'none' | 'buttons' | 'list' | 'cta_url',
     button_options: [] as ButtonOption[],
     media_url: null as string | null,
     media_type: null as string | null,
@@ -721,7 +721,7 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
                 <Label>Tipo de Interacción</Label>
                 <Select
                   value={newNode.interactive_type}
-                  onValueChange={(value: 'none' | 'buttons' | 'list') => {
+                  onValueChange={(value: 'none' | 'buttons' | 'list' | 'cta_url') => {
                     setNewNode({ 
                       ...newNode, 
                       interactive_type: value,
