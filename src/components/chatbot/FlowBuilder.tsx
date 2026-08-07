@@ -776,7 +776,7 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
                           : value === 'cta_url'
                             ? [{
                                 id: 'cta',
-                                title: newNode.button_options[0]?.title || 'Abrir enlace',
+                                title: newNode.button_options[0]?.title || 'Comunicarte con un asesor',
                                 url: newNode.button_options[0]?.url || '',
                               }]
                             : newNode.button_options,
@@ -790,7 +790,7 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
                     <SelectItem value="none">Texto simple</SelectItem>
                     <SelectItem value="buttons">Botones de respuesta rápida (máx. 3)</SelectItem>
                     <SelectItem value="list">Lista de opciones (máx. 10)</SelectItem>
-                    <SelectItem value="cta_url">Botón con enlace (abre una URL)</SelectItem>
+                    <SelectItem value="cta_url">Botón con enlace (WhatsApp o URL)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -802,41 +802,87 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
                     <LinkIcon className="h-4 w-4" /> Botón con enlace
                   </Label>
                   <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">Tipo de enlace</Label>
+                    <Select
+                      value={ctaMode}
+                      onValueChange={(v: 'whatsapp' | 'url') => {
+                        setCtaMode(v);
+                        if (v === 'whatsapp') {
+                          setCtaOption(
+                            newNode.button_options[0]?.title || 'Comunicarte con un asesor',
+                            buildWaLink(ctaPhone, ctaPrefill)
+                          );
+                        } else {
+                          setCtaOption(newNode.button_options[0]?.title || 'Ir al sitio web', '');
+                        }
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="whatsapp">Número de WhatsApp (generamos el enlace)</SelectItem>
+                        <SelectItem value="url">Enlace externo (URL)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
                     <Label className="text-xs text-muted-foreground">Texto del botón (máx. 20)</Label>
                     <Input
                       value={newNode.button_options[0]?.title || ''}
-                      onChange={(e) =>
-                        setNewNode({
-                          ...newNode,
-                          button_options: [{
-                            id: 'cta',
-                            title: e.target.value,
-                            url: newNode.button_options[0]?.url || '',
-                          }],
-                        })
-                      }
-                      placeholder="Abrir enlace"
+                      onChange={(e) => setCtaOption(e.target.value, newNode.button_options[0]?.url || '')}
+                      placeholder={ctaMode === 'whatsapp' ? 'Comunicarte con un asesor' : 'Ir al sitio web'}
                       maxLength={20}
                     />
                   </div>
+                  {ctaMode === 'whatsapp' ? (
+                    <>
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">Número de WhatsApp (con indicativo)</Label>
+                        <Input
+                          value={ctaPhone}
+                          onChange={(e) => {
+                            setCtaPhone(e.target.value);
+                            setCtaOption(
+                              newNode.button_options[0]?.title || 'Comunicarte con un asesor',
+                              buildWaLink(e.target.value, ctaPrefill)
+                            );
+                          }}
+                          placeholder="+57 318 7701162"
+                          inputMode="tel"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">Mensaje prellenado (opcional)</Label>
+                        <Input
+                          value={ctaPrefill}
+                          onChange={(e) => {
+                            setCtaPrefill(e.target.value);
+                            setCtaOption(
+                              newNode.button_options[0]?.title || 'Comunicarte con un asesor',
+                              buildWaLink(ctaPhone, e.target.value)
+                            );
+                          }}
+                          placeholder="Hola, quiero hablar con un asesor"
+                        />
+                      </div>
+                      {newNode.button_options[0]?.url && (
+                        <p className="text-xs text-muted-foreground break-all">
+                          Enlace generado: {newNode.button_options[0].url}
+                        </p>
+                      )}
+                    </>
+                  ) : (
                   <div className="space-y-2">
                     <Label className="text-xs text-muted-foreground">Enlace (URL)</Label>
                     <Input
                       value={newNode.button_options[0]?.url || ''}
-                      onChange={(e) =>
-                        setNewNode({
-                          ...newNode,
-                          button_options: [{
-                            id: 'cta',
-                            title: newNode.button_options[0]?.title || 'Abrir enlace',
-                            url: e.target.value,
-                          }],
-                        })
-                      }
+                      onChange={(e) => setCtaOption(newNode.button_options[0]?.title || 'Ir al sitio web', e.target.value)}
                       placeholder="https://w.app/2xqyz0"
                       inputMode="url"
                     />
                   </div>
+                  )}
                   <p className="text-xs text-muted-foreground">
                     El cliente verá un botón que abre el enlace al tocarlo. Requiere conexión por API oficial de Meta;
                     en cuentas conectadas por QR el enlace se envía como texto.
