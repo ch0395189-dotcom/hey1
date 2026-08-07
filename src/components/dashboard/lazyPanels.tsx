@@ -40,6 +40,12 @@ export const TeamManagement = lazyPanel<Record<string, never>>(() =>
   import("@/components/team/TeamManagement").then((m) => ({ default: m.TeamManagement }))
 );
 
+export const AppointmentsPanel = lazyPanel<Record<string, never>>(() =>
+  import("@/components/appointments/AppointmentsPanel").then((m) => ({
+    default: m.AppointmentsPanel,
+  }))
+);
+
 export const ApiKeysSettings = lazyPanel<Record<string, never>>(() =>
   import("@/components/settings/ApiKeysSettings").then((m) => ({ default: m.ApiKeysSettings }))
 );
