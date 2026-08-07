@@ -27,6 +27,7 @@ interface PlanLimits {
   whatsappLimit: number;
   currentCount: number;
   canAddWhatsAppAccount: boolean;
+  isAdmin: boolean;
   refresh: () => Promise<void>;
 }
 
@@ -110,6 +111,7 @@ export const usePlanLimits = (): PlanLimits => {
     whatsappLimit,
     currentCount,
     canAddWhatsAppAccount: isAdmin || currentCount < whatsappLimit,
+    isAdmin,
     refresh: load,
   };
 };
