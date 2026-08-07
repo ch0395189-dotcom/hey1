@@ -334,6 +334,9 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
     });
     setShowAddForm(false);
     setEditingNode(null);
+    setCtaMode('whatsapp');
+    setCtaPhone('');
+    setCtaPrefill('');
   };
 
   const startEditNode = (node: FlowNode) => {
@@ -352,6 +355,17 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
       media_type: node.media_type || null,
       appointment_settings: { ...defaultAppointmentSettings, ...(node.appointment_settings || {}) },
     });
+    const existingUrl = node.button_options?.[0]?.url || '';
+    const waMatch = existingUrl.match(/^https?:\/\/(?:wa\.me|api\.whatsapp\.com\/send\?phone=)\/?(\d+)(?:\?(?:text|&text)=([^&]*))?/i);
+    if (waMatch) {
+      setCtaMode('whatsapp');
+      setCtaPhone(waMatch[1]);
+      setCtaPrefill(waMatch[2] ? decodeURIComponent(waMatch[2]) : '');
+    } else {
+      setCtaMode(existingUrl ? 'url' : 'whatsapp');
+      setCtaPhone('');
+      setCtaPrefill('');
+    }
     setShowAddForm(true);
   };
 
