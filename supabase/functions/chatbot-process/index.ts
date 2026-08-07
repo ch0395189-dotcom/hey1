@@ -43,6 +43,18 @@ interface FlowNode {
   media_type: string | null;
 }
 
+interface AppointmentSettings {
+  enabled?: boolean;
+  ask_name?: boolean;
+  ask_phone?: boolean;
+  ask_birthdate?: boolean;
+  ask_date?: boolean;
+  ask_time?: boolean;
+  confirmation_message?: string;
+  available_days?: string;
+  available_hours?: string;
+}
+
 // Response can be text or interactive
 interface ChatResponse {
   type: 'text' | 'interactive';
