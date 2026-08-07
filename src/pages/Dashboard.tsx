@@ -18,7 +18,8 @@ import {
   Menu,
   Send,
   Loader2,
-  Bell
+  Bell,
+  Phone
 } from "lucide-react";
 import { NewMessageDialog } from "@/components/whatsapp/NewMessageDialog";
 import { supabase } from "@/integrations/supabase/client";
