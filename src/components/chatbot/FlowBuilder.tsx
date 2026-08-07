@@ -21,6 +21,7 @@ interface ButtonOption {
   id: string;
   title: string;
   description?: string;
+  url?: string; // URL para botón CTA (interactive_type = 'cta_url')
   response_type?: 'text' | 'media' | 'flow'; // Tipo de respuesta cuando se clickea
   response_content?: string; // Contenido de la respuesta (texto o URL de media)
   child_node_id?: string; // ID del nodo hijo si es tipo 'flow'
