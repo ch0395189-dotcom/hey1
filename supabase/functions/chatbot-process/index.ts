@@ -828,6 +828,8 @@ async function sendNodeResponse(
           textMessage += `${idx + 1}. ${row.title}${row.description ? ' - ' + row.description : ''}\n`;
         });
       });
+    } else if (interactiveResponse.type === 'cta_url' && interactiveResponse.action?.parameters) {
+      textMessage += `\n\n👉 ${interactiveResponse.action.parameters.url}`;
     }
     await sendPlatformMessage(platformAccount, customerIdentifier, textMessage);
   } else {
