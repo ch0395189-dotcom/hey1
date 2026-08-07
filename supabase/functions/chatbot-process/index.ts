@@ -635,6 +635,22 @@ Deno.serve(async (req) => {
         
         // Send the current node's response
         await sendNodeResponse(supabase, currentNode, platformAccount!, customerIdentifier, conversation_id, currentPlatform, isExternal, chatbotConfig);
+
+        // Nodo de acción "agendar cita": iniciamos la recolección de datos
+        if (currentNode.action_type === 'schedule') {
+          await startAppointmentFlow(
+            supabase,
+            conversationState,
+            currentNode,
+            platformAccount!,
+            customerIdentifier,
+            conversation_id,
+            chatbotConfig.whatsapp_account_id,
+          );
+          return new Response(JSON.stringify({ processed: true, action: 'appointment_started' }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
         
         // Auto-chain: if current node has NO interactive elements, check for a single child node
         // and automatically send it too (allows sequential message flows)
