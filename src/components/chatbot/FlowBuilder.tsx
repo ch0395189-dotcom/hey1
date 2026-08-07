@@ -215,11 +215,20 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
       }
     }
 
+    if (newNode.interactive_type === 'cta_url') {
+      const url = newNode.button_options[0]?.url?.trim() || '';
+      if (!/^https?:\/\/.+/i.test(url)) {
+        toast.error('Ingresa un enlace válido que empiece por https://');
+        return;
+      }
+    }
+
     // Clean up button options - ensure valid IDs and include response data
     const cleanedOptions = newNode.button_options.map((opt, idx) => ({
       id: opt.id || `opt_${idx + 1}`,
       title: opt.title.trim().substring(0, 20), // WhatsApp limit
       description: opt.description?.trim().substring(0, 72) || undefined, // WhatsApp limit
+      url: opt.url?.trim() || undefined,
       response_type: opt.response_type || 'text',
       response_content: opt.response_content?.trim() || undefined,
     }));
