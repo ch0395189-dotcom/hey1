@@ -793,7 +793,51 @@ const Dashboard = () => {
                  activePlatform === 'instagram' ? 'Instagram' : 'TikTok'}
               </h1>
             </div>
-            
+
+            {/* WhatsApp account switcher */}
+            {(() => {
+              const ownAccounts = whatsappAccounts.filter(
+                (a) => a.user_id === (getImpersonationId() || user?.id)
+              );
+              const visibleAccounts = ownAccounts.length > 0 ? ownAccounts : whatsappAccounts;
+              if (visibleAccounts.length < 2) return null;
+              return (
+                <div className="px-2 py-2 border-b border-border bg-muted/30">
+                  <div className="flex items-center gap-1.5 px-1 pb-1.5 text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+                    <Phone className="w-3 h-3" />
+                    Número
+                  </div>
+                  <div className="flex items-center gap-2 overflow-x-auto scrollbar-whatsapp">
+                    {visibleAccounts.map((a) => {
+                      const active = a.id === selectedAccountId;
+                      return (
+                        <button
+                          key={a.id}
+                          onClick={() => {
+                            setSelectedAccountId(a.id);
+                            setSelectedConversation(null);
+                            try { localStorage.setItem('selectedAccountId', a.id); } catch {}
+                          }}
+                          className={`shrink-0 max-w-[190px] text-left px-3 py-1.5 rounded-lg border transition-colors ${
+                            active
+                              ? 'bg-primary text-primary-foreground border-primary'
+                              : 'bg-card text-foreground border-border hover:bg-muted'
+                          }`}
+                        >
+                          <span className="block text-xs font-semibold truncate">
+                            {a.display_name || a.phone_number}
+                          </span>
+                          <span className={`block text-[10px] truncate ${active ? 'opacity-80' : 'text-muted-foreground'}`}>
+                            {a.phone_number}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Mobile Platform Filter */}
             <div className="lg:hidden flex items-center gap-1 px-2 py-2 border-b border-border overflow-x-auto scrollbar-whatsapp">
               {([
