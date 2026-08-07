@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Plus, Trash2, ChevronRight, MessageSquare, ArrowRight, User, CircleStop, MousePointer, List, Pencil, Upload, Image, Video, Music, FileText, X, CalendarDays } from 'lucide-react';
+import { Plus, Trash2, ChevronRight, MessageSquare, ArrowRight, User, CircleStop, MousePointer, List, Pencil, Upload, Image, Video, Music, FileText, X, CalendarDays, Link as LinkIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MediaCaptureButtons } from './MediaCaptureButtons';
 import { AppointmentConfig, defaultAppointmentSettings, type AppointmentSettings } from './AppointmentConfig';
@@ -401,6 +401,14 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
           <span className="text-xs px-2 py-0.5 bg-purple-500/10 text-purple-600 rounded-full flex items-center gap-1">
             <List className="h-3 w-3" />
             Lista ({node.button_options?.length || 0})
+          </span>
+        );
+      }
+      if (node.interactive_type === 'cta_url') {
+        return (
+          <span className="text-xs px-2 py-0.5 bg-emerald-500/10 text-emerald-600 rounded-full flex items-center gap-1">
+            <LinkIcon className="h-3 w-3" />
+            Enlace
           </span>
         );
       }
