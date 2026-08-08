@@ -131,6 +131,50 @@ export type Database = {
         }
         Relationships: []
       }
+      appointment_notification_settings: {
+        Row: {
+          created_at: string
+          notify_on_create: boolean
+          notify_phone: string | null
+          reminder_enabled: boolean
+          reminder_minutes: number
+          timezone_offset_minutes: number
+          updated_at: string
+          user_id: string
+          whatsapp_account_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          notify_on_create?: boolean
+          notify_phone?: string | null
+          reminder_enabled?: boolean
+          reminder_minutes?: number
+          timezone_offset_minutes?: number
+          updated_at?: string
+          user_id: string
+          whatsapp_account_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          notify_on_create?: boolean
+          notify_phone?: string | null
+          reminder_enabled?: boolean
+          reminder_minutes?: number
+          timezone_offset_minutes?: number
+          updated_at?: string
+          user_id?: string
+          whatsapp_account_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointment_notification_settings_whatsapp_account_id_fkey"
+            columns: ["whatsapp_account_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       appointments: {
         Row: {
           appointment_date: string | null
@@ -138,6 +182,7 @@ export type Database = {
           birth_date: string | null
           conversation_id: string | null
           created_at: string
+          created_notified_at: string | null
           customer_name: string | null
           customer_phone: string | null
           google_event_id: string | null
@@ -146,6 +191,7 @@ export type Database = {
           google_sync_status: string | null
           id: string
           notes: string | null
+          reminder_sent_at: string | null
           status: string
           updated_at: string
           user_id: string
@@ -157,6 +203,7 @@ export type Database = {
           birth_date?: string | null
           conversation_id?: string | null
           created_at?: string
+          created_notified_at?: string | null
           customer_name?: string | null
           customer_phone?: string | null
           google_event_id?: string | null
@@ -165,6 +212,7 @@ export type Database = {
           google_sync_status?: string | null
           id?: string
           notes?: string | null
+          reminder_sent_at?: string | null
           status?: string
           updated_at?: string
           user_id: string
@@ -176,6 +224,7 @@ export type Database = {
           birth_date?: string | null
           conversation_id?: string | null
           created_at?: string
+          created_notified_at?: string | null
           customer_name?: string | null
           customer_phone?: string | null
           google_event_id?: string | null
@@ -184,6 +233,7 @@ export type Database = {
           google_sync_status?: string | null
           id?: string
           notes?: string | null
+          reminder_sent_at?: string | null
           status?: string
           updated_at?: string
           user_id?: string
