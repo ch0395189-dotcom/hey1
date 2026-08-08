@@ -2,7 +2,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { CalendarDays } from 'lucide-react';
+import { CalendarDays, Calendar } from 'lucide-react';
 
 export interface AppointmentSettings {
   enabled: boolean;
