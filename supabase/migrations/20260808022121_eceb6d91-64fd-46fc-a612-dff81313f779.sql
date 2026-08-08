@@ -1,0 +1,1 @@
+UPDATE public.chatbot_conversation_state SET is_bot_active = true, escalated_at = NULL, current_node_id = 'd299664e-59d8-4176-9370-0140537afbe7' WHERE conversation_id = 'eb021f7c-74f6-4c4b-8f7b-722588523830';
