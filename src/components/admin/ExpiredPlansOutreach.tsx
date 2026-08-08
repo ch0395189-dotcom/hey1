@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { RefreshCw, Search, Send, Clock } from 'lucide-react';
+import { RefreshCw, Search, Send, Clock, MessageCircle } from 'lucide-react';
 
 interface Row {
   user_id: string;
@@ -24,6 +24,7 @@ export const ExpiredPlansOutreach = () => {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [sendingWa, setSendingWa] = useState(false);
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
@@ -112,6 +113,31 @@ export const ExpiredPlansOutreach = () => {
     }
   };
 
+  const sendWhatsAppTo = async (ids: string[]) => {
+    if (ids.length === 0) return;
+    setSendingWa(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-renewal-whatsapp', {
+        body: { userIds: ids },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const sentN = data?.sent?.length || 0;
+      const skipped = data?.skipped || [];
+      const errs = data?.errors || [];
+      if (sentN > 0) toast.success(`WhatsApp enviados: ${sentN} (con link de pago)`);
+      if (skipped.length > 0) toast.info(`Omitidos: ${skipped.length} (sin número o ya notificados)`);
+      if (errs.length > 0) {
+        console.error('Errores WhatsApp:', errs);
+        toast.error(`Errores: ${errs.length}. Primero: ${errs[0]?.error || 'desconocido'}`, { duration: 8000 });
+      }
+    } catch (e: any) {
+      toast.error(e?.message || 'Error al enviar por WhatsApp');
+    } finally {
+      setSendingWa(false);
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -128,9 +154,18 @@ export const ExpiredPlansOutreach = () => {
               onClick={() => sendTo(Array.from(selected))}
               disabled={sending || selected.size === 0}
               size="sm"
+              variant="outline"
             >
               <Send className="h-4 w-4 mr-2" />
-              Enviar a seleccionados ({selected.size})
+              Correo ({selected.size})
+            </Button>
+            <Button
+              onClick={() => sendWhatsAppTo(Array.from(selected))}
+              disabled={sendingWa || selected.size === 0}
+              size="sm"
+            >
+              <MessageCircle className="h-4 w-4 mr-2" />
+              WhatsApp con link de pago ({selected.size})
             </Button>
             <Button onClick={load} disabled={loading} variant="outline" size="sm">
               <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
@@ -195,10 +230,15 @@ export const ExpiredPlansOutreach = () => {
                       {r.trial_end ? format(new Date(r.trial_end), 'dd MMM yyyy', { locale: es }) : '—'}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button size="sm" variant="outline" disabled={sending} onClick={() => sendTo([r.user_id])}>
-                        <Send className="h-4 w-4 mr-1" />
-                        Enviar
-                      </Button>
+                      <div className="flex gap-1 justify-end">
+                        <Button size="sm" variant="outline" disabled={sending} onClick={() => sendTo([r.user_id])}>
+                          <Send className="h-4 w-4" />
+                        </Button>
+                        <Button size="sm" disabled={sendingWa} onClick={() => sendWhatsAppTo([r.user_id])}>
+                          <MessageCircle className="h-4 w-4 mr-1" />
+                          WhatsApp
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
