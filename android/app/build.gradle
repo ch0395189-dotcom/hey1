@@ -6,8 +6,13 @@ def versionPropsFile = file('version.properties')
 def versionProps = new Properties()
 if (versionPropsFile.exists()) {
     versionProps.load(new FileInputStream(versionPropsFile))
-} else {
+}
+// Si el archivo no existe o está vacío, usamos valores por defecto
+// para evitar "Cannot invoke method toInteger() on null object".
+if (!versionProps['VERSION_CODE']) {
     versionProps['VERSION_CODE'] = '1'
+}
+if (!versionProps['VERSION_NAME']) {
     versionProps['VERSION_NAME'] = '1.0'
 }
 def appVersionCode = versionProps['VERSION_CODE'].toInteger()
