@@ -280,6 +280,35 @@ export const AppointmentsPanel = () => {
         </div>
       </div>
 
+      {/* Google Calendar connection */}
+      <div className="flex items-center justify-between rounded-lg border bg-muted/30 p-3">
+        <div className="flex items-center gap-3">
+          <Calendar className="h-5 w-5 text-primary" />
+          <div>
+            <p className="text-sm font-medium">Google Calendar</p>
+            <p className="text-xs text-muted-foreground">
+              {googleStatus.loading
+                ? 'Verificando…'
+                : googleStatus.connected
+                ? `Conectado${googleStatus.email ? `: ${googleStatus.email}` : ''}`
+                : 'No conectado. Las citas se guardarán solo en HeyHey.'}
+            </p>
+          </div>
+        </div>
+        {googleStatus.loading ? (
+          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+        ) : googleStatus.connected ? (
+          <Button variant="outline" size="sm" onClick={disconnectGoogleCalendar} disabled={connecting}>
+            <Unlink className="h-4 w-4 mr-1" /> Desconectar
+          </Button>
+        ) : (
+          <Button variant="outline" size="sm" onClick={connectGoogleCalendar} disabled={connecting}>
+            {connecting ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Calendar className="h-4 w-4 mr-1" />}
+            Conectar
+          </Button>
+        )}
+      </div>
+
       {loading ? (
         <div className="flex items-center justify-center py-16 text-muted-foreground">
           <Loader2 className="h-5 w-5 animate-spin" />
