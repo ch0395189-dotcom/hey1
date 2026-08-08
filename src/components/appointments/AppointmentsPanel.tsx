@@ -36,6 +36,9 @@ import {
   Download,
   Calendar,
   Unlink,
+  AlertTriangle,
+  CheckCircle2,
+  ExternalLink,
 } from 'lucide-react';
 
 interface Appointment {
@@ -217,6 +220,24 @@ export const AppointmentsPanel = () => {
       return true;
     });
   }, [appointments, search, status, from, to]);
+
+  const googleConnMeta = useMemo(() => {
+    switch (googleStatus.state) {
+      case 'connected':
+        return { label: 'Conectado', className: 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30' };
+      case 'error':
+        return { label: 'Con error', className: 'bg-destructive/15 text-destructive border-destructive/30' };
+      case 'loading':
+        return { label: 'Verificando…', className: 'bg-muted text-muted-foreground border-border' };
+      default:
+        return { label: 'No conectado', className: 'bg-muted text-muted-foreground border-border' };
+    }
+  }, [googleStatus.state]);
+
+  const syncErrorCount = useMemo(
+    () => appointments.filter((a) => a.google_sync_status === 'error').length,
+    [appointments],
+  );
 
   const counts = useMemo(() => {
     const c: Record<string, number> = { all: appointments.length };
