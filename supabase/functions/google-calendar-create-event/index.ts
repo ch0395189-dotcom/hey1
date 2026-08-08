@@ -2,6 +2,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { callAsAppUser } from "../_shared/appUserConnector.ts";
 import { getConnectionKeyForUser } from "../_shared/appUserConnections.ts";
+import { buildError, mapProviderError, mapThrownError } from "../_shared/googleCalendarErrors.ts";
 
 const GATEWAY_BASE_URL = "https://connector-gateway.lovable.dev";
 const CONNECTOR_ID = "google_calendar";
@@ -80,10 +81,14 @@ Deno.serve(async (req) => {
 
   const connectionAPIKey = await getConnectionKeyForUser(targetUserId, CONNECTOR_ID);
   if (!connectionAPIKey) {
-    return new Response(JSON.stringify({ error: "Google Calendar not connected" }), {
-      status: 400,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    const mapped = buildError("not_connected");
+    if (appointmentId) {
+      await supabase
+        .from("appointments")
+        .update({ google_sync_status: "error", google_sync_error: mapped.message })
+        .eq("id", appointmentId);
+    }
+    return Response.json({ ok: false, connected: false, ...mapped }, { headers: corsHeaders });
   }
 
   try {
@@ -111,10 +116,14 @@ Deno.serve(async (req) => {
     if (!res.ok) {
       const text = await res.text();
       console.error(`Google Calendar create event failed (${res.status}): ${text}`);
-      return new Response(
-        JSON.stringify({ error: `Provider error ${res.status}`, details: text }),
-        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+      const mapped = mapProviderError(res.status, text);
+      if (appointmentId) {
+        await supabase
+          .from("appointments")
+          .update({ google_sync_status: "error", google_sync_error: mapped.message })
+          .eq("id", appointmentId);
+      }
+      return Response.json({ ok: false, connected: true, ...mapped }, { headers: corsHeaders });
     }
 
     const event = await res.json();
@@ -123,7 +132,12 @@ Deno.serve(async (req) => {
     if (appointmentId) {
       await supabase
         .from("appointments")
-        .update({ google_event_id: event.id, google_event_link: event.htmlLink })
+        .update({
+          google_event_id: event.id,
+          google_event_link: event.htmlLink,
+          google_sync_status: "synced",
+          google_sync_error: null,
+        })
         .eq("id", appointmentId);
     }
 
@@ -133,9 +147,13 @@ Deno.serve(async (req) => {
     );
   } catch (err: any) {
     console.error("google-calendar-create-event error:", err);
-    return new Response(
-      JSON.stringify({ error: err.message || "Failed to create event" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
+    const mapped = mapThrownError(err);
+    if (appointmentId) {
+      await supabase
+        .from("appointments")
+        .update({ google_sync_status: "error", google_sync_error: mapped.message })
+        .eq("id", appointmentId);
+    }
+    return Response.json({ ok: false, connected: true, ...mapped }, { headers: corsHeaders });
   }
 });

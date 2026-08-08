@@ -142,6 +142,8 @@ export type Database = {
           customer_phone: string | null
           google_event_id: string | null
           google_event_link: string | null
+          google_sync_error: string | null
+          google_sync_status: string | null
           id: string
           notes: string | null
           status: string
@@ -159,6 +161,8 @@ export type Database = {
           customer_phone?: string | null
           google_event_id?: string | null
           google_event_link?: string | null
+          google_sync_error?: string | null
+          google_sync_status?: string | null
           id?: string
           notes?: string | null
           status?: string
@@ -176,6 +180,8 @@ export type Database = {
           customer_phone?: string | null
           google_event_id?: string | null
           google_event_link?: string | null
+          google_sync_error?: string | null
+          google_sync_status?: string | null
           id?: string
           notes?: string | null
           status?: string
