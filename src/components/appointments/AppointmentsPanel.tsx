@@ -90,9 +90,87 @@ export const AppointmentsPanel = () => {
     setLoading(false);
   }, []);
 
+  const checkGoogleStatus = useCallback(async () => {
+    setGoogleStatus((prev) => ({ ...prev, loading: true }));
+    const { data, error } = await supabase.functions.invoke('google-calendar-status');
+    if (error) {
+      console.error('google-calendar-status error:', error);
+      setGoogleStatus({ connected: false, loading: false });
+    } else {
+      setGoogleStatus({ connected: data?.connected ?? false, email: data?.email, loading: false });
+    }
+  }, []);
+
+  const connectGoogleCalendar = async () => {
+    setConnecting(true);
+    try {
+      const popup = window.open('', 'lovable-oauth', 'width=600,height=720');
+      if (!popup) {
+        toast({ title: 'Permite ventanas emergentes', variant: 'destructive' });
+        return;
+      }
+
+      const completion = new Promise<void>((resolve, reject) => {
+        let poll: number | undefined;
+        const cleanup = () => {
+          window.removeEventListener('message', onMessage);
+          if (poll !== undefined) window.clearInterval(poll);
+        };
+        const onMessage = (event: MessageEvent) => {
+          const type = event.data?.type;
+          if (
+            event.origin !== window.location.origin ||
+            event.source !== popup ||
+            event.data?.connectorId !== 'google_calendar' ||
+            (type !== 'appUserConnectorOAuthComplete' && type !== 'appUserConnectorOAuthFailed')
+          ) return;
+          cleanup();
+          if (type === 'appUserConnectorOAuthComplete') {
+            resolve();
+            return;
+          }
+          popup.close();
+          reject(new Error(event.data?.reason ?? 'OAuth connection failed.'));
+        };
+        window.addEventListener('message', onMessage);
+        poll = window.setInterval(() => {
+          if (!popup.closed) return;
+          cleanup();
+          reject(new Error('La ventana de OAuth se cerró antes de terminar.'));
+        }, 500);
+      });
+
+      const { data, error } = await supabase.functions.invoke('app-user-oauth-start', {
+        body: { origin: window.location.origin },
+      });
+      if (error) throw error;
+
+      popup.location.href = data.authorizationUrl;
+      await completion;
+      toast({ title: 'Google Calendar conectado' });
+      await checkGoogleStatus();
+    } catch (err: any) {
+      toast({ title: 'Error al conectar', description: err.message, variant: 'destructive' });
+    } finally {
+      setConnecting(false);
+    }
+  };
+
+  const disconnectGoogleCalendar = async () => {
+    try {
+      const { error } = await supabase.functions.invoke('google-calendar-disconnect');
+      if (error) throw error;
+      toast({ title: 'Google Calendar desconectado' });
+      await checkGoogleStatus();
+    } catch (err: any) {
+      toast({ title: 'Error al desconectar', description: err.message, variant: 'destructive' });
+    }
+  };
+
   useEffect(() => {
     load();
-  }, [load]);
+    checkGoogleStatus();
+  }, [load, checkGoogleStatus]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
