@@ -1705,7 +1705,7 @@ async function handleAppointmentAnswer(
   }
 
   // Terminamos: guardar la cita
-  await saveAppointment(supabase, conversationId, whatsappAccountId, answers, customerIdentifier);
+  await saveAppointment(supabase, conversationId, whatsappAccountId, answers, customerIdentifier, settings);
 
   const context = { ...(state.context || {}) };
   delete context.appointment;
