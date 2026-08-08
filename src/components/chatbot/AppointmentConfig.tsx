@@ -14,6 +14,8 @@ export interface AppointmentSettings {
   confirmation_message: string;
   available_days: string; // e.g. "lun,mar,mié,jue,vie"
   available_hours: string; // e.g. "9:00-18:00"
+  sync_google_calendar: boolean;
+  duration_minutes: number;
 }
 
 export const defaultAppointmentSettings: AppointmentSettings = {
