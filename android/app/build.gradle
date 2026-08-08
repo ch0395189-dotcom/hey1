@@ -20,11 +20,13 @@ def appVersionName = versionProps['VERSION_NAME'].toString()
 
 android {
     namespace "com.heyhey.app"
-    compileSdk 36
+    // Use the classic setter for compatibility with Android Studio/Gradle
+    // installations that do not recognize the newer `compileSdk 36` DSL.
+    compileSdkVersion rootProject.ext.compileSdkVersion
     defaultConfig {
         applicationId "com.heyhey.app"
-        minSdk 24
-        targetSdk 36
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode appVersionCode
         versionName appVersionName
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
