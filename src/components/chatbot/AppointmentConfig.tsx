@@ -103,6 +103,33 @@ export const AppointmentConfig = ({ settings, onChange }: AppointmentConfigProps
           Variables: {'{nombre}'}, {'{fecha}'}, {'{hora}'}, {'{telefono}'}, {'{nacimiento}'}
         </p>
       </div>
+
+      <div className="rounded-lg border bg-background/50 p-3 space-y-3">
+        <div className="flex items-center gap-2 text-primary">
+          <Calendar className="h-4 w-4" />
+          <h5 className="text-sm font-semibold">Sincronización con Google Calendar</h5>
+        </div>
+        <div className="flex items-center justify-between gap-2">
+          <Label className="text-sm">Crear eventos en Google Calendar</Label>
+          <Switch
+            checked={settings.sync_google_calendar}
+            onCheckedChange={(v) => update('sync_google_calendar', v)}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label className="text-sm">Duración de cada cita (minutos)</Label>
+          <Input
+            type="number"
+            min={5}
+            max={480}
+            value={settings.duration_minutes}
+            onChange={(e) => update('duration_minutes', Math.max(5, parseInt(e.target.value || '0', 10)))}
+          />
+        </div>
+        <p className="text-xs text-muted-foreground">
+          El usuario debe conectar su Google Calendar desde la pestaña Citas.
+        </p>
+      </div>
     </div>
   );
 };
