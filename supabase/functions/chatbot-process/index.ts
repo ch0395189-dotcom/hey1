@@ -1,4 +1,9 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { callAsAppUser } from "../_shared/appUserConnector.ts";
+import { getConnectionKeyForUser } from "../_shared/appUserConnections.ts";
+
+const GATEWAY_BASE_URL = "https://connector-gateway.lovable.dev";
+const GOOGLE_CALENDAR_CONNECTOR_ID = "google_calendar";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
