@@ -2,6 +2,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { callAsAppUser } from "../_shared/appUserConnector.ts";
 import { getConnectionKeyForUser } from "../_shared/appUserConnections.ts";
+import { buildError, mapProviderError, mapThrownError } from "../_shared/googleCalendarErrors.ts";
 
 const GATEWAY_BASE_URL = "https://connector-gateway.lovable.dev";
 const CONNECTOR_ID = "google_calendar";
@@ -72,7 +73,7 @@ Deno.serve(async (req) => {
   const connectionAPIKey = await getConnectionKeyForUser(targetUserId, CONNECTOR_ID);
   if (!connectionAPIKey) {
     return Response.json(
-      { connected: false, available: true, reason: "no_google_connection" },
+      { connected: false, checked: false, available: true, ...buildError("not_connected") },
       { headers: corsHeaders },
     );
   }
@@ -101,8 +102,9 @@ Deno.serve(async (req) => {
     if (!res.ok) {
       const text = await res.text();
       console.error(`Google Calendar freeBusy failed (${res.status}): ${text}`);
+      const mapped = mapProviderError(res.status, text);
       return Response.json(
-        { connected: true, available: true, error: `Provider error ${res.status}` },
+        { connected: true, checked: false, available: true, ...mapped },
         { headers: corsHeaders },
       );
     }
@@ -112,13 +114,13 @@ Deno.serve(async (req) => {
     const available = busy.length === 0;
 
     return Response.json(
-      { connected: true, available, busy },
+      { connected: true, checked: true, available, busy },
       { headers: corsHeaders },
     );
   } catch (err: any) {
     console.error("google-calendar-check-availability error:", err);
     return Response.json(
-      { connected: true, available: true, error: err.message },
+      { connected: true, checked: false, available: true, ...mapThrownError(err) },
       { headers: corsHeaders },
     );
   }
