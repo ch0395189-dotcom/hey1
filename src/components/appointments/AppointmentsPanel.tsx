@@ -40,6 +40,7 @@ import {
   CheckCircle2,
   ExternalLink,
 } from 'lucide-react';
+import { AppointmentRemindersCard } from './AppointmentRemindersCard';
 
 interface Appointment {
   id: string;
@@ -413,6 +414,8 @@ export const AppointmentsPanel = () => {
           </div>
         )}
       </div>
+
+      <AppointmentRemindersCard />
 
       {loading ? (
         <div className="flex items-center justify-center py-16 text-muted-foreground">

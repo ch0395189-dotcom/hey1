@@ -1779,6 +1779,15 @@ async function saveAppointment(
         settings.duration_minutes ?? 60,
       );
     }
+
+    // Aviso inmediato al dueño (push + WhatsApp) de que hay una cita nueva.
+    try {
+      await supabase.functions.invoke('appointment-notify', {
+        body: { mode: 'created', appointment_id: inserted.id },
+      });
+    } catch (notifyErr) {
+      console.error('appointment-notify error:', notifyErr);
+    }
   } catch (err) {
     console.error('saveAppointment error:', err);
   }
