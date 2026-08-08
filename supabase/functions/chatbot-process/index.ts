@@ -1633,7 +1633,7 @@ async function startAppointmentFlow(
   const steps = activeApptSteps(settings);
 
   if (steps.length === 0) {
-    await saveAppointment(supabase, conversationId, whatsappAccountId, {}, customerIdentifier);
+    await saveAppointment(supabase, conversationId, whatsappAccountId, {}, customerIdentifier, settings);
     return;
   }
 
