@@ -55,6 +55,8 @@ interface AppointmentSettings {
   confirmation_message?: string;
   available_days?: string;
   available_hours?: string;
+  sync_google_calendar?: boolean;
+  duration_minutes?: number;
 }
 
 // Response can be text or interactive
