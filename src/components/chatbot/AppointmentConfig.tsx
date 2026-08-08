@@ -28,6 +28,8 @@ export const defaultAppointmentSettings: AppointmentSettings = {
   confirmation_message: '✅ Tu cita ha sido agendada para el {fecha} a las {hora}. ¡Te esperamos!',
   available_days: 'lun,mar,mié,jue,vie',
   available_hours: '9:00-18:00',
+  sync_google_calendar: false,
+  duration_minutes: 60,
 };
 
 interface AppointmentConfigProps {
