@@ -1,9 +1,11 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callAsAppUser } from "../_shared/appUserConnector.ts";
 import { getConnectionKeyForUser } from "../_shared/appUserConnections.ts";
+import { buildError, mapProviderError, mapThrownError } from "../_shared/googleCalendarErrors.ts";
 
 const GATEWAY_BASE_URL = "https://connector-gateway.lovable.dev";
 const GOOGLE_CALENDAR_CONNECTOR_ID = "google_calendar";
+
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -1793,6 +1795,7 @@ async function syncAppointmentToGoogleCalendar(
     const connectionAPIKey = await getConnectionKeyForUser(userId, GOOGLE_CALENDAR_CONNECTOR_ID);
     if (!connectionAPIKey) {
       console.log('No Google Calendar connection for user', userId);
+      await markSyncError(supabase, appointmentId, buildError('not_connected').message);
       return;
     }
 
@@ -1801,6 +1804,7 @@ async function syncAppointmentToGoogleCalendar(
     const startDate = parseAppointmentDateTime(dateStr, timeStr);
     if (!startDate || isNaN(startDate.getTime())) {
       console.error('Invalid appointment date/time:', dateStr, timeStr);
+      await markSyncError(supabase, appointmentId, buildError('invalid_request').message);
       return;
     }
 
@@ -1818,7 +1822,7 @@ async function syncAppointmentToGoogleCalendar(
       gatewayBaseUrl: GATEWAY_BASE_URL,
       connectionAPIKey,
       connectorId: GOOGLE_CALENDAR_CONNECTOR_ID,
-      path: '/calendars/primary/events',
+      path: '/calendar/v3/calendars/primary/events',
       init: {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1829,6 +1833,8 @@ async function syncAppointmentToGoogleCalendar(
     if (!res.ok) {
       const text = await res.text();
       console.error('Google Calendar create event failed:', res.status, text);
+      const mapped = mapProviderError(res.status, text);
+      await markSyncError(supabase, appointmentId, `${mapped.message} ${mapped.hint}`);
       return;
     }
 
@@ -1838,10 +1844,25 @@ async function syncAppointmentToGoogleCalendar(
       .update({
         google_event_id: event.id,
         google_event_link: event.htmlLink,
+        google_sync_status: 'synced',
+        google_sync_error: null,
       })
       .eq('id', appointmentId);
   } catch (err) {
     console.error('syncAppointmentToGoogleCalendar error:', err);
+    const mapped = mapThrownError(err);
+    await markSyncError(supabase, appointmentId, `${mapped.message} ${mapped.hint}`);
+  }
+}
+
+async function markSyncError(supabase: any, appointmentId: string, message: string): Promise<void> {
+  try {
+    await supabase
+      .from('appointments')
+      .update({ google_sync_status: 'error', google_sync_error: message })
+      .eq('id', appointmentId);
+  } catch (err) {
+    console.error('markSyncError failed:', err);
   }
 }
 
