@@ -461,6 +461,28 @@ export const AppointmentsPanel = () => {
                     {a.notes && <p className="text-muted-foreground line-clamp-2">{a.notes}</p>}
                   </div>
 
+                  {a.google_sync_status === 'error' ? (
+                    <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs text-destructive">
+                      <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                      <div className="min-w-0">
+                        <p className="font-medium">No se sincronizó con Google Calendar</p>
+                        <p className="text-destructive/80 break-words">
+                          {a.google_sync_error || 'Error desconocido al crear el evento.'}
+                        </p>
+                      </div>
+                    </div>
+                  ) : a.google_event_link ? (
+                    <a
+                      href={a.google_event_link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-xs text-emerald-600 hover:underline"
+                    >
+                      <CheckCircle2 className="h-3.5 w-3.5" /> Sincronizada en Google Calendar
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  ) : null}
+
                   <div className="flex flex-wrap items-center gap-2 pt-1">
                     {a.status !== 'confirmed' && (
                       <Button size="sm" variant="outline" onClick={() => updateStatus(a.id, 'confirmed')}>
