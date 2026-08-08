@@ -102,6 +102,7 @@ const App = () => {
               <Route path="/update-password" element={<UpdatePassword />} />
               <Route path="/install" element={<Install />} />
               <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
+              <Route path="/oauth/google-calendar/return" element={<GoogleCalendarReturn />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
