@@ -1,13 +1,32 @@
 {
   "project_info": {
-    "project_number": "286494380219",
-    "project_id": "hey-hey-a7fd6",
-    "storage_bucket": "hey-hey-a7fd6.firebasestorage.app"
+    "project_number": "592126848349",
+    "project_id": "apk-hey-hey",
+    "storage_bucket": "apk-hey-hey.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:286494380219:android:a0372061e1648b9a30d99e",
+        "mobilesdk_app_id": "1:592126848349:android:f29d0eebf3ac4e596f4cb4",
+        "android_client_info": {
+          "package_name": "app.lovable.heyhey"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA4t1xf53q6Xeuzq614GcXItb_LuQ845Do"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:592126848349:android:6c1e1936146eae616f4cb4",
         "android_client_info": {
           "package_name": "com.heyhey.app"
         }
@@ -15,7 +34,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyDwZj7Tnb3kPBqOU85KZWhmXpPLOC1QSxI"
+          "current_key": "AIzaSyA4t1xf53q6Xeuzq614GcXItb_LuQ845Do"
         }
       ],
       "services": {
