@@ -34,6 +34,8 @@ import {
   Cake,
   Clock,
   Download,
+  Calendar,
+  Unlink,
 } from 'lucide-react';
 
 interface Appointment {
@@ -66,6 +68,11 @@ export const AppointmentsPanel = () => {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [googleStatus, setGoogleStatus] = useState<{ connected: boolean; email?: string; loading: boolean }>({
+    connected: false,
+    loading: true,
+  });
+  const [connecting, setConnecting] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -83,9 +90,87 @@ export const AppointmentsPanel = () => {
     setLoading(false);
   }, []);
 
+  const checkGoogleStatus = useCallback(async () => {
+    setGoogleStatus((prev) => ({ ...prev, loading: true }));
+    const { data, error } = await supabase.functions.invoke('google-calendar-status');
+    if (error) {
+      console.error('google-calendar-status error:', error);
+      setGoogleStatus({ connected: false, loading: false });
+    } else {
+      setGoogleStatus({ connected: data?.connected ?? false, email: data?.email, loading: false });
+    }
+  }, []);
+
+  const connectGoogleCalendar = async () => {
+    setConnecting(true);
+    try {
+      const popup = window.open('', 'lovable-oauth', 'width=600,height=720');
+      if (!popup) {
+        toast({ title: 'Permite ventanas emergentes', variant: 'destructive' });
+        return;
+      }
+
+      const completion = new Promise<void>((resolve, reject) => {
+        let poll: number | undefined;
+        const cleanup = () => {
+          window.removeEventListener('message', onMessage);
+          if (poll !== undefined) window.clearInterval(poll);
+        };
+        const onMessage = (event: MessageEvent) => {
+          const type = event.data?.type;
+          if (
+            event.origin !== window.location.origin ||
+            event.source !== popup ||
+            event.data?.connectorId !== 'google_calendar' ||
+            (type !== 'appUserConnectorOAuthComplete' && type !== 'appUserConnectorOAuthFailed')
+          ) return;
+          cleanup();
+          if (type === 'appUserConnectorOAuthComplete') {
+            resolve();
+            return;
+          }
+          popup.close();
+          reject(new Error(event.data?.reason ?? 'OAuth connection failed.'));
+        };
+        window.addEventListener('message', onMessage);
+        poll = window.setInterval(() => {
+          if (!popup.closed) return;
+          cleanup();
+          reject(new Error('La ventana de OAuth se cerró antes de terminar.'));
+        }, 500);
+      });
+
+      const { data, error } = await supabase.functions.invoke('app-user-oauth-start', {
+        body: { origin: window.location.origin },
+      });
+      if (error) throw error;
+
+      popup.location.href = data.authorizationUrl;
+      await completion;
+      toast({ title: 'Google Calendar conectado' });
+      await checkGoogleStatus();
+    } catch (err: any) {
+      toast({ title: 'Error al conectar', description: err.message, variant: 'destructive' });
+    } finally {
+      setConnecting(false);
+    }
+  };
+
+  const disconnectGoogleCalendar = async () => {
+    try {
+      const { error } = await supabase.functions.invoke('google-calendar-disconnect');
+      if (error) throw error;
+      toast({ title: 'Google Calendar desconectado' });
+      await checkGoogleStatus();
+    } catch (err: any) {
+      toast({ title: 'Error al desconectar', description: err.message, variant: 'destructive' });
+    }
+  };
+
   useEffect(() => {
     load();
-  }, [load]);
+    checkGoogleStatus();
+  }, [load, checkGoogleStatus]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -193,6 +278,35 @@ export const AppointmentsPanel = () => {
             <Download className="h-4 w-4" />
           </Button>
         </div>
+      </div>
+
+      {/* Google Calendar connection */}
+      <div className="flex items-center justify-between rounded-lg border bg-muted/30 p-3">
+        <div className="flex items-center gap-3">
+          <Calendar className="h-5 w-5 text-primary" />
+          <div>
+            <p className="text-sm font-medium">Google Calendar</p>
+            <p className="text-xs text-muted-foreground">
+              {googleStatus.loading
+                ? 'Verificando…'
+                : googleStatus.connected
+                ? `Conectado${googleStatus.email ? `: ${googleStatus.email}` : ''}`
+                : 'No conectado. Las citas se guardarán solo en HeyHey.'}
+            </p>
+          </div>
+        </div>
+        {googleStatus.loading ? (
+          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+        ) : googleStatus.connected ? (
+          <Button variant="outline" size="sm" onClick={disconnectGoogleCalendar} disabled={connecting}>
+            <Unlink className="h-4 w-4 mr-1" /> Desconectar
+          </Button>
+        ) : (
+          <Button variant="outline" size="sm" onClick={connectGoogleCalendar} disabled={connecting}>
+            {connecting ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Calendar className="h-4 w-4 mr-1" />}
+            Conectar
+          </Button>
+        )}
       </div>
 
       {loading ? (

@@ -2,7 +2,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { CalendarDays } from 'lucide-react';
+import { CalendarDays, Calendar } from 'lucide-react';
 
 export interface AppointmentSettings {
   enabled: boolean;
@@ -14,6 +14,8 @@ export interface AppointmentSettings {
   confirmation_message: string;
   available_days: string; // e.g. "lun,mar,mié,jue,vie"
   available_hours: string; // e.g. "9:00-18:00"
+  sync_google_calendar: boolean;
+  duration_minutes: number;
 }
 
 export const defaultAppointmentSettings: AppointmentSettings = {
@@ -26,6 +28,8 @@ export const defaultAppointmentSettings: AppointmentSettings = {
   confirmation_message: '✅ Tu cita ha sido agendada para el {fecha} a las {hora}. ¡Te esperamos!',
   available_days: 'lun,mar,mié,jue,vie',
   available_hours: '9:00-18:00',
+  sync_google_calendar: false,
+  duration_minutes: 60,
 };
 
 interface AppointmentConfigProps {
@@ -97,6 +101,33 @@ export const AppointmentConfig = ({ settings, onChange }: AppointmentConfigProps
         />
         <p className="text-xs text-muted-foreground">
           Variables: {'{nombre}'}, {'{fecha}'}, {'{hora}'}, {'{telefono}'}, {'{nacimiento}'}
+        </p>
+      </div>
+
+      <div className="rounded-lg border bg-background/50 p-3 space-y-3">
+        <div className="flex items-center gap-2 text-primary">
+          <Calendar className="h-4 w-4" />
+          <h5 className="text-sm font-semibold">Sincronización con Google Calendar</h5>
+        </div>
+        <div className="flex items-center justify-between gap-2">
+          <Label className="text-sm">Crear eventos en Google Calendar</Label>
+          <Switch
+            checked={settings.sync_google_calendar}
+            onCheckedChange={(v) => update('sync_google_calendar', v)}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label className="text-sm">Duración de cada cita (minutos)</Label>
+          <Input
+            type="number"
+            min={5}
+            max={480}
+            value={settings.duration_minutes}
+            onChange={(e) => update('duration_minutes', Math.max(5, parseInt(e.target.value || '0', 10)))}
+          />
+        </div>
+        <p className="text-xs text-muted-foreground">
+          El usuario debe conectar su Google Calendar desde la pestaña Citas.
         </p>
       </div>
     </div>

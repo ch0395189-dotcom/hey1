@@ -1,4 +1,9 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { callAsAppUser } from "../_shared/appUserConnector.ts";
+import { getConnectionKeyForUser } from "../_shared/appUserConnections.ts";
+
+const GATEWAY_BASE_URL = "https://connector-gateway.lovable.dev";
+const GOOGLE_CALENDAR_CONNECTOR_ID = "google_calendar";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -55,6 +60,8 @@ interface AppointmentSettings {
   confirmation_message?: string;
   available_days?: string;
   available_hours?: string;
+  sync_google_calendar?: boolean;
+  duration_minutes?: number;
 }
 
 // Response can be text or interactive
@@ -1609,6 +1616,8 @@ const DEFAULT_APPT_SETTINGS: AppointmentSettings = {
   ask_time: true,
   confirmation_message:
     '✅ Listo {nombre}, tu cita quedó agendada para el {fecha} a las {hora}. ¡Te esperamos!',
+  sync_google_calendar: false,
+  duration_minutes: 60,
 };
 
 async function startAppointmentFlow(
@@ -1624,7 +1633,7 @@ async function startAppointmentFlow(
   const steps = activeApptSteps(settings);
 
   if (steps.length === 0) {
-    await saveAppointment(supabase, conversationId, whatsappAccountId, {}, customerIdentifier);
+    await saveAppointment(supabase, conversationId, whatsappAccountId, {}, customerIdentifier, settings);
     return;
   }
 
@@ -1696,7 +1705,7 @@ async function handleAppointmentAnswer(
   }
 
   // Terminamos: guardar la cita
-  await saveAppointment(supabase, conversationId, whatsappAccountId, answers, customerIdentifier);
+  await saveAppointment(supabase, conversationId, whatsappAccountId, answers, customerIdentifier, settings);
 
   const context = { ...(state.context || {}) };
   delete context.appointment;
@@ -1724,6 +1733,7 @@ async function saveAppointment(
   whatsappAccountId: string,
   answers: Record<string, string>,
   customerIdentifier: string,
+  settings: AppointmentSettings,
 ): Promise<void> {
   try {
     const { data: account } = await supabase
@@ -1737,20 +1747,118 @@ async function saveAppointment(
       return;
     }
 
-    const { error } = await supabase.from('appointments').insert({
-      user_id: account.user_id,
-      whatsapp_account_id: whatsappAccountId,
-      conversation_id: conversationId,
-      customer_name: answers.customer_name || null,
-      customer_phone: answers.customer_phone || customerIdentifier,
-      birth_date: answers.birth_date || null,
-      appointment_date: answers.appointment_date || null,
-      appointment_time: answers.appointment_time || null,
-      status: 'pending',
-    });
+    const { data: inserted, error } = await supabase
+      .from('appointments')
+      .insert({
+        user_id: account.user_id,
+        whatsapp_account_id: whatsappAccountId,
+        conversation_id: conversationId,
+        customer_name: answers.customer_name || null,
+        customer_phone: answers.customer_phone || customerIdentifier,
+        birth_date: answers.birth_date || null,
+        appointment_date: answers.appointment_date || null,
+        appointment_time: answers.appointment_time || null,
+        status: 'pending',
+      })
+      .select('id')
+      .single();
 
-    if (error) console.error('Error guardando la cita:', error.message);
+    if (error) {
+      console.error('Error guardando la cita:', error.message);
+      return;
+    }
+
+    if (settings.sync_google_calendar && answers.appointment_date && answers.appointment_time) {
+      await syncAppointmentToGoogleCalendar(
+        supabase,
+        account.user_id,
+        inserted.id,
+        answers,
+        settings.duration_minutes ?? 60,
+      );
+    }
   } catch (err) {
     console.error('saveAppointment error:', err);
   }
+}
+
+async function syncAppointmentToGoogleCalendar(
+  supabase: any,
+  userId: string,
+  appointmentId: string,
+  answers: Record<string, string>,
+  durationMinutes: number,
+): Promise<void> {
+  try {
+    const connectionAPIKey = await getConnectionKeyForUser(userId, GOOGLE_CALENDAR_CONNECTOR_ID);
+    if (!connectionAPIKey) {
+      console.log('No Google Calendar connection for user', userId);
+      return;
+    }
+
+    const dateStr = answers.appointment_date!;
+    const timeStr = answers.appointment_time!;
+    const startDate = parseAppointmentDateTime(dateStr, timeStr);
+    if (!startDate || isNaN(startDate.getTime())) {
+      console.error('Invalid appointment date/time:', dateStr, timeStr);
+      return;
+    }
+
+    const endDate = new Date(startDate.getTime() + durationMinutes * 60_000);
+    const eventBody = {
+      summary: `Cita: ${answers.customer_name || 'Cliente'}`,
+      description: `Cita agendada desde HeyHey\nTeléfono: ${answers.customer_phone || ''}\nFecha de nacimiento: ${answers.birth_date || ''}`,
+      start: { dateTime: startDate.toISOString(), timeZone: 'America/Bogota' },
+      end: { dateTime: endDate.toISOString(), timeZone: 'America/Bogota' },
+      attendees: answers.customer_phone ? [{ email: `${answers.customer_phone.replace(/\D/g, '')}@placeholder.heyhey` }] : undefined,
+      reminders: { useDefault: true },
+    };
+
+    const res = await callAsAppUser({
+      gatewayBaseUrl: GATEWAY_BASE_URL,
+      connectionAPIKey,
+      connectorId: GOOGLE_CALENDAR_CONNECTOR_ID,
+      path: '/calendars/primary/events',
+      init: {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(eventBody),
+      },
+    });
+
+    if (!res.ok) {
+      const text = await res.text();
+      console.error('Google Calendar create event failed:', res.status, text);
+      return;
+    }
+
+    const event = await res.json();
+    await supabase
+      .from('appointments')
+      .update({
+        google_event_id: event.id,
+        google_event_link: event.htmlLink,
+      })
+      .eq('id', appointmentId);
+  } catch (err) {
+    console.error('syncAppointmentToGoogleCalendar error:', err);
+  }
+}
+
+function parseAppointmentDateTime(dateStr: string, timeStr: string): Date | null {
+  const dateParts = dateStr.split(/[-\/]/).map((p) => parseInt(p, 10));
+  const timeMatch = timeStr.match(/(\d{1,2}):(\d{2})(?:\s?(am|pm))?/i);
+  if (dateParts.length !== 3 || !timeMatch) return null;
+
+  const [day, month, year] = dateParts;
+  let hour = parseInt(timeMatch[1], 10);
+  const minute = parseInt(timeMatch[2], 10);
+  const meridiem = timeMatch[3]?.toLowerCase();
+
+  if (meridiem === 'pm' && hour < 12) hour += 12;
+  if (meridiem === 'am' && hour === 12) hour = 0;
+
+  const fullYear = year < 100 ? 2000 + year : year;
+  const date = new Date(fullYear, month - 1, day, hour, minute);
+  return isNaN(date.getTime()) ? null : date;
 }

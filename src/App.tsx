@@ -24,6 +24,7 @@ const UpdatePassword = lazy(() => import("./pages/UpdatePassword"));
 const Install = lazy(() => import("./pages/Install"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const OAuthConsent = lazy(() => import("./pages/OAuthConsent"));
+const GoogleCalendarReturn = lazy(() => import("./pages/oauth/GoogleCalendarReturn"));
 import { InstallAppBanner } from "@/components/install/InstallAppBanner";
 import { UpdateBanner } from "@/components/UpdateBanner";
 import { ImpersonationBanner } from "@/components/admin/ImpersonationBanner";
@@ -101,6 +102,7 @@ const App = () => {
               <Route path="/update-password" element={<UpdatePassword />} />
               <Route path="/install" element={<Install />} />
               <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
+              <Route path="/oauth/google-calendar/return" element={<GoogleCalendarReturn />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
