@@ -68,6 +68,11 @@ export const AppointmentsPanel = () => {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [googleStatus, setGoogleStatus] = useState<{ connected: boolean; email?: string; loading: boolean }>({
+    connected: false,
+    loading: true,
+  });
+  const [connecting, setConnecting] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
