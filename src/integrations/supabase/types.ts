@@ -104,6 +104,33 @@ export type Database = {
           },
         ]
       }
+      app_user_connections: {
+        Row: {
+          connection_key_ciphertext: string
+          connector_id: string
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          connection_key_ciphertext: string
+          connector_id: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          connection_key_ciphertext?: string
+          connector_id?: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       appointments: {
         Row: {
           appointment_date: string | null
@@ -113,6 +140,8 @@ export type Database = {
           created_at: string
           customer_name: string | null
           customer_phone: string | null
+          google_event_id: string | null
+          google_event_link: string | null
           id: string
           notes: string | null
           status: string
@@ -128,6 +157,8 @@ export type Database = {
           created_at?: string
           customer_name?: string | null
           customer_phone?: string | null
+          google_event_id?: string | null
+          google_event_link?: string | null
           id?: string
           notes?: string | null
           status?: string
@@ -143,6 +174,8 @@ export type Database = {
           created_at?: string
           customer_name?: string | null
           customer_phone?: string | null
+          google_event_id?: string | null
+          google_event_link?: string | null
           id?: string
           notes?: string | null
           status?: string
