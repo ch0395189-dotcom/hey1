@@ -48,6 +48,9 @@ interface Appointment {
   notes: string | null;
   status: string;
   created_at: string;
+  google_sync_status: string | null;
+  google_sync_error: string | null;
+  google_event_link: string | null;
 }
 
 const STATUS_META: Record<string, { label: string; className: string }> = {
@@ -56,6 +59,16 @@ const STATUS_META: Record<string, { label: string; className: string }> = {
   completed: { label: 'Completada', className: 'bg-sky-500/15 text-sky-600 border-sky-500/30' },
   cancelled: { label: 'Cancelada', className: 'bg-destructive/15 text-destructive border-destructive/30' },
 };
+
+interface GoogleStatus {
+  state: 'loading' | 'connected' | 'disconnected' | 'error';
+  email?: string;
+  message?: string;
+  hint?: string;
+  errorCode?: string;
+  requiresReconnect?: boolean;
+  retryable?: boolean;
+}
 
 const statusMeta = (s: string) =>
   STATUS_META[s] ?? { label: s, className: 'bg-muted text-muted-foreground border-border' };
@@ -68,9 +81,8 @@ export const AppointmentsPanel = () => {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [googleStatus, setGoogleStatus] = useState<{ connected: boolean; email?: string; loading: boolean }>({
-    connected: false,
-    loading: true,
+  const [googleStatus, setGoogleStatus] = useState<GoogleStatus>({
+    state: 'loading',
   });
   const [connecting, setConnecting] = useState(false);
 
@@ -78,7 +90,7 @@ export const AppointmentsPanel = () => {
     setLoading(true);
     const { data, error } = await supabase
       .from('appointments')
-      .select('id, customer_name, customer_phone, birth_date, appointment_date, appointment_time, notes, status, created_at')
+      .select('id, customer_name, customer_phone, birth_date, appointment_date, appointment_time, notes, status, created_at, google_sync_status, google_sync_error, google_event_link')
       .order('created_at', { ascending: false })
       .limit(500);
 
@@ -91,14 +103,33 @@ export const AppointmentsPanel = () => {
   }, []);
 
   const checkGoogleStatus = useCallback(async () => {
-    setGoogleStatus((prev) => ({ ...prev, loading: true }));
+    setGoogleStatus({ state: 'loading' });
     const { data, error } = await supabase.functions.invoke('google-calendar-status');
+
     if (error) {
       console.error('google-calendar-status error:', error);
-      setGoogleStatus({ connected: false, loading: false });
-    } else {
-      setGoogleStatus({ connected: data?.connected ?? false, email: data?.email, loading: false });
+      setGoogleStatus({
+        state: 'error',
+        message: 'No pudimos verificar la conexión con Google Calendar.',
+        hint: 'Revisa tu conexión a internet y vuelve a intentarlo.',
+        retryable: true,
+      });
+      return;
     }
+
+    if (data?.connected) {
+      setGoogleStatus({ state: 'connected', email: data.email });
+      return;
+    }
+
+    setGoogleStatus({
+      state: data?.state === 'error' ? 'error' : 'disconnected',
+      message: data?.message,
+      hint: data?.hint,
+      errorCode: data?.error_code,
+      requiresReconnect: data?.requires_reconnect,
+      retryable: data?.retryable,
+    });
   }, []);
 
   const connectGoogleCalendar = async () => {
