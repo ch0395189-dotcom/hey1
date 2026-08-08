@@ -219,7 +219,37 @@ Deno.serve(async (req) => {
       const list = await listRes.json();
       if (!listRes.ok) return json({ error: "listAndroidApps failed", status: listRes.status, details: list }, 200);
       const apps = (list.apps || []) as Array<{ name: string; packageName: string; appId: string }>;
-      const app = apps.find((a) => a.packageName === "com.heyhey.app") || apps[0];
+      let app = apps.find((a) => a.packageName === "com.heyhey.app");
+      if (!app) {
+        // Register the APK's real package in this Firebase project so the
+        // sender IDs match and FCM can deliver to the installed app.
+        const createRes = await fetch(
+          `https://firebase.googleapis.com/v1beta1/projects/${projectId}/androidApps`,
+          {
+            method: "POST",
+            headers: { Authorization: `Bearer ${mgmtToken}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ packageName: "com.heyhey.app", displayName: "Hey Hey" }),
+          },
+        );
+        const created = await createRes.json();
+        if (!createRes.ok) return json({ error: "createAndroidApp failed", status: createRes.status, details: created }, 200);
+        // Long-running operation → poll until done
+        let opName = created.name as string;
+        let result: any = created.response;
+        for (let i = 0; i < 15 && !result; i++) {
+          await new Promise((r) => setTimeout(r, 2000));
+          const opRes = await fetch(`https://firebase.googleapis.com/v1beta1/${opName}`, {
+            headers: { Authorization: `Bearer ${mgmtToken}` },
+          });
+          const op = await opRes.json();
+          if (op.done) {
+            if (op.error) return json({ error: "createAndroidApp op failed", details: op.error }, 200);
+            result = op.response;
+          }
+        }
+        if (!result) return json({ error: "createAndroidApp timed out" }, 200);
+        app = result as { name: string; packageName: string; appId: string };
+      }
       if (!app) return json({ error: "no android apps registered in project", projectId }, 200);
       const cfgRes = await fetch(
         `https://firebase.googleapis.com/v1beta1/${app.name}/config`,
