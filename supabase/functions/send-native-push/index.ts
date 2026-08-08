@@ -150,15 +150,19 @@ async function importPrivateKey(privateKey: string): Promise<CryptoKey> {
   }
 }
 
-async function getAccessToken(sa: { client_email: string; private_key: string }) {
-  if (cachedAccessToken && cachedAccessToken.exp - 60 > Math.floor(Date.now() / 1000)) {
+async function getAccessToken(
+  sa: { client_email: string; private_key: string },
+  scope = "https://www.googleapis.com/auth/firebase.messaging",
+) {
+  const useCache = scope === "https://www.googleapis.com/auth/firebase.messaging";
+  if (useCache && cachedAccessToken && cachedAccessToken.exp - 60 > Math.floor(Date.now() / 1000)) {
     return cachedAccessToken.token;
   }
   const now = Math.floor(Date.now() / 1000);
   const header = { alg: "RS256", typ: "JWT" };
   const claim = {
     iss: sa.client_email,
-    scope: "https://www.googleapis.com/auth/firebase.messaging",
+    scope,
     aud: "https://oauth2.googleapis.com/token",
     exp: now + 3600,
     iat: now,
@@ -178,7 +182,7 @@ async function getAccessToken(sa: { client_email: string; private_key: string })
   });
   const data = await res.json();
   if (!res.ok) throw new Error("google oauth failed: " + JSON.stringify(data));
-  cachedAccessToken = { token: data.access_token, exp: now + data.expires_in };
+  if (useCache) cachedAccessToken = { token: data.access_token, exp: now + data.expires_in };
   return data.access_token as string;
 }
 
