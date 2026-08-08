@@ -199,6 +199,43 @@ Deno.serve(async (req) => {
     // this server is authenticated against, so the APK's google-services.json
     // can be matched to it (fixes SENDER_ID_MISMATCH).
     const reqUrl = new URL(req.url);
+
+    // Returns the google-services.json for the Android app registered in the
+    // SAME Firebase project the server authenticates against. Used to fix
+    // SENDER_ID_MISMATCH without manual Console downloads.
+    let wantAndroidConfig = reqUrl.searchParams.get("androidConfig") === "1";
+    if (!wantAndroidConfig && req.method === "POST") {
+      try {
+        const peek = await req.clone().json();
+        if (peek?.androidConfig === true) wantAndroidConfig = true;
+      } catch {}
+    }
+    if (wantAndroidConfig) {
+      const mgmtToken = await getAccessToken(sa, "https://www.googleapis.com/auth/cloud-platform");
+      const listRes = await fetch(
+        `https://firebase.googleapis.com/v1beta1/projects/${projectId}/androidApps`,
+        { headers: { Authorization: `Bearer ${mgmtToken}` } },
+      );
+      const list = await listRes.json();
+      if (!listRes.ok) return json({ error: "listAndroidApps failed", status: listRes.status, details: list }, 200);
+      const apps = (list.apps || []) as Array<{ name: string; packageName: string; appId: string }>;
+      const app = apps.find((a) => a.packageName === "com.heyhey.app") || apps[0];
+      if (!app) return json({ error: "no android apps registered in project", projectId }, 200);
+      const cfgRes = await fetch(
+        `https://firebase.googleapis.com/v1beta1/${app.name}/config`,
+        { headers: { Authorization: `Bearer ${mgmtToken}` } },
+      );
+      const cfg = await cfgRes.json();
+      if (!cfgRes.ok) return json({ error: "getConfig failed", status: cfgRes.status, details: cfg }, 200);
+      return json({
+        ok: true,
+        projectId,
+        packageName: app.packageName,
+        appId: app.appId,
+        googleServicesJson: atob(String(cfg.configFileContents || "").replace(/-/g, "+").replace(/_/g, "/")),
+      });
+    }
+
     let diagnose = reqUrl.searchParams.get("diagnose") === "1" || req.method === "GET";
     if (!diagnose && req.method === "POST") {
       try {
