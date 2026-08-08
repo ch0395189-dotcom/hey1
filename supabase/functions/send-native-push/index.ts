@@ -211,6 +211,8 @@ Deno.serve(async (req) => {
       } catch {}
     }
     if (wantAndroidConfig) {
+      // Admin-only: returns Firebase client config. Requires the service role key.
+      if (!isServiceRole(req)) return unauthorized(corsHeaders);
       const mgmtToken = await getAccessToken(sa, "https://www.googleapis.com/auth/cloud-platform");
       const listRes = await fetch(
         `https://firebase.googleapis.com/v1beta1/projects/${projectId}/androidApps`,
