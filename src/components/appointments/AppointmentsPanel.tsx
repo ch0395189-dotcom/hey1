@@ -312,31 +312,84 @@ export const AppointmentsPanel = () => {
       </div>
 
       {/* Google Calendar connection */}
-      <div className="flex items-center justify-between rounded-lg border bg-muted/30 p-3">
-        <div className="flex items-center gap-3">
-          <Calendar className="h-5 w-5 text-primary" />
-          <div>
-            <p className="text-sm font-medium">Google Calendar</p>
-            <p className="text-xs text-muted-foreground">
-              {googleStatus.loading
-                ? 'Verificando…'
-                : googleStatus.connected
-                ? `Conectado${googleStatus.email ? `: ${googleStatus.email}` : ''}`
-                : 'No conectado. Las citas se guardarán solo en HeyHey.'}
-            </p>
+      <div
+        className={`rounded-lg border p-3 space-y-2 ${
+          googleStatus.state === 'error'
+            ? 'border-destructive/40 bg-destructive/5'
+            : googleStatus.state === 'connected'
+            ? 'border-emerald-500/30 bg-emerald-500/5'
+            : 'bg-muted/30'
+        }`}
+      >
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            {googleStatus.state === 'error' ? (
+              <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
+            ) : googleStatus.state === 'connected' ? (
+              <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+            ) : (
+              <Calendar className="h-5 w-5 text-primary shrink-0" />
+            )}
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-medium">Google Calendar</p>
+                <Badge variant="outline" className={googleConnMeta.className}>
+                  {googleConnMeta.label}
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {googleStatus.state === 'loading'
+                  ? 'Verificando conexión…'
+                  : googleStatus.state === 'connected'
+                  ? `Conectado${googleStatus.email ? `: ${googleStatus.email}` : ''}. Se verifica disponibilidad y se crean los eventos automáticamente.`
+                  : googleStatus.message ??
+                    'No conectado. Las citas se guardarán solo en HeyHey.'}
+              </p>
+              {googleStatus.state !== 'connected' && googleStatus.hint && (
+                <p className="text-xs text-muted-foreground/80 mt-0.5">{googleStatus.hint}</p>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            {googleStatus.state === 'loading' ? (
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            ) : (
+              <>
+                <Button variant="ghost" size="icon" onClick={checkGoogleStatus} title="Reintentar verificación">
+                  <RefreshCw className="h-4 w-4" />
+                </Button>
+                {googleStatus.state === 'connected' ? (
+                  <Button variant="outline" size="sm" onClick={disconnectGoogleCalendar} disabled={connecting}>
+                    <Unlink className="h-4 w-4 mr-1" /> Desconectar
+                  </Button>
+                ) : (
+                  <Button
+                    variant={googleStatus.state === 'error' ? 'destructive' : 'outline'}
+                    size="sm"
+                    onClick={connectGoogleCalendar}
+                    disabled={connecting}
+                  >
+                    {connecting ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                    ) : (
+                      <Calendar className="h-4 w-4 mr-1" />
+                    )}
+                    {googleStatus.state === 'error' ? 'Reconectar' : 'Conectar'}
+                  </Button>
+                )}
+              </>
+            )}
           </div>
         </div>
-        {googleStatus.loading ? (
-          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-        ) : googleStatus.connected ? (
-          <Button variant="outline" size="sm" onClick={disconnectGoogleCalendar} disabled={connecting}>
-            <Unlink className="h-4 w-4 mr-1" /> Desconectar
-          </Button>
-        ) : (
-          <Button variant="outline" size="sm" onClick={connectGoogleCalendar} disabled={connecting}>
-            {connecting ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Calendar className="h-4 w-4 mr-1" />}
-            Conectar
-          </Button>
+
+        {syncErrorCount > 0 && (
+          <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-2 text-xs text-amber-700 dark:text-amber-400">
+            <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+            <span>
+              {syncErrorCount} cita{syncErrorCount === 1 ? '' : 's'} no se pudo sincronizar con Google Calendar.
+              Revisa el detalle en cada tarjeta; la cita sigue guardada en HeyHey.
+            </span>
+          </div>
         )}
       </div>
 
