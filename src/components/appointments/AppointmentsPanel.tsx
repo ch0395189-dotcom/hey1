@@ -34,6 +34,8 @@ import {
   Cake,
   Clock,
   Download,
+  Calendar,
+  Unlink,
 } from 'lucide-react';
 
 interface Appointment {
