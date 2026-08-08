@@ -1616,6 +1616,8 @@ const DEFAULT_APPT_SETTINGS: AppointmentSettings = {
   ask_time: true,
   confirmation_message:
     '✅ Listo {nombre}, tu cita quedó agendada para el {fecha} a las {hora}. ¡Te esperamos!',
+  sync_google_calendar: false,
+  duration_minutes: 60,
 };
 
 async function startAppointmentFlow(
