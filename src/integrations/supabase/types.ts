@@ -1237,6 +1237,45 @@ export type Database = {
         }
         Relationships: []
       }
+      renewal_reminders: {
+        Row: {
+          channel: string
+          created_at: string
+          error: string | null
+          id: string
+          payment_url: string | null
+          phone: string
+          plan: string | null
+          reference: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          channel?: string
+          created_at?: string
+          error?: string | null
+          id?: string
+          payment_url?: string | null
+          phone: string
+          plan?: string | null
+          reference?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          channel?: string
+          created_at?: string
+          error?: string | null
+          id?: string
+          payment_url?: string | null
+          phone?: string
+          plan?: string | null
+          reference?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       scheduled_messages: {
         Row: {
           account_id: string
