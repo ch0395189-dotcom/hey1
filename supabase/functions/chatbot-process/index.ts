@@ -304,9 +304,17 @@ Deno.serve(async (req) => {
 
     // Check for escalation keywords
     const lowerMessage = message_content.toLowerCase();
-    const shouldEscalate = chatbotConfig.escalation_keywords.some(
-      keyword => lowerMessage.includes(keyword.toLowerCase())
-    );
+    // Button/list replies arrive as raw option IDs (e.g. "opt_asesor", "sop_bot").
+    // They must NEVER trigger the escalation keyword check, or the flow node
+    // (like a CTA URL button) would be skipped.
+    const isOptionId = /^[a-z0-9]+_[a-z0-9_]+$/i.test(message_content.trim());
+    const shouldEscalate = !isOptionId && chatbotConfig.escalation_keywords.some((keyword) => {
+      const k = keyword.toLowerCase().trim();
+      if (!k) return false;
+      // Word-boundary match to avoid false positives inside other words
+      const escaped = k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      return new RegExp(`(^|[^\\p{L}\\p{N}])${escaped}([^\\p{L}\\p{N}]|$)`, 'iu').test(lowerMessage);
+    });
 
     if (shouldEscalate) {
       await supabase
