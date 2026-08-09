@@ -34,6 +34,7 @@ export const MessageLimitBlockScreen = ({ usage, plan }: Props) => {
   // Próximo plan superior sugerido
   const upgradeMap: Record<string, { key: 'professional' | 'enterprise' | 'esoterico_pro' | 'esoterico_rental'; label: string }> = {
     starter: { key: 'professional', label: 'Professional (10.000 mensajes)' },
+    emprendedor: { key: 'professional', label: 'Professional (10.000 mensajes)' },
     professional: { key: 'enterprise', label: 'Enterprise (50.000 mensajes)' },
     esoterico_pro: { key: 'enterprise', label: 'Enterprise (mensajes ilimitados)' },
     esoterico_rental: { key: 'enterprise', label: 'Enterprise (mensajes ilimitados)' },
