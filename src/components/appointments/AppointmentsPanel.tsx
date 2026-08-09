@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
@@ -44,6 +45,7 @@ import { AppointmentRemindersCard } from './AppointmentRemindersCard';
 
 interface Appointment {
   id: string;
+  conversation_id: string | null;
   customer_name: string | null;
   customer_phone: string | null;
   birth_date: string | null;
@@ -78,6 +80,7 @@ const statusMeta = (s: string) =>
   STATUS_META[s] ?? { label: s, className: 'bg-muted text-muted-foreground border-border' };
 
 export const AppointmentsPanel = () => {
+  const [, setSearchParams] = useSearchParams();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -94,7 +97,7 @@ export const AppointmentsPanel = () => {
     setLoading(true);
     const { data, error } = await supabase
       .from('appointments')
-      .select('id, customer_name, customer_phone, birth_date, appointment_date, appointment_time, notes, status, created_at, google_sync_status, google_sync_error, google_event_link')
+      .select('id, conversation_id, customer_name, customer_phone, birth_date, appointment_date, appointment_time, notes, status, created_at, google_sync_status, google_sync_error, google_event_link')
       .order('created_at', { ascending: false })
       .limit(500);
 
@@ -259,6 +262,8 @@ export const AppointmentsPanel = () => {
   };
 
   const remove = async () => {
+    if (!deleteId) return;
+    void 0;
     if (!deleteId) return;
     const { error } = await supabase.from('appointments').delete().eq('id', deleteId);
     if (error) {
