@@ -42,6 +42,7 @@ import {
   CheckCircle2,
   ExternalLink,
   User as UserIcon,
+  MessageSquare,
 } from 'lucide-react';
 import { AppointmentRemindersCard } from './AppointmentRemindersCard';
 
