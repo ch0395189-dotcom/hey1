@@ -697,6 +697,18 @@ Deno.serve(async (req) => {
             .order('position');
           
           if (!nextChildren || nextChildren.length === 0) {
+            // Redirección manual configurada en el nodo ("Al finalizar, ir a…")
+            const jumped = await goToNextNode(
+              supabase,
+              chainNode.id,
+              conversationState,
+              platformAccount!,
+              customerIdentifier,
+              conversation_id,
+              chatbotConfig,
+              currentPlatform,
+            );
+            if (jumped) break;
             // Leaf node - check auto_end_on_leaf
             if (chatbotConfig.auto_end_on_leaf) {
               await supabase
