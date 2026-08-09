@@ -73,19 +73,6 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
   const [ctaPhone, setCtaPhone] = useState('');
   const [ctaPrefill, setCtaPrefill] = useState('');
 
-  // Lista plana de nodos (para el selector de redirección)
-  const flatNodes = useMemo(() => {
-    const out: FlowNode[] = [];
-    const walk = (list: FlowNode[]) => {
-      list.forEach((n) => {
-        out.push(n);
-        if (n.children?.length) walk(n.children);
-      });
-    };
-    walk(nodes);
-    return out;
-  }, [nodes]);
-
   const buildWaLink = (phone: string, prefill: string) => {
     const digits = (phone || '').replace(/\D/g, '');
     if (!digits) return '';
