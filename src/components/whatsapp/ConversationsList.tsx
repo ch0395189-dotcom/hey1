@@ -118,6 +118,10 @@ export const ConversationsList = ({
   // Keep a ref of the current conversations list so the Realtime handler can
   // check ownership without becoming stale or re-subscribing on every render.
   const conversationsRef = useRef<Conversation[]>([]);
+  const selectedConvIdRef = useRef<string | null>(selectedConversationId);
+  useEffect(() => {
+    selectedConvIdRef.current = selectedConversationId;
+  }, [selectedConversationId]);
   useEffect(() => {
     conversationsRef.current = conversations;
   }, [conversations]);
@@ -288,13 +292,29 @@ export const ConversationsList = ({
     
     const channelId = `conversations-${Date.now()}`;
     const messagesChannelId = `messages-${Date.now()}`;
-    
+
+    // Coalesce refetches so a burst of realtime events triggers a single query.
+    let refetchTimer: number | undefined;
+    const scheduleRefetch = (delay = 250) => {
+      if (refetchTimer) window.clearTimeout(refetchTimer);
+      refetchTimer = window.setTimeout(() => fetchConversations(), delay);
+    };
+
     const conversationsChannel = supabase
       .channel(channelId)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'conversations' },
-        () => { fetchConversations(); }
+        (payload) => {
+          // Instant local patch (no network round-trip), then reconcile.
+          const row = payload.new as Partial<Conversation> & { id?: string };
+          if (payload.eventType === 'UPDATE' && row?.id) {
+            setConversations((prev) =>
+              prev.map((c) => (c.id === row.id ? { ...c, ...row } as Conversation : c))
+            );
+          }
+          scheduleRefetch();
+        }
       )
       .subscribe();
 
@@ -304,8 +324,33 @@ export const ConversationsList = ({
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages' },
         (payload) => {
-          const newMessage = payload.new as { direction: string; content: string | null; conversation_id: string; message_type?: string | null };
-          fetchConversations();
+          const newMessage = payload.new as { direction: string; content: string | null; conversation_id: string; message_type?: string | null; media_url?: string | null; created_at?: string };
+
+          // Instantly reflect the new message in the list (preview, timestamp,
+          // unread badge and ordering) without waiting for the refetch.
+          setConversations((prev) => {
+            const idx = prev.findIndex((c) => c.id === newMessage.conversation_id);
+            if (idx === -1) return prev;
+            const conv = prev[idx];
+            const updated: Conversation = {
+              ...conv,
+              last_message_at: newMessage.created_at || new Date().toISOString(),
+              unread_count:
+                newMessage.direction === 'inbound' && conv.id !== selectedConvIdRef.current
+                  ? (conv.unread_count || 0) + 1
+                  : conv.unread_count,
+              last_message: {
+                content: newMessage.content,
+                direction: newMessage.direction,
+                message_type: newMessage.message_type ?? null,
+                media_url: newMessage.media_url ?? null,
+              },
+            };
+            const rest = prev.filter((_, i) => i !== idx);
+            return [updated, ...rest];
+          });
+
+          scheduleRefetch();
           
           if (newMessage.direction === 'inbound' && onNewMessageRef.current) {
             setTimeout(async () => {
@@ -355,34 +400,37 @@ export const ConversationsList = ({
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'conversation_tags' },
-        () => { fetchConversations(); }
+        () => { scheduleRefetch(150); }
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'contact_tags' },
-        () => { fetchConversations(); fetchAllTags(); }
+        () => { scheduleRefetch(150); fetchAllTags(); }
       )
       .subscribe();
 
-    // Fallback polling: even if Realtime WebSocket dies silently (network drop,
-    // background tab, mobile suspend), refresh conversations frequently so new
-    // inbound messages appear almost instantly. While the tab is hidden we slow
-    // down to avoid burning battery/data.
+    // Safety net only: Realtime now drives instant updates, so polling is just
+    // a backstop in case the WebSocket dies silently (network drop, mobile
+    // suspend). Slow while hidden to save battery/data.
     let lastPoll = 0;
     const pollId = window.setInterval(() => {
       const hidden = document.visibilityState !== 'visible';
-      const interval = hidden ? 20000 : 4000;
+      const interval = hidden ? 30000 : 10000;
       const now = Date.now();
       if (now - lastPoll < interval) return;
       lastPoll = now;
       fetchConversations();
     }, 2000);
 
-    // Also refresh immediately when the tab regains focus / connectivity
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') fetchConversations();
+    // Reconnect the WebSocket and refresh as soon as the app regains focus or
+    // connectivity (mobile browsers/APK suspend sockets in background).
+    const reconnect = () => {
+      try { (supabase as any).realtime?.connect?.(); } catch { /* noop */ }
     };
-    const onOnline = () => fetchConversations();
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') { reconnect(); fetchConversations(); }
+    };
+    const onOnline = () => { reconnect(); fetchConversations(); };
     document.addEventListener('visibilitychange', onVisible);
     window.addEventListener('focus', onVisible);
     window.addEventListener('online', onOnline);
@@ -392,6 +440,7 @@ export const ConversationsList = ({
       supabase.removeChannel(messagesChannel);
       supabase.removeChannel(tagsChannel);
       window.clearInterval(pollId);
+      if (refetchTimer) window.clearTimeout(refetchTimer);
       document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener('focus', onVisible);
       window.removeEventListener('online', onOnline);

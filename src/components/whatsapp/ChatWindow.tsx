@@ -509,20 +509,23 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
           console.log('📡 Realtime subscription status:', status);
         });
 
-      // Fallback: refresh on visibility / online to catch missed events
-      const onVisible = () => {
-        if (document.visibilityState === 'visible') fetchMessages();
+      // Fallback: reconnect the WebSocket and refresh on visibility / online
+      const reconnect = () => {
+        try { (supabase as any).realtime?.connect?.(); } catch { /* noop */ }
       };
-      const onOnline = () => fetchMessages();
+      const onVisible = () => {
+        if (document.visibilityState === 'visible') { reconnect(); fetchMessages(); }
+      };
+      const onOnline = () => { reconnect(); fetchMessages(); };
       document.addEventListener('visibilitychange', onVisible);
       window.addEventListener('focus', onVisible);
       window.addEventListener('online', onOnline);
 
-      // Fast fallback polling while the chat is open, in case the Realtime
-      // socket dropped silently (mobile suspend, flaky network).
+      // Backstop polling while the chat is open, in case the Realtime socket
+      // dropped silently (mobile suspend, flaky network).
       const pollId = window.setInterval(() => {
         if (document.visibilityState === 'visible') fetchMessages();
-      }, 4000);
+      }, 10000);
 
       return () => {
         supabase.removeChannel(channel);
