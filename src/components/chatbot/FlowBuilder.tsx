@@ -581,6 +581,7 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
               media_url: null,
               media_type: null,
               appointment_settings: defaultAppointmentSettings,
+              next_node_id: null,
             });
             setShowAddForm(true);
           }}>
