@@ -676,6 +676,25 @@ Deno.serve(async (req) => {
         }
         
         // Auto-chain: if current node has NO interactive elements, check for a single child node
+        // Nodo de acción "continuar al siguiente nodo": saltamos de inmediato
+        if (currentNode.action_type === 'continue') {
+          const jumped = await goToNextNode(
+            supabase,
+            currentNode.id,
+            conversationState,
+            platformAccount!,
+            customerIdentifier,
+            conversation_id,
+            chatbotConfig,
+            currentPlatform,
+          );
+          if (jumped) {
+            return new Response(JSON.stringify({ processed: true, action: 'continued' }), {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+        }
+
         // and automatically send it too (allows sequential message flows)
         let chainNode = currentNode;
         let chainCount = 0;
