@@ -274,6 +274,7 @@ export const AppointmentsPanel = () => {
   };
 
   const exportCsv = () => {
+    // noop marker
     const rows = [
       ['Nombre', 'Teléfono', 'Nacimiento', 'Fecha', 'Hora', 'Estado', 'Notas', 'Creada'],
       ...filtered.map((a) => [
