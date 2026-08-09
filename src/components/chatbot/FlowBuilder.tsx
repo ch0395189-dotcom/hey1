@@ -1047,6 +1047,7 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
                     <SelectContent>
                       <SelectItem value="escalate">Escalar a Humano</SelectItem>
                       <SelectItem value="end">Finalizar Conversación</SelectItem>
+                      <SelectItem value="continue">Continuar al siguiente nodo</SelectItem>
                       <SelectItem value="schedule">
                         <div className="flex items-center gap-2">
                           <CalendarDays className="h-4 w-4" />
@@ -1066,7 +1067,11 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
               )}
 
               <div className="space-y-2">
-                <Label>Al finalizar este nodo, ir a…</Label>
+                <Label>
+                  {newNode.action_type === 'continue'
+                    ? 'Continuar automáticamente al nodo…'
+                    : 'Al finalizar este nodo, ir a…'}
+                </Label>
                 <Select
                   value={newNode.next_node_id ?? 'none'}
                   onValueChange={(value) =>
