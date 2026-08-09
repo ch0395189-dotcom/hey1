@@ -42,6 +42,7 @@ import {
   CheckCircle2,
   ExternalLink,
   User as UserIcon,
+  MessageSquare,
 } from 'lucide-react';
 import { AppointmentRemindersCard } from './AppointmentRemindersCard';
 
@@ -87,6 +88,7 @@ export const AppointmentsPanel = () => {
   const navigate = useNavigate();
   const { isAdmin } = useAdminCheck();
   const [owners, setOwners] = useState<Record<string, { name: string; email: string }>>({});
+  const [convs, setConvs] = useState<Record<string, { phone: string; name: string | null }>>({});
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -249,12 +251,36 @@ export const AppointmentsPanel = () => {
     loadOwners(ids);
   }, [appointments, loadOwners]);
 
+  // Cargar el chat real (número/nombre de WhatsApp) vinculado a cada cita
+  useEffect(() => {
+    const ids = Array.from(
+      new Set(appointments.map((a) => a.conversation_id).filter(Boolean) as string[]),
+    );
+    if (!ids.length) return;
+    (async () => {
+      const map: Record<string, { phone: string; name: string | null }> = {};
+      for (let i = 0; i < ids.length; i += 200) {
+        const { data } = await supabase
+          .from('conversations')
+          .select('id, customer_phone, customer_name')
+          .in('id', ids.slice(i, i + 200));
+        (data ?? []).forEach((c: any) => {
+          map[c.id] = { phone: c.customer_phone, name: c.customer_name };
+        });
+      }
+      setConvs(map);
+    })();
+  }, [appointments]);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return appointments.filter((a) => {
       if (status !== 'all' && a.status !== status) return false;
       if (q) {
-        const hay = `${a.customer_name ?? ''} ${a.customer_phone ?? ''} ${a.notes ?? ''}`.toLowerCase();
+        const c = a.conversation_id ? convs[a.conversation_id] : undefined;
+        const hay = `${a.customer_name ?? ''} ${a.customer_phone ?? ''} ${a.notes ?? ''} ${
+          c?.phone ?? ''
+        } ${c?.name ?? ''}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       const d = a.appointment_date ?? '';
@@ -262,7 +288,7 @@ export const AppointmentsPanel = () => {
       if (to && (!d || d > to)) return false;
       return true;
     });
-  }, [appointments, search, status, from, to]);
+  }, [appointments, search, status, from, to, convs]);
 
   const googleConnMeta = useMemo(() => {
     switch (googleStatus.state) {
@@ -320,6 +346,10 @@ export const AppointmentsPanel = () => {
       });
       return;
     }
+    if (window.location.pathname !== '/dashboard') {
+      navigate(`/dashboard?view=inbox&platform=whatsapp&conv=${a.conversation_id}`);
+      return;
+    }
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       next.set('view', 'inbox');
@@ -331,10 +361,11 @@ export const AppointmentsPanel = () => {
 
   const exportCsv = () => {
     const rows = [
-      ['Nombre', 'Teléfono', 'Nacimiento', 'Fecha', 'Hora', 'Estado', 'Notas', 'Agendada por', 'Creada'],
+      ['Nombre', 'Teléfono (escrito)', 'WhatsApp del chat', 'Nacimiento', 'Fecha', 'Hora', 'Estado', 'Notas', 'Agendada por', 'Creada'],
       ...filtered.map((a) => [
         a.customer_name ?? '',
         a.customer_phone ?? '',
+        (a.conversation_id && convs[a.conversation_id]?.phone) || '',
         a.birth_date ?? '',
         a.appointment_date ?? '',
         a.appointment_time ?? '',
@@ -510,6 +541,37 @@ export const AppointmentsPanel = () => {
                     </div>
                     <Badge variant="outline" className={meta.className}>{meta.label}</Badge>
                   </div>
+
+                  {a.conversation_id ? (
+                    <div className="flex items-center justify-between gap-2 rounded-md border border-primary/30 bg-primary/5 px-2 py-1.5 text-xs">
+                      <span className="flex items-center gap-1.5 min-w-0">
+                        <MessageSquare className="h-3.5 w-3.5 shrink-0 text-primary" />
+                        <span className="truncate">
+                          Chat:{' '}
+                          <span className="font-medium text-foreground">
+                            {convs[a.conversation_id]?.phone
+                              ? `+${convs[a.conversation_id].phone}`
+                              : 'cargando…'}
+                          </span>
+                          {convs[a.conversation_id]?.name ? ` · ${convs[a.conversation_id]?.name}` : ''}
+                        </span>
+                      </span>
+                      <Button
+                        size="sm"
+                        className="h-6 px-2 shrink-0"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openConversation(a);
+                        }}
+                      >
+                        Abrir chat
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="rounded-md border bg-muted/30 px-2 py-1.5 text-xs text-muted-foreground">
+                      Sin chat de WhatsApp vinculado
+                    </div>
+                  )}
 
                   <div className="text-sm space-y-1">
                     <p className="flex items-center gap-2">
