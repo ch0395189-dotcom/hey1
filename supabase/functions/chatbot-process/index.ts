@@ -50,6 +50,7 @@ interface FlowNode {
   media_url: string | null;
   media_type: string | null;
   appointment_settings?: AppointmentSettings | null;
+  next_node_id?: string | null;
 }
 
 interface AppointmentSettings {
@@ -360,6 +361,8 @@ Deno.serve(async (req) => {
         customerIdentifier,
         conversation_id,
         chatbotConfig.whatsapp_account_id,
+        chatbotConfig,
+        currentPlatform,
       );
       return new Response(JSON.stringify({ processed: true, action: 'appointment', step: handled }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
