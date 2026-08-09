@@ -87,6 +87,7 @@ export const AppointmentsPanel = () => {
   const navigate = useNavigate();
   const { isAdmin } = useAdminCheck();
   const [owners, setOwners] = useState<Record<string, { name: string; email: string }>>({});
+  const [convs, setConvs] = useState<Record<string, { phone: string; name: string | null }>>({});
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -249,12 +250,36 @@ export const AppointmentsPanel = () => {
     loadOwners(ids);
   }, [appointments, loadOwners]);
 
+  // Cargar el chat real (número/nombre de WhatsApp) vinculado a cada cita
+  useEffect(() => {
+    const ids = Array.from(
+      new Set(appointments.map((a) => a.conversation_id).filter(Boolean) as string[]),
+    );
+    if (!ids.length) return;
+    (async () => {
+      const map: Record<string, { phone: string; name: string | null }> = {};
+      for (let i = 0; i < ids.length; i += 200) {
+        const { data } = await supabase
+          .from('conversations')
+          .select('id, customer_phone, customer_name')
+          .in('id', ids.slice(i, i + 200));
+        (data ?? []).forEach((c: any) => {
+          map[c.id] = { phone: c.customer_phone, name: c.customer_name };
+        });
+      }
+      setConvs(map);
+    })();
+  }, [appointments]);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return appointments.filter((a) => {
       if (status !== 'all' && a.status !== status) return false;
       if (q) {
-        const hay = `${a.customer_name ?? ''} ${a.customer_phone ?? ''} ${a.notes ?? ''}`.toLowerCase();
+        const c = a.conversation_id ? convs[a.conversation_id] : undefined;
+        const hay = `${a.customer_name ?? ''} ${a.customer_phone ?? ''} ${a.notes ?? ''} ${
+          c?.phone ?? ''
+        } ${c?.name ?? ''}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       const d = a.appointment_date ?? '';
@@ -262,7 +287,7 @@ export const AppointmentsPanel = () => {
       if (to && (!d || d > to)) return false;
       return true;
     });
-  }, [appointments, search, status, from, to]);
+  }, [appointments, search, status, from, to, convs]);
 
   const googleConnMeta = useMemo(() => {
     switch (googleStatus.state) {
@@ -320,6 +345,10 @@ export const AppointmentsPanel = () => {
       });
       return;
     }
+    if (window.location.pathname !== '/dashboard') {
+      navigate(`/dashboard?view=inbox&platform=whatsapp&conv=${a.conversation_id}`);
+      return;
+    }
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       next.set('view', 'inbox');
@@ -335,6 +364,7 @@ export const AppointmentsPanel = () => {
       ...filtered.map((a) => [
         a.customer_name ?? '',
         a.customer_phone ?? '',
+        (a.conversation_id && convs[a.conversation_id]?.phone) || '',
         a.birth_date ?? '',
         a.appointment_date ?? '',
         a.appointment_time ?? '',
