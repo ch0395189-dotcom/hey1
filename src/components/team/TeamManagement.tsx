@@ -245,11 +245,14 @@ export const TeamManagement = () => {
                   ) : (
                     <Badge variant="outline">Inactivo</Badge>
                   )}
+                  <Badge variant={a.team_role === "viewer" ? "outline" : "default"}>
+                    {TEAM_ROLES.find((r) => r.value === a.team_role)?.label ?? "Agente"}
+                  </Badge>
                 </div>
                 <p className="text-sm text-muted-foreground truncate">{a.agent_email}</p>
               </div>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={() => { setPermsTarget(a); setPermsDraft(a.permissions); }}>
+                <Button variant="outline" size="sm" onClick={() => { setPermsTarget(a); setPermsDraft(a.permissions); setRoleDraft(a.team_role); }}>
                   <ShieldCheck className="w-4 h-4" />
                 </Button>
                 <Button variant="outline" size="sm" onClick={() => setResetTarget(a.agent_user_id)}>
@@ -289,6 +292,14 @@ export const TeamManagement = () => {
             </div>
             <Separator className="my-2" />
             <div>
+              <Label className="text-sm">Rol</Label>
+              <p className="text-xs text-muted-foreground mb-2">
+                El rol define el alcance base. Puedes ajustar permisos adicionales debajo.
+              </p>
+              <RoleSelector value={newRole} onChange={(r) => { setNewRole(r); applyRole(r, setNewPermissions); }} />
+            </div>
+            <Separator className="my-2" />
+            <div>
               <Label className="text-sm">Permisos</Label>
               <p className="text-xs text-muted-foreground mb-2">
                 El agente siempre puede ver y responder mensajes en sus conversaciones asignadas.
@@ -310,17 +321,21 @@ export const TeamManagement = () => {
       <Dialog open={!!permsTarget} onOpenChange={(o) => { if (!o) setPermsTarget(null); }}>
         <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Permisos del agente</DialogTitle>
+            <DialogTitle>Rol y permisos</DialogTitle>
             <DialogDescription>
               {permsTarget?.agent_name || permsTarget?.agent_email}
             </DialogDescription>
           </DialogHeader>
-          <PermissionsForm value={permsDraft} onChange={setPermsDraft} />
+          <div className="space-y-3">
+            <RoleSelector value={roleDraft} onChange={(r) => { setRoleDraft(r); applyRole(r, setPermsDraft); }} />
+            <Separator />
+            <PermissionsForm value={permsDraft} onChange={setPermsDraft} />
+          </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setPermsTarget(null)} disabled={submitting}>Cancelar</Button>
             <Button onClick={savePermissions} disabled={submitting}>
               {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Guardar permisos
+              Guardar
             </Button>
           </DialogFooter>
         </DialogContent>
