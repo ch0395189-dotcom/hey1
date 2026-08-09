@@ -675,36 +675,71 @@ Deno.serve(async (req) => {
           });
         }
         
-        // Auto-chain: if current node has NO interactive elements, check for a single child node
-        // Nodo de acción "continuar al siguiente nodo": saltamos de inmediato
-        if (currentNode.action_type === 'continue') {
-          const jumped = await goToNextNode(
-            supabase,
-            currentNode.id,
-            conversationState,
-            platformAccount!,
-            customerIdentifier,
-            conversation_id,
-            chatbotConfig,
-            currentPlatform,
-          );
-          if (jumped) {
-            return new Response(JSON.stringify({ processed: true, action: 'continued' }), {
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            });
-          }
-        }
-
-        // and automatically send it too (allows sequential message flows)
+        // Auto-chain: envía automáticamente el siguiente nodo (redirección manual o hijo único)
         let chainNode = currentNode;
         let chainCount = 0;
         const MAX_CHAIN = 5; // Prevent infinite loops
+        const visited = new Set<string>([currentNode.id]);
         
         while (chainCount < MAX_CHAIN) {
           // Only auto-chain if the node has NO interactive elements (no buttons/lists)
           if (chainNode.interactive_type !== 'none' && 
               chainNode.button_options && chainNode.button_options.length > 0) {
             break; // Stop - this node expects user input
+          }
+
+          // Prioridad 1: redirección configurada en el nodo ("Continuar al siguiente nodo")
+          if (chainNode.next_node_id && !visited.has(chainNode.next_node_id)) {
+            const { data: target } = await supabase
+              .from('chatbot_flow_nodes')
+              .select('*')
+              .eq('id', chainNode.next_node_id)
+              .maybeSingle();
+
+            if (target) {
+              const targetNode = target as FlowNode;
+              console.log('➡️ Redirigiendo a nodo configurado:', targetNode.id, targetNode.title);
+              await new Promise((resolve) => setTimeout(resolve, 600));
+              await sendNodeResponse(supabase, targetNode, platformAccount!, customerIdentifier, conversation_id, currentPlatform, isExternal, chatbotConfig);
+
+              if (targetNode.action_type === 'escalate') {
+                await supabase
+                  .from('chatbot_conversation_state')
+                  .update({ is_bot_active: false, escalated_at: new Date().toISOString(), current_node_id: targetNode.id })
+                  .eq('id', conversationState.id);
+                break;
+              }
+              if (targetNode.action_type === 'end') {
+                await supabase
+                  .from('chatbot_conversation_state')
+                  .update({ current_node_id: null })
+                  .eq('id', conversationState.id);
+                break;
+              }
+
+              await supabase
+                .from('chatbot_conversation_state')
+                .update({ current_node_id: targetNode.id })
+                .eq('id', conversationState.id);
+
+              if (targetNode.action_type === 'schedule') {
+                await startAppointmentFlow(
+                  supabase,
+                  conversationState,
+                  targetNode,
+                  platformAccount!,
+                  customerIdentifier,
+                  conversation_id,
+                  chatbotConfig.whatsapp_account_id,
+                );
+                break;
+              }
+
+              visited.add(targetNode.id);
+              chainNode = targetNode;
+              chainCount++;
+              continue;
+            }
           }
           
           // Find children of this node
@@ -716,18 +751,6 @@ Deno.serve(async (req) => {
             .order('position');
           
           if (!nextChildren || nextChildren.length === 0) {
-            // Redirección manual configurada en el nodo ("Al finalizar, ir a…")
-            const jumped = await goToNextNode(
-              supabase,
-              chainNode.id,
-              conversationState,
-              platformAccount!,
-              customerIdentifier,
-              conversation_id,
-              chatbotConfig,
-              currentPlatform,
-            );
-            if (jumped) break;
             // Leaf node - check auto_end_on_leaf
             if (chatbotConfig.auto_end_on_leaf) {
               await supabase
@@ -760,6 +783,7 @@ Deno.serve(async (req) => {
               .eq('id', conversationState.id);
             
             chainNode = nextNode;
+            visited.add(nextNode.id);
             chainCount++;
           } else {
             // Multiple children - stop, user needs to choose
