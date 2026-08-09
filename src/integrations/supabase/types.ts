@@ -1013,6 +1013,42 @@ export type Database = {
         }
         Relationships: []
       }
+      number_pricing_config: {
+        Row: {
+          fixed_fee_cop: number
+          flat_price_activation_cop: number | null
+          flat_price_rent_cop: number | null
+          id: string
+          markup_percent: number
+          min_price_cop: number
+          singleton: boolean
+          updated_at: string
+          usd_to_cop: number
+        }
+        Insert: {
+          fixed_fee_cop?: number
+          flat_price_activation_cop?: number | null
+          flat_price_rent_cop?: number | null
+          id?: string
+          markup_percent?: number
+          min_price_cop?: number
+          singleton?: boolean
+          updated_at?: string
+          usd_to_cop?: number
+        }
+        Update: {
+          fixed_fee_cop?: number
+          flat_price_activation_cop?: number | null
+          flat_price_rent_cop?: number | null
+          id?: string
+          markup_percent?: number
+          min_price_cop?: number
+          singleton?: boolean
+          updated_at?: string
+          usd_to_cop?: number
+        }
+        Relationships: []
+      }
       outbound_content_rules: {
         Row: {
           category: string
@@ -1702,12 +1738,18 @@ export type Database = {
           country: string
           country_code: string | null
           created_at: string
+          days: number | null
           error: string | null
           expires_at: string | null
           id: string
           mode: string
+          paid_at: string | null
+          payment_reference: string | null
+          payment_status: string
           phone_number: string | null
+          price_cop: number | null
           provider: string
+          provider_cost_usd: number | null
           provider_order_id: string | null
           raw: Json | null
           service: string
@@ -1723,12 +1765,18 @@ export type Database = {
           country: string
           country_code?: string | null
           created_at?: string
+          days?: number | null
           error?: string | null
           expires_at?: string | null
           id?: string
           mode?: string
+          paid_at?: string | null
+          payment_reference?: string | null
+          payment_status?: string
           phone_number?: string | null
+          price_cop?: number | null
           provider?: string
+          provider_cost_usd?: number | null
           provider_order_id?: string | null
           raw?: Json | null
           service?: string
@@ -1744,12 +1792,18 @@ export type Database = {
           country?: string
           country_code?: string | null
           created_at?: string
+          days?: number | null
           error?: string | null
           expires_at?: string | null
           id?: string
           mode?: string
+          paid_at?: string | null
+          payment_reference?: string | null
+          payment_status?: string
           phone_number?: string | null
+          price_cop?: number | null
           provider?: string
+          provider_cost_usd?: number | null
           provider_order_id?: string | null
           raw?: Json | null
           service?: string
