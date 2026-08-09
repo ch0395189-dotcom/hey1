@@ -20,7 +20,8 @@ import {
   Trash2,
   Bug,
   QrCode,
-  RefreshCw
+  RefreshCw,
+  ShoppingCart
 } from "lucide-react";
 import { TestMessageSender } from "./TestMessageSender";
 import { ManualWhatsAppSetup } from "./ManualWhatsAppSetup";
@@ -1135,6 +1136,10 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
             fetchAccounts();
             onAccountConnected?.();
           }} />
+        </TabsContent>
+
+        <TabsContent value="buy" className="mt-4">
+          <BuyNumberPanel />
         </TabsContent>
 
         <TabsContent value="manual" className="mt-4">
