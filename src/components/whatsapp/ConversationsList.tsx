@@ -288,13 +288,29 @@ export const ConversationsList = ({
     
     const channelId = `conversations-${Date.now()}`;
     const messagesChannelId = `messages-${Date.now()}`;
-    
+
+    // Coalesce refetches so a burst of realtime events triggers a single query.
+    let refetchTimer: number | undefined;
+    const scheduleRefetch = (delay = 250) => {
+      if (refetchTimer) window.clearTimeout(refetchTimer);
+      refetchTimer = window.setTimeout(() => fetchConversations(), delay);
+    };
+
     const conversationsChannel = supabase
       .channel(channelId)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'conversations' },
-        () => { fetchConversations(); }
+        (payload) => {
+          // Instant local patch (no network round-trip), then reconcile.
+          const row = payload.new as Partial<Conversation> & { id?: string };
+          if (payload.eventType === 'UPDATE' && row?.id) {
+            setConversations((prev) =>
+              prev.map((c) => (c.id === row.id ? { ...c, ...row } as Conversation : c))
+            );
+          }
+          scheduleRefetch();
+        }
       )
       .subscribe();
 
@@ -304,8 +320,33 @@ export const ConversationsList = ({
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages' },
         (payload) => {
-          const newMessage = payload.new as { direction: string; content: string | null; conversation_id: string; message_type?: string | null };
-          fetchConversations();
+          const newMessage = payload.new as { direction: string; content: string | null; conversation_id: string; message_type?: string | null; media_url?: string | null; created_at?: string };
+
+          // Instantly reflect the new message in the list (preview, timestamp,
+          // unread badge and ordering) without waiting for the refetch.
+          setConversations((prev) => {
+            const idx = prev.findIndex((c) => c.id === newMessage.conversation_id);
+            if (idx === -1) return prev;
+            const conv = prev[idx];
+            const updated: Conversation = {
+              ...conv,
+              last_message_at: newMessage.created_at || new Date().toISOString(),
+              unread_count:
+                newMessage.direction === 'inbound' && conv.id !== selectedConversationId
+                  ? (conv.unread_count || 0) + 1
+                  : conv.unread_count,
+              last_message: {
+                content: newMessage.content,
+                direction: newMessage.direction,
+                message_type: newMessage.message_type ?? null,
+                media_url: newMessage.media_url ?? null,
+              },
+            };
+            const rest = prev.filter((_, i) => i !== idx);
+            return [updated, ...rest];
+          });
+
+          scheduleRefetch();
           
           if (newMessage.direction === 'inbound' && onNewMessageRef.current) {
             setTimeout(async () => {
