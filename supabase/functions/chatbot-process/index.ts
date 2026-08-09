@@ -50,6 +50,7 @@ interface FlowNode {
   media_url: string | null;
   media_type: string | null;
   appointment_settings?: AppointmentSettings | null;
+  next_node_id?: string | null;
 }
 
 interface AppointmentSettings {
@@ -360,6 +361,8 @@ Deno.serve(async (req) => {
         customerIdentifier,
         conversation_id,
         chatbotConfig.whatsapp_account_id,
+        chatbotConfig,
+        currentPlatform,
       );
       return new Response(JSON.stringify({ processed: true, action: 'appointment', step: handled }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -694,6 +697,18 @@ Deno.serve(async (req) => {
             .order('position');
           
           if (!nextChildren || nextChildren.length === 0) {
+            // Redirección manual configurada en el nodo ("Al finalizar, ir a…")
+            const jumped = await goToNextNode(
+              supabase,
+              chainNode.id,
+              conversationState,
+              platformAccount!,
+              customerIdentifier,
+              conversation_id,
+              chatbotConfig,
+              currentPlatform,
+            );
+            if (jumped) break;
             // Leaf node - check auto_end_on_leaf
             if (chatbotConfig.auto_end_on_leaf) {
               await supabase
@@ -1669,6 +1684,8 @@ async function handleAppointmentAnswer(
   customerIdentifier: string,
   conversationId: string,
   whatsappAccountId: string,
+  chatbotConfig: ChatbotConfig,
+  currentPlatform: string,
 ): Promise<string> {
   const settings: AppointmentSettings = { ...DEFAULT_APPT_SETTINGS, ...(apptCtx.settings || {}) };
   const steps = activeApptSteps(settings);
@@ -1726,7 +1743,84 @@ async function handleAppointmentAnswer(
 
   await sendPlatformMessage(platformAccount, customerIdentifier, confirmation);
   await saveOutboundMessage(supabase, conversationId, confirmation);
+
+  // Redirección al finalizar el nodo (ej: pasar al nodo "hablar con un asesor")
+  await goToNextNode(
+    supabase,
+    apptCtx.node_id,
+    state,
+    platformAccount,
+    customerIdentifier,
+    conversationId,
+    chatbotConfig,
+    currentPlatform,
+  );
+
   return 'completed';
+}
+
+// Redirige la conversación al nodo configurado en `next_node_id` del nodo indicado.
+async function goToNextNode(
+  supabase: any,
+  fromNodeId: string | null | undefined,
+  state: ConversationState,
+  platformAccount: PlatformAccountData,
+  customerIdentifier: string,
+  conversationId: string,
+  chatbotConfig: ChatbotConfig,
+  currentPlatform: string,
+): Promise<boolean> {
+  if (!fromNodeId) return false;
+
+  const { data: fromNode } = await supabase
+    .from('chatbot_flow_nodes')
+    .select('next_node_id')
+    .eq('id', fromNodeId)
+    .maybeSingle();
+
+  if (!fromNode?.next_node_id) return false;
+
+  const { data: target } = await supabase
+    .from('chatbot_flow_nodes')
+    .select('*')
+    .eq('id', fromNode.next_node_id)
+    .maybeSingle();
+
+  if (!target) return false;
+
+  const isExternal =
+    platformAccount?.connection_type === 'external_qr' || platformAccount?.connection_type === 'z-api';
+
+  await new Promise((resolve) => setTimeout(resolve, 600));
+  await sendNodeResponse(
+    supabase,
+    target as FlowNode,
+    platformAccount,
+    customerIdentifier,
+    conversationId,
+    currentPlatform,
+    isExternal,
+    chatbotConfig,
+  );
+
+  if (target.action_type === 'escalate') {
+    await supabase
+      .from('chatbot_conversation_state')
+      .update({ is_bot_active: false, escalated_at: new Date().toISOString(), current_node_id: null })
+      .eq('id', state.id);
+  } else if (target.action_type === 'end') {
+    await supabase
+      .from('chatbot_conversation_state')
+      .update({ current_node_id: null })
+      .eq('id', state.id);
+  } else {
+    await supabase
+      .from('chatbot_conversation_state')
+      .update({ current_node_id: target.id })
+      .eq('id', state.id);
+  }
+
+  return true;
 }
 
 async function saveAppointment(
