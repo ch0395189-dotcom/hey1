@@ -2156,6 +2156,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
           )}
         </div>
       </form>
+      )}
 
       {/* Interactive Message Dialog */}
       <InteractiveMessageDialog
