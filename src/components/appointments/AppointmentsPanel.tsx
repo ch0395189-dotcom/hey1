@@ -360,7 +360,7 @@ export const AppointmentsPanel = () => {
 
   const exportCsv = () => {
     const rows = [
-      ['Nombre', 'Teléfono', 'Nacimiento', 'Fecha', 'Hora', 'Estado', 'Notas', 'Agendada por', 'Creada'],
+      ['Nombre', 'Teléfono (escrito)', 'WhatsApp del chat', 'Nacimiento', 'Fecha', 'Hora', 'Estado', 'Notas', 'Agendada por', 'Creada'],
       ...filtered.map((a) => [
         a.customer_name ?? '',
         a.customer_phone ?? '',
