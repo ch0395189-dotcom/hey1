@@ -814,7 +814,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
           
           // Refresh messages to show the newly sent message immediately
           // (in case realtime is slow or fails)
-          setTimeout(() => fetchMessages(), 500);
+          setTimeout(() => fetchMessages(), 200);
         } else {
           // Use Meta API for official connections
           const { data, error } = await supabase.functions.invoke('whatsapp-send-message', {
@@ -1207,7 +1207,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
         if (error) throw error;
         if (result?.error) throw new Error(getFriendlyWhatsappError(result));
         
-        setTimeout(() => fetchMessages(), 500);
+        setTimeout(() => fetchMessages(), 200);
       } else {
         // Use Meta API for interactive messages
         const { data: result, error } = await supabase.functions.invoke('whatsapp-send-message', {
