@@ -81,10 +81,6 @@ export const AppointmentsPanel = () => {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [googleStatus, setGoogleStatus] = useState<GoogleStatus>({
-    state: 'loading',
-  });
-  const [connecting, setConnecting] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -94,7 +90,7 @@ export const AppointmentsPanel = () => {
 
     let query = supabase
       .from('appointments')
-      .select('id, conversation_id, user_id, customer_name, customer_phone, birth_date, appointment_date, appointment_time, notes, status, created_at, google_sync_status, google_sync_error, google_event_link')
+      .select('id, conversation_id, user_id, customer_name, customer_phone, birth_date, appointment_date, appointment_time, notes, status, created_at')
       .order('created_at', { ascending: false })
       .limit(500);
 
