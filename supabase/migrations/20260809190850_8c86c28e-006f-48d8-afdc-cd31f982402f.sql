@@ -1,0 +1,1 @@
+ALTER TABLE public.chatbot_flow_nodes ADD COLUMN IF NOT EXISTS next_node_id uuid REFERENCES public.chatbot_flow_nodes(id) ON DELETE SET NULL;
