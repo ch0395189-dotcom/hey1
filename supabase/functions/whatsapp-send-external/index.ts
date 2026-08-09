@@ -88,7 +88,7 @@ Deno.serve(async (req) => {
       // Allow active team agents of the owner
       const { data: agentRow } = await supabase
         .from('team_agents')
-        .select('id')
+        .select('id, team_role')
         .eq('owner_id', account.user_id)
         .eq('agent_user_id', userId)
         .eq('is_active', true)
@@ -97,6 +97,13 @@ Deno.serve(async (req) => {
       if (!agentRow) {
         return new Response(
           JSON.stringify({ error: 'Unauthorized: You do not own this account' }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      if ((agentRow as any).team_role === 'viewer') {
+        return new Response(
+          JSON.stringify({ error: 'Tu rol es de solo lectura: no puedes enviar mensajes.' }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
