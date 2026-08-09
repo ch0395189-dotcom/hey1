@@ -396,12 +396,12 @@ export const ConversationsList = ({
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'conversation_tags' },
-        () => { fetchConversations(); }
+        () => { scheduleRefetch(150); }
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'contact_tags' },
-        () => { fetchConversations(); fetchAllTags(); }
+        () => { scheduleRefetch(150); fetchAllTags(); }
       )
       .subscribe();
 
@@ -433,6 +433,7 @@ export const ConversationsList = ({
       supabase.removeChannel(messagesChannel);
       supabase.removeChannel(tagsChannel);
       window.clearInterval(pollId);
+      if (refetchTimer) window.clearTimeout(refetchTimer);
       document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener('focus', onVisible);
       window.removeEventListener('online', onOnline);
