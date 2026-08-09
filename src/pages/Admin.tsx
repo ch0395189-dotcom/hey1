@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAdminCheck } from '@/hooks/useAdminCheck';
 import { UsersTable } from '@/components/admin/UsersTable';
 import { ManualPayments } from '@/components/admin/ManualPayments';
@@ -32,6 +32,8 @@ import { ArrowLeft, Shield, Users, CreditCard, Bell, Coins, BarChart3, Bot, Phon
 const Admin = () => {
   const navigate = useNavigate();
   const { isAdmin, loading } = useAdminCheck();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get('tab') ?? 'users';
 
   useEffect(() => {
     if (!loading && !isAdmin) {
@@ -68,7 +70,17 @@ const Admin = () => {
       </header>
 
       <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-8">
-        <Tabs defaultValue="users" className="space-y-6">
+        <Tabs
+          value={activeTab}
+          onValueChange={(v) =>
+            setSearchParams((prev) => {
+              const next = new URLSearchParams(prev);
+              next.set('tab', v);
+              return next;
+            })
+          }
+          className="space-y-6"
+        >
           <TabsList className="flex flex-wrap w-full h-auto gap-1 justify-start">
             <TabsTrigger value="users" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
