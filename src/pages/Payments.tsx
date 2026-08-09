@@ -56,13 +56,14 @@ interface UserOption {
 }
 
 type StatusFilter = 'all' | 'approved' | 'pending' | 'rejected';
-type PlanFilter = 'all' | 'professional' | 'enterprise' | 'esoterico_pro' | 'esoterico_rental' | 'none';
+type PlanFilter = 'all' | 'emprendedor' | 'professional' | 'enterprise' | 'esoterico_pro' | 'esoterico_rental' | 'none';
 
 const PLAN_LABELS: Record<string, string> = {
   professional: 'Professional',
   enterprise: 'Enterprise',
   esoterico_pro: 'Nichos Difíciles',
   esoterico_rental: 'Nichos + Alquiler',
+  emprendedor: 'Emprendedor',
 };
 
 const Payments = () => {
@@ -340,6 +341,7 @@ const Payments = () => {
                   <SelectItem value="enterprise">Enterprise</SelectItem>
                   <SelectItem value="esoterico_pro">Nichos Difíciles</SelectItem>
                   <SelectItem value="esoterico_rental">Nichos + Alquiler</SelectItem>
+                  <SelectItem value="emprendedor">Emprendedor</SelectItem>
                   <SelectItem value="none">Sin plan (créditos/otros)</SelectItem>
                 </SelectContent>
               </Select>

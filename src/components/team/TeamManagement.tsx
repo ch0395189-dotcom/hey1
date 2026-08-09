@@ -35,6 +35,7 @@ const PLAN_LABEL: Record<string, string> = {
   enterprise: "Enterprise",
   esoterico_pro: "Nichos Difíciles",
   esoterico_rental: "Nichos Difíciles + Alquiler",
+  emprendedor: "Emprendedor",
 };
 
 const PERMISSION_LABELS: { key: keyof AgentPermissions; title: string; description: string }[] = [
