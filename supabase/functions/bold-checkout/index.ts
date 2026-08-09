@@ -10,12 +10,18 @@ const BOLD_API_KEY = Deno.env.get('BOLD_API_KEY')!;
 const BOLD_API_URL = 'https://integrations.api.bold.co';
 
 interface CheckoutRequest {
-  plan: 'starter' | 'professional' | 'enterprise' | 'esoterico_pro' | 'esoterico_rental';
+  plan: 'starter' | 'emprendedor' | 'professional' | 'enterprise' | 'esoterico_pro' | 'esoterico_rental';
   successUrl: string;
   cancelUrl: string;
 }
 
 const PLAN_PRICES = {
+  emprendedor: {
+    amount: 89000,
+    currency: 'COP',
+    name: 'Plan Emprendedor',
+    description: 'Plan de entrada con 1 numero, 1 agente y bot basico',
+  },
   starter: {
     amount: 49000,
     currency: 'COP',
