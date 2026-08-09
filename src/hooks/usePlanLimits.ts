@@ -2,10 +2,11 @@ import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getEffectiveUser } from "@/lib/effectiveAuth";
 
-type PlanKey = "starter" | "professional" | "enterprise" | "esoterico_pro" | "esoterico_rental";
+type PlanKey = "starter" | "emprendedor" | "professional" | "enterprise" | "esoterico_pro" | "esoterico_rental";
 
 const WHATSAPP_LIMITS: Record<PlanKey, number> = {
   starter: 1,
+  emprendedor: 1,
   professional: 1,
   enterprise: 3,
   esoterico_pro: 1,
@@ -14,6 +15,7 @@ const WHATSAPP_LIMITS: Record<PlanKey, number> = {
 
 const PLAN_LABELS: Record<PlanKey, string> = {
   starter: "Starter",
+  emprendedor: "Emprendedor",
   professional: "Professional",
   enterprise: "Enterprise",
   esoterico_pro: "Nichos Difíciles",
