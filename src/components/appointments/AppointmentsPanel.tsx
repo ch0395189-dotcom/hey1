@@ -541,6 +541,37 @@ export const AppointmentsPanel = () => {
                     <Badge variant="outline" className={meta.className}>{meta.label}</Badge>
                   </div>
 
+                  {a.conversation_id ? (
+                    <div className="flex items-center justify-between gap-2 rounded-md border border-primary/30 bg-primary/5 px-2 py-1.5 text-xs">
+                      <span className="flex items-center gap-1.5 min-w-0">
+                        <MessageSquare className="h-3.5 w-3.5 shrink-0 text-primary" />
+                        <span className="truncate">
+                          Chat:{' '}
+                          <span className="font-medium text-foreground">
+                            {convs[a.conversation_id]?.phone
+                              ? `+${convs[a.conversation_id].phone}`
+                              : 'cargando…'}
+                          </span>
+                          {convs[a.conversation_id]?.name ? ` · ${convs[a.conversation_id]?.name}` : ''}
+                        </span>
+                      </span>
+                      <Button
+                        size="sm"
+                        className="h-6 px-2 shrink-0"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openConversation(a);
+                        }}
+                      >
+                        Abrir chat
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="rounded-md border bg-muted/30 px-2 py-1.5 text-xs text-muted-foreground">
+                      Sin chat de WhatsApp vinculado
+                    </div>
+                  )}
+
                   <div className="text-sm space-y-1">
                     <p className="flex items-center gap-2">
                       <CalendarDays className="h-4 w-4 text-primary" />
