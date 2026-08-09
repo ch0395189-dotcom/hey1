@@ -1985,6 +1985,68 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_token_audit: {
+        Row: {
+          business_account_id: string | null
+          checked_at: string
+          created_at: string
+          error_code: number | null
+          error_message: string | null
+          error_subcode: number | null
+          id: string
+          notified_at: string | null
+          phone_number: string | null
+          phone_number_id: string | null
+          token_alive: boolean
+          updated_at: string
+          user_id: string
+          webhook_subscribed: boolean | null
+          whatsapp_account_id: string
+        }
+        Insert: {
+          business_account_id?: string | null
+          checked_at?: string
+          created_at?: string
+          error_code?: number | null
+          error_message?: string | null
+          error_subcode?: number | null
+          id?: string
+          notified_at?: string | null
+          phone_number?: string | null
+          phone_number_id?: string | null
+          token_alive?: boolean
+          updated_at?: string
+          user_id: string
+          webhook_subscribed?: boolean | null
+          whatsapp_account_id: string
+        }
+        Update: {
+          business_account_id?: string | null
+          checked_at?: string
+          created_at?: string
+          error_code?: number | null
+          error_message?: string | null
+          error_subcode?: number | null
+          id?: string
+          notified_at?: string | null
+          phone_number?: string | null
+          phone_number_id?: string | null
+          token_alive?: boolean
+          updated_at?: string
+          user_id?: string
+          webhook_subscribed?: boolean | null
+          whatsapp_account_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_token_audit_whatsapp_account_id_fkey"
+            columns: ["whatsapp_account_id"]
+            isOneToOne: true
+            referencedRelation: "whatsapp_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
