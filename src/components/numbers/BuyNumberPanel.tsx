@@ -32,7 +32,12 @@ interface Order {
   sms_code: string | null;
   expires_at: string | null;
   created_at: string;
+  price_cop?: number | null;
+  payment_status?: string | null;
 }
+
+const cop = (n: number) =>
+  new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(n);
 
 export const BuyNumberPanel = () => {
   const { toast } = useToast();
@@ -42,6 +47,8 @@ export const BuyNumberPanel = () => {
   const [busy, setBusy] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
   const [polling, setPolling] = useState<string | null>(null);
+  const [price, setPrice] = useState<number | null>(null);
+  const [quoting, setQuoting] = useState(false);
   const pollRef = useRef<number | null>(null);
 
   const call = async (action: string, extra: Record<string, unknown> = {}) => {
@@ -57,13 +64,33 @@ export const BuyNumberPanel = () => {
   const loadOrders = useCallback(async () => {
     const { data } = await supabase
       .from("virtual_number_orders")
-      .select("id, mode, country, phone_number, country_code, status, sms_code, expires_at, created_at")
+      .select("id, mode, country, phone_number, country_code, status, sms_code, expires_at, created_at, price_cop, payment_status")
       .order("created_at", { ascending: false })
       .limit(20);
     setOrders((data ?? []) as Order[]);
   }, []);
 
   useEffect(() => { loadOrders(); }, [loadOrders]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const quote = async () => {
+      setQuoting(true);
+      try {
+        const { data } = await supabase.functions.invoke("bold-checkout-number", {
+          body: { action: "quote", mode, country, days: Number(days) || 30 },
+        });
+        const r = data as { ok?: boolean; price_cop?: number };
+        if (!cancelled) setPrice(r?.ok ? r.price_cop ?? null : null);
+      } catch {
+        if (!cancelled) setPrice(null);
+      } finally {
+        if (!cancelled) setQuoting(false);
+      }
+    };
+    quote();
+    return () => { cancelled = true; };
+  }, [mode, country, days]);
 
   useEffect(() => () => { if (pollRef.current) window.clearInterval(pollRef.current); }, []);
 
@@ -89,10 +116,34 @@ export const BuyNumberPanel = () => {
     }, 6000);
   };
 
-  const buy = async () => {
+  const payAndBuy = async () => {
     setBusy(true);
     try {
-      const r = await call("buy", { mode, country, service: "opt20", days });
+      const { data, error } = await supabase.functions.invoke("bold-checkout-number", {
+        body: {
+          action: "checkout",
+          mode, country, days: Number(days) || 30,
+          successUrl: `${window.location.origin}/dashboard?view=whatsapp&number_paid=1`,
+          cancelUrl: window.location.href,
+        },
+      });
+      if (error) throw new Error(error.message);
+      const r = data as { ok?: boolean; error?: string; paymentUrl?: string };
+      if (!r?.ok || !r.paymentUrl) throw new Error(r?.error || "No se pudo crear el pago");
+      await loadOrders();
+      window.open(r.paymentUrl, "_blank");
+      toast({ title: "Pago creado", description: "Al confirmarse, presiona “Obtener número” en el pedido pagado." });
+    } catch (e: any) {
+      toast({ title: "Error al crear el pago", description: e.message, variant: "destructive" });
+    } finally { setBusy(false); }
+  };
+
+  const claim = async (orderId: string, o: Order) => {
+    setBusy(true);
+    try {
+      const r = await call("buy", {
+        mode: o.mode, country: o.country, service: "opt20", days, paid_order_id: orderId,
+      });
       const order = r.order as Order;
       toast({ title: "Número obtenido", description: `+${order.phone_number}` });
       await loadOrders();
@@ -163,9 +214,9 @@ export const BuyNumberPanel = () => {
         </div>
 
         <div className="flex gap-2">
-          <Button onClick={buy} disabled={busy}>
+          <Button onClick={payAndBuy} disabled={busy || quoting}>
             {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShoppingCart className="mr-2 h-4 w-4" />}
-            {mode === "rent" ? "Alquilar número" : "Obtener número"}
+            {quoting ? "Calculando precio…" : `Pagar ${price !== null ? cop(price) : ""}`}
           </Button>
           <Button variant="outline" onClick={loadOrders}>
             <RefreshCw className="mr-2 h-4 w-4" /> Actualizar
@@ -178,18 +229,27 @@ export const BuyNumberPanel = () => {
             {orders.map((o) => (
               <div key={o.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-3 text-sm">
                 <div className="space-y-1">
-                  <div className="font-medium">+{o.phone_number}</div>
+                  <div className="font-medium">
+                    {o.phone_number ? `+${o.phone_number}` : "Pendiente de asignar"}
+                  </div>
                   <div className="flex flex-wrap items-center gap-2 text-muted-foreground">
                     <Badge variant="secondary">{o.mode === "rent" ? "Alquiler" : "Activación"}</Badge>
                     <Badge variant="outline">{o.country.toUpperCase()}</Badge>
                     <Badge variant={o.status === "received" || o.status === "completed" ? "default" : "secondary"}>
                       {o.status}
                     </Badge>
+                    {o.price_cop ? <Badge variant="outline">{cop(o.price_cop)}</Badge> : null}
+                    {o.payment_status === "pending" && <Badge variant="destructive">Pago pendiente</Badge>}
                     {o.sms_code && <span>Código: <strong>{o.sms_code}</strong></span>}
                     {polling === o.id && <span className="flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" /> esperando SMS…</span>}
                   </div>
                 </div>
                 <div className="flex gap-2">
+                  {o.payment_status === "paid" && !o.phone_number && (
+                    <Button size="sm" onClick={() => claim(o.id, o)} disabled={busy}>
+                      Obtener número
+                    </Button>
+                  )}
                   <Button size="sm" variant="outline" onClick={() => {
                     navigator.clipboard.writeText(`+${o.phone_number ?? ""}`);
                     toast({ title: "Número copiado" });

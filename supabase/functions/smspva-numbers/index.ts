@@ -78,6 +78,24 @@ Deno.serve(async (req) => {
 
     // ---------- comprar / alquilar ----------
     if (action === "buy") {
+      const paidOrderId = String(body.paid_order_id || "");
+      let paidOrder: Json | null = null;
+      if (!isAdmin) {
+        if (!paidOrderId) {
+          return json({ ok: false, error: "Debes pagar el número antes de obtenerlo" });
+        }
+        const { data: po } = await admin
+          .from("virtual_number_orders").select("*").eq("id", paidOrderId).maybeSingle();
+        if (!po || po.user_id !== userId) return json({ ok: false, error: "Pedido no encontrado" });
+        if (po.payment_status !== "paid") return json({ ok: false, error: "El pago aún no está confirmado" });
+        if (po.phone_number) return json({ ok: false, error: "Este pago ya fue usado" });
+        paidOrder = po;
+      } else if (paidOrderId) {
+        const { data: po } = await admin
+          .from("virtual_number_orders").select("*").eq("id", paidOrderId).maybeSingle();
+        if (po && !po.phone_number) paidOrder = po;
+      }
+
       let providerOrderId = "";
       let phone = "";
       let countryCode = "";
@@ -108,12 +126,26 @@ Deno.serve(async (req) => {
         expiresAt = new Date(Date.now() + 20 * 60 * 1000).toISOString();
       }
 
+      if (paidOrder) {
+        const { data: updated, error: updErr } = await admin
+          .from("virtual_number_orders")
+          .update({
+            provider_order_id: providerOrderId, phone_number: phone,
+            country_code: countryCode, status: "waiting_sms", expires_at: expiresAt, raw,
+          })
+          .eq("id", paidOrder.id)
+          .select("*").single();
+        if (updErr) return json({ ok: false, error: updErr.message });
+        return json({ ok: true, order: updated });
+      }
+
       const { data: inserted, error: insErr } = await admin
         .from("virtual_number_orders")
         .insert({
           user_id: userId, provider: "smspva", mode, country, service,
           provider_order_id: providerOrderId, phone_number: phone,
           country_code: countryCode, status: "waiting_sms", expires_at: expiresAt, raw,
+          payment_status: isAdmin ? "waived" : "unpaid",
         })
         .select("*").single();
       if (insErr) return json({ ok: false, error: insErr.message });

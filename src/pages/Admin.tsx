@@ -20,6 +20,7 @@ import { CtwaAnalytics } from '@/components/admin/CtwaAnalytics';
 import { ReassignableNumbers } from '@/components/admin/ReassignableNumbers';
 import { AddWhatsAppNumber } from '@/components/admin/AddWhatsAppNumber';
 import { AutoProvisionNumber } from '@/components/admin/AutoProvisionNumber';
+import { NumberPricingConfig } from '@/components/admin/NumberPricingConfig';
 import { NewAndRenewals } from '@/components/admin/NewAndRenewals';
 import { BoldPaymentsMonitor } from '@/components/admin/BoldPaymentsMonitor';
 import { Button } from '@/components/ui/button';
@@ -230,7 +231,10 @@ const Admin = () => {
           </TabsContent>
 
           <TabsContent value="buy-number">
-            <AutoProvisionNumber />
+            <div className="space-y-6">
+              <NumberPricingConfig />
+              <AutoProvisionNumber />
+            </div>
           </TabsContent>
 
           <TabsContent value="new-renewals">
