@@ -27,6 +27,7 @@ const OAuthConsent = lazy(() => import("./pages/OAuthConsent"));
 const GoogleCalendarReturn = lazy(() => import("./pages/oauth/GoogleCalendarReturn"));
 import { InstallAppBanner } from "@/components/install/InstallAppBanner";
 import { UpdateBanner } from "@/components/UpdateBanner";
+import { NativeAppUpdateBanner } from "@/components/NativeAppUpdateBanner";
 import { ImpersonationBanner } from "@/components/admin/ImpersonationBanner";
 import { NativePushBootstrap } from "@/components/NativePushBootstrap";
 import { Capacitor } from "@capacitor/core";
@@ -83,6 +84,7 @@ const App = () => {
         <MetaPixelProvider />
         <BrowserRouter>
           <UpdateBanner />
+          <NativeAppUpdateBanner />
           <ImpersonationBanner />
           <NativePushBootstrap />
           <Suspense fallback={<RouteFallback />}>
