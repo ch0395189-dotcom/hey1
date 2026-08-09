@@ -365,11 +365,18 @@ export const ConversationsList = ({
       .subscribe();
 
     // Fallback polling: even if Realtime WebSocket dies silently (network drop,
-    // background tab, mobile suspend), refresh conversations every 15s so new
-    // inbound WhatsApp messages always show up.
+    // background tab, mobile suspend), refresh conversations frequently so new
+    // inbound messages appear almost instantly. While the tab is hidden we slow
+    // down to avoid burning battery/data.
+    let lastPoll = 0;
     const pollId = window.setInterval(() => {
+      const hidden = document.visibilityState !== 'visible';
+      const interval = hidden ? 20000 : 4000;
+      const now = Date.now();
+      if (now - lastPoll < interval) return;
+      lastPoll = now;
       fetchConversations();
-    }, 15000);
+    }, 2000);
 
     // Also refresh immediately when the tab regains focus / connectivity
     const onVisible = () => {

@@ -518,8 +518,15 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
       window.addEventListener('focus', onVisible);
       window.addEventListener('online', onOnline);
 
+      // Fast fallback polling while the chat is open, in case the Realtime
+      // socket dropped silently (mobile suspend, flaky network).
+      const pollId = window.setInterval(() => {
+        if (document.visibilityState === 'visible') fetchMessages();
+      }, 4000);
+
       return () => {
         supabase.removeChannel(channel);
+        window.clearInterval(pollId);
         document.removeEventListener('visibilitychange', onVisible);
         window.removeEventListener('focus', onVisible);
         window.removeEventListener('online', onOnline);
@@ -807,7 +814,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
           
           // Refresh messages to show the newly sent message immediately
           // (in case realtime is slow or fails)
-          setTimeout(() => fetchMessages(), 500);
+          setTimeout(() => fetchMessages(), 200);
         } else {
           // Use Meta API for official connections
           const { data, error } = await supabase.functions.invoke('whatsapp-send-message', {
@@ -1200,7 +1207,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
         if (error) throw error;
         if (result?.error) throw new Error(getFriendlyWhatsappError(result));
         
-        setTimeout(() => fetchMessages(), 500);
+        setTimeout(() => fetchMessages(), 200);
       } else {
         // Use Meta API for interactive messages
         const { data: result, error } = await supabase.functions.invoke('whatsapp-send-message', {
