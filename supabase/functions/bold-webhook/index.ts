@@ -174,6 +174,39 @@ serve(async (req) => {
         }
       }
 
+      // ---- Virtual number purchase ----
+      const numberOrderId = pendingMetadata?.number_order_id;
+      if (userId && numberOrderId) {
+        await supabase
+          .from('virtual_number_orders')
+          .update({ payment_status: 'paid', paid_at: new Date().toISOString(), status: 'paid' })
+          .eq('id', numberOrderId);
+
+        await supabase.from('bold_payments').insert({
+          user_id: userId,
+          amount: typeof transactionAmount === 'number' ? transactionAmount : parseInt(transactionAmount) || 0,
+          currency: data.currency || 'COP',
+          plan: null,
+          bold_transaction_id: transactionId || reference,
+          event_type: 'completed',
+          metadata: { ...pendingMetadata, webhook: data },
+        });
+
+        if (reference) {
+          await supabase
+            .from('bold_payments')
+            .update({ event_type: 'completed' })
+            .eq('bold_transaction_id', reference)
+            .eq('event_type', 'pending');
+        }
+
+        console.log(`✅ Número virtual pagado: order ${numberOrderId}`);
+        return new Response(
+          JSON.stringify({ received: true, number_order: true }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       // ---- Package payment (extra WhatsApp messages) ----
       const pkgId = pendingMetadata?.package_id;
       const extraMessages = Number(pendingMetadata?.extra_messages || 0);
