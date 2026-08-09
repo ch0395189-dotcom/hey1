@@ -14,31 +14,20 @@ import {
 } from '@/components/ui/select';
 import { BellRing, Loader2, Save } from 'lucide-react';
 
-interface Account {
-  id: string;
-  phone_number: string;
-  display_name: string | null;
-}
-
 interface Settings {
   notify_on_create: boolean;
   reminder_enabled: boolean;
   reminder_minutes: number;
-  notify_phone: string;
-  whatsapp_account_id: string;
 }
 
 const DEFAULTS: Settings = {
   notify_on_create: true,
   reminder_enabled: true,
   reminder_minutes: 60,
-  notify_phone: '',
-  whatsapp_account_id: '',
 };
 
 export const AppointmentRemindersCard = () => {
   const [settings, setSettings] = useState<Settings>(DEFAULTS);
-  const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -51,24 +40,17 @@ export const AppointmentRemindersCard = () => {
       return;
     }
 
-    const [{ data: cfg }, { data: accs }] = await Promise.all([
-      supabase.from('appointment_notification_settings').select('*').eq('user_id', uid).maybeSingle(),
-      supabase
-        .from('whatsapp_accounts')
-        .select('id, phone_number, display_name')
-        .eq('user_id', uid)
-        .eq('is_active', true)
-        .order('created_at', { ascending: true }),
-    ]);
+    const { data: cfg } = await supabase
+      .from('appointment_notification_settings')
+      .select('*')
+      .eq('user_id', uid)
+      .maybeSingle();
 
-    setAccounts((accs ?? []) as Account[]);
     if (cfg) {
       setSettings({
         notify_on_create: cfg.notify_on_create,
         reminder_enabled: cfg.reminder_enabled,
         reminder_minutes: cfg.reminder_minutes,
-        notify_phone: cfg.notify_phone ?? '',
-        whatsapp_account_id: cfg.whatsapp_account_id ?? '',
       });
     }
     setLoading(false);
@@ -92,8 +74,8 @@ export const AppointmentRemindersCard = () => {
         notify_on_create: settings.notify_on_create,
         reminder_enabled: settings.reminder_enabled,
         reminder_minutes: settings.reminder_minutes,
-        notify_phone: settings.notify_phone.trim() || null,
-        whatsapp_account_id: settings.whatsapp_account_id || null,
+        notify_phone: null,
+        whatsapp_account_id: null,
       },
       { onConflict: 'user_id' },
     );
@@ -110,9 +92,9 @@ export const AppointmentRemindersCard = () => {
       <div className="flex items-center gap-3">
         <BellRing className="h-5 w-5 text-primary shrink-0" />
         <div className="min-w-0">
-          <p className="text-sm font-medium">Avisos y recordatorios de citas</p>
+          <p className="text-sm font-medium">Avisos y recordatorios de citas (dentro de HeyHey)</p>
           <p className="text-xs text-muted-foreground">
-            Recibe una notificación cuando un cliente agende y un recordatorio antes de la cita.
+            Recibe una notificación en la app cuando un cliente agende y un recordatorio antes de la cita.
           </p>
         </div>
       </div>
@@ -165,42 +147,11 @@ export const AppointmentRemindersCard = () => {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Mi WhatsApp para avisos</Label>
-              <Input
-                value={settings.notify_phone}
-                onChange={(e) => setSettings((s) => ({ ...s, notify_phone: e.target.value }))}
-                placeholder="573001234567"
-                inputMode="tel"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Enviar desde</Label>
-              <Select
-                value={settings.whatsapp_account_id || 'auto'}
-                onValueChange={(v) =>
-                  setSettings((s) => ({ ...s, whatsapp_account_id: v === 'auto' ? '' : v }))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="auto">Automático</SelectItem>
-                  {accounts.map((a) => (
-                    <SelectItem key={a.id} value={a.id}>
-                      {a.display_name || a.phone_number}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
           </div>
 
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <p className="text-xs text-muted-foreground">
-              Siempre recibes la notificación push en la app. El aviso por WhatsApp solo se envía si
-              escribes tu número aquí.
+              Los avisos llegan como notificación dentro de HeyHey (app y navegador).
             </p>
             <Button size="sm" onClick={save} disabled={saving}>
               {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Save className="h-4 w-4 mr-1" />}
