@@ -504,6 +504,7 @@ export const AppointmentsPanel = () => {
                       href={a.google_event_link}
                       target="_blank"
                       rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
                       className="inline-flex items-center gap-1 text-xs text-emerald-600 hover:underline"
                     >
                       <CheckCircle2 className="h-3.5 w-3.5" /> Sincronizada en Google Calendar
