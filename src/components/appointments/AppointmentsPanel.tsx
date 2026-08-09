@@ -36,11 +36,6 @@ import {
   Cake,
   Clock,
   Download,
-  Calendar,
-  Unlink,
-  AlertTriangle,
-  CheckCircle2,
-  ExternalLink,
   User as UserIcon,
   MessageSquare,
 } from 'lucide-react';
@@ -58,9 +53,6 @@ interface Appointment {
   notes: string | null;
   status: string;
   created_at: string;
-  google_sync_status: string | null;
-  google_sync_error: string | null;
-  google_event_link: string | null;
 }
 
 const STATUS_META: Record<string, { label: string; className: string }> = {
@@ -69,16 +61,6 @@ const STATUS_META: Record<string, { label: string; className: string }> = {
   completed: { label: 'Completada', className: 'bg-sky-500/15 text-sky-600 border-sky-500/30' },
   cancelled: { label: 'Cancelada', className: 'bg-destructive/15 text-destructive border-destructive/30' },
 };
-
-interface GoogleStatus {
-  state: 'loading' | 'connected' | 'disconnected' | 'error';
-  email?: string;
-  message?: string;
-  hint?: string;
-  errorCode?: string;
-  requiresReconnect?: boolean;
-  retryable?: boolean;
-}
 
 const statusMeta = (s: string) =>
   STATUS_META[s] ?? { label: s, className: 'bg-muted text-muted-foreground border-border' };
