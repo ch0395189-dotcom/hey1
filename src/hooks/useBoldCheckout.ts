@@ -3,11 +3,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useMetaPixel } from '@/hooks/useMetaPixel';
 
-type Plan = 'starter' | 'professional' | 'enterprise' | 'esoterico_pro' | 'esoterico_rental';
+type Plan = 'starter' | 'emprendedor' | 'professional' | 'enterprise' | 'esoterico_pro' | 'esoterico_rental';
 
 // Precio mensual de referencia (COP) para evitar downgrades
 const PLAN_PRICE: Record<Plan, number> = {
   starter: 0,
+  emprendedor: 89000,
   professional: 149000,
   esoterico_pro: 199900,
   esoterico_rental: 300000,
