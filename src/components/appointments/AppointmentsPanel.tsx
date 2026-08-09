@@ -529,6 +529,42 @@ export const AppointmentsPanel = () => {
                     {a.notes && <p className="text-muted-foreground line-clamp-2">{a.notes}</p>}
                   </div>
 
+                  {a.user_id && (
+                    <div
+                      className="flex items-center justify-between gap-2 rounded-md border bg-muted/30 px-2 py-1.5 text-xs"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <span className="flex items-center gap-1.5 min-w-0 text-muted-foreground">
+                        <UserIcon className="h-3.5 w-3.5 shrink-0" />
+                        <span className="truncate">
+                          Agendada por:{' '}
+                          <span className="text-foreground font-medium">
+                            {owners[a.user_id]?.name || owners[a.user_id]?.email || 'Cuenta sin nombre'}
+                          </span>
+                          {owners[a.user_id]?.email && owners[a.user_id]?.name
+                            ? ` · ${owners[a.user_id].email}`
+                            : ''}
+                        </span>
+                      </span>
+                      {isAdmin && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 px-2 shrink-0"
+                          onClick={() =>
+                            navigate(
+                              `/admin?tab=users&q=${encodeURIComponent(
+                                owners[a.user_id!]?.email || owners[a.user_id!]?.name || '',
+                              )}`,
+                            )
+                          }
+                        >
+                          Ver usuario
+                        </Button>
+                      )}
+                    </div>
+                  )}
+
                   {a.google_sync_status === 'error' ? (
                     <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs text-destructive">
                       <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
