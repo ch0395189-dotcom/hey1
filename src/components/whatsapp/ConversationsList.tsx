@@ -118,6 +118,10 @@ export const ConversationsList = ({
   // Keep a ref of the current conversations list so the Realtime handler can
   // check ownership without becoming stale or re-subscribing on every render.
   const conversationsRef = useRef<Conversation[]>([]);
+  const selectedConvIdRef = useRef<string | null>(selectedConversationId);
+  useEffect(() => {
+    selectedConvIdRef.current = selectedConversationId;
+  }, [selectedConversationId]);
   useEffect(() => {
     conversationsRef.current = conversations;
   }, [conversations]);
