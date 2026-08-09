@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
@@ -44,6 +45,7 @@ import { AppointmentRemindersCard } from './AppointmentRemindersCard';
 
 interface Appointment {
   id: string;
+  conversation_id: string | null;
   customer_name: string | null;
   customer_phone: string | null;
   birth_date: string | null;
@@ -78,6 +80,7 @@ const statusMeta = (s: string) =>
   STATUS_META[s] ?? { label: s, className: 'bg-muted text-muted-foreground border-border' };
 
 export const AppointmentsPanel = () => {
+  const [, setSearchParams] = useSearchParams();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -94,7 +97,7 @@ export const AppointmentsPanel = () => {
     setLoading(true);
     const { data, error } = await supabase
       .from('appointments')
-      .select('id, customer_name, customer_phone, birth_date, appointment_date, appointment_time, notes, status, created_at, google_sync_status, google_sync_error, google_event_link')
+      .select('id, conversation_id, customer_name, customer_phone, birth_date, appointment_date, appointment_time, notes, status, created_at, google_sync_status, google_sync_error, google_event_link')
       .order('created_at', { ascending: false })
       .limit(500);
 
@@ -270,6 +273,23 @@ export const AppointmentsPanel = () => {
     setDeleteId(null);
   };
 
+  const openConversation = (a: Appointment) => {
+    if (!a.conversation_id) {
+      toast({
+        title: 'Sin conversación vinculada',
+        description: 'Esta cita no tiene un chat de WhatsApp asociado.',
+      });
+      return;
+    }
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('view', 'inbox');
+      next.set('platform', 'whatsapp');
+      next.set('conv', a.conversation_id as string);
+      return next;
+    });
+  };
+
   const exportCsv = () => {
     const rows = [
       ['Nombre', 'Teléfono', 'Nacimiento', 'Fecha', 'Hora', 'Estado', 'Notas', 'Creada'],
@@ -432,7 +452,12 @@ export const AppointmentsPanel = () => {
           {filtered.map((a) => {
             const meta = statusMeta(a.status);
             return (
-              <Card key={a.id}>
+              <Card
+                key={a.id}
+                onClick={() => openConversation(a)}
+                className={a.conversation_id ? 'cursor-pointer transition-colors hover:border-primary/50 hover:bg-accent/40' : ''}
+                title={a.conversation_id ? 'Abrir conversación de WhatsApp' : undefined}
+              >
                 <CardContent className="p-4 space-y-3">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
@@ -479,6 +504,7 @@ export const AppointmentsPanel = () => {
                       href={a.google_event_link}
                       target="_blank"
                       rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
                       className="inline-flex items-center gap-1 text-xs text-emerald-600 hover:underline"
                     >
                       <CheckCircle2 className="h-3.5 w-3.5" /> Sincronizada en Google Calendar
@@ -486,7 +512,7 @@ export const AppointmentsPanel = () => {
                     </a>
                   ) : null}
 
-                  <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <div className="flex flex-wrap items-center gap-2 pt-1" onClick={(e) => e.stopPropagation()}>
                     {a.status !== 'confirmed' && (
                       <Button size="sm" variant="outline" onClick={() => updateStatus(a.id, 'confirmed')}>
                         <Check className="h-3.5 w-3.5 mr-1" /> Confirmar
