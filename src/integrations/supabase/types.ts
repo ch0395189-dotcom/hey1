@@ -1504,6 +1504,39 @@ export type Database = {
         }
         Relationships: []
       }
+      trial_nudges: {
+        Row: {
+          channel: string
+          created_at: string
+          error: string | null
+          has_whatsapp: boolean
+          id: string
+          nudge_day: number
+          status: string
+          user_id: string
+        }
+        Insert: {
+          channel?: string
+          created_at?: string
+          error?: string | null
+          has_whatsapp?: boolean
+          id?: string
+          nudge_day: number
+          status?: string
+          user_id: string
+        }
+        Update: {
+          channel?: string
+          created_at?: string
+          error?: string | null
+          has_whatsapp?: boolean
+          id?: string
+          nudge_day?: number
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       trial_phone_history: {
         Row: {
           created_at: string
