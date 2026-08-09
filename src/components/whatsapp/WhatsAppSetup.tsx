@@ -25,6 +25,7 @@ import {
 import { TestMessageSender } from "./TestMessageSender";
 import { ManualWhatsAppSetup } from "./ManualWhatsAppSetup";
 import { ExternalWhatsAppSetup } from "./ExternalWhatsAppSetup";
+import { BuyNumberPanel } from "@/components/numbers/BuyNumberPanel";
 import { EditAccountDialog } from "./EditAccountDialog";
 import { WhatsAppDiagnostics } from "./WhatsAppDiagnostics";
 import { ConnectionVerification } from "./ConnectionVerification";
@@ -978,7 +979,7 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
       )}
 
       <Tabs defaultValue="automatic" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="automatic" className="flex items-center gap-2">
             <Zap className="w-4 h-4" />
             Automática
@@ -986,6 +987,10 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
           <TabsTrigger value="qr" className="flex items-center gap-2">
             <QrCode className="w-4 h-4" />
             Por QR
+          </TabsTrigger>
+          <TabsTrigger value="buy" className="flex items-center gap-2">
+            <ShoppingCart className="w-4 h-4" />
+            Comprar número
           </TabsTrigger>
           <TabsTrigger value="manual" className="flex items-center gap-2">
             <Settings2 className="w-4 h-4" />
