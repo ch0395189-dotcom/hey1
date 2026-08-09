@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -72,6 +72,19 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
   const [ctaMode, setCtaMode] = useState<'whatsapp' | 'url'>('whatsapp');
   const [ctaPhone, setCtaPhone] = useState('');
   const [ctaPrefill, setCtaPrefill] = useState('');
+
+  // Lista plana de nodos (para el selector de redirección)
+  const flatNodes = useMemo(() => {
+    const out: FlowNode[] = [];
+    const walk = (list: FlowNode[]) => {
+      list.forEach((n) => {
+        out.push(n);
+        if (n.children?.length) walk(n.children);
+      });
+    };
+    walk(nodes);
+    return out;
+  }, [nodes]);
 
   const buildWaLink = (phone: string, prefill: string) => {
     const digits = (phone || '').replace(/\D/g, '');
