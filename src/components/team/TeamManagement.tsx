@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useTeam, AgentPermissions, DEFAULT_PERMISSIONS, TeamAgent } from "@/hooks/useTeam";
+import { useTeam, AgentPermissions, DEFAULT_PERMISSIONS, TeamAgent, TeamRole, TEAM_ROLES, ROLE_PERMISSIONS } from "@/hooks/useTeam";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Dialog,
   DialogContent,
@@ -47,6 +48,23 @@ const PERMISSION_LABELS: { key: keyof AgentPermissions; title: string; descripti
   { key: "view_statistics", title: "Ver Estadísticas", description: "Acceso a la sección de Estadísticas." },
 ];
 
+const RoleSelector = ({ value, onChange }: { value: TeamRole; onChange: (r: TeamRole) => void }) => (
+  <RadioGroup value={value} onValueChange={(v) => onChange(v as TeamRole)} className="space-y-2">
+    {TEAM_ROLES.map((r) => (
+      <label
+        key={r.value}
+        className="flex items-start gap-3 p-2 rounded-md border bg-card hover:bg-accent/30 cursor-pointer transition-colors"
+      >
+        <RadioGroupItem value={r.value} className="mt-0.5" />
+        <div className="min-w-0">
+          <p className="text-sm font-medium leading-tight">{r.label}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">{r.description}</p>
+        </div>
+      </label>
+    ))}
+  </RadioGroup>
+);
+
 const PermissionsForm = ({
   value,
   onChange,
@@ -83,11 +101,17 @@ export const TeamManagement = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [newPermissions, setNewPermissions] = useState<AgentPermissions>(DEFAULT_PERMISSIONS);
+  const [newRole, setNewRole] = useState<TeamRole>("agent");
   const [removeId, setRemoveId] = useState<string | null>(null);
   const [resetTarget, setResetTarget] = useState<string | null>(null);
   const [resetPwd, setResetPwd] = useState("");
   const [permsTarget, setPermsTarget] = useState<TeamAgent | null>(null);
   const [permsDraft, setPermsDraft] = useState<AgentPermissions>(DEFAULT_PERMISSIONS);
+  const [roleDraft, setRoleDraft] = useState<TeamRole>("agent");
+
+  const applyRole = (role: TeamRole, setPerms: (p: AgentPermissions) => void) => {
+    setPerms({ ...ROLE_PERMISSIONS[role] });
+  };
 
   const canAdd = agents.filter(a => a.is_active).length < limit;
 
@@ -112,7 +136,7 @@ export const TeamManagement = () => {
     }
     setSubmitting(true);
     const { data, error } = await supabase.functions.invoke("team-invite-agent", {
-      body: { action: "invite", email: email.trim(), name: name.trim(), password, permissions: newPermissions },
+      body: { action: "invite", email: email.trim(), name: name.trim(), password, permissions: newPermissions, team_role: newRole },
     });
     setSubmitting(false);
     if (error || (data as any)?.error) {
@@ -121,7 +145,8 @@ export const TeamManagement = () => {
     }
     toast({ title: "Agente creado", description: `${email} ya puede iniciar sesión.` });
     setOpen(false);
-    setName(""); setEmail(""); setPassword(""); setNewPermissions(DEFAULT_PERMISSIONS);
+    setName(""); setEmail(""); setPassword("");
+    setNewRole("agent"); setNewPermissions({ ...ROLE_PERMISSIONS.agent });
     refresh();
   };
 
@@ -161,7 +186,7 @@ export const TeamManagement = () => {
     if (!permsTarget) return;
     setSubmitting(true);
     const { data, error } = await supabase.functions.invoke("team-invite-agent", {
-      body: { action: "update_permissions", agent_user_id: permsTarget.agent_user_id, permissions: permsDraft },
+      body: { action: "update_permissions", agent_user_id: permsTarget.agent_user_id, permissions: permsDraft, team_role: roleDraft },
     });
     setSubmitting(false);
     if (error || (data as any)?.error) {
@@ -220,11 +245,14 @@ export const TeamManagement = () => {
                   ) : (
                     <Badge variant="outline">Inactivo</Badge>
                   )}
+                  <Badge variant={a.team_role === "viewer" ? "outline" : "default"}>
+                    {TEAM_ROLES.find((r) => r.value === a.team_role)?.label ?? "Agente"}
+                  </Badge>
                 </div>
                 <p className="text-sm text-muted-foreground truncate">{a.agent_email}</p>
               </div>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={() => { setPermsTarget(a); setPermsDraft(a.permissions); }}>
+                <Button variant="outline" size="sm" onClick={() => { setPermsTarget(a); setPermsDraft(a.permissions); setRoleDraft(a.team_role); }}>
                   <ShieldCheck className="w-4 h-4" />
                 </Button>
                 <Button variant="outline" size="sm" onClick={() => setResetTarget(a.agent_user_id)}>
@@ -264,6 +292,14 @@ export const TeamManagement = () => {
             </div>
             <Separator className="my-2" />
             <div>
+              <Label className="text-sm">Rol</Label>
+              <p className="text-xs text-muted-foreground mb-2">
+                El rol define el alcance base. Puedes ajustar permisos adicionales debajo.
+              </p>
+              <RoleSelector value={newRole} onChange={(r) => { setNewRole(r); applyRole(r, setNewPermissions); }} />
+            </div>
+            <Separator className="my-2" />
+            <div>
               <Label className="text-sm">Permisos</Label>
               <p className="text-xs text-muted-foreground mb-2">
                 El agente siempre puede ver y responder mensajes en sus conversaciones asignadas.
@@ -285,17 +321,21 @@ export const TeamManagement = () => {
       <Dialog open={!!permsTarget} onOpenChange={(o) => { if (!o) setPermsTarget(null); }}>
         <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Permisos del agente</DialogTitle>
+            <DialogTitle>Rol y permisos</DialogTitle>
             <DialogDescription>
               {permsTarget?.agent_name || permsTarget?.agent_email}
             </DialogDescription>
           </DialogHeader>
-          <PermissionsForm value={permsDraft} onChange={setPermsDraft} />
+          <div className="space-y-3">
+            <RoleSelector value={roleDraft} onChange={(r) => { setRoleDraft(r); applyRole(r, setPermsDraft); }} />
+            <Separator />
+            <PermissionsForm value={permsDraft} onChange={setPermsDraft} />
+          </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setPermsTarget(null)} disabled={submitting}>Cancelar</Button>
             <Button onClick={savePermissions} disabled={submitting}>
               {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Guardar permisos
+              Guardar
             </Button>
           </DialogFooter>
         </DialogContent>

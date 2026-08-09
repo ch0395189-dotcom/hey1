@@ -23,6 +23,29 @@ function sanitizePermissions(input: unknown): Record<string, boolean> {
   return out;
 }
 
+const TEAM_ROLES = ["admin", "supervisor", "agent", "viewer"] as const;
+type TeamRole = typeof TEAM_ROLES[number];
+
+function sanitizeRole(input: unknown): TeamRole {
+  const v = String(input ?? "agent");
+  return (TEAM_ROLES as readonly string[]).includes(v) ? (v as TeamRole) : "agent";
+}
+
+const ROLE_PERMISSIONS: Record<TeamRole, Record<string, boolean>> = {
+  admin: { block_contacts: true, tag_contacts: true, create_tags: true, archive_conversations: true, view_contacts: true, view_statistics: true },
+  supervisor: { block_contacts: true, tag_contacts: true, create_tags: true, archive_conversations: true, view_contacts: true, view_statistics: true },
+  agent: { block_contacts: false, tag_contacts: true, create_tags: false, archive_conversations: true, view_contacts: false, view_statistics: false },
+  viewer: { block_contacts: false, tag_contacts: false, create_tags: false, archive_conversations: false, view_contacts: false, view_statistics: false },
+};
+
+/** A role never grants more than its ceiling. */
+function clampPermissions(role: TeamRole, perms: Record<string, boolean>) {
+  const ceiling = ROLE_PERMISSIONS[role];
+  const out: Record<string, boolean> = {};
+  for (const k of PERMISSION_KEYS) out[k] = Boolean(perms[k]) && Boolean(ceiling[k]);
+  return out;
+}
+
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
     status,
@@ -61,7 +84,11 @@ serve(async (req) => {
       const email = String(body.email || "").trim().toLowerCase();
       const name = String(body.name || "").trim();
       const password = String(body.password || "");
-      const permissions = sanitizePermissions(body.permissions);
+      const teamRole = sanitizeRole(body.team_role);
+      const permissions = clampPermissions(
+        teamRole,
+        body.permissions ? sanitizePermissions(body.permissions) : ROLE_PERMISSIONS[teamRole],
+      );
       if (!email || !password || password.length < 6) {
         return json({ error: "Email y contraseña (mín 6) requeridos" }, 200);
       }
@@ -96,6 +123,7 @@ serve(async (req) => {
         agent_name: name || null,
         is_active: true,
         permissions,
+        team_role: teamRole,
       });
       if (linkErr) {
         await admin.auth.admin.deleteUser(newUserId);
@@ -149,7 +177,11 @@ serve(async (req) => {
     if (action === "update_permissions") {
       const agentUserId = String(body.agent_user_id || "");
       if (!agentUserId) return json({ error: "agent_user_id requerido" }, 200);
-      const permissions = sanitizePermissions(body.permissions);
+      const teamRole = sanitizeRole(body.team_role);
+      const permissions = clampPermissions(
+        teamRole,
+        body.permissions ? sanitizePermissions(body.permissions) : ROLE_PERMISSIONS[teamRole],
+      );
 
       const { data: link } = await admin
         .from("team_agents")
@@ -161,7 +193,7 @@ serve(async (req) => {
 
       const { error } = await admin
         .from("team_agents")
-        .update({ permissions, updated_at: new Date().toISOString() })
+        .update({ permissions, team_role: teamRole, updated_at: new Date().toISOString() })
         .eq("id", link.id);
       if (error) return json({ error: error.message }, 200);
       return json({ ok: true });

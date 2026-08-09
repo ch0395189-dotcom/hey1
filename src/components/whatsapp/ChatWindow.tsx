@@ -133,7 +133,8 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
   const [newMessage, setNewMessage] = useState("");
   const { isAgent, myPermissions } = useTeam();
   const isMobile = useIsMobile();
-  const canTag = !isAgent || myPermissions.tag_contacts;
+  const { canWrite } = useTeam();
+  const canTag = (!isAgent || myPermissions.tag_contacts) && canWrite;
   const canBlock = !isAgent || myPermissions.block_contacts;
   const canArchive = !isAgent || myPermissions.archive_conversations;
   const [sending, setSending] = useState(false);
@@ -1976,6 +1977,13 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
       )}
 
       {/* Message Input - extra bottom padding on mobile so Android/iOS system bars don't cover the buttons */}
+      {!canWrite ? (
+        <div className="shrink-0 p-4 border-t border-border bg-card safe-area-bottom text-center">
+          <p className="text-sm text-muted-foreground">
+            Tu rol es de solo lectura: puedes leer las conversaciones pero no responder.
+          </p>
+        </div>
+      ) : (
       <form onSubmit={handleSendMessage} className="shrink-0 p-2 md:p-4 border-t border-border bg-card safe-area-bottom chat-input-mobile">
         <div className="max-w-3xl mx-auto flex items-end gap-1.5 md:gap-2">
           <input
@@ -2148,6 +2156,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
           )}
         </div>
       </form>
+      )}
 
       {/* Interactive Message Dialog */}
       <InteractiveMessageDialog

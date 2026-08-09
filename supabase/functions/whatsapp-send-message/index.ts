@@ -177,7 +177,7 @@ Deno.serve(async (req) => {
       if (account.user_id !== userData.user.id) {
         const { data: agentRow } = await supabaseAdmin
           .from('team_agents')
-          .select('id')
+          .select('id, team_role')
           .eq('owner_id', account.user_id)
           .eq('agent_user_id', userData.user.id)
           .eq('is_active', true)
@@ -186,6 +186,13 @@ Deno.serve(async (req) => {
         if (!agentRow) {
           return new Response(
             JSON.stringify({ error: 'Unauthorized: account not found or not owned' }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        if ((agentRow as any).team_role === 'viewer') {
+          return new Response(
+            JSON.stringify({ error: 'Tu rol es de solo lectura: no puedes enviar mensajes.' }),
             { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }

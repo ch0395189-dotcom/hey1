@@ -11,6 +11,50 @@ export interface AgentPermissions {
   view_statistics: boolean;
 }
 
+export type TeamRole = "admin" | "supervisor" | "agent" | "viewer";
+
+export const TEAM_ROLES: { value: TeamRole; label: string; description: string }[] = [
+  { value: "admin", label: "Administrador", description: "Acceso total: todas las conversaciones, etiquetas, contactos y estadísticas." },
+  { value: "supervisor", label: "Supervisor", description: "Ve todas las conversaciones del equipo, puede responder, etiquetar y ver estadísticas." },
+  { value: "agent", label: "Agente", description: "Solo atiende las conversaciones que le asignan." },
+  { value: "viewer", label: "Solo lectura", description: "Puede leer sus conversaciones, pero no responder ni modificar nada." },
+];
+
+export const ROLE_PERMISSIONS: Record<TeamRole, AgentPermissions> = {
+  admin: {
+    block_contacts: true,
+    tag_contacts: true,
+    create_tags: true,
+    archive_conversations: true,
+    view_contacts: true,
+    view_statistics: true,
+  },
+  supervisor: {
+    block_contacts: true,
+    tag_contacts: true,
+    create_tags: true,
+    archive_conversations: true,
+    view_contacts: true,
+    view_statistics: true,
+  },
+  agent: {
+    block_contacts: false,
+    tag_contacts: true,
+    create_tags: false,
+    archive_conversations: true,
+    view_contacts: false,
+    view_statistics: false,
+  },
+  viewer: {
+    block_contacts: false,
+    tag_contacts: false,
+    create_tags: false,
+    archive_conversations: false,
+    view_contacts: false,
+    view_statistics: false,
+  },
+};
+
 export const DEFAULT_PERMISSIONS: AgentPermissions = {
   block_contacts: false,
   tag_contacts: false,
@@ -28,6 +72,7 @@ export interface TeamAgent {
   is_active: boolean;
   created_at: string;
   permissions: AgentPermissions;
+  team_role: TeamRole;
 }
 
 const PLAN_LIMITS: Record<string, number> = {
@@ -48,6 +93,9 @@ const normalizePermissions = (raw: any): AgentPermissions => ({
   view_statistics: Boolean(raw?.view_statistics),
 });
 
+const normalizeRole = (raw: any): TeamRole =>
+  (["admin", "supervisor", "agent", "viewer"].includes(raw) ? raw : "agent") as TeamRole;
+
 export const useTeam = () => {
   const [agents, setAgents] = useState<TeamAgent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,6 +103,7 @@ export const useTeam = () => {
   const [ownerId, setOwnerId] = useState<string | null>(null);
   const [isAgent, setIsAgent] = useState(false);
   const [myPermissions, setMyPermissions] = useState<AgentPermissions>(DEFAULT_PERMISSIONS);
+  const [myRole, setMyRole] = useState<TeamRole | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -67,13 +116,15 @@ export const useTeam = () => {
     // Am I an agent?
     const { data: meAgent } = await supabase
       .from("team_agents")
-      .select("owner_id, permissions")
+      .select("owner_id, permissions, team_role")
       .eq("agent_user_id", user.id)
       .maybeSingle();
 
     if (meAgent) {
+      const role = normalizeRole((meAgent as any).team_role);
       setIsAgent(true);
       setOwnerId(meAgent.owner_id);
+      setMyRole(role);
       setMyPermissions(normalizePermissions((meAgent as any).permissions));
       setLoading(false);
       return;
@@ -81,13 +132,14 @@ export const useTeam = () => {
 
     setIsAgent(false);
     setOwnerId(user.id);
+    setMyRole(null);
     setMyPermissions(DEFAULT_PERMISSIONS);
 
     const [{ data: subs }, { data: list }] = await Promise.all([
       supabase.from("subscriptions").select("plan").eq("user_id", user.id).maybeSingle(),
       supabase
         .from("team_agents")
-        .select("id, agent_user_id, agent_email, agent_name, is_active, created_at, permissions")
+        .select("id, agent_user_id, agent_email, agent_name, is_active, created_at, permissions, team_role")
         .eq("owner_id", user.id)
         .order("created_at", { ascending: true }),
     ]);
@@ -96,6 +148,7 @@ export const useTeam = () => {
     setAgents(((list ?? []) as any[]).map((a) => ({
       ...a,
       permissions: normalizePermissions(a.permissions),
+      team_role: normalizeRole(a.team_role),
     })));
     setLoading(false);
   }, []);
@@ -106,5 +159,7 @@ export const useTeam = () => {
 
   const limit = PLAN_LIMITS[plan] ?? 1;
 
-  return { agents, loading, plan, limit, ownerId, isAgent, myPermissions, refresh };
+  const canWrite = !isAgent || myRole !== "viewer";
+
+  return { agents, loading, plan, limit, ownerId, isAgent, myPermissions, myRole, canWrite, refresh };
 };

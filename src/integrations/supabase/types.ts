@@ -1394,6 +1394,7 @@ export type Database = {
           is_active: boolean
           owner_id: string
           permissions: Json
+          team_role: string
           updated_at: string
         }
         Insert: {
@@ -1405,6 +1406,7 @@ export type Database = {
           is_active?: boolean
           owner_id: string
           permissions?: Json
+          team_role?: string
           updated_at?: string
         }
         Update: {
@@ -1416,6 +1418,7 @@ export type Database = {
           is_active?: boolean
           owner_id?: string
           permissions?: Json
+          team_role?: string
           updated_at?: string
         }
         Relationships: []
@@ -1918,6 +1921,7 @@ export type Database = {
         }[]
       }
       get_my_owner_id: { Args: never; Returns: string }
+      get_team_role: { Args: { _user_id: string }; Returns: string }
       get_whatsapp_account_limit: {
         Args: { _user_id: string }
         Returns: number
@@ -1933,6 +1937,7 @@ export type Database = {
       is_agent_of: { Args: { _owner_id: string }; Returns: boolean }
       is_conversation_blocked: { Args: { conv_id: string }; Returns: boolean }
       normalize_phone: { Args: { p: string }; Returns: string }
+      team_member_can_write: { Args: { _user_id: string }; Returns: boolean }
       user_owns_chatbot_config: {
         Args: { config_id: string }
         Returns: boolean
