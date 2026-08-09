@@ -333,10 +333,15 @@ const Dashboard = () => {
     }
 
     // Query helper con auto-retry si el JWT expiró entre la verificación y la consulta
+    // Importante: el admin tiene RLS que le permite ver TODAS las cuentas, por eso
+    // filtramos explícitamente por el usuario efectivo (o el impersonado) para que
+    // no aparezcan números de otros clientes en su bandeja.
+    const effectiveUserId = getImpersonationId() || activeSession?.user?.id || null;
     const fetchAccounts = async () => {
       return await supabase
         .from('whatsapp_accounts')
         .select('id, display_name, phone_number, user_id')
+        .eq('user_id', effectiveUserId ?? '')
         .order('created_at', { ascending: false });
     };
 
