@@ -518,8 +518,15 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
       window.addEventListener('focus', onVisible);
       window.addEventListener('online', onOnline);
 
+      // Fast fallback polling while the chat is open, in case the Realtime
+      // socket dropped silently (mobile suspend, flaky network).
+      const pollId = window.setInterval(() => {
+        if (document.visibilityState === 'visible') fetchMessages();
+      }, 4000);
+
       return () => {
         supabase.removeChannel(channel);
+        window.clearInterval(pollId);
         document.removeEventListener('visibilitychange', onVisible);
         window.removeEventListener('focus', onVisible);
         window.removeEventListener('online', onOnline);
