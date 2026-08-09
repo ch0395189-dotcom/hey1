@@ -263,8 +263,6 @@ export const AppointmentsPanel = () => {
 
   const remove = async () => {
     if (!deleteId) return;
-    void 0;
-    if (!deleteId) return;
     const { error } = await supabase.from('appointments').delete().eq('id', deleteId);
     if (error) {
       toast({ title: 'No se pudo eliminar', description: error.message, variant: 'destructive' });
