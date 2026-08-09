@@ -91,6 +91,9 @@ export const AppointmentsPanel = () => {
   const [convs, setConvs] = useState<Record<string, { phone: string; name: string | null }>>({});
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [myUserId, setMyUserId] = useState<string | null>(null);
+  const [scope, setScope] = useState<'mine' | 'all'>('mine');
+  const [ownerFilter, setOwnerFilter] = useState<string>('all');
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<string>('all');
   const [from, setFrom] = useState('');
@@ -103,11 +106,22 @@ export const AppointmentsPanel = () => {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
+    const { data: authData } = await supabase.auth.getUser();
+    const uid = authData.user?.id ?? null;
+    setMyUserId(uid);
+
+    let query = supabase
       .from('appointments')
       .select('id, conversation_id, user_id, customer_name, customer_phone, birth_date, appointment_date, appointment_time, notes, status, created_at, google_sync_status, google_sync_error, google_event_link')
       .order('created_at', { ascending: false })
       .limit(500);
+
+    // Cada usuario ve solo las citas de su cuenta. El admin puede ampliar el alcance.
+    if (uid && !(isAdmin && scope === 'all')) {
+      query = query.eq('user_id', uid);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       toast({ title: 'Error al cargar citas', description: error.message, variant: 'destructive' });
@@ -115,7 +129,7 @@ export const AppointmentsPanel = () => {
       setAppointments((data ?? []) as Appointment[]);
     }
     setLoading(false);
-  }, []);
+  }, [isAdmin, scope]);
 
   // Cargar los datos del usuario dueño de cada cita
   const loadOwners = useCallback(async (ids: string[]) => {
@@ -276,6 +290,7 @@ export const AppointmentsPanel = () => {
     const q = search.trim().toLowerCase();
     return appointments.filter((a) => {
       if (status !== 'all' && a.status !== status) return false;
+      if (isAdmin && scope === 'all' && ownerFilter !== 'all' && a.user_id !== ownerFilter) return false;
       if (q) {
         const c = a.conversation_id ? convs[a.conversation_id] : undefined;
         const hay = `${a.customer_name ?? ''} ${a.customer_phone ?? ''} ${a.notes ?? ''} ${
@@ -288,7 +303,7 @@ export const AppointmentsPanel = () => {
       if (to && (!d || d > to)) return false;
       return true;
     });
-  }, [appointments, search, status, from, to, convs]);
+  }, [appointments, search, status, from, to, convs, isAdmin, scope, ownerFilter]);
 
   const googleConnMeta = useMemo(() => {
     switch (googleStatus.state) {
@@ -414,6 +429,34 @@ export const AppointmentsPanel = () => {
           <span className="text-muted-foreground text-sm">a</span>
           <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-40" />
         </div>
+        {isAdmin && (
+          <div className="flex items-center gap-2">
+            <Select value={scope} onValueChange={(v) => { setScope(v as 'mine' | 'all'); setOwnerFilter('all'); }}>
+              <SelectTrigger className="w-full lg:w-52">
+                <SelectValue placeholder="Alcance" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="mine">Solo mi cuenta</SelectItem>
+                <SelectItem value="all">Todas las cuentas (admin)</SelectItem>
+              </SelectContent>
+            </Select>
+            {scope === 'all' && (
+              <Select value={ownerFilter} onValueChange={setOwnerFilter}>
+                <SelectTrigger className="w-full lg:w-56">
+                  <SelectValue placeholder="Agendada por" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos los usuarios</SelectItem>
+                  {Array.from(new Set(appointments.map((a) => a.user_id).filter(Boolean) as string[])).map((id) => (
+                    <SelectItem key={id} value={id}>
+                      {owners[id]?.name || owners[id]?.email || id.slice(0, 8)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+        )}
         <div className="flex items-center gap-2">
           <Button variant="outline" size="icon" onClick={load} title="Actualizar">
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
