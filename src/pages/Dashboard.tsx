@@ -49,6 +49,7 @@ import {
   NotificationSettingsPanel,
 } from "@/components/dashboard/lazyPanels";
 import { TrialBanner } from "@/components/dashboard/TrialBanner";
+import { TrialOnboardingChecklist } from "@/components/dashboard/TrialOnboardingChecklist";
 import { RenewalBanner } from "@/components/dashboard/RenewalBanner";
 import { PaymentAlertBanner } from "@/components/dashboard/PaymentAlertBanner";
 import { MessageLimitBanner } from "@/components/dashboard/MessageLimitBanner";
@@ -591,6 +592,7 @@ const Dashboard = () => {
       {!isAgent && (
         <div className="px-4 py-2 space-y-2">
           <TrialBanner />
+          <TrialOnboardingChecklist />
           <RenewalBanner />
           <PaymentAlertBanner />
           <MessageLimitBanner />
