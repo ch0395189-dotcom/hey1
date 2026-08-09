@@ -1041,6 +1041,36 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
                 />
               )}
 
+              <div className="space-y-2">
+                <Label>Al finalizar este nodo, ir a…</Label>
+                <Select
+                  value={newNode.next_node_id ?? 'none'}
+                  onValueChange={(value) =>
+                    setNewNode({ ...newNode, next_node_id: value === 'none' ? null : value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="No redirigir" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No redirigir (terminar aquí)</SelectItem>
+                    {flatNodes
+                      .filter((n) => n.id !== editingNode?.id)
+                      .map((n) => (
+                        <SelectItem key={n.id} value={n.id}>
+                          {n.title}
+                          {n.action_type === 'escalate' ? ' · Asesor humano' : ''}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Ej: en el nodo de <strong>Agendar Cita</strong>, elige aquí el nodo{' '}
+                  <strong>Hablar con un asesor</strong>: cuando el cliente termine de dejar sus datos,
+                  el bot continuará automáticamente en ese nodo.
+                </p>
+              </div>
+
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={resetForm}>
                   Cancelar
