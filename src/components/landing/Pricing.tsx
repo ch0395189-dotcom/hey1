@@ -6,7 +6,7 @@ import { useBoldCheckout } from "@/hooks/useBoldCheckout";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
-type PlanKey = 'starter' | 'professional' | 'enterprise' | 'esoterico_pro' | 'esoterico_rental';
+type PlanKey = 'starter' | 'emprendedor' | 'professional' | 'enterprise' | 'esoterico_pro' | 'esoterico_rental';
 
 const plans: Array<{
   name: string;
@@ -19,6 +19,24 @@ const plans: Array<{
   popular: boolean;
   noTrial?: boolean;
 }> = [
+  {
+    name: "Emprendedor",
+    key: "emprendedor",
+    price: "89.000",
+    currency: "COP",
+    period: "mes",
+    description: "Ideal para empezar tú solo",
+    features: [
+      "1 número de WhatsApp",
+      "1 agente / usuario",
+      "1.000 mensajes/mes",
+      "Bot básico automatizado",
+      "Bandeja unificada",
+      "Etiquetas y contactos",
+      "Soporte por WhatsApp"
+    ],
+    popular: false
+  },
   {
     name: "Nichos Difíciles",
     key: "esoterico_pro",
