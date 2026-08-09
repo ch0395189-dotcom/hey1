@@ -484,7 +484,13 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
               )}
               {node.action_type && (
                 <span className="text-xs px-2 py-0.5 bg-destructive/10 text-destructive rounded-full">
-                  {node.action_type === 'escalate' ? 'Escalar' : node.action_type === 'schedule' ? '📅 Agendar Cita' : 'Finalizar'}
+                  {node.action_type === 'escalate'
+                    ? 'Escalar'
+                    : node.action_type === 'schedule'
+                      ? '📅 Agendar Cita'
+                      : node.action_type === 'continue'
+                        ? '➡️ Continuar'
+                        : 'Finalizar'}
                 </span>
               )}
             </div>
@@ -776,11 +782,29 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
               <div className="space-y-2">
                 <Label>Tipo de Interacción</Label>
                 <Select
-                  value={newNode.interactive_type}
-                  onValueChange={(value: 'none' | 'buttons' | 'list' | 'cta_url') => {
+                  value={
+                    newNode.node_type === 'action' && newNode.action_type === 'schedule'
+                      ? 'appointment'
+                      : newNode.interactive_type
+                  }
+                  onValueChange={(value: 'none' | 'buttons' | 'list' | 'cta_url' | 'appointment') => {
+                    if (value === 'appointment') {
+                      setNewNode({
+                        ...newNode,
+                        node_type: 'action',
+                        action_type: 'schedule',
+                        interactive_type: 'none',
+                        button_options: [],
+                      });
+                      return;
+                    }
                     setNewNode({ 
                       ...newNode, 
                       interactive_type: value,
+                      action_type:
+                        newNode.action_type === 'schedule' ? null : newNode.action_type,
+                      node_type:
+                        newNode.action_type === 'schedule' ? 'message' : newNode.node_type,
                       button_options:
                         value === 'none'
                           ? []
@@ -802,6 +826,12 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
                     <SelectItem value="buttons">Botones de respuesta rápida (máx. 3)</SelectItem>
                     <SelectItem value="list">Lista de opciones (máx. 10)</SelectItem>
                     <SelectItem value="cta_url">Botón con enlace (WhatsApp o URL)</SelectItem>
+                    <SelectItem value="appointment">
+                      <div className="flex items-center gap-2">
+                        <CalendarDays className="h-4 w-4" />
+                        Agendar Cita
+                      </div>
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1023,6 +1053,7 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
                     <SelectContent>
                       <SelectItem value="escalate">Escalar a Humano</SelectItem>
                       <SelectItem value="end">Finalizar Conversación</SelectItem>
+                      <SelectItem value="continue">Continuar al siguiente nodo</SelectItem>
                       <SelectItem value="schedule">
                         <div className="flex items-center gap-2">
                           <CalendarDays className="h-4 w-4" />
@@ -1042,7 +1073,11 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
               )}
 
               <div className="space-y-2">
-                <Label>Al finalizar este nodo, ir a…</Label>
+                <Label>
+                  {newNode.action_type === 'continue'
+                    ? 'Continuar automáticamente al nodo…'
+                    : 'Al finalizar este nodo, ir a…'}
+                </Label>
                 <Select
                   value={newNode.next_node_id ?? 'none'}
                   onValueChange={(value) =>

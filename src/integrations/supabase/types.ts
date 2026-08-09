@@ -459,6 +459,7 @@ export type Database = {
           interactive_type: string
           media_type: string | null
           media_url: string | null
+          next_node_id: string | null
           node_type: string
           parent_node_id: string | null
           position: number
@@ -478,6 +479,7 @@ export type Database = {
           interactive_type?: string
           media_type?: string | null
           media_url?: string | null
+          next_node_id?: string | null
           node_type?: string
           parent_node_id?: string | null
           position?: number
@@ -497,6 +499,7 @@ export type Database = {
           interactive_type?: string
           media_type?: string | null
           media_url?: string | null
+          next_node_id?: string | null
           node_type?: string
           parent_node_id?: string | null
           position?: number
@@ -511,6 +514,13 @@ export type Database = {
             columns: ["chatbot_config_id"]
             isOneToOne: false
             referencedRelation: "chatbot_configs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chatbot_flow_nodes_next_node_id_fkey"
+            columns: ["next_node_id"]
+            isOneToOne: false
+            referencedRelation: "chatbot_flow_nodes"
             referencedColumns: ["id"]
           },
           {
