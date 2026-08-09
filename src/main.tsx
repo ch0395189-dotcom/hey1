@@ -243,10 +243,10 @@ if (isPreviewHost || isInIframe || isNativeApp) {
         // Check for updates every time the app loads
         reg.update().catch(() => {});
 
-        // Poll for updates every 60 seconds while app is open
+        // Poll for updates every 20 seconds while app is open
         setInterval(() => {
           reg.update().catch(() => {});
-        }, 60_000);
+        }, 20_000);
 
         // Also check immediately when user returns to the tab/PWA
         // (covers cases where the app was backgrounded for a long time)
