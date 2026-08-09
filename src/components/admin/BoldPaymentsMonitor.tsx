@@ -51,6 +51,7 @@ const PLAN_LABELS: Record<string, string> = {
   enterprise: 'Enterprise',
   esoterico_pro: 'Nichos Difíciles',
   esoterico_rental: 'Nichos + Alquiler',
+  emprendedor: 'Emprendedor',
   starter: 'Starter',
 };
 

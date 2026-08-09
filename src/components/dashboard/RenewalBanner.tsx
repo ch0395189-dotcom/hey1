@@ -15,6 +15,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 
 const PLAN_NAMES: Record<string, string> = {
+  emprendedor: 'Plan Emprendedor',
   professional: 'Plan Professional',
   enterprise: 'Plan Enterprise',
   esoterico_pro: 'Plan Nichos Difíciles',
@@ -22,6 +23,7 @@ const PLAN_NAMES: Record<string, string> = {
 };
 
 const PLAN_ICONS: Record<string, React.ReactNode> = {
+  emprendedor: <Crown className="h-5 w-5" />,
   professional: <Crown className="h-5 w-5" />,
   enterprise: <Building className="h-5 w-5" />,
   esoterico_pro: <Sparkles className="h-5 w-5" />,
@@ -29,6 +31,12 @@ const PLAN_ICONS: Record<string, React.ReactNode> = {
 };
 
 const PLAN_FEATURES: Record<string, string[]> = {
+  emprendedor: [
+    '1 cuenta WhatsApp',
+    '1.000 mensajes/mes',
+    '1 agente',
+    'Bot básico automatizado',
+  ],
   professional: [
     '3 cuentas WhatsApp',
     '10,000 mensajes/mes',
@@ -57,13 +65,14 @@ const PLAN_FEATURES: Record<string, string[]> = {
 };
 
 const PLAN_PRICES: Record<string, { monthly: number; currency: string }> = {
+  emprendedor: { monthly: 89000, currency: 'COP' },
   professional: { monthly: 99000, currency: 'COP' },
   enterprise: { monthly: 299000, currency: 'COP' },
   esoterico_pro: { monthly: 199000, currency: 'COP' },
   esoterico_rental: { monthly: 300000, currency: 'COP' },
 };
 
-type SubscriptionPlan = 'professional' | 'enterprise' | 'esoterico_pro' | 'esoterico_rental';
+type SubscriptionPlan = 'emprendedor' | 'professional' | 'enterprise' | 'esoterico_pro' | 'esoterico_rental';
 
 export const RenewalBanner = () => {
   const [subscription, setSubscription] = useState<{
@@ -150,7 +159,7 @@ export const RenewalBanner = () => {
   const isUrgent = subscription.daysUntilExpiry <= 1;
   const isExpired = subscription.isExpired;
 
-  const plans: SubscriptionPlan[] = ['professional', 'esoterico_pro', 'esoterico_rental', 'enterprise'];
+  const plans: SubscriptionPlan[] = ['emprendedor', 'professional', 'esoterico_pro', 'esoterico_rental', 'enterprise'];
 
   return (
     <>

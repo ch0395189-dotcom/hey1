@@ -15,7 +15,7 @@ interface SuspendedServiceScreenProps {
   reason: 'trial_expired' | 'subscription_expired' | null;
 }
 
-type PlanKey = 'starter' | 'professional' | 'enterprise' | 'esoterico_pro' | 'esoterico_rental';
+type PlanKey = 'starter' | 'emprendedor' | 'professional' | 'enterprise' | 'esoterico_pro' | 'esoterico_rental';
 
 const plans: Array<{
   name: string;
@@ -24,6 +24,19 @@ const plans: Array<{
   features: string[];
   popular: boolean;
 }> = [
+  {
+    name: "Emprendedor",
+    key: "emprendedor",
+    price: "89.000",
+    features: [
+      "1 número de WhatsApp",
+      "1.000 mensajes/mes",
+      "1 agente",
+      "Bot básico automatizado",
+      "Bandeja unificada",
+    ],
+    popular: false,
+  },
   {
     name: "Professional",
     key: "professional",
