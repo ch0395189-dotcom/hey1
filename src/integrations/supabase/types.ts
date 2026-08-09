@@ -1696,6 +1696,80 @@ export type Database = {
         }
         Relationships: []
       }
+      virtual_number_orders: {
+        Row: {
+          cost: number | null
+          country: string
+          country_code: string | null
+          created_at: string
+          error: string | null
+          expires_at: string | null
+          id: string
+          mode: string
+          phone_number: string | null
+          provider: string
+          provider_order_id: string | null
+          raw: Json | null
+          service: string
+          sms_code: string | null
+          sms_text: string | null
+          status: string
+          updated_at: string
+          user_id: string
+          whatsapp_account_id: string | null
+        }
+        Insert: {
+          cost?: number | null
+          country: string
+          country_code?: string | null
+          created_at?: string
+          error?: string | null
+          expires_at?: string | null
+          id?: string
+          mode?: string
+          phone_number?: string | null
+          provider?: string
+          provider_order_id?: string | null
+          raw?: Json | null
+          service?: string
+          sms_code?: string | null
+          sms_text?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+          whatsapp_account_id?: string | null
+        }
+        Update: {
+          cost?: number | null
+          country?: string
+          country_code?: string | null
+          created_at?: string
+          error?: string | null
+          expires_at?: string | null
+          id?: string
+          mode?: string
+          phone_number?: string | null
+          provider?: string
+          provider_order_id?: string | null
+          raw?: Json | null
+          service?: string
+          sms_code?: string | null
+          sms_text?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+          whatsapp_account_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "virtual_number_orders_whatsapp_account_id_fkey"
+            columns: ["whatsapp_account_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       whatsapp_accounts: {
         Row: {
           access_token: string
