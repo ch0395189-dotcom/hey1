@@ -125,13 +125,13 @@ export const ConversationsList = ({
   const getPlatformIcon = (platf: string) => {
     switch (platf) {
       case 'whatsapp':
-        return <FaWhatsapp className="w-3.5 h-3.5 text-green-500" />;
+        return <span className="inline-flex"><FaWhatsapp className="w-3.5 h-3.5 text-green-500" /></span>;
       case 'messenger':
-        return <FaFacebookMessenger className="w-3.5 h-3.5 text-blue-500" />;
+        return <span className="inline-flex"><FaFacebookMessenger className="w-3.5 h-3.5 text-blue-500" /></span>;
       case 'instagram':
-        return <FaInstagram className="w-3.5 h-3.5 text-pink-500" />;
+        return <span className="inline-flex"><FaInstagram className="w-3.5 h-3.5 text-pink-500" /></span>;
       case 'tiktok':
-        return <FaTiktok className="w-3.5 h-3.5" />;
+        return <span className="inline-flex"><FaTiktok className="w-3.5 h-3.5" /></span>;
       default:
         return <MessageCircle className="w-3.5 h-3.5 text-muted-foreground" />;
     }
