@@ -43,6 +43,7 @@ interface FlowNode {
   media_url: string | null;
   media_type: string | null;
   appointment_settings?: AppointmentSettings;
+  next_node_id?: string | null;
   children?: FlowNode[];
 }
 
@@ -64,6 +65,7 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
     media_url: null as string | null,
     media_type: null as string | null,
     appointment_settings: defaultAppointmentSettings as AppointmentSettings,
+    next_node_id: null as string | null,
   });
   const [uploadingMedia, setUploadingMedia] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -271,6 +273,7 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
             newNode.node_type === 'action' && newNode.action_type === 'schedule'
               ? (newNode.appointment_settings as any)
               : null,
+          next_node_id: newNode.next_node_id,
         })
         .eq('id', editingNode.id);
 
@@ -305,6 +308,7 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
             newNode.node_type === 'action' && newNode.action_type === 'schedule'
               ? (newNode.appointment_settings as any)
               : null,
+          next_node_id: newNode.next_node_id,
         })
         .select()
         .single();
@@ -335,6 +339,7 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
       media_url: null,
       media_type: null,
       appointment_settings: defaultAppointmentSettings,
+      next_node_id: null,
     });
     setShowAddForm(false);
     setEditingNode(null);
@@ -358,6 +363,7 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
       media_url: node.media_url || null,
       media_type: node.media_type || null,
       appointment_settings: { ...defaultAppointmentSettings, ...(node.appointment_settings || {}) },
+      next_node_id: node.next_node_id ?? null,
     });
     const existingUrl = node.button_options?.[0]?.url || '';
     const waMatch = existingUrl.match(/^https?:\/\/(?:wa\.me|api\.whatsapp\.com\/send\?phone=)\/?(\d+)(?:\?(?:text|&text)=([^&]*))?/i);
