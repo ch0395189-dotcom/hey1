@@ -61,6 +61,23 @@ void boot();
       ?.getAttribute("content") || "";
 
   let notified = false;
+  let pendingBuildId: string | null = null;
+
+  // Aplica la actualización sin molestar: si la app está en segundo plano
+  // (o el usuario no está escribiendo), recargamos solos.
+  const applyUpdate = () => {
+    try {
+      const el = document.activeElement as HTMLElement | null;
+      const typing =
+        !!el &&
+        (el.tagName === "INPUT" ||
+          el.tagName === "TEXTAREA" ||
+          el.isContentEditable);
+      if (typing) return false;
+    } catch {}
+    window.location.reload();
+    return true;
+  };
 
   const checkVersion = async () => {
     if (notified) return;
@@ -77,6 +94,7 @@ void boot();
       if (!remote) return;
       if (initialBuildId && remote !== initialBuildId) {
         notified = true;
+        pendingBuildId = remote;
         console.log(
           "[Version] New build detected:",
           initialBuildId,
@@ -84,11 +102,13 @@ void boot();
           remote,
           data?.forceLogout ? "(force logout)" : ""
         );
-        // SAFETY: even if the build asks for a global logout, we only show
-        // the update banner. Forcing logout silently has caused users to be
-        // kicked out unexpectedly. The banner lets them save their work and
-        // re-authenticate intentionally. (forceLogoutAndRedirect is kept for
-        // future manual triggers if ever needed.)
+        // Si la pestaña está oculta, aplicamos la actualización de una vez
+        // (el usuario vuelve y ya está en la versión nueva). Si está mirando
+        // la app, mostramos el banner para no interrumpir su trabajo.
+        if (document.visibilityState === "hidden") {
+          window.location.reload();
+          return;
+        }
         window.dispatchEvent(new CustomEvent("sw-update-available"));
       }
     } catch {
@@ -96,17 +116,23 @@ void boot();
     }
   };
 
-  // Poll every 30s
-  setInterval(checkVersion, 30_000);
+  // Poll every 10s — los cambios llegan a los dispositivos casi de inmediato.
+  setInterval(checkVersion, 10_000);
 
   // Check immediately on focus / visibility change
   document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible") checkVersion();
+    if (document.visibilityState === "visible") {
+      checkVersion();
+    } else if (pendingBuildId) {
+      // Se fue a segundo plano con una versión pendiente: recargamos ahora.
+      applyUpdate();
+    }
   });
   window.addEventListener("focus", checkVersion);
+  window.addEventListener("online", checkVersion);
 
   // First check shortly after load
-  setTimeout(checkVersion, 5_000);
+  setTimeout(checkVersion, 1_500);
 })();
 
 /**
@@ -217,10 +243,10 @@ if (isPreviewHost || isInIframe || isNativeApp) {
         // Check for updates every time the app loads
         reg.update().catch(() => {});
 
-        // Poll for updates every 60 seconds while app is open
+        // Poll for updates every 20 seconds while app is open
         setInterval(() => {
           reg.update().catch(() => {});
-        }, 60_000);
+        }, 20_000);
 
         // Also check immediately when user returns to the tab/PWA
         // (covers cases where the app was backgrounded for a long time)
