@@ -16,8 +16,10 @@ interface DownAccount {
 
 /**
  * Muestra una alerta ROJA cuando un número de WhatsApp parece caído o
- * bloqueado por Meta: calidad RED, pausado por calidad, o cuenta con más
- * de 24h sin recibir mensajes entrantes en los últimos 3 días.
+ * bloqueado por Meta. Solo usamos señales reales reportadas por Meta
+ * (pausa por calidad o calidad RED/YELLOW). No inferimos bloqueos por
+ * falta de mensajes entrantes: generaba falsos positivos en números
+ * activos con poco tráfico.
  */
 export function WhatsAppDownAlert({ accountIds }: Props) {
   const [down, setDown] = useState<DownAccount[]>([]);
@@ -33,7 +35,7 @@ export function WhatsAppDownAlert({ accountIds }: Props) {
         const { data: accounts } = await supabase
           .from("whatsapp_accounts")
           .select(
-            "id, phone_number, connection_type, quality_paused, quality_rating, created_at"
+            "id, phone_number, connection_type, quality_paused, quality_rating"
           )
           .in("id", accountIds);
 
@@ -49,9 +51,6 @@ export function WhatsAppDownAlert({ accountIds }: Props) {
         );
 
         const results: DownAccount[] = [];
-        const now = Date.now();
-        const dayMs = 24 * 60 * 60 * 1000;
-        const threeDaysAgo = new Date(now - 3 * dayMs).toISOString();
 
         for (const a of metaAccounts as any[]) {
           const rating = (a.quality_rating || "").toUpperCase();
@@ -74,38 +73,6 @@ export function WhatsAppDownAlert({ accountIds }: Props) {
                 "Meta bajó la calidad de tu número. Si sigue empeorando podría bloquearlo.",
             });
             continue;
-          }
-
-          const isMature = now - new Date(a.created_at).getTime() > dayMs;
-          if (!isMature) continue;
-
-          const { data: convs } = await supabase
-            .from("conversations")
-            .select("id")
-            .eq("whatsapp_account_id", a.id);
-          const convIds = (convs || []).map((c: any) => c.id);
-          if (convIds.length === 0) {
-            results.push({
-              id: a.id,
-              phone_number: a.phone_number,
-              severity: "blocked",
-              reason: "No estamos recibiendo mensajes en este número.",
-            });
-            continue;
-          }
-          const { count } = await supabase
-            .from("messages")
-            .select("id", { count: "exact", head: true })
-            .eq("direction", "incoming")
-            .gte("created_at", threeDaysAgo)
-            .in("conversation_id", convIds);
-          if ((count ?? 0) === 0) {
-            results.push({
-              id: a.id,
-              phone_number: a.phone_number,
-              severity: "blocked",
-              reason: "No estamos recibiendo mensajes en este número.",
-            });
           }
         }
 
