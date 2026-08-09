@@ -273,8 +273,24 @@ export const AppointmentsPanel = () => {
     setDeleteId(null);
   };
 
+  const openConversation = (a: Appointment) => {
+    if (!a.conversation_id) {
+      toast({
+        title: 'Sin conversación vinculada',
+        description: 'Esta cita no tiene un chat de WhatsApp asociado.',
+      });
+      return;
+    }
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('view', 'inbox');
+      next.set('platform', 'whatsapp');
+      next.set('conv', a.conversation_id as string);
+      return next;
+    });
+  };
+
   const exportCsv = () => {
-    void 0;
     const rows = [
       ['Nombre', 'Teléfono', 'Nacimiento', 'Fecha', 'Hora', 'Estado', 'Notas', 'Creada'],
       ...filtered.map((a) => [
