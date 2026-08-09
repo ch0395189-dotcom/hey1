@@ -484,7 +484,13 @@ export const FlowBuilder = ({ chatbotConfigId }: FlowBuilderProps) => {
               )}
               {node.action_type && (
                 <span className="text-xs px-2 py-0.5 bg-destructive/10 text-destructive rounded-full">
-                  {node.action_type === 'escalate' ? 'Escalar' : node.action_type === 'schedule' ? '📅 Agendar Cita' : 'Finalizar'}
+                  {node.action_type === 'escalate'
+                    ? 'Escalar'
+                    : node.action_type === 'schedule'
+                      ? '📅 Agendar Cita'
+                      : node.action_type === 'continue'
+                        ? '➡️ Continuar'
+                        : 'Finalizar'}
                 </span>
               )}
             </div>
