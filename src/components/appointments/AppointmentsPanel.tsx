@@ -36,11 +36,6 @@ import {
   Cake,
   Clock,
   Download,
-  Calendar,
-  Unlink,
-  AlertTriangle,
-  CheckCircle2,
-  ExternalLink,
   User as UserIcon,
   MessageSquare,
 } from 'lucide-react';
@@ -58,9 +53,6 @@ interface Appointment {
   notes: string | null;
   status: string;
   created_at: string;
-  google_sync_status: string | null;
-  google_sync_error: string | null;
-  google_event_link: string | null;
 }
 
 const STATUS_META: Record<string, { label: string; className: string }> = {
@@ -69,16 +61,6 @@ const STATUS_META: Record<string, { label: string; className: string }> = {
   completed: { label: 'Completada', className: 'bg-sky-500/15 text-sky-600 border-sky-500/30' },
   cancelled: { label: 'Cancelada', className: 'bg-destructive/15 text-destructive border-destructive/30' },
 };
-
-interface GoogleStatus {
-  state: 'loading' | 'connected' | 'disconnected' | 'error';
-  email?: string;
-  message?: string;
-  hint?: string;
-  errorCode?: string;
-  requiresReconnect?: boolean;
-  retryable?: boolean;
-}
 
 const statusMeta = (s: string) =>
   STATUS_META[s] ?? { label: s, className: 'bg-muted text-muted-foreground border-border' };
@@ -99,10 +81,6 @@ export const AppointmentsPanel = () => {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [googleStatus, setGoogleStatus] = useState<GoogleStatus>({
-    state: 'loading',
-  });
-  const [connecting, setConnecting] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -112,7 +90,7 @@ export const AppointmentsPanel = () => {
 
     let query = supabase
       .from('appointments')
-      .select('id, conversation_id, user_id, customer_name, customer_phone, birth_date, appointment_date, appointment_time, notes, status, created_at, google_sync_status, google_sync_error, google_event_link')
+      .select('id, conversation_id, user_id, customer_name, customer_phone, birth_date, appointment_date, appointment_time, notes, status, created_at')
       .order('created_at', { ascending: false })
       .limit(500);
 
@@ -159,106 +137,10 @@ export const AppointmentsPanel = () => {
     setOwners(map);
   }, [isAdmin]);
 
-  const checkGoogleStatus = useCallback(async () => {
-    setGoogleStatus({ state: 'loading' });
-    const { data, error } = await supabase.functions.invoke('google-calendar-status');
-
-    if (error) {
-      console.error('google-calendar-status error:', error);
-      setGoogleStatus({
-        state: 'error',
-        message: 'No pudimos verificar la conexión con Google Calendar.',
-        hint: 'Revisa tu conexión a internet y vuelve a intentarlo.',
-        retryable: true,
-      });
-      return;
-    }
-
-    if (data?.connected) {
-      setGoogleStatus({ state: 'connected', email: data.email });
-      return;
-    }
-
-    setGoogleStatus({
-      state: data?.state === 'error' ? 'error' : 'disconnected',
-      message: data?.message,
-      hint: data?.hint,
-      errorCode: data?.error_code,
-      requiresReconnect: data?.requires_reconnect,
-      retryable: data?.retryable,
-    });
-  }, []);
-
-  const connectGoogleCalendar = async () => {
-    setConnecting(true);
-    try {
-      const popup = window.open('', 'lovable-oauth', 'width=600,height=720');
-      if (!popup) {
-        toast({ title: 'Permite ventanas emergentes', variant: 'destructive' });
-        return;
-      }
-
-      const completion = new Promise<void>((resolve, reject) => {
-        let poll: number | undefined;
-        const cleanup = () => {
-          window.removeEventListener('message', onMessage);
-          if (poll !== undefined) window.clearInterval(poll);
-        };
-        const onMessage = (event: MessageEvent) => {
-          const type = event.data?.type;
-          if (
-            event.origin !== window.location.origin ||
-            event.source !== popup ||
-            event.data?.connectorId !== 'google_calendar' ||
-            (type !== 'appUserConnectorOAuthComplete' && type !== 'appUserConnectorOAuthFailed')
-          ) return;
-          cleanup();
-          if (type === 'appUserConnectorOAuthComplete') {
-            resolve();
-            return;
-          }
-          popup.close();
-          reject(new Error(event.data?.reason ?? 'OAuth connection failed.'));
-        };
-        window.addEventListener('message', onMessage);
-        poll = window.setInterval(() => {
-          if (!popup.closed) return;
-          cleanup();
-          reject(new Error('La ventana de OAuth se cerró antes de terminar.'));
-        }, 500);
-      });
-
-      const { data, error } = await supabase.functions.invoke('app-user-oauth-start', {
-        body: { origin: window.location.origin },
-      });
-      if (error) throw error;
-
-      popup.location.href = data.authorizationUrl;
-      await completion;
-      toast({ title: 'Google Calendar conectado' });
-      await checkGoogleStatus();
-    } catch (err: any) {
-      toast({ title: 'Error al conectar', description: err.message, variant: 'destructive' });
-    } finally {
-      setConnecting(false);
-    }
-  };
-
-  const disconnectGoogleCalendar = async () => {
-    try {
-      const { error } = await supabase.functions.invoke('google-calendar-disconnect');
-      if (error) throw error;
-      toast({ title: 'Google Calendar desconectado' });
-      await checkGoogleStatus();
-    } catch (err: any) {
-      toast({ title: 'Error al desconectar', description: err.message, variant: 'destructive' });
-    }
-  };
 
   useEffect(() => {
     load();
-    checkGoogleStatus();
-  }, [load, checkGoogleStatus]);
+  }, [load]);
 
   useEffect(() => {
     const ids = Array.from(new Set(appointments.map((a) => a.user_id).filter(Boolean) as string[]));
@@ -305,23 +187,6 @@ export const AppointmentsPanel = () => {
     });
   }, [appointments, search, status, from, to, convs, isAdmin, scope, ownerFilter]);
 
-  const googleConnMeta = useMemo(() => {
-    switch (googleStatus.state) {
-      case 'connected':
-        return { label: 'Conectado', className: 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30' };
-      case 'error':
-        return { label: 'Con error', className: 'bg-destructive/15 text-destructive border-destructive/30' };
-      case 'loading':
-        return { label: 'Verificando…', className: 'bg-muted text-muted-foreground border-border' };
-      default:
-        return { label: 'No conectado', className: 'bg-muted text-muted-foreground border-border' };
-    }
-  }, [googleStatus.state]);
-
-  const syncErrorCount = useMemo(
-    () => appointments.filter((a) => a.google_sync_status === 'error').length,
-    [appointments],
-  );
 
   const counts = useMemo(() => {
     const c: Record<string, number> = { all: appointments.length };
@@ -467,87 +332,6 @@ export const AppointmentsPanel = () => {
         </div>
       </div>
 
-      {/* Google Calendar connection */}
-      <div
-        className={`rounded-lg border p-3 space-y-2 ${
-          googleStatus.state === 'error'
-            ? 'border-destructive/40 bg-destructive/5'
-            : googleStatus.state === 'connected'
-            ? 'border-emerald-500/30 bg-emerald-500/5'
-            : 'bg-muted/30'
-        }`}
-      >
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            {googleStatus.state === 'error' ? (
-              <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
-            ) : googleStatus.state === 'connected' ? (
-              <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
-            ) : (
-              <Calendar className="h-5 w-5 text-primary shrink-0" />
-            )}
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <p className="text-sm font-medium">Google Calendar</p>
-                <Badge variant="outline" className={googleConnMeta.className}>
-                  {googleConnMeta.label}
-                </Badge>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {googleStatus.state === 'loading'
-                  ? 'Verificando conexión…'
-                  : googleStatus.state === 'connected'
-                  ? `Conectado${googleStatus.email ? `: ${googleStatus.email}` : ''}. Se verifica disponibilidad y se crean los eventos automáticamente.`
-                  : googleStatus.message ??
-                    'No conectado. Las citas se guardarán solo en HeyHey.'}
-              </p>
-              {googleStatus.state !== 'connected' && googleStatus.hint && (
-                <p className="text-xs text-muted-foreground/80 mt-0.5">{googleStatus.hint}</p>
-              )}
-            </div>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            {googleStatus.state === 'loading' ? (
-              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-            ) : (
-              <>
-                <Button variant="ghost" size="icon" onClick={checkGoogleStatus} title="Reintentar verificación">
-                  <RefreshCw className="h-4 w-4" />
-                </Button>
-                {googleStatus.state === 'connected' ? (
-                  <Button variant="outline" size="sm" onClick={disconnectGoogleCalendar} disabled={connecting}>
-                    <Unlink className="h-4 w-4 mr-1" /> Desconectar
-                  </Button>
-                ) : (
-                  <Button
-                    variant={googleStatus.state === 'error' ? 'destructive' : 'outline'}
-                    size="sm"
-                    onClick={connectGoogleCalendar}
-                    disabled={connecting}
-                  >
-                    {connecting ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                    ) : (
-                      <Calendar className="h-4 w-4 mr-1" />
-                    )}
-                    {googleStatus.state === 'error' ? 'Reconectar' : 'Conectar'}
-                  </Button>
-                )}
-              </>
-            )}
-          </div>
-        </div>
-
-        {syncErrorCount > 0 && (
-          <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-2 text-xs text-amber-700 dark:text-amber-400">
-            <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-            <span>
-              {syncErrorCount} cita{syncErrorCount === 1 ? '' : 's'} no se pudo sincronizar con Google Calendar.
-              Revisa el detalle en cada tarjeta; la cita sigue guardada en HeyHey.
-            </span>
-          </div>
-        )}
-      </div>
 
       <AppointmentRemindersCard />
 
@@ -670,28 +454,6 @@ export const AppointmentsPanel = () => {
                     </div>
                   )}
 
-                  {a.google_sync_status === 'error' ? (
-                    <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs text-destructive">
-                      <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                      <div className="min-w-0">
-                        <p className="font-medium">No se sincronizó con Google Calendar</p>
-                        <p className="text-destructive/80 break-words">
-                          {a.google_sync_error || 'Error desconocido al crear el evento.'}
-                        </p>
-                      </div>
-                    </div>
-                  ) : a.google_event_link ? (
-                    <a
-                      href={a.google_event_link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      className="inline-flex items-center gap-1 text-xs text-emerald-600 hover:underline"
-                    >
-                      <CheckCircle2 className="h-3.5 w-3.5" /> Sincronizada en Google Calendar
-                      <ExternalLink className="h-3 w-3" />
-                    </a>
-                  ) : null}
 
                   <div className="flex flex-wrap items-center gap-2 pt-1" onClick={(e) => e.stopPropagation()}>
                     {a.status !== 'confirmed' && (
