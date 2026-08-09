@@ -429,6 +429,34 @@ export const AppointmentsPanel = () => {
           <span className="text-muted-foreground text-sm">a</span>
           <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-40" />
         </div>
+        {isAdmin && (
+          <div className="flex items-center gap-2">
+            <Select value={scope} onValueChange={(v) => { setScope(v as 'mine' | 'all'); setOwnerFilter('all'); }}>
+              <SelectTrigger className="w-full lg:w-52">
+                <SelectValue placeholder="Alcance" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="mine">Solo mi cuenta</SelectItem>
+                <SelectItem value="all">Todas las cuentas (admin)</SelectItem>
+              </SelectContent>
+            </Select>
+            {scope === 'all' && (
+              <Select value={ownerFilter} onValueChange={setOwnerFilter}>
+                <SelectTrigger className="w-full lg:w-56">
+                  <SelectValue placeholder="Agendada por" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos los usuarios</SelectItem>
+                  {Array.from(new Set(appointments.map((a) => a.user_id).filter(Boolean) as string[])).map((id) => (
+                    <SelectItem key={id} value={id}>
+                      {owners[id]?.name || owners[id]?.email || id.slice(0, 8)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+        )}
         <div className="flex items-center gap-2">
           <Button variant="outline" size="icon" onClick={load} title="Actualizar">
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
