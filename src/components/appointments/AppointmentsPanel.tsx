@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useAdminCheck } from '@/hooks/useAdminCheck';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
@@ -40,12 +41,14 @@ import {
   AlertTriangle,
   CheckCircle2,
   ExternalLink,
+  User as UserIcon,
 } from 'lucide-react';
 import { AppointmentRemindersCard } from './AppointmentRemindersCard';
 
 interface Appointment {
   id: string;
   conversation_id: string | null;
+  user_id: string | null;
   customer_name: string | null;
   customer_phone: string | null;
   birth_date: string | null;
@@ -81,6 +84,9 @@ const statusMeta = (s: string) =>
 
 export const AppointmentsPanel = () => {
   const [, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { isAdmin } = useAdminCheck();
+  const [owners, setOwners] = useState<Record<string, { name: string; email: string }>>({});
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -97,7 +103,7 @@ export const AppointmentsPanel = () => {
     setLoading(true);
     const { data, error } = await supabase
       .from('appointments')
-      .select('id, conversation_id, customer_name, customer_phone, birth_date, appointment_date, appointment_time, notes, status, created_at, google_sync_status, google_sync_error, google_event_link')
+      .select('id, conversation_id, user_id, customer_name, customer_phone, birth_date, appointment_date, appointment_time, notes, status, created_at, google_sync_status, google_sync_error, google_event_link')
       .order('created_at', { ascending: false })
       .limit(500);
 
@@ -108,6 +114,34 @@ export const AppointmentsPanel = () => {
     }
     setLoading(false);
   }, []);
+
+  // Cargar los datos del usuario dueño de cada cita
+  const loadOwners = useCallback(async (ids: string[]) => {
+    if (!ids.length) return;
+    const map: Record<string, { name: string; email: string }> = {};
+
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('user_id, full_name')
+      .in('user_id', ids);
+    (profiles ?? []).forEach((p: any) => {
+      map[p.user_id] = { name: p.full_name ?? '', email: '' };
+    });
+
+    if (isAdmin) {
+      const { data } = await supabase.functions.invoke('admin-get-users');
+      const users = (data?.users ?? data ?? []) as any[];
+      users.forEach((u: any) => {
+        if (!ids.includes(u.id)) return;
+        map[u.id] = {
+          name: map[u.id]?.name || u.user_metadata?.full_name || '',
+          email: u.email ?? '',
+        };
+      });
+    }
+
+    setOwners(map);
+  }, [isAdmin]);
 
   const checkGoogleStatus = useCallback(async () => {
     setGoogleStatus({ state: 'loading' });
@@ -210,6 +244,11 @@ export const AppointmentsPanel = () => {
     checkGoogleStatus();
   }, [load, checkGoogleStatus]);
 
+  useEffect(() => {
+    const ids = Array.from(new Set(appointments.map((a) => a.user_id).filter(Boolean) as string[]));
+    loadOwners(ids);
+  }, [appointments, loadOwners]);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return appointments.filter((a) => {
@@ -292,7 +331,7 @@ export const AppointmentsPanel = () => {
 
   const exportCsv = () => {
     const rows = [
-      ['Nombre', 'Teléfono', 'Nacimiento', 'Fecha', 'Hora', 'Estado', 'Notas', 'Creada'],
+      ['Nombre', 'Teléfono', 'Nacimiento', 'Fecha', 'Hora', 'Estado', 'Notas', 'Agendada por', 'Creada'],
       ...filtered.map((a) => [
         a.customer_name ?? '',
         a.customer_phone ?? '',
@@ -301,6 +340,7 @@ export const AppointmentsPanel = () => {
         a.appointment_time ?? '',
         statusMeta(a.status).label,
         (a.notes ?? '').replace(/[\r\n]+/g, ' '),
+        a.user_id ? (owners[a.user_id]?.email || owners[a.user_id]?.name || a.user_id) : '',
         new Date(a.created_at).toLocaleString('es-CO'),
       ]),
     ];
