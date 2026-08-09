@@ -329,9 +329,15 @@ Deno.serve(async (req) => {
               url: url || "/dashboard",
               conversationId: conversationId ?? "",
               platform: platform || "whatsapp",
+              title: title || "Hey Hey",
+              body: body || "Tienes una nueva notificación",
             },
             android: {
               priority: "HIGH",
+              // Keep the push queued up to 24h if the phone is off/offline,
+              // and allow delivery before the device is unlocked after reboot.
+              ttl: "86400s",
+              direct_boot_ok: true,
               // notification block ensures the OS shows a heads-up banner
               // AND plays sound even when the app is closed / swiped away.
               notification: {
@@ -347,11 +353,13 @@ Deno.serve(async (req) => {
               headers: {
                 "apns-priority": "10",
                 "apns-push-type": "alert",
+                "apns-expiration": String(Math.floor(Date.now() / 1000) + 86400),
               },
               payload: {
                 aps: {
                   sound: "default",
                   "mutable-content": 1,
+                  "content-available": 1,
                   alert: {
                     title: title || "Hey Hey",
                     body: body || "Tienes una nueva notificación",

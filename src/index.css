@@ -134,6 +134,32 @@
   .safe-area-top {
     padding-top: env(safe-area-inset-top, 0px);
   }
+
+  /* ---- App nativa (Capacitor): respetar barra de estado y gestos ----
+     En Android/iPhone el WebView ocupa toda la pantalla, así que el header
+     quedaba debajo del reloj/notch y el contenido pegado a la barra de
+     gestos. Empujamos el shell completo dentro del área segura. */
+  html[data-native-app="true"] body {
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+
+  /* Los elementos fijos se posicionan respecto al viewport, no al body,
+     por lo que necesitan su propio desplazamiento. */
+  html[data-native-app="true"] .fixed.top-0 {
+    top: env(safe-area-inset-top, 0px);
+  }
+
+  html[data-native-app="true"] .fixed.inset-0 {
+    top: env(safe-area-inset-top, 0px);
+    bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  /* Con el teclado abierto el sistema ya reserva el espacio inferior. */
+  html[data-native-app="true"] body.keyboard-open .fixed.inset-0 {
+    bottom: 0;
+  }
 }
 
 @layer utilities {
