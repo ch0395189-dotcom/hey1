@@ -705,41 +705,53 @@ Deno.serve(async (req) => {
                 });
               }
 
-              // Send push notification to owner (and assigned agent if any)
-              // Fire-and-forget: NO await — el webhook responde a Meta antes
-              // de que la invocación termine, reduciendo latencia percibida.
-              // Skip for unsupported messages (cross-network/SMS) — no real content to notify about.
+              // Send push notification to owner (and assigned agent if any).
+              // AWAITED on purpose: background tasks were being killed before
+              // the push left the runtime, so notifications never arrived.
+              // Skip for unsupported messages (cross-network/SMS).
               if (!isUnsupported) {
-                runInBackground((async () => {
-                  try {
-                    const { data: convInfo } = await supabase
-                      .from('conversations')
-                      .select('assigned_to')
-                      .eq('id', conversationId)
-                      .single();
-                    const userIds = new Set<string>();
-                    if (whatsappAccount.user_id) userIds.add(whatsappAccount.user_id);
-                    if (convInfo?.assigned_to) userIds.add(convInfo.assigned_to);
-                    const pushBody = (content || `[${messageType}]`).slice(0, 140);
-                    await Promise.all(
-                      Array.from(userIds).map((uid) =>
-                        supabase.functions.invoke('send-push-notification', {
-                          body: {
-                            userId: uid,
-                            title: `💬 ${customerName}`,
-                            body: pushBody,
-                            url: `/dashboard?view=messages&platform=whatsapp&conv=${conversationId}`,
-                            conversationId,
-                            platform: 'whatsapp',
-                            tag: `conv-${conversationId}`,
+                try {
+                  const { data: convInfo } = await supabase
+                    .from('conversations')
+                    .select('assigned_to')
+                    .eq('id', conversationId)
+                    .single();
+                  const userIds = new Set<string>();
+                  if (whatsappAccount.user_id) userIds.add(whatsappAccount.user_id);
+                  if (convInfo?.assigned_to) userIds.add(convInfo.assigned_to);
+                  const pushBody = (content || `[${messageType}]`).slice(0, 140);
+                  const pushUrl = `${Deno.env.get('SUPABASE_URL')!}/functions/v1/send-push-notification`;
+                  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+                  console.log('Sending push for inbound message', {
+                    conversationId,
+                    targets: Array.from(userIds),
+                  });
+                  const results = await Promise.all(
+                    Array.from(userIds).map(async (uid) => {
+                      const res = await fetch(pushUrl, {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          apikey: serviceKey,
+                          Authorization: `Bearer ${serviceKey}`,
                         },
-                        })
-                      )
-                    );
-                  } catch (pushErr) {
-                    console.error('Push notification error (bg):', pushErr);
-                  }
-                })());
+                        body: JSON.stringify({
+                          userId: uid,
+                          title: `💬 ${customerName}`,
+                          body: pushBody,
+                          url: `/dashboard?view=messages&platform=whatsapp&conv=${conversationId}`,
+                          conversationId,
+                          platform: 'whatsapp',
+                          tag: `conv-${conversationId}`,
+                        }),
+                      });
+                      return await res.text().catch(() => '');
+                    })
+                  );
+                  console.log('Push result', results.join(' | ').slice(0, 500));
+                } catch (pushErr) {
+                  console.error('Push notification error:', pushErr);
+                }
               }
 
               // AI Support Agent (HeyHey) takes priority over node-based chatbot
