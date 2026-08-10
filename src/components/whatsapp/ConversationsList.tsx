@@ -281,6 +281,12 @@ export const ConversationsList = ({
       }));
 
       setConversations(conversationsWithMessages);
+      // Guardamos una copia local para que la próxima apertura de la app
+      // muestre la bandeja al instante en lugar de una lista vacía.
+      setCachedConversations(
+        conversationsCacheKey({ viewMode, platform, accountId: whatsappAccountId }),
+        conversationsWithMessages
+      );
     } catch (error) {
       console.error('Error fetching conversations:', error);
     } finally {

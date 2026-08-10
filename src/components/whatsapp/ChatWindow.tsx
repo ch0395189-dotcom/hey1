@@ -454,7 +454,15 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
 
   useEffect(() => {
     if (conversation) {
-      fetchMessages();
+      // Pintamos primero los mensajes cacheados de esta conversación para que
+      // al reabrir la app el chat no aparezca vacío mientras carga.
+      const cached = getCachedMessages<Message>(conversation.id);
+      if (cached && cached.length) {
+        setMessages(cached);
+        fetchMessages({ silent: true });
+      } else {
+        fetchMessages();
+      }
       markAsRead();
       setUnreadCount(0);
       setIsAtBottom(true);
