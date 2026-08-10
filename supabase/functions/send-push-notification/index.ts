@@ -52,6 +52,8 @@ Deno.serve(async (req) => {
       });
     }
 
+    console.log("push request", { userId, title, hasConv: !!conversationId, serviceRole: isServiceRole(req) });
+
     let nativeResult: Record<string, unknown> | null = null;
 
     // Fan out to native push (FCM/APNs) and await it. Edge runtimes may stop
@@ -68,6 +70,7 @@ Deno.serve(async (req) => {
         body: JSON.stringify({ userId, title, body, url, conversationId, platform }),
       });
       nativeResult = await nativeRes.json().catch(() => ({ ok: false, error: "native push invalid response" }));
+      console.log("native push result", JSON.stringify(nativeResult));
     } catch (e) {
       console.warn("native push fanout error", e);
       nativeResult = { ok: false, error: String(e) };
