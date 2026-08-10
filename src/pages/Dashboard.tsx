@@ -24,6 +24,10 @@ import {
 } from "lucide-react";
 import { NewMessageDialog } from "@/components/whatsapp/NewMessageDialog";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  getCachedSelectedConversation,
+  setCachedSelectedConversation,
+} from "@/lib/inboxCache";
 import { getImpersonationId, clearImpersonation } from "@/lib/effectiveAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useNotifications } from "@/hooks/useNotifications";
