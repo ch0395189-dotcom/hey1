@@ -11,14 +11,10 @@ export function UpdateBanner() {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    if (!("serviceWorker" in navigator)) return;
-
     const handleUpdateAvailable = (event: Event) => {
       const customEvent = event as CustomEvent<{ worker: ServiceWorker }>;
-      if (customEvent.detail?.worker) {
-        setWaitingWorker(customEvent.detail.worker);
-        setVisible(true);
-      }
+      if (customEvent.detail?.worker) setWaitingWorker(customEvent.detail.worker);
+      setVisible(true);
     };
 
     window.addEventListener("sw-update-available", handleUpdateAvailable);
@@ -28,11 +24,10 @@ export function UpdateBanner() {
   }, []);
 
   const handleReload = () => {
-    if (waitingWorker) {
-      waitingWorker.postMessage({ type: "SKIP_WAITING" });
-    } else {
-      window.location.reload();
-    }
+    try {
+      waitingWorker?.postMessage({ type: "SKIP_WAITING" });
+    } catch {}
+    window.location.reload();
   };
 
   if (!visible) return null;
