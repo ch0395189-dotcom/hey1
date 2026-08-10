@@ -27,7 +27,12 @@ async function boot() {
   // tardaba varios segundos en mostrar la primera pantalla; ahora el import
   // ocurre mientras Capacitor Preferences responde.
   const appPromise = import("./App.tsx");
-  await hydrateNativeSession();
+  // No bloqueamos el arranque más de 700ms: si Capacitor Preferences tarda
+  // (arranque en frío del APK), montamos igual y la sesión se hidrata después.
+  await Promise.race([
+    hydrateNativeSession(),
+    new Promise((resolve) => setTimeout(resolve, 700)),
+  ]);
   // Los mirrors/keyboard listeners no bloquean la UI.
   void installNativeSessionMirror();
   void installNativeKeyboardHandling();
