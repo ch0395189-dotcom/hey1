@@ -428,9 +428,16 @@ export const ConversationsList = ({
       try { (supabase as any).realtime?.connect?.(); } catch { /* noop */ }
     };
     const onVisible = () => {
-      if (document.visibilityState === 'visible') { reconnect(); fetchConversations(); }
+      if (document.visibilityState !== 'visible') return;
+      reconnect();
+      // Throttle: al volver a la app no relanzamos una recarga completa si ya
+      // hubo una hace poco (eso hacía "parpadear" y reiniciar la lista).
+      const now = Date.now();
+      if (now - lastPoll < 5000) return;
+      lastPoll = now;
+      fetchConversations();
     };
-    const onOnline = () => { reconnect(); fetchConversations(); };
+    const onOnline = () => { reconnect(); lastPoll = Date.now(); fetchConversations(); };
     document.addEventListener('visibilitychange', onVisible);
     window.addEventListener('focus', onVisible);
     window.addEventListener('online', onOnline);
