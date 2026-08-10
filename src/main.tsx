@@ -237,13 +237,12 @@ if (isPreviewHost || isInIframe || isNativeApp) {
           reg.update().catch(() => {});
         });
 
-        // When a new SW takes over (after user clicks "Actualizar"), reload once
-        let refreshing = false;
+        // Un SW nuevo toma control (skipWaiting + clients.claim) apenas se
+        // publica. NO recargamos automáticamente: eso sacaba al usuario de la
+        // conversación mientras escribía o grababa audio. Solo avisamos.
         navigator.serviceWorker.addEventListener("controllerchange", () => {
-          if (refreshing) return;
-          refreshing = true;
-          console.log("[SW] New version active — reloading");
-          window.location.reload();
+          console.log("[SW] New version active — showing update banner");
+          window.dispatchEvent(new CustomEvent("sw-update-available"));
         });
 
         // Listen for SW activation messages so we can clear stale client-side
