@@ -15,7 +15,10 @@ const isWindows = platform() === 'win32';
 
 function run(command, args = [], options = {}) {
   return new Promise((resolvePromise, reject) => {
-    const cmd = isWindows ? `${command}.cmd` : command;
+    // En Windows solo npm/npx necesitan el sufijo .cmd; rutas a ejecutables
+    // (como android\gradlew.bat) deben usarse tal cual.
+    const needsCmdSuffix = isWindows && !/[\\/]/.test(command) && !/\.(bat|cmd|exe)$/i.test(command);
+    const cmd = needsCmdSuffix ? `${command}.cmd` : command;
     const child = spawn(cmd, args, {
       cwd,
       stdio: 'inherit',
