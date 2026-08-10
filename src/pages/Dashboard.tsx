@@ -151,7 +151,9 @@ const Dashboard = () => {
     }, { replace: true });
   }, [setSearchParams]);
 
-  const [selectedConversation, setSelectedConversationState] = useState<Conversation | null>(null);
+  const [selectedConversation, setSelectedConversationState] = useState<Conversation | null>(
+    () => (conversationIdFromUrl ? getCachedSelectedConversation<Conversation>(conversationIdFromUrl) : null)
+  );
   const [user, setUser] = useState<User | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showChatbot, setShowChatbot] = useState(false);
@@ -169,6 +171,7 @@ const Dashboard = () => {
   // Wrap setSelectedConversation to also update URL
   const setSelectedConversation = useCallback((conv: Conversation | null) => {
     setSelectedConversationState(conv);
+    setCachedSelectedConversation(conv);
     setSearchParams(prev => {
       const next = new URLSearchParams(prev);
       if (conv) {
@@ -192,6 +195,7 @@ const Dashboard = () => {
         const { data } = await query.maybeSingle();
         if (data) {
           setSelectedConversationState(data as Conversation);
+          setCachedSelectedConversation(data);
         } else if (selectedAccountId) {
           setSelectedConversation(null);
         }
