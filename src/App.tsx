@@ -22,6 +22,7 @@ const DataDeletion = lazy(() => import("./pages/DataDeletion"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const UpdatePassword = lazy(() => import("./pages/UpdatePassword"));
 const Install = lazy(() => import("./pages/Install"));
+const Descargar = lazy(() => import("./pages/Descargar"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const OAuthConsent = lazy(() => import("./pages/OAuthConsent"));
 const GoogleCalendarReturn = lazy(() => import("./pages/oauth/GoogleCalendarReturn"));
@@ -103,6 +104,7 @@ const App = () => {
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/update-password" element={<UpdatePassword />} />
               <Route path="/install" element={<Install />} />
+              <Route path="/descargar" element={<Descargar />} />
               <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
               <Route path="/oauth/google-calendar/return" element={<GoogleCalendarReturn />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
