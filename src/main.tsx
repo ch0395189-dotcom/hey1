@@ -63,21 +63,9 @@ void boot();
   let notified = false;
   let pendingBuildId: string | null = null;
 
-  // Aplica la actualización sin molestar: si la app está en segundo plano
-  // (o el usuario no está escribiendo), recargamos solos.
-  const applyUpdate = () => {
-    try {
-      const el = document.activeElement as HTMLElement | null;
-      const typing =
-        !!el &&
-        (el.tagName === "INPUT" ||
-          el.tagName === "TEXTAREA" ||
-          el.isContentEditable);
-      if (typing) return false;
-    } catch {}
-    window.location.reload();
-    return true;
-  };
+  // NUNCA recargamos solos: interrumpía al usuario en medio de una
+  // conversación (grabando audio, escribiendo, adjuntando archivos).
+  // Solo mostramos el banner "Actualizar" y el usuario decide cuándo.
 
   const checkVersion = async () => {
     if (notified) return;
@@ -102,13 +90,6 @@ void boot();
           remote,
           data?.forceLogout ? "(force logout)" : ""
         );
-        // Si la pestaña está oculta, aplicamos la actualización de una vez
-        // (el usuario vuelve y ya está en la versión nueva). Si está mirando
-        // la app, mostramos el banner para no interrumpir su trabajo.
-        if (document.visibilityState === "hidden") {
-          window.location.reload();
-          return;
-        }
         window.dispatchEvent(new CustomEvent("sw-update-available"));
       }
     } catch {
@@ -123,9 +104,6 @@ void boot();
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") {
       checkVersion();
-    } else if (pendingBuildId) {
-      // Se fue a segundo plano con una versión pendiente: recargamos ahora.
-      applyUpdate();
     }
   });
   window.addEventListener("focus", checkVersion);
