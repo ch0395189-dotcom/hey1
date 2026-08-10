@@ -75,13 +75,22 @@ export const ConversationsList = ({
   platform = 'all',
   onNewMessage,
 }: ConversationsListProps) => {
-  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const cacheKey = conversationsCacheKey({
+    viewMode: 'active',
+    platform,
+    accountId: whatsappAccountId,
+  });
+  const [conversations, setConversations] = useState<Conversation[]>(
+    () => getCachedConversations<Conversation>(cacheKey) || []
+  );
   const { isAgent, myPermissions } = useTeam();
   const canArchive = !isAgent || myPermissions.archive_conversations;
   const canBlock = !isAgent || myPermissions.block_contacts;
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<'active' | 'archived' | 'blocked'>('active');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(
+    () => (getCachedConversations<Conversation>(cacheKey) || []).length === 0
+  );
   const [refreshing, setRefreshing] = useState(false);
   const [showNewMessageDialog, setShowNewMessageDialog] = useState(false);
 
