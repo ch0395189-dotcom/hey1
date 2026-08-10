@@ -514,9 +514,9 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
         try { (supabase as any).realtime?.connect?.(); } catch { /* noop */ }
       };
       const onVisible = () => {
-        if (document.visibilityState === 'visible') { reconnect(); fetchMessages(); }
+        if (document.visibilityState === 'visible') { reconnect(); fetchMessages({ silent: true }); }
       };
-      const onOnline = () => { reconnect(); fetchMessages(); };
+      const onOnline = () => { reconnect(); fetchMessages({ silent: true }); };
       document.addEventListener('visibilitychange', onVisible);
       window.addEventListener('focus', onVisible);
       window.addEventListener('online', onOnline);
@@ -524,7 +524,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
       // Backstop polling while the chat is open, in case the Realtime socket
       // dropped silently (mobile suspend, flaky network).
       const pollId = window.setInterval(() => {
-        if (document.visibilityState === 'visible') fetchMessages();
+        if (document.visibilityState === 'visible') fetchMessages({ silent: true });
       }, 10000);
 
       return () => {
@@ -581,10 +581,11 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
     setIsAtBottom(true);
   };
 
-  const fetchMessages = async () => {
+  const fetchMessages = async (opts?: { silent?: boolean }) => {
     if (!conversation) return;
 
-    setLoading(true);
+    const silent = opts?.silent === true;
+    if (!silent) setLoading(true);
     try {
       const { data, error } = await supabase
         .from('messages')
@@ -593,11 +594,23 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
         .order('created_at', { ascending: true });
 
       if (error) throw error;
-      setMessages(data || []);
+      const next = data || [];
+      setMessages((prev) => {
+        // Evita re-render/scroll innecesario cuando nada cambió (por ejemplo
+        // al volver a abrir la app): eso "reiniciaba" la conversación.
+        if (
+          silent &&
+          prev.length === next.length &&
+          (prev.length === 0 || prev[prev.length - 1]?.id === next[next.length - 1]?.id)
+        ) {
+          return prev;
+        }
+        return next;
+      });
     } catch (error) {
       console.error('Error fetching messages:', error);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
