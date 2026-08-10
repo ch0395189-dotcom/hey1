@@ -343,8 +343,10 @@ Deno.serve(async (req) => {
               notification: {
                 sound: "default",
                 channel_id: "heyhey_messages",
+                icon: "ic_stat_notify",
                 default_sound: true,
                 default_vibrate_timings: true,
+                default_light_settings: true,
                 notification_priority: "PRIORITY_HIGH",
                 visibility: "PUBLIC",
               },
