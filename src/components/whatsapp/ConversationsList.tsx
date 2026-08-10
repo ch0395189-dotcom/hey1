@@ -216,6 +216,15 @@ export const ConversationsList = ({
 
   const fetchConversations = useCallback(async () => {
     try {
+      // Al cambiar de vista/plataforma/cuenta mostramos primero la copia local
+      // correspondiente, para no dejar la lista en blanco.
+      const cached = getCachedConversations<Conversation>(
+        conversationsCacheKey({ viewMode, platform, accountId: whatsappAccountId })
+      );
+      if (cached && cached.length) {
+        setConversations(cached);
+        setLoading(false);
+      }
       let query = supabase
         .from('conversations')
         .select('*')

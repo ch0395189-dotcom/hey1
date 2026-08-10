@@ -604,6 +604,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
 
       if (error) throw error;
       const next = data || [];
+      setCachedMessages(conversation.id, next);
       setMessages((prev) => {
         // Evita re-render/scroll innecesario cuando nada cambió (por ejemplo
         // al volver a abrir la app): eso "reiniciaba" la conversación.
