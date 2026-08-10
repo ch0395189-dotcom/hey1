@@ -8,6 +8,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Search, Plus, Archive, Inbox, MessageCircle, RefreshCw, CheckSquare, Trash2, X, Ban, Mic, Image as ImageIcon, Video, FileText, MapPin, User as UserIcon, Smile, Sticker as StickerIcon, Paperclip, ListChecks, ThumbsUp, Smartphone, Download, Sparkles } from "lucide-react";
 import { Tag as TagIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  conversationsCacheKey,
+  getCachedConversations,
+  setCachedConversations,
+} from "@/lib/inboxCache";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import { FaWhatsapp, FaFacebookMessenger, FaInstagram, FaTiktok } from "react-icons/fa";
