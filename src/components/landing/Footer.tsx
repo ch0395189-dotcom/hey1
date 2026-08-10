@@ -34,6 +34,7 @@ const Footer = () => {
             <ul className="space-y-2 md:space-y-3">
               <li><a href="#features" className="text-muted-foreground hover:text-foreground transition-colors text-xs md:text-sm">Características</a></li>
               <li><a href="#pricing" className="text-muted-foreground hover:text-foreground transition-colors text-xs md:text-sm">Precios</a></li>
+              <li><Link to="/descargar" className="text-muted-foreground hover:text-foreground transition-colors text-xs md:text-sm">Descargar app Android</Link></li>
               <li><a href="#" className="text-muted-foreground hover:text-foreground transition-colors text-xs md:text-sm">Integraciones</a></li>
               <li><a href="#" className="text-muted-foreground hover:text-foreground transition-colors text-xs md:text-sm">API</a></li>
             </ul>
