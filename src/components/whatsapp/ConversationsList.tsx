@@ -8,6 +8,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Search, Plus, Archive, Inbox, MessageCircle, RefreshCw, CheckSquare, Trash2, X, Ban, Mic, Image as ImageIcon, Video, FileText, MapPin, User as UserIcon, Smile, Sticker as StickerIcon, Paperclip, ListChecks, ThumbsUp, Smartphone, Download, Sparkles } from "lucide-react";
 import { Tag as TagIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  conversationsCacheKey,
+  getCachedConversations,
+  setCachedConversations,
+} from "@/lib/inboxCache";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import { FaWhatsapp, FaFacebookMessenger, FaInstagram, FaTiktok } from "react-icons/fa";
@@ -75,13 +80,22 @@ export const ConversationsList = ({
   platform = 'all',
   onNewMessage,
 }: ConversationsListProps) => {
-  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const cacheKey = conversationsCacheKey({
+    viewMode: 'active',
+    platform,
+    accountId: whatsappAccountId,
+  });
+  const [conversations, setConversations] = useState<Conversation[]>(
+    () => getCachedConversations<Conversation>(cacheKey) || []
+  );
   const { isAgent, myPermissions } = useTeam();
   const canArchive = !isAgent || myPermissions.archive_conversations;
   const canBlock = !isAgent || myPermissions.block_contacts;
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<'active' | 'archived' | 'blocked'>('active');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(
+    () => (getCachedConversations<Conversation>(cacheKey) || []).length === 0
+  );
   const [refreshing, setRefreshing] = useState(false);
   const [showNewMessageDialog, setShowNewMessageDialog] = useState(false);
 
@@ -202,6 +216,15 @@ export const ConversationsList = ({
 
   const fetchConversations = useCallback(async () => {
     try {
+      // Al cambiar de vista/plataforma/cuenta mostramos primero la copia local
+      // correspondiente, para no dejar la lista en blanco.
+      const cached = getCachedConversations<Conversation>(
+        conversationsCacheKey({ viewMode, platform, accountId: whatsappAccountId })
+      );
+      if (cached && cached.length) {
+        setConversations(cached);
+        setLoading(false);
+      }
       let query = supabase
         .from('conversations')
         .select('*')
@@ -267,6 +290,12 @@ export const ConversationsList = ({
       }));
 
       setConversations(conversationsWithMessages);
+      // Guardamos una copia local para que la próxima apertura de la app
+      // muestre la bandeja al instante en lugar de una lista vacía.
+      setCachedConversations(
+        conversationsCacheKey({ viewMode, platform, accountId: whatsappAccountId }),
+        conversationsWithMessages
+      );
     } catch (error) {
       console.error('Error fetching conversations:', error);
     } finally {

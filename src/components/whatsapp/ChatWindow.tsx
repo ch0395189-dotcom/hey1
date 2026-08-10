@@ -3,6 +3,7 @@ import { prepareAttachedAudioForWhatsApp, prepareRecordedAudioForWhatsApp, prelo
 import { compressMediaIfNeeded, formatFileSize, exceedsWhatsAppLimit } from "@/utils/mediaCompressor";
 import { getFriendlyWhatsappError } from "@/lib/whatsappErrors";
 import { detectOTP } from "@/lib/otpDetect";
+import { getCachedMessages, setCachedMessages } from "@/lib/inboxCache";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -453,7 +454,15 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
 
   useEffect(() => {
     if (conversation) {
-      fetchMessages();
+      // Pintamos primero los mensajes cacheados de esta conversación para que
+      // al reabrir la app el chat no aparezca vacío mientras carga.
+      const cached = getCachedMessages<Message>(conversation.id);
+      if (cached && cached.length) {
+        setMessages(cached);
+        fetchMessages({ silent: true });
+      } else {
+        fetchMessages();
+      }
       markAsRead();
       setUnreadCount(0);
       setIsAtBottom(true);
@@ -595,6 +604,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
 
       if (error) throw error;
       const next = data || [];
+      setCachedMessages(conversation.id, next);
       setMessages((prev) => {
         // Evita re-render/scroll innecesario cuando nada cambió (por ejemplo
         // al volver a abrir la app): eso "reiniciaba" la conversación.
