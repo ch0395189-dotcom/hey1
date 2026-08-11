@@ -96,33 +96,11 @@ self.addEventListener('fetch', (event) => {
   // Only handle GET
   if (req.method !== 'GET') return;
 
-  const url = new URL(req.url);
-
-  // Never intercept Supabase, analytics, or cross-origin API calls
-  if (url.origin !== self.location.origin) return;
-
-  // For navigations (HTML), always go to network. If offline, fall back to a
-  // simple message — we prefer "no app" over "stale app".
-  if (req.mode === 'navigate') {
-    event.respondWith(
-      (async () => {
-        // Mobile networks drop the first request often — retry before giving up.
-        for (let attempt = 0; attempt < 3; attempt++) {
-          try {
-            return await fetch(req, { cache: 'no-store' });
-          } catch (e) {
-            if (attempt < 2) await new Promise((r) => setTimeout(r, 600 * (attempt + 1)));
-          }
-        }
-        return new Response(OFFLINE_HTML, {
-          headers: { 'Content-Type': 'text/html; charset=utf-8' },
-        });
-      })()
-    );
-    return;
-  }
-
-  // Everything else: let the browser handle it normally (no SW caching)
+  // We no longer intercept ANY request: navigations, assets and API calls all
+  // go straight to the network/browser. The SW exists only for push
+  // notifications. This removes the "Sin conexión" dead-end screen that older
+  // versions served when a single request failed on a flaky mobile network.
+  return;
 });
 
 // Push notification event
