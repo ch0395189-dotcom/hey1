@@ -3,39 +3,7 @@
 // Service Worker for Hey Hey - Push Notifications
 // IMPORTANT: This SW does NOT cache HTML/JS/CSS to avoid stale content issues.
 // Bump CACHE_VERSION on every release to force old caches to be cleared.
-const CACHE_VERSION = 'heyhey-v13-no-precache';
-
-// Offline fallback page: retries automatically instead of dead-ending the user.
-const OFFLINE_HTML = `<!DOCTYPE html>
-<html lang="es"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Reconectando…</title>
-<style>
-  html,body{height:100%;margin:0}
-  body{display:flex;align-items:center;justify-content:center;padding:24px;
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
-    background:#0b141a;color:#e9edef;text-align:center}
-  .box{max-width:320px}
-  h1{font-size:20px;margin:0 0 8px}
-  p{font-size:14px;opacity:.75;margin:0 0 20px;line-height:1.5}
-  button{background:#25d366;color:#0b141a;border:0;border-radius:999px;
-    padding:12px 28px;font-size:15px;font-weight:600}
-  .dot{display:inline-block;width:8px;height:8px;border-radius:50%;
-    background:#25d366;margin-right:6px;animation:p 1.2s infinite}
-  @keyframes p{0%,100%{opacity:.3}50%{opacity:1}}
-</style></head>
-<body><div class="box">
-  <h1><span class="dot"></span>Reconectando…</h1>
-  <p>La conexión falló por un momento. Estamos reintentando automáticamente.</p>
-  <button onclick="location.reload()">Reintentar ahora</button>
-</div>
-<script>
-  var tries = 0;
-  function retry(){ if (navigator.onLine) location.reload(); }
-  window.addEventListener('online', retry);
-  setInterval(function(){ tries++; if (tries < 40) retry(); }, 3000);
-<\/script>
-</body></html>`;
+const CACHE_VERSION = 'heyhey-v14-no-offline-page';
 
 const NOTIFICATION_ICON = '/pwa-192x192.png';
 
