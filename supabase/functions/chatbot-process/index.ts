@@ -65,6 +65,14 @@ interface AppointmentSettings {
   available_hours?: string;
   sync_google_calendar?: boolean;
   duration_minutes?: number;
+  custom_steps?: AppointmentCustomStep[];
+}
+
+interface AppointmentCustomStep {
+  id: string;
+  label?: string;
+  question: string;
+  options?: string[];
 }
 
 // Response can be text or interactive
