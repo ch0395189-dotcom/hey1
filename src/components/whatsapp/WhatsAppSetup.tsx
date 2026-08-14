@@ -980,7 +980,7 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
         </div>
       )}
 
-      <Tabs defaultValue="automatic" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="automatic" className="flex items-center gap-2">
             <Zap className="w-4 h-4" />
