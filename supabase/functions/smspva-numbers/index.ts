@@ -322,6 +322,173 @@ Deno.serve(async (req) => {
       return json({ ok: true, order_id: order!.id, account_id: acc.id, phone_number_id: phoneNumberId, phone_number: fullPhone });
     }
 
+    // ---------- conectar automáticamente un número comprado a un WABA ----------
+    if (action === "attach") {
+      const orderId = String(body.order_id || "");
+      const verifiedName = String(body.verified_name || "").trim();
+      const pin = String(body.pin || "").replace(/\D/g, "");
+      if (!orderId || !verifiedName || pin.length !== 6) {
+        return json({ ok: false, error: "Faltan el pedido, el nombre del negocio o el PIN de 6 dígitos" });
+      }
+
+      const { data: order } = await admin
+        .from("virtual_number_orders").select("*").eq("id", orderId).maybeSingle();
+      if (!order) return json({ ok: false, error: "Pedido no encontrado" });
+      if (order.user_id !== userId && !isAdmin) return json({ ok: false, error: "No autorizado" });
+      if (!order.phone_number) return json({ ok: false, error: "El pedido aún no tiene número asignado" });
+      if (order.whatsapp_account_id) return json({ ok: false, error: "Este número ya está conectado" });
+
+      const fullPhone = String(order.phone_number).replace(/\D/g, "");
+      const cc = String(order.country_code || "").replace(/\D/g, "");
+      const local = cc && fullPhone.startsWith(cc) ? fullPhone.slice(cc.length) : fullPhone;
+
+      // WABA del propio cliente
+      const { data: ownAccounts } = await admin
+        .from("whatsapp_accounts")
+        .select("id, user_id, business_account_id, access_token")
+        .eq("user_id", order.user_id)
+        .eq("connection_type", "meta")
+        .not("business_account_id", "is", null)
+        .order("created_at", { ascending: false });
+      const own = (ownAccounts ?? []).find((a: Json) => a.access_token && a.business_account_id) || null;
+
+      // Portafolio de respaldo de HeyHey (para clientes sin WABA o con portafolio restringido)
+      const fallbackId = Deno.env.get("HEYHEY_FALLBACK_WABA_ACCOUNT_ID") || "";
+      let fallback: Json | null = null;
+      if (fallbackId) {
+        const { data: fb } = await admin
+          .from("whatsapp_accounts")
+          .select("id, user_id, business_account_id, access_token")
+          .eq("id", fallbackId).maybeSingle();
+        if (fb?.access_token && fb?.business_account_id) fallback = fb;
+      }
+
+      const isRestricted = (msg: string, code?: number) => {
+        const m = (msg || "").toLowerCase();
+        return /restrict|policy|disabled|not\s*eligible|no\s*eligible|limit|verification|banned|blocked|permission/.test(m)
+          || code === 200 || code === 10 || code === 368;
+      };
+
+      const attachTo = async (src: Json) => {
+        const graph = async (path: string, init: RequestInit) => {
+          const resp = await fetch(`${GRAPH}${path}`, {
+            ...init,
+            headers: { ...(init.headers || {}), Authorization: `Bearer ${src.access_token}` },
+          });
+          const t = await resp.text();
+          let d: Json; try { d = JSON.parse(t); } catch { d = { raw: t }; }
+          return { ok: resp.ok, data: d };
+        };
+
+        const add = await graph(`/${src.business_account_id}/phone_numbers`, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({ cc, phone_number: local, verified_name: verifiedName }).toString(),
+        });
+        if (!add.ok || !add.data?.id) {
+          const msg = add.data?.error?.message || "Meta rechazó el número";
+          return { ok: false as const, error: msg, restricted: isRestricted(msg, add.data?.error?.code) };
+        }
+        const phoneNumberId = String(add.data.id);
+
+        const rc = await graph(`/${phoneNumberId}/request_code`, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({ code_method: "SMS", language: "es" }).toString(),
+        });
+        if (!rc.ok) {
+          const msg = rc.data?.error?.message || "Meta no pudo enviar el código";
+          return { ok: false as const, error: msg, restricted: isRestricted(msg, rc.data?.error?.code) };
+        }
+
+        let code: string | null = null;
+        for (let i = 0; i < 20; i++) {
+          await sleep(6000);
+          const s = order.mode === "rent"
+            ? await pvaGet("/api/rent.php", { method: "getsms", apikey, orderid: String(order.provider_order_id) })
+            : await pvaGet("/priemnik.php", {
+                metod: "get_sms", service: order.service, country: order.country,
+                id: String(order.provider_order_id), apikey,
+              });
+          const c = s.data?.sms ?? s.data?.data?.code ?? null;
+          if (c) { code = String(c).replace(/\D/g, ""); break; }
+        }
+        if (!code) return { ok: false as const, error: "No llegó el código SMS a tiempo", restricted: false };
+        await admin.from("virtual_number_orders").update({ sms_code: code }).eq("id", order.id);
+
+        const vc = await graph(`/${phoneNumberId}/verify_code`, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({ code }).toString(),
+        });
+        if (!vc.ok) {
+          const msg = vc.data?.error?.message || "Código rechazado por Meta";
+          return { ok: false as const, error: msg, restricted: isRestricted(msg, vc.data?.error?.code) };
+        }
+
+        const reg = await graph(`/${phoneNumberId}/register`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ messaging_product: "whatsapp", pin }),
+        });
+        if (!reg.ok) {
+          const msg = reg.data?.error?.message || "No se pudo registrar el número";
+          return { ok: false as const, error: msg, restricted: isRestricted(msg, reg.data?.error?.code) };
+        }
+
+        const info = await graph(`/${phoneNumberId}?fields=display_phone_number,verified_name,quality_rating`, { method: "GET" });
+        const { data: acc, error: accErr } = await admin.from("whatsapp_accounts").insert({
+          user_id: order.user_id,
+          phone_number: info.data?.display_phone_number || `+${fullPhone}`,
+          phone_number_id: phoneNumberId,
+          business_account_id: src.business_account_id,
+          access_token: src.access_token,
+          display_name: info.data?.verified_name || verifiedName,
+          is_active: true,
+          connection_type: "meta",
+          quality_rating: info.data?.quality_rating ?? null,
+        }).select("id").single();
+        if (accErr) return { ok: false as const, error: accErr.message, restricted: false };
+
+        await admin.from("virtual_number_orders")
+          .update({ status: "completed", whatsapp_account_id: acc.id }).eq("id", order.id);
+        return { ok: true as const, account_id: acc.id, phone_number_id: phoneNumberId };
+      };
+
+      const attempts: Array<{ src: Json; kind: "own" | "heyhey" }> = [];
+      if (own) attempts.push({ src: own, kind: "own" });
+      if (fallback && (!own || fallback.id !== own.id)) attempts.push({ src: fallback, kind: "heyhey" });
+
+      if (attempts.length === 0) {
+        return json({
+          ok: false,
+          needs_portfolio: true,
+          error: "Aún no tienes un portafolio de WhatsApp Business conectado. Completa la conexión automática con Meta y vuelve a intentar; si tu portafolio está restringido te conectaremos con el portafolio de HeyHey.",
+        });
+      }
+
+      let lastError = "";
+      let restricted = false;
+      for (const a of attempts) {
+        const r = await attachTo(a.src);
+        if (r.ok) {
+          return json({ ok: true, account_id: r.account_id, phone_number_id: r.phone_number_id, used: a.kind, restricted });
+        }
+        lastError = r.error;
+        if (a.kind === "own" && r.restricted) { restricted = true; continue; }
+        break;
+      }
+
+      await admin.from("virtual_number_orders").update({ status: "failed", error: lastError }).eq("id", order.id);
+      return json({
+        ok: false,
+        restricted,
+        error: restricted
+          ? `Tu portafolio de Meta está restringido y no permite agregar números (${lastError}). Escríbenos para conectarlo con el portafolio de HeyHey.`
+          : lastError,
+      });
+    }
+
     return json({ ok: false, error: "Acción no soportada" });
   } catch (e: any) {
     return json({ ok: false, error: e?.message || String(e) });
