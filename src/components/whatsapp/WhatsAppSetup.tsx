@@ -1103,6 +1103,29 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
                     </div>
                   )}
 
+                  <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-2">
+                    <p className="text-sm font-medium text-foreground">
+                      ¿Meta te pide un número de teléfono?
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Si estás en el paso “Agrega tu número de teléfono de WhatsApp” y no tienes un
+                      número disponible, compra uno virtual aquí y úsalo para recibir el código de
+                      verificación.
+                    </p>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => {
+                        setLastError(null);
+                        setActiveTab("buy");
+                      }}
+                    >
+                      <ShoppingCart className="w-4 h-4 mr-2" />
+                      Comprar número virtual
+                    </Button>
+                  </div>
+
                   <Button 
                     onClick={isMobileEnv ? handleMobileRedirectSignup : handleEmbeddedSignup} 
                     disabled={connecting || (!isMobileEnv && !fbLoaded) || !planLimits.canAddWhatsAppAccount}
