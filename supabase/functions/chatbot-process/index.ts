@@ -1792,7 +1792,7 @@ async function startAppointmentFlow(
   whatsappAccountId: string,
 ): Promise<void> {
   const settings: AppointmentSettings = { ...DEFAULT_APPT_SETTINGS, ...(node.appointment_settings || {}) };
-  const steps = activeApptSteps(settings);
+  const steps = buildApptSteps(settings);
 
   if (steps.length === 0) {
     await saveAppointment(supabase, conversationId, whatsappAccountId, {}, customerIdentifier, settings);
@@ -1815,9 +1815,7 @@ async function startAppointmentFlow(
     .update({ context })
     .eq('id', state.id);
 
-  const question = steps[0].question(settings);
-  await sendPlatformMessage(platformAccount, customerIdentifier, question);
-  await saveOutboundMessage(supabase, conversationId, question);
+  await sendApptQuestion(supabase, steps[0], platformAccount, customerIdentifier, conversationId);
 }
 
 async function handleAppointmentAnswer(
@@ -1833,7 +1831,7 @@ async function handleAppointmentAnswer(
   currentPlatform: string,
 ): Promise<string> {
   const settings: AppointmentSettings = { ...DEFAULT_APPT_SETTINGS, ...(apptCtx.settings || {}) };
-  const steps = activeApptSteps(settings);
+  const steps = buildApptSteps(settings);
   const stepIndex: number = apptCtx.step ?? 0;
   const answers: Record<string, string> = { ...(apptCtx.answers || {}) };
 
@@ -1851,7 +1849,7 @@ async function handleAppointmentAnswer(
 
   const currentStep = steps[stepIndex];
   if (currentStep) {
-    answers[currentStep.key] = answer.trim();
+    answers[currentStep.key] = resolveOptionAnswer(currentStep, answer);
   }
 
   const nextIndex = stepIndex + 1;
@@ -1862,14 +1860,20 @@ async function handleAppointmentAnswer(
       appointment: { ...apptCtx, settings, step: nextIndex, answers },
     };
     await supabase.from('chatbot_conversation_state').update({ context }).eq('id', state.id);
-    const question = steps[nextIndex].question(settings);
-    await sendPlatformMessage(platformAccount, customerIdentifier, question);
-    await saveOutboundMessage(supabase, conversationId, question);
+    await sendApptQuestion(supabase, steps[nextIndex], platformAccount, customerIdentifier, conversationId);
     return `step_${nextIndex}`;
   }
 
   // Terminamos: guardar la cita
-  await saveAppointment(supabase, conversationId, whatsappAccountId, answers, customerIdentifier, settings);
+  await saveAppointment(
+    supabase,
+    conversationId,
+    whatsappAccountId,
+    answers,
+    customerIdentifier,
+    settings,
+    buildApptNotes(steps, answers),
+  );
 
   const context = { ...(state.context || {}) };
   delete context.appointment;
