@@ -1979,6 +1979,7 @@ async function saveAppointment(
   answers: Record<string, string>,
   customerIdentifier: string,
   settings: AppointmentSettings,
+  notes?: string | null,
 ): Promise<void> {
   try {
     const { data: account } = await supabase
@@ -2003,6 +2004,7 @@ async function saveAppointment(
         birth_date: answers.birth_date || null,
         appointment_date: answers.appointment_date || null,
         appointment_time: answers.appointment_time || null,
+        notes: notes || null,
         status: 'pending',
       })
       .select('id')
