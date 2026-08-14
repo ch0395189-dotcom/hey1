@@ -1727,14 +1727,14 @@ async function sendApptQuestion(
   customerIdentifier: string,
   conversationId: string,
 ): Promise<void> {
-  const options = (step.options || []).slice(0, 3);
+  const options = step.options || [];
   const isWhatsAppCloud =
     (platformAccount as any)?.phone_number_id &&
     (platformAccount as any)?.access_token &&
     (platformAccount as any)?.connection_type !== 'external_qr' &&
     (platformAccount as any)?.connection_type !== 'z-api';
 
-  if (options.length > 0 && isWhatsAppCloud) {
+  if (options.length > 0 && options.length <= 3 && isWhatsAppCloud) {
     await sendWhatsAppInteractiveMessage(
       (platformAccount as any).phone_number_id,
       (platformAccount as any).access_token,
@@ -1747,6 +1747,30 @@ async function sendApptQuestion(
             type: 'reply' as const,
             reply: { id: `appt_opt_${idx + 1}`, title: opt.slice(0, 20) },
           })),
+        },
+      },
+    );
+    await saveOutboundMessage(supabase, conversationId, step.question);
+    return;
+  }
+
+  if (options.length > 3 && options.length <= 10 && isWhatsAppCloud) {
+    await sendWhatsAppInteractiveMessage(
+      (platformAccount as any).phone_number_id,
+      (platformAccount as any).access_token,
+      customerIdentifier,
+      {
+        type: 'list',
+        body: { text: step.question.slice(0, 1024) },
+        action: {
+          button: 'Ver opciones',
+          sections: [{
+            title: (step.label || 'Opciones').slice(0, 24),
+            rows: options.map((opt, idx) => ({
+              id: `appt_opt_${idx + 1}`,
+              title: opt.slice(0, 24),
+            })),
+          }],
         },
       },
     );
