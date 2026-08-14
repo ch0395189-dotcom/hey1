@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, ShoppingCart, Copy, XCircle, RefreshCw, Info } from "lucide-react";
+import { useAdminCheck } from "@/hooks/useAdminCheck";
 
 export const COUNTRIES = [
   { code: "co", label: "Colombia" },
@@ -41,6 +42,7 @@ const cop = (n: number) =>
 
 export const BuyNumberPanel = () => {
   const { toast } = useToast();
+  const { isAdmin } = useAdminCheck();
   const [mode, setMode] = useState<"activation" | "rent">("rent");
   const [country, setCountry] = useState("co");
   const [days, setDays] = useState("30");
@@ -49,6 +51,7 @@ export const BuyNumberPanel = () => {
   const [polling, setPolling] = useState<string | null>(null);
   const [price, setPrice] = useState<number | null>(null);
   const [quoting, setQuoting] = useState(false);
+  const [costUsd, setCostUsd] = useState<string | null>(null);
   const pollRef = useRef<number | null>(null);
 
   const call = async (action: string, extra: Record<string, unknown> = {}) => {
@@ -91,6 +94,23 @@ export const BuyNumberPanel = () => {
     quote();
     return () => { cancelled = true; };
   }, [mode, country, days]);
+
+  // Costo real del proveedor (solo admin)
+  useEffect(() => {
+    if (!isAdmin) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await call("availability", { country, service: "opt20" });
+        const p: any = (r as any).price;
+        const val = p?.price ?? p?.cost ?? p?.data?.price ?? null;
+        if (!cancelled) setCostUsd(val != null ? String(val) : null);
+      } catch {
+        if (!cancelled) setCostUsd(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [isAdmin, country]);
 
   useEffect(() => () => { if (pollRef.current) window.clearInterval(pollRef.current); }, []);
 
@@ -150,6 +170,21 @@ export const BuyNumberPanel = () => {
       startPolling(order.id);
     } catch (e: any) {
       toast({ title: "No se pudo obtener el número", description: e.message, variant: "destructive" });
+    } finally { setBusy(false); }
+  };
+
+  const buyDirect = async () => {
+    setBusy(true);
+    try {
+      const r = await call("buy", {
+        mode, country, service: "opt20", days,
+      });
+      const order = r.order as Order;
+      toast({ title: "Número comprado (sin pago)", description: `+${order.phone_number}` });
+      await loadOrders();
+      startPolling(order.id);
+    } catch (e: any) {
+      toast({ title: "No se pudo comprar el número", description: e.message, variant: "destructive" });
     } finally { setBusy(false); }
   };
 
@@ -214,14 +249,29 @@ export const BuyNumberPanel = () => {
         </div>
 
         <div className="flex gap-2">
-          <Button onClick={payAndBuy} disabled={busy || quoting}>
-            {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShoppingCart className="mr-2 h-4 w-4" />}
-            {quoting ? "Calculando precio…" : `Pagar ${price !== null ? cop(price) : ""}`}
-          </Button>
+          {isAdmin ? (
+            <Button onClick={buyDirect} disabled={busy}>
+              {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShoppingCart className="mr-2 h-4 w-4" />}
+              Comprar directo (admin, sin pago)
+            </Button>
+          ) : (
+            <Button onClick={payAndBuy} disabled={busy || quoting}>
+              {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShoppingCart className="mr-2 h-4 w-4" />}
+              {quoting ? "Calculando precio…" : `Pagar ${price !== null ? cop(price) : ""}`}
+            </Button>
+          )}
           <Button variant="outline" onClick={loadOrders}>
             <RefreshCw className="mr-2 h-4 w-4" /> Actualizar
           </Button>
         </div>
+
+        {isAdmin && (
+          <div className="rounded-md border bg-muted/40 p-3 text-sm text-muted-foreground">
+            Costo proveedor: <strong>{costUsd ? `US$ ${costUsd}` : "—"}</strong>
+            {" · "}Precio al cliente: <strong>{price !== null ? cop(price) : "—"}</strong>
+            {" · "}Como administrador compras al costo, sin pasar por Bold.
+          </div>
+        )}
 
         {orders.length > 0 && (
           <div className="space-y-2 border-t pt-4">
