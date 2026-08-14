@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ShoppingCart, Copy, XCircle, RefreshCw, Info } from "lucide-react";
+import { Loader2, ShoppingCart, Copy, XCircle, RefreshCw, Info, CheckCircle2, AlertTriangle } from "lucide-react";
 import { useAdminCheck } from "@/hooks/useAdminCheck";
 
 export const COUNTRIES = [
@@ -52,6 +52,8 @@ export const BuyNumberPanel = () => {
   const [price, setPrice] = useState<number | null>(null);
   const [quoting, setQuoting] = useState(false);
   const [costUsd, setCostUsd] = useState<string | null>(null);
+  const [stock, setStock] = useState<number | null>(null);
+  const [checkingStock, setCheckingStock] = useState(false);
   const pollRef = useRef<number | null>(null);
 
   const call = async (action: string, extra: Record<string, unknown> = {}) => {
@@ -95,22 +97,26 @@ export const BuyNumberPanel = () => {
     return () => { cancelled = true; };
   }, [mode, country, days]);
 
-  // Costo real del proveedor (solo admin)
-  useEffect(() => {
-    if (!isAdmin) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const r = await call("availability", { country, service: "opt20" });
-        const p: any = (r as any).price;
-        const val = p?.price ?? p?.cost ?? p?.data?.price ?? null;
-        if (!cancelled) setCostUsd(val != null ? String(val) : null);
-      } catch {
-        if (!cancelled) setCostUsd(null);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [isAdmin, country]);
+  // Disponibilidad de stock (todos) + costo del proveedor (solo admin)
+  const checkAvailability = useCallback(async () => {
+    setCheckingStock(true);
+    try {
+      const r = await call("availability", { country, service: "opt20" });
+      const c: any = (r as any).count;
+      const online = Number(c?.online ?? c?.forOnline ?? c?.total ?? 0);
+      setStock(Number.isFinite(online) ? online : null);
+      const p: any = (r as any).price;
+      const val = p?.price ?? p?.cost ?? p?.data?.price ?? null;
+      setCostUsd(val != null ? String(val) : null);
+    } catch {
+      setStock(null);
+      setCostUsd(null);
+    } finally {
+      setCheckingStock(false);
+    }
+  }, [country]);
+
+  useEffect(() => { checkAvailability(); }, [checkAvailability]);
 
   useEffect(() => () => { if (pollRef.current) window.clearInterval(pollRef.current); }, []);
 
@@ -248,16 +254,61 @@ export const BuyNumberPanel = () => {
           )}
         </div>
 
+        {(() => {
+          const noStock = stock !== null && stock <= 0;
+          const countryLabel = COUNTRIES.find((c) => c.code === country)?.label ?? country.toUpperCase();
+          return (
+            <div
+              className={`flex items-start gap-2 rounded-md border p-3 text-sm ${
+                checkingStock || stock === null
+                  ? "border-border bg-muted/40 text-muted-foreground"
+                  : noStock
+                    ? "border-destructive/40 bg-destructive/10 text-destructive"
+                    : "border-primary/40 bg-primary/10 text-foreground"
+              }`}
+            >
+              {checkingStock ? (
+                <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin" />
+              ) : noStock ? (
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              ) : (
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+              )}
+              <div className="flex-1 space-y-1">
+                {checkingStock ? (
+                  <span>Consultando disponibilidad en {countryLabel}…</span>
+                ) : stock === null ? (
+                  <span>No pudimos consultar la disponibilidad ahora mismo.</span>
+                ) : noStock ? (
+                  <span>
+                    <strong>Sin números disponibles en {countryLabel}</strong> en este momento.
+                    Prueba con otro país o vuelve a consultar en unos minutos. No realices el pago
+                    hasta que haya stock.
+                  </span>
+                ) : (
+                  <span>
+                    <strong>{stock} número{stock === 1 ? "" : "s"} disponible{stock === 1 ? "" : "s"}</strong>{" "}
+                    en {countryLabel}.
+                  </span>
+                )}
+                <Button variant="ghost" size="sm" className="h-7 px-2" onClick={checkAvailability} disabled={checkingStock}>
+                  <RefreshCw className="mr-1 h-3 w-3" /> Volver a consultar
+                </Button>
+              </div>
+            </div>
+          );
+        })()}
+
         <div className="flex gap-2">
           {isAdmin ? (
-            <Button onClick={buyDirect} disabled={busy}>
+            <Button onClick={buyDirect} disabled={busy || stock === 0}>
               {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShoppingCart className="mr-2 h-4 w-4" />}
               Comprar directo (admin, sin pago)
             </Button>
           ) : (
-            <Button onClick={payAndBuy} disabled={busy || quoting}>
+            <Button onClick={payAndBuy} disabled={busy || quoting || stock === 0}>
               {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShoppingCart className="mr-2 h-4 w-4" />}
-              {quoting ? "Calculando precio…" : `Pagar ${price !== null ? cop(price) : ""}`}
+              {quoting ? "Calculando precio…" : stock === 0 ? "Sin stock" : `Pagar ${price !== null ? cop(price) : ""}`}
             </Button>
           )}
           <Button variant="outline" onClick={loadOrders}>
