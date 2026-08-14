@@ -149,6 +149,73 @@ export const AppointmentConfig = ({ settings, onChange }: AppointmentConfigProps
         </p>
       </div>
 
+      {/* Preguntas y botones personalizados */}
+      <div className="rounded-lg border bg-background/50 p-3 space-y-3">
+        <div className="flex items-center gap-2 text-primary">
+          <MessageSquarePlus className="h-4 w-4" />
+          <h5 className="text-sm font-semibold">Preguntas y botones personalizados</h5>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Agrega preguntas libres (ej. "¿Qué servicio deseas?") con hasta 3 botones de respuesta.
+          Las respuestas quedan guardadas en las notas de la cita.
+        </p>
+
+        {customSteps.map((step, index) => (
+          <div key={step.id} className="space-y-2 rounded-lg border p-3">
+            <div className="flex items-start gap-2">
+              <div className="flex-1 space-y-2">
+                <Input
+                  value={step.label}
+                  onChange={(e) => updateStep(index, { label: e.target.value })}
+                  placeholder="Nombre del campo (ej. Servicio)"
+                />
+                <Textarea
+                  value={step.question}
+                  onChange={(e) => updateStep(index, { question: e.target.value })}
+                  placeholder="Pregunta que verá el cliente"
+                  rows={2}
+                />
+              </div>
+              <Button type="button" variant="ghost" size="icon" onClick={() => removeStep(index)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs">Botones de respuesta (opcional, máx. 3)</Label>
+              {(step.options || []).map((opt, optIndex) => (
+                <div key={optIndex} className="flex items-center gap-2">
+                  <Input
+                    value={opt}
+                    onChange={(e) => updateOption(index, optIndex, e.target.value)}
+                    placeholder={`Botón ${optIndex + 1}`}
+                    maxLength={20}
+                  />
+                  <span className="w-10 text-xs text-muted-foreground">{opt.length}/20</span>
+                  <Button type="button" variant="ghost" size="icon" onClick={() => removeOption(index, optIndex)}>
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+              {(step.options || []).length < 3 && (
+                <Button type="button" variant="outline" size="sm" onClick={() => addOption(index)}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Agregar botón
+                </Button>
+              )}
+              {(step.options || []).length === 0 && (
+                <p className="text-xs text-muted-foreground">Sin botones, el cliente responde con texto libre.</p>
+              )}
+            </div>
+          </div>
+        ))}
+
+        <Button type="button" variant="outline" size="sm" className="w-full" onClick={addStep}>
+          <Plus className="mr-2 h-4 w-4" />
+          Agregar pregunta
+        </Button>
+      </div>
+
       <div className="rounded-lg border bg-background/50 p-3 space-y-3">
         <div className="flex items-center gap-2 text-primary">
           <Calendar className="h-4 w-4" />
