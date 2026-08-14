@@ -72,13 +72,12 @@ export const AppointmentConfig = ({ settings, onChange }: AppointmentConfigProps
 
   const updateOption = (stepIndex: number, optIndex: number, value: string) => {
     const opts = [...(customSteps[stepIndex].options || [])];
-    opts[optIndex] = value.slice(0, 20);
+    opts[optIndex] = value;
     updateStep(stepIndex, { options: opts });
   };
 
   const addOption = (stepIndex: number) => {
     const opts = [...(customSteps[stepIndex].options || [])];
-    if (opts.length >= 3) return;
     updateStep(stepIndex, { options: [...opts, ''] });
   };
 
@@ -156,7 +155,7 @@ export const AppointmentConfig = ({ settings, onChange }: AppointmentConfigProps
           <h5 className="text-sm font-semibold">Preguntas y botones personalizados</h5>
         </div>
         <p className="text-xs text-muted-foreground">
-          Agrega preguntas libres (ej. "¿Qué servicio deseas?") con hasta 3 botones de respuesta.
+          Agrega preguntas libres (ej. "¿Qué servicio deseas?") con los botones de respuesta que necesites.
           Las respuestas quedan guardadas en las notas de la cita.
         </p>
 
@@ -182,26 +181,27 @@ export const AppointmentConfig = ({ settings, onChange }: AppointmentConfigProps
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs">Botones de respuesta (opcional, máx. 3)</Label>
+              <Label className="text-xs">Botones de respuesta (opcional, sin límite)</Label>
               {(step.options || []).map((opt, optIndex) => (
                 <div key={optIndex} className="flex items-center gap-2">
                   <Input
                     value={opt}
                     onChange={(e) => updateOption(index, optIndex, e.target.value)}
                     placeholder={`Botón ${optIndex + 1}`}
-                    maxLength={20}
                   />
-                  <span className="w-10 text-xs text-muted-foreground">{opt.length}/20</span>
                   <Button type="button" variant="ghost" size="icon" onClick={() => removeOption(index, optIndex)}>
                     <X className="h-4 w-4" />
                   </Button>
                 </div>
               ))}
-              {(step.options || []).length < 3 && (
-                <Button type="button" variant="outline" size="sm" onClick={() => addOption(index)}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Agregar botón
-                </Button>
+              <Button type="button" variant="outline" size="sm" onClick={() => addOption(index)}>
+                <Plus className="mr-2 h-4 w-4" />
+                Agregar botón
+              </Button>
+              {(step.options || []).length > 3 && (
+                <p className="text-xs text-muted-foreground">
+                  Con más de 3 opciones WhatsApp las muestra como lista desplegable (hasta 10); si son más de 10 se envían numeradas en texto.
+                </p>
               )}
               {(step.options || []).length === 0 && (
                 <p className="text-xs text-muted-foreground">Sin botones, el cliente responde con texto libre.</p>
