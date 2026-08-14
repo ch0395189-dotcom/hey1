@@ -35,6 +35,7 @@ interface Order {
   created_at: string;
   price_cop?: number | null;
   payment_status?: string | null;
+  whatsapp_account_id?: string | null;
 }
 
 const cop = (n: number) =>
@@ -54,6 +55,11 @@ export const BuyNumberPanel = () => {
   const [costUsd, setCostUsd] = useState<string | null>(null);
   const [stock, setStock] = useState<number | null>(null);
   const [checkingStock, setCheckingStock] = useState(false);
+  const [attachOrder, setAttachOrder] = useState<string | null>(null);
+  const [bizName, setBizName] = useState("");
+  const [pin, setPin] = useState("");
+  const [attaching, setAttaching] = useState(false);
+  const [attachNote, setAttachNote] = useState<string | null>(null);
   const pollRef = useRef<number | null>(null);
 
   const call = async (action: string, extra: Record<string, unknown> = {}) => {
@@ -69,7 +75,7 @@ export const BuyNumberPanel = () => {
   const loadOrders = useCallback(async () => {
     const { data } = await supabase
       .from("virtual_number_orders")
-      .select("id, mode, country, phone_number, country_code, status, sms_code, expires_at, created_at, price_cop, payment_status")
+      .select("id, mode, country, phone_number, country_code, status, sms_code, expires_at, created_at, price_cop, payment_status, whatsapp_account_id")
       .order("created_at", { ascending: false })
       .limit(20);
     setOrders((data ?? []) as Order[]);
@@ -202,6 +208,36 @@ export const BuyNumberPanel = () => {
     } catch (e: any) {
       toast({ title: "Error", description: e.message, variant: "destructive" });
     }
+  };
+
+  const attach = async (orderId: string) => {
+    if (!bizName.trim() || pin.replace(/\D/g, "").length !== 6) {
+      toast({ title: "Faltan datos", description: "Escribe el nombre del negocio y un PIN de 6 dígitos.", variant: "destructive" });
+      return;
+    }
+    setAttaching(true);
+    setAttachNote(null);
+    try {
+      const { data } = await supabase.functions.invoke("smspva-numbers", {
+        body: { action: "attach", order_id: orderId, verified_name: bizName.trim(), pin: pin.replace(/\D/g, "") },
+      });
+      const r = data as { ok?: boolean; error?: string; used?: string; restricted?: boolean; needs_portfolio?: boolean };
+      if (r?.ok) {
+        toast({
+          title: "Número conectado",
+          description: r.used === "heyhey"
+            ? "Tu portafolio estaba restringido, así que lo conectamos con el portafolio de HeyHey."
+            : "Ya puedes usarlo en tu bandeja de entrada.",
+        });
+        setAttachOrder(null);
+        setBizName(""); setPin("");
+        await loadOrders();
+      } else {
+        setAttachNote(r?.error || "No se pudo conectar el número");
+      }
+    } catch (e: any) {
+      setAttachNote(e.message);
+    } finally { setAttaching(false); }
   };
 
   return (
