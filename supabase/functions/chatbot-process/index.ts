@@ -65,6 +65,14 @@ interface AppointmentSettings {
   available_hours?: string;
   sync_google_calendar?: boolean;
   duration_minutes?: number;
+  custom_steps?: AppointmentCustomStep[];
+}
+
+interface AppointmentCustomStep {
+  id: string;
+  label?: string;
+  question: string;
+  options?: string[];
 }
 
 // Response can be text or interactive
@@ -1668,6 +1676,100 @@ function activeApptSteps(settings: AppointmentSettings): ApptStep[] {
   return APPOINTMENT_STEPS.filter((step) => settings[step.flag] !== false);
 }
 
+interface ApptRuntimeStep {
+  key: string;
+  question: string;
+  options?: string[];
+  custom?: boolean;
+  label?: string;
+}
+
+function buildApptSteps(settings: AppointmentSettings): ApptRuntimeStep[] {
+  const base: ApptRuntimeStep[] = activeApptSteps(settings).map((s) => ({
+    key: s.key,
+    question: s.question(settings),
+  }));
+
+  const custom: ApptRuntimeStep[] = (settings.custom_steps || [])
+    .filter((c) => c && typeof c.question === 'string' && c.question.trim())
+    .map((c, i) => ({
+      key: `custom_${c.id || i}`,
+      question: c.question.trim(),
+      options: (c.options || []).map((o) => (o || '').trim()).filter(Boolean),
+      custom: true,
+      label: (c.label || '').trim() || c.question.trim(),
+    }));
+
+  return [...base, ...custom];
+}
+
+// Normaliza la respuesta del cliente cuando el paso tiene botones/opciones
+function resolveOptionAnswer(step: ApptRuntimeStep, raw: string): string {
+  const answer = raw.trim();
+  if (!step.options || step.options.length === 0) return answer;
+
+  const num = parseInt(answer, 10);
+  if (!isNaN(num) && num >= 1 && num <= step.options.length && /^\d+$/.test(answer)) {
+    return step.options[num - 1];
+  }
+
+  const lower = answer.toLowerCase();
+  const match = step.options.find((o) => o.toLowerCase() === lower)
+    || step.options.find((o) => o.toLowerCase().includes(lower) || lower.includes(o.toLowerCase()));
+  return match || answer;
+}
+
+// Envía la pregunta de un paso: con botones si tiene opciones, si no como texto
+async function sendApptQuestion(
+  supabase: any,
+  step: ApptRuntimeStep,
+  platformAccount: PlatformAccountData,
+  customerIdentifier: string,
+  conversationId: string,
+): Promise<void> {
+  const options = (step.options || []).slice(0, 3);
+  const isWhatsAppCloud =
+    (platformAccount as any)?.phone_number_id &&
+    (platformAccount as any)?.access_token &&
+    (platformAccount as any)?.connection_type !== 'external_qr' &&
+    (platformAccount as any)?.connection_type !== 'z-api';
+
+  if (options.length > 0 && isWhatsAppCloud) {
+    await sendWhatsAppInteractiveMessage(
+      (platformAccount as any).phone_number_id,
+      (platformAccount as any).access_token,
+      customerIdentifier,
+      {
+        type: 'button',
+        body: { text: step.question.slice(0, 1024) },
+        action: {
+          buttons: options.map((opt, idx) => ({
+            type: 'reply' as const,
+            reply: { id: `appt_opt_${idx + 1}`, title: opt.slice(0, 20) },
+          })),
+        },
+      },
+    );
+    await saveOutboundMessage(supabase, conversationId, step.question);
+    return;
+  }
+
+  let text = step.question;
+  if (options.length > 0) {
+    text += '\n\n' + options.map((o, i) => `${i + 1}. ${o}`).join('\n');
+  }
+  await sendPlatformMessage(platformAccount, customerIdentifier, text);
+  await saveOutboundMessage(supabase, conversationId, text);
+}
+
+// Construye las notas de la cita con las respuestas de los pasos personalizados
+function buildApptNotes(steps: ApptRuntimeStep[], answers: Record<string, string>): string | null {
+  const lines = steps
+    .filter((s) => s.custom && answers[s.key])
+    .map((s) => `${s.label}: ${answers[s.key]}`);
+  return lines.length > 0 ? lines.join('\n') : null;
+}
+
 const DEFAULT_APPT_SETTINGS: AppointmentSettings = {
   ask_name: true,
   ask_phone: true,
@@ -1690,7 +1792,7 @@ async function startAppointmentFlow(
   whatsappAccountId: string,
 ): Promise<void> {
   const settings: AppointmentSettings = { ...DEFAULT_APPT_SETTINGS, ...(node.appointment_settings || {}) };
-  const steps = activeApptSteps(settings);
+  const steps = buildApptSteps(settings);
 
   if (steps.length === 0) {
     await saveAppointment(supabase, conversationId, whatsappAccountId, {}, customerIdentifier, settings);
@@ -1713,9 +1815,7 @@ async function startAppointmentFlow(
     .update({ context })
     .eq('id', state.id);
 
-  const question = steps[0].question(settings);
-  await sendPlatformMessage(platformAccount, customerIdentifier, question);
-  await saveOutboundMessage(supabase, conversationId, question);
+  await sendApptQuestion(supabase, steps[0], platformAccount, customerIdentifier, conversationId);
 }
 
 async function handleAppointmentAnswer(
@@ -1731,7 +1831,7 @@ async function handleAppointmentAnswer(
   currentPlatform: string,
 ): Promise<string> {
   const settings: AppointmentSettings = { ...DEFAULT_APPT_SETTINGS, ...(apptCtx.settings || {}) };
-  const steps = activeApptSteps(settings);
+  const steps = buildApptSteps(settings);
   const stepIndex: number = apptCtx.step ?? 0;
   const answers: Record<string, string> = { ...(apptCtx.answers || {}) };
 
@@ -1749,7 +1849,7 @@ async function handleAppointmentAnswer(
 
   const currentStep = steps[stepIndex];
   if (currentStep) {
-    answers[currentStep.key] = answer.trim();
+    answers[currentStep.key] = resolveOptionAnswer(currentStep, answer);
   }
 
   const nextIndex = stepIndex + 1;
@@ -1760,14 +1860,20 @@ async function handleAppointmentAnswer(
       appointment: { ...apptCtx, settings, step: nextIndex, answers },
     };
     await supabase.from('chatbot_conversation_state').update({ context }).eq('id', state.id);
-    const question = steps[nextIndex].question(settings);
-    await sendPlatformMessage(platformAccount, customerIdentifier, question);
-    await saveOutboundMessage(supabase, conversationId, question);
+    await sendApptQuestion(supabase, steps[nextIndex], platformAccount, customerIdentifier, conversationId);
     return `step_${nextIndex}`;
   }
 
   // Terminamos: guardar la cita
-  await saveAppointment(supabase, conversationId, whatsappAccountId, answers, customerIdentifier, settings);
+  await saveAppointment(
+    supabase,
+    conversationId,
+    whatsappAccountId,
+    answers,
+    customerIdentifier,
+    settings,
+    buildApptNotes(steps, answers),
+  );
 
   const context = { ...(state.context || {}) };
   delete context.appointment;
@@ -1873,6 +1979,7 @@ async function saveAppointment(
   answers: Record<string, string>,
   customerIdentifier: string,
   settings: AppointmentSettings,
+  notes?: string | null,
 ): Promise<void> {
   try {
     const { data: account } = await supabase
@@ -1897,6 +2004,7 @@ async function saveAppointment(
         birth_date: answers.birth_date || null,
         appointment_date: answers.appointment_date || null,
         appointment_time: answers.appointment_time || null,
+        notes: notes || null,
         status: 'pending',
       })
       .select('id')

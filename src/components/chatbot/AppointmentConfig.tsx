@@ -2,7 +2,15 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { CalendarDays, Calendar } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { CalendarDays, Calendar, Plus, X, MessageSquarePlus } from 'lucide-react';
+
+export interface AppointmentCustomStep {
+  id: string;
+  label: string;
+  question: string;
+  options: string[];
+}
 
 export interface AppointmentSettings {
   enabled: boolean;
@@ -16,6 +24,7 @@ export interface AppointmentSettings {
   available_hours: string; // e.g. "9:00-18:00"
   sync_google_calendar: boolean;
   duration_minutes: number;
+  custom_steps?: AppointmentCustomStep[];
 }
 
 export const defaultAppointmentSettings: AppointmentSettings = {
@@ -30,6 +39,7 @@ export const defaultAppointmentSettings: AppointmentSettings = {
   available_hours: '9:00-18:00',
   sync_google_calendar: false,
   duration_minutes: 60,
+  custom_steps: [],
 };
 
 interface AppointmentConfigProps {
@@ -40,6 +50,41 @@ interface AppointmentConfigProps {
 export const AppointmentConfig = ({ settings, onChange }: AppointmentConfigProps) => {
   const update = (key: keyof AppointmentSettings, value: any) => {
     onChange({ ...settings, [key]: value });
+  };
+
+  const customSteps: AppointmentCustomStep[] = settings.custom_steps || [];
+
+  const updateStep = (index: number, patch: Partial<AppointmentCustomStep>) => {
+    const next = customSteps.map((s, i) => (i === index ? { ...s, ...patch } : s));
+    update('custom_steps', next);
+  };
+
+  const addStep = () => {
+    update('custom_steps', [
+      ...customSteps,
+      { id: `cs_${Date.now()}`, label: '', question: '', options: [] },
+    ]);
+  };
+
+  const removeStep = (index: number) => {
+    update('custom_steps', customSteps.filter((_, i) => i !== index));
+  };
+
+  const updateOption = (stepIndex: number, optIndex: number, value: string) => {
+    const opts = [...(customSteps[stepIndex].options || [])];
+    opts[optIndex] = value.slice(0, 20);
+    updateStep(stepIndex, { options: opts });
+  };
+
+  const addOption = (stepIndex: number) => {
+    const opts = [...(customSteps[stepIndex].options || [])];
+    if (opts.length >= 3) return;
+    updateStep(stepIndex, { options: [...opts, ''] });
+  };
+
+  const removeOption = (stepIndex: number, optIndex: number) => {
+    const opts = (customSteps[stepIndex].options || []).filter((_, i) => i !== optIndex);
+    updateStep(stepIndex, { options: opts });
   };
 
   return (
@@ -102,6 +147,73 @@ export const AppointmentConfig = ({ settings, onChange }: AppointmentConfigProps
         <p className="text-xs text-muted-foreground">
           Variables: {'{nombre}'}, {'{fecha}'}, {'{hora}'}, {'{telefono}'}, {'{nacimiento}'}
         </p>
+      </div>
+
+      {/* Preguntas y botones personalizados */}
+      <div className="rounded-lg border bg-background/50 p-3 space-y-3">
+        <div className="flex items-center gap-2 text-primary">
+          <MessageSquarePlus className="h-4 w-4" />
+          <h5 className="text-sm font-semibold">Preguntas y botones personalizados</h5>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Agrega preguntas libres (ej. "¿Qué servicio deseas?") con hasta 3 botones de respuesta.
+          Las respuestas quedan guardadas en las notas de la cita.
+        </p>
+
+        {customSteps.map((step, index) => (
+          <div key={step.id} className="space-y-2 rounded-lg border p-3">
+            <div className="flex items-start gap-2">
+              <div className="flex-1 space-y-2">
+                <Input
+                  value={step.label}
+                  onChange={(e) => updateStep(index, { label: e.target.value })}
+                  placeholder="Nombre del campo (ej. Servicio)"
+                />
+                <Textarea
+                  value={step.question}
+                  onChange={(e) => updateStep(index, { question: e.target.value })}
+                  placeholder="Pregunta que verá el cliente"
+                  rows={2}
+                />
+              </div>
+              <Button type="button" variant="ghost" size="icon" onClick={() => removeStep(index)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs">Botones de respuesta (opcional, máx. 3)</Label>
+              {(step.options || []).map((opt, optIndex) => (
+                <div key={optIndex} className="flex items-center gap-2">
+                  <Input
+                    value={opt}
+                    onChange={(e) => updateOption(index, optIndex, e.target.value)}
+                    placeholder={`Botón ${optIndex + 1}`}
+                    maxLength={20}
+                  />
+                  <span className="w-10 text-xs text-muted-foreground">{opt.length}/20</span>
+                  <Button type="button" variant="ghost" size="icon" onClick={() => removeOption(index, optIndex)}>
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+              {(step.options || []).length < 3 && (
+                <Button type="button" variant="outline" size="sm" onClick={() => addOption(index)}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Agregar botón
+                </Button>
+              )}
+              {(step.options || []).length === 0 && (
+                <p className="text-xs text-muted-foreground">Sin botones, el cliente responde con texto libre.</p>
+              )}
+            </div>
+          </div>
+        ))}
+
+        <Button type="button" variant="outline" size="sm" className="w-full" onClick={addStep}>
+          <Plus className="mr-2 h-4 w-4" />
+          Agregar pregunta
+        </Button>
       </div>
 
       <div className="rounded-lg border bg-background/50 p-3 space-y-3">
