@@ -167,6 +167,7 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
   const [accountToDelete, setAccountToDelete] = useState<WhatsAppAccount | null>(null);
   const [verifyingAccount, setVerifyingAccount] = useState<WhatsAppAccount | null>(null);
   const [lastError, setLastError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<string>("automatic");
   const { toast } = useToast();
   const navigate = useNavigate();
   const planLimits = usePlanLimits();
