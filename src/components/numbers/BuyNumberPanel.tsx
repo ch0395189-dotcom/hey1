@@ -387,6 +387,11 @@ export const BuyNumberPanel = () => {
                       Obtener número
                     </Button>
                   )}
+                  {o.phone_number && !o.whatsapp_account_id && (
+                    <Button size="sm" variant="secondary" onClick={() => { setAttachOrder(attachOrder === o.id ? null : o.id); setAttachNote(null); }}>
+                      Conectar a WhatsApp
+                    </Button>
+                  )}
                   <Button size="sm" variant="outline" onClick={() => {
                     navigator.clipboard.writeText(`+${o.phone_number ?? ""}`);
                     toast({ title: "Número copiado" });
@@ -400,6 +405,35 @@ export const BuyNumberPanel = () => {
                     <XCircle className="h-4 w-4" />
                   </Button>
                 </div>
+                {attachOrder === o.id && (
+                  <div className="w-full space-y-3 rounded-md border bg-muted/30 p-3">
+                    <p className="text-xs text-muted-foreground">
+                      Conectamos el número a tu portafolio de Meta automáticamente: lo agregamos,
+                      pedimos el SMS, lo verificamos y lo registramos. Si tu portafolio está
+                      restringido, lo conectamos con el portafolio de HeyHey.
+                    </p>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <div className="space-y-1">
+                        <Label>Nombre del negocio</Label>
+                        <Input value={bizName} onChange={(e) => setBizName(e.target.value)} placeholder="Mi Negocio" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label>PIN de 6 dígitos</Label>
+                        <Input value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="123456" inputMode="numeric" />
+                      </div>
+                    </div>
+                    {attachNote && (
+                      <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-2 text-xs text-destructive">
+                        <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
+                        <span>{attachNote}</span>
+                      </div>
+                    )}
+                    <Button size="sm" onClick={() => attach(o.id)} disabled={attaching}>
+                      {attaching ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
+                      {attaching ? "Conectando (puede tardar ~2 min)…" : "Conectar automáticamente"}
+                    </Button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
