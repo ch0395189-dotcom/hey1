@@ -167,6 +167,7 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
   const [accountToDelete, setAccountToDelete] = useState<WhatsAppAccount | null>(null);
   const [verifyingAccount, setVerifyingAccount] = useState<WhatsAppAccount | null>(null);
   const [lastError, setLastError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<string>("automatic");
   const { toast } = useToast();
   const navigate = useNavigate();
   const planLimits = usePlanLimits();
@@ -979,7 +980,7 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
         </div>
       )}
 
-      <Tabs defaultValue="automatic" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="automatic" className="flex items-center gap-2">
             <Zap className="w-4 h-4" />
@@ -1074,6 +1075,31 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
                         <RefreshCw className="w-4 h-4 mr-2" />
                         Reintentar conexión
                       </Button>
+                      {/* El portafolio ya está creado pero Meta no devolvió número:
+                          ofrecer comprar uno virtual y desplegar la pestaña de compra. */}
+                      {lastError.includes("todavía no aparece el número") && (
+                        <div className="mt-3 rounded-lg border border-primary/30 bg-primary/10 p-3">
+                          <p className="text-xs font-medium text-foreground">
+                            ¿No tienes un número para conectar?
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Tu portafolio de WhatsApp Business ya está listo. Compra un número
+                            virtual y úsalo para verificar tu cuenta.
+                          </p>
+                          <Button
+                            variant="default"
+                            size="sm"
+                            className="w-full mt-2"
+                            onClick={() => {
+                              setLastError(null);
+                              setActiveTab("buy");
+                            }}
+                          >
+                            <ShoppingCart className="w-4 h-4 mr-2" />
+                            Comprar número virtual
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   )}
 
