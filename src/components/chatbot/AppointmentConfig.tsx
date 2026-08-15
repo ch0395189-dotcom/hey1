@@ -27,6 +27,8 @@ export interface AppointmentSettings {
   sync_google_calendar: boolean;
   duration_minutes: number;
   custom_steps?: AppointmentCustomStep[];
+  /** Orden global de las preguntas (claves base + custom_<id>) */
+  step_order?: string[];
 }
 
 export const defaultAppointmentSettings: AppointmentSettings = {
@@ -44,7 +46,27 @@ export const defaultAppointmentSettings: AppointmentSettings = {
   sync_google_calendar: false,
   duration_minutes: 60,
   custom_steps: [],
+  step_order: [],
 };
+
+const BASE_STEPS: { key: string; label: string; flag: keyof AppointmentSettings }[] = [
+  { key: 'customer_name', label: 'Nombre', flag: 'ask_name' },
+  { key: 'customer_phone', label: 'Teléfono', flag: 'ask_phone' },
+  { key: 'birth_date', label: 'Fecha de nacimiento', flag: 'ask_birthdate' },
+  { key: 'appointment_date', label: 'Fecha de la cita', flag: 'ask_date' },
+  { key: 'appointment_time', label: 'Hora de la cita', flag: 'ask_time' },
+  { key: 'photo_url', label: 'Foto', flag: 'ask_photo' },
+];
+
+/** Devuelve el orden efectivo de todas las preguntas (base + personalizadas). */
+export function resolveStepOrder(settings: AppointmentSettings): string[] {
+  const all = [
+    ...BASE_STEPS.map((s) => s.key),
+    ...(settings.custom_steps || []).map((c, i) => `custom_${c.id || i}`),
+  ];
+  const saved = (settings.step_order || []).filter((k) => all.includes(k));
+  return [...saved, ...all.filter((k) => !saved.includes(k))];
+}
 
 interface AppointmentConfigProps {
   settings: AppointmentSettings;
