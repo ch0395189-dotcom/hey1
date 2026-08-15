@@ -28,7 +28,7 @@ import { TokenAuditPanel } from '@/components/admin/TokenAuditPanel';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Shield, Users, CreditCard, Bell, Coins, BarChart3, Bot, Phone, Mail, UserX, Link2, ShieldAlert, MailWarning, Clock, Megaphone, RotateCcw, PhoneCall, Repeat, Activity, ShoppingCart, KeyRound } from 'lucide-react';
+import { ArrowLeft, Shield, Users, CreditCard, Bell, Coins, BarChart3, Bot, Phone, Mail, UserX, Link2, ShieldAlert, MailWarning, Clock, Megaphone, RotateCcw, PhoneCall, Repeat, Activity, ShoppingCart, KeyRound, MousePointerClick } from 'lucide-react';
 
 const Admin = () => {
   const navigate = useNavigate();
