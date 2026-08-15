@@ -72,6 +72,7 @@ import { useNotificationSound } from "@/hooks/useNotificationSound";
 import { FaWhatsapp, FaFacebookMessenger, FaInstagram, FaTiktok } from "react-icons/fa";
 import { ImagePreviewDialog } from "@/components/whatsapp/ImagePreviewDialog";
 import { InteractiveMessageDialog, InteractiveMessageData } from "@/components/whatsapp/InteractiveMessageDialog";
+import { WhatsAppButtonDialog, WhatsAppButtonData } from "@/components/whatsapp/WhatsAppButtonDialog";
 import { SendTemplateDialog } from "@/components/whatsapp/SendTemplateDialog";
 import { ClonedVoicePreviewDialog } from "@/components/whatsapp/ClonedVoicePreviewDialog";
 import { ForwardMessageDialog } from "@/components/whatsapp/ForwardMessageDialog";
@@ -147,6 +148,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
   const [unreadCount, setUnreadCount] = useState(0);
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const [showInteractiveDialog, setShowInteractiveDialog] = useState(false);
+  const [showWaButtonDialog, setShowWaButtonDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [accountConnectionType, setAccountConnectionType] = useState<string | null>(null);
@@ -998,6 +1000,67 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
 
   const handleSendInteractiveMessage = async (data: InteractiveMessageData) => {
     return _handleSendInteractive(data);
+  };
+
+  const handleSendWhatsAppButton = async (data: WhatsAppButtonData) => {
+    if (!conversation || sending) return;
+    if (conversation.platform !== 'whatsapp') {
+      toast({
+        title: "No soportado",
+        description: "El botón de WhatsApp solo está disponible para WhatsApp.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSending(true);
+    try {
+      const isExternalConnection = accountConnectionType === 'external_qr' || accountConnectionType === 'z-api';
+
+      if (isExternalConnection) {
+        const textMessage = `${data.bodyText}\n\n👉 ${data.ctaText}: ${data.ctaUrl}${data.footerText ? `\n\n_${data.footerText}_` : ''}`;
+        const { data: result, error } = await supabase.functions.invoke('whatsapp-send-external', {
+          body: {
+            accountId: conversation.whatsapp_account_id,
+            to: conversation.customer_phone,
+            message: textMessage,
+            conversationId: conversation.id,
+            createConversation: true,
+          },
+        });
+        if (error) throw error;
+        if (result?.error) throw new Error(getFriendlyWhatsappError(result));
+        setTimeout(() => fetchMessages(), 200);
+      } else {
+        const { data: result, error } = await supabase.functions.invoke('whatsapp-send-message', {
+          body: {
+            conversation_id: conversation.id,
+            interactive: {
+              type: 'cta_url',
+              bodyText: data.bodyText,
+              footerText: data.footerText,
+              ctaText: data.ctaText,
+              ctaUrl: data.ctaUrl,
+            },
+          },
+        });
+        if (error) throw error;
+        if (result?.error) throw new Error(getFriendlyWhatsappError(result));
+        setTimeout(() => fetchMessages(), 300);
+      }
+
+      toast({ title: "Botón enviado", description: "El cliente ya puede abrir el chat con un toque." });
+    } catch (error: any) {
+      console.error('Error sending WhatsApp button:', error);
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo enviar el botón de WhatsApp.",
+        variant: "destructive",
+      });
+      throw error;
+    } finally {
+      setSending(false);
+    }
   };
 
   // Handler used by the preview dialog: receives an already-generated audio blob
@@ -2061,6 +2124,19 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
               <ListOrdered className="w-5 h-5 text-muted-foreground" />
             </Button>
           )}
+          {conversation?.platform === 'whatsapp' && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="shrink-0 h-8 w-8 md:h-10 md:w-10"
+              onClick={() => setShowWaButtonDialog(true)}
+              title="Enviar botón de WhatsApp"
+              aria-label="Enviar botón de WhatsApp"
+            >
+              <FaWhatsapp className="w-5 h-5 text-green-500" />
+            </Button>
+          )}
           {conversation?.platform === 'whatsapp' &&
             accountConnectionType !== 'external_qr' &&
             accountConnectionType !== 'external' && (
@@ -2196,6 +2272,12 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
         open={showInteractiveDialog}
         onOpenChange={setShowInteractiveDialog}
         onSend={handleSendInteractiveMessage}
+      />
+
+      <WhatsAppButtonDialog
+        open={showWaButtonDialog}
+        onOpenChange={setShowWaButtonDialog}
+        onSend={handleSendWhatsAppButton}
       />
 
       {/* Cloned voice preview & multi-voice selector */}
