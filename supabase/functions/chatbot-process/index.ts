@@ -68,6 +68,7 @@ interface AppointmentSettings {
   sync_google_calendar?: boolean;
   duration_minutes?: number;
   custom_steps?: AppointmentCustomStep[];
+  step_order?: string[];
 }
 
 interface AppointmentCustomStep {
