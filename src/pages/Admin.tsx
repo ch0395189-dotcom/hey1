@@ -17,6 +17,7 @@ import { TrialAbuseTable } from '@/components/admin/TrialAbuseTable';
 import { NoWhatsAppOutreach } from '@/components/admin/NoWhatsAppOutreach';
 import { ExpiredPlansOutreach } from '@/components/admin/ExpiredPlansOutreach';
 import { CtwaAnalytics } from '@/components/admin/CtwaAnalytics';
+import { WhatsAppButtonStats } from '@/components/admin/WhatsAppButtonStats';
 import { ReassignableNumbers } from '@/components/admin/ReassignableNumbers';
 import { AddWhatsAppNumber } from '@/components/admin/AddWhatsAppNumber';
 import { AutoProvisionNumber } from '@/components/admin/AutoProvisionNumber';
@@ -146,6 +147,10 @@ const Admin = () => {
               <RotateCcw className="h-4 w-4" />
               <span className="hidden sm:inline">Reasignables</span>
             </TabsTrigger>
+            <TabsTrigger value="wa-clicks" className="flex items-center gap-2">
+              <MousePointerClick className="h-4 w-4" />
+              <span className="hidden sm:inline">Clics WhatsApp</span>
+            </TabsTrigger>
             <TabsTrigger value="add-number" className="flex items-center gap-2">
               <PhoneCall className="h-4 w-4" />
               <span className="hidden sm:inline">Nuevo número</span>
@@ -241,6 +246,10 @@ const Admin = () => {
 
           <TabsContent value="reassignable">
             <ReassignableNumbers />
+          </TabsContent>
+
+          <TabsContent value="wa-clicks">
+            <WhatsAppButtonStats />
           </TabsContent>
 
           <TabsContent value="token-audit">
