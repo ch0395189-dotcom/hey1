@@ -82,6 +82,7 @@ export const AppointmentsPanel = () => {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [infoAppt, setInfoAppt] = useState<Appointment | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -447,7 +448,7 @@ export const AppointmentsPanel = () => {
                             : ''}
                         </span>
                       </span>
-                      {isAdmin && (
+                      {isAdmin ? (
                         <Button
                           size="sm"
                           variant="ghost"
@@ -461,6 +462,15 @@ export const AppointmentsPanel = () => {
                           }
                         >
                           Ver usuario
+                        </Button>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 px-2 shrink-0"
+                          onClick={() => setInfoAppt(a)}
+                        >
+                          Ver quién agendó
                         </Button>
                       )}
                     </div>
