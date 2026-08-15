@@ -399,12 +399,22 @@ export const AppointmentsPanel = () => {
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {filtered.map((a) => {
             const meta = statusMeta(a.status);
+            const convId = chatIdFor(a);
+            const convInfo = convId
+              ? convs[convId] ??
+                (convByPhone[(a.customer_phone ?? '').replace(/\D/g, '')]
+                  ? {
+                      phone: (a.customer_phone ?? '').replace(/\D/g, ''),
+                      name: convByPhone[(a.customer_phone ?? '').replace(/\D/g, '')].name,
+                    }
+                  : undefined)
+              : undefined;
             return (
               <Card
                 key={a.id}
                 onClick={() => openConversation(a)}
-                className={a.conversation_id ? 'cursor-pointer transition-colors hover:border-primary/50 hover:bg-accent/40' : ''}
-                title={a.conversation_id ? 'Abrir conversación de WhatsApp' : undefined}
+                className={convId ? 'cursor-pointer transition-colors hover:border-primary/50 hover:bg-accent/40' : ''}
+                title={convId ? 'Abrir conversación de WhatsApp' : undefined}
               >
                 <CardContent className="p-4 space-y-3">
                   <div className="flex items-start justify-between gap-2">
@@ -419,18 +429,16 @@ export const AppointmentsPanel = () => {
                     <Badge variant="outline" className={meta.className}>{meta.label}</Badge>
                   </div>
 
-                  {a.conversation_id ? (
+                  {convId ? (
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-md border border-primary/30 bg-primary/5 px-2 py-2 text-xs">
                       <span className="flex items-center gap-1.5 min-w-0 w-full">
                         <MessageSquare className="h-3.5 w-3.5 shrink-0 text-primary" />
                         <span className="truncate">
                           Chat:{' '}
                           <span className="font-medium text-foreground">
-                            {convs[a.conversation_id]?.phone
-                              ? `+${convs[a.conversation_id].phone}`
-                              : 'cargando…'}
+                            {convInfo?.phone ? `+${convInfo.phone}` : 'cargando…'}
                           </span>
-                          {convs[a.conversation_id]?.name ? ` · ${convs[a.conversation_id]?.name}` : ''}
+                          {convInfo?.name ? ` · ${convInfo.name}` : ''}
                         </span>
                       </span>
                       <Button
