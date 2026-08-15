@@ -3,7 +3,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
-import { CalendarDays, Calendar, Plus, X, MessageSquarePlus, ArrowUp, ArrowDown } from 'lucide-react';
+import { CalendarDays, Calendar, Plus, X, MessageSquarePlus, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 
 export interface AppointmentCustomStep {
   id: string;
