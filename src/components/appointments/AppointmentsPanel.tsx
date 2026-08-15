@@ -268,7 +268,8 @@ export const AppointmentsPanel = () => {
   };
 
   const openConversation = (a: Appointment) => {
-    if (!a.conversation_id) {
+    const convId = chatIdFor(a);
+    if (!convId) {
       toast({
         title: 'Sin conversación vinculada',
         description: 'Esta cita no tiene un chat de WhatsApp asociado.',
@@ -276,14 +277,14 @@ export const AppointmentsPanel = () => {
       return;
     }
     if (window.location.pathname !== '/dashboard') {
-      navigate(`/dashboard?view=inbox&platform=whatsapp&conv=${a.conversation_id}`);
+      navigate(`/dashboard?view=inbox&platform=whatsapp&conv=${convId}`);
       return;
     }
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       next.set('view', 'inbox');
       next.set('platform', 'whatsapp');
-      next.set('conv', a.conversation_id as string);
+      next.set('conv', convId);
       return next;
     });
   };
