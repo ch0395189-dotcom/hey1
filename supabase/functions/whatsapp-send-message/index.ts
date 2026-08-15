@@ -51,10 +51,6 @@ function buildInteractivePayload(interactive: InteractiveMessage, recipientPhone
     type: 'interactive',
   };
 
-  if (interactive.type === 'buttons') {
-    // fallthrough below
-  }
-
   if (interactive.type === 'cta_url') {
     return {
       ...basePayload,
