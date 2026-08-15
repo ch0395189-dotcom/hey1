@@ -60,6 +60,8 @@ interface AppointmentSettings {
   ask_birthdate?: boolean;
   ask_date?: boolean;
   ask_time?: boolean;
+  ask_photo?: boolean;
+  photo_question?: string;
   confirmation_message?: string;
   available_days?: string;
   available_hours?: string;
@@ -191,6 +193,8 @@ Deno.serve(async (req) => {
       platform,
       platform_account_id,
       recipient_id, // Customer's platform ID (PSID for Messenger, IG user ID, TikTok open_id)
+      media_url,
+      message_type,
     } = await req.json();
 
     console.log('Processing chatbot for conversation:', conversation_id, 'platform:', platform || 'whatsapp');
@@ -371,6 +375,8 @@ Deno.serve(async (req) => {
         chatbotConfig.whatsapp_account_id,
         chatbotConfig,
         currentPlatform,
+        media_url || null,
+        message_type || null,
       );
       return new Response(JSON.stringify({ processed: true, action: 'appointment', step: handled }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -1670,10 +1676,18 @@ const APPOINTMENT_STEPS: ApptStep[] = [
     question: (s) =>
       `🕐 ¿A qué *hora* te queda mejor?${s.available_hours ? `\n\nHorario: ${s.available_hours}` : ''}`,
   },
+  {
+    key: 'photo_url',
+    flag: 'ask_photo',
+    question: (s) =>
+      (s.photo_question || '').trim() || '📸 Por favor envía una *foto* para completar tu cita.',
+  },
 ];
 
 function activeApptSteps(settings: AppointmentSettings): ApptStep[] {
-  return APPOINTMENT_STEPS.filter((step) => settings[step.flag] !== false);
+  return APPOINTMENT_STEPS.filter((step) =>
+    step.flag === 'ask_photo' ? settings.ask_photo === true : settings[step.flag] !== false,
+  );
 }
 
 interface ApptRuntimeStep {
@@ -1682,12 +1696,14 @@ interface ApptRuntimeStep {
   options?: string[];
   custom?: boolean;
   label?: string;
+  photo?: boolean;
 }
 
 function buildApptSteps(settings: AppointmentSettings): ApptRuntimeStep[] {
   const base: ApptRuntimeStep[] = activeApptSteps(settings).map((s) => ({
     key: s.key,
     question: s.question(settings),
+    photo: s.key === 'photo_url',
   }));
 
   const custom: ApptRuntimeStep[] = (settings.custom_steps || [])
@@ -1791,6 +1807,7 @@ function buildApptNotes(steps: ApptRuntimeStep[], answers: Record<string, string
   const lines = steps
     .filter((s) => s.custom && answers[s.key])
     .map((s) => `${s.label}: ${answers[s.key]}`);
+  if (answers.photo_url) lines.push(`Foto: ${answers.photo_url}`);
   return lines.length > 0 ? lines.join('\n') : null;
 }
 
@@ -1800,6 +1817,7 @@ const DEFAULT_APPT_SETTINGS: AppointmentSettings = {
   ask_birthdate: true,
   ask_date: true,
   ask_time: true,
+  ask_photo: false,
   confirmation_message:
     '✅ Listo {nombre}, tu cita quedó agendada para el {fecha} a las {hora}. ¡Te esperamos!',
   sync_google_calendar: false,
@@ -1853,6 +1871,8 @@ async function handleAppointmentAnswer(
   whatsappAccountId: string,
   chatbotConfig: ChatbotConfig,
   currentPlatform: string,
+  mediaUrl?: string | null,
+  messageType?: string | null,
 ): Promise<string> {
   const settings: AppointmentSettings = { ...DEFAULT_APPT_SETTINGS, ...(apptCtx.settings || {}) };
   const steps = buildApptSteps(settings);
@@ -1872,7 +1892,18 @@ async function handleAppointmentAnswer(
   }
 
   const currentStep = steps[stepIndex];
-  if (currentStep) {
+
+  // Paso de foto: requiere una imagen adjunta
+  if (currentStep?.photo) {
+    const isImage = !!mediaUrl && (messageType === 'image' || detectMediaType(mediaUrl) === 'image');
+    if (!isImage) {
+      const retry = `${currentStep.question}\n\n(Envía la foto como imagen adjunta)`;
+      await sendPlatformMessage(platformAccount, customerIdentifier, retry);
+      await saveOutboundMessage(supabase, conversationId, retry);
+      return `awaiting_photo_${stepIndex}`;
+    }
+    answers[currentStep.key] = mediaUrl!;
+  } else if (currentStep) {
     answers[currentStep.key] = resolveOptionAnswer(currentStep, answer);
   }
 

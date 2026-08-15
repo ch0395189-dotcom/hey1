@@ -823,6 +823,8 @@ Deno.serve(async (req) => {
                           phone_number_id: phoneNumberId,
                           access_token: accountData.access_token,
                           customer_phone: customerPhone,
+                          media_url: mediaUrl,
+                          message_type: messageType,
                         }),
                       }
                     );
