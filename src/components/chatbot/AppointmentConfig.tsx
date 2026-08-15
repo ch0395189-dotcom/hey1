@@ -3,7 +3,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
-import { CalendarDays, Calendar, Plus, X, MessageSquarePlus } from 'lucide-react';
+import { CalendarDays, Calendar, Plus, X, MessageSquarePlus, ArrowUp, ArrowDown } from 'lucide-react';
 
 export interface AppointmentCustomStep {
   id: string;
@@ -74,6 +74,14 @@ export const AppointmentConfig = ({ settings, onChange }: AppointmentConfigProps
     update('custom_steps', customSteps.filter((_, i) => i !== index));
   };
 
+  const moveStep = (index: number, direction: -1 | 1) => {
+    const target = index + direction;
+    if (target < 0 || target >= customSteps.length) return;
+    const next = [...customSteps];
+    [next[index], next[target]] = [next[target], next[index]];
+    update('custom_steps', next);
+  };
+
   const updateOption = (stepIndex: number, optIndex: number, value: string) => {
     const opts = [...(customSteps[stepIndex].options || [])];
     opts[optIndex] = value;
@@ -87,6 +95,14 @@ export const AppointmentConfig = ({ settings, onChange }: AppointmentConfigProps
 
   const removeOption = (stepIndex: number, optIndex: number) => {
     const opts = (customSteps[stepIndex].options || []).filter((_, i) => i !== optIndex);
+    updateStep(stepIndex, { options: opts });
+  };
+
+  const moveOption = (stepIndex: number, optIndex: number, direction: -1 | 1) => {
+    const opts = [...(customSteps[stepIndex].options || [])];
+    const target = optIndex + direction;
+    if (target < 0 || target >= opts.length) return;
+    [opts[optIndex], opts[target]] = [opts[target], opts[optIndex]];
     updateStep(stepIndex, { options: opts });
   };
 
@@ -181,11 +197,17 @@ export const AppointmentConfig = ({ settings, onChange }: AppointmentConfigProps
           Agrega preguntas libres (ej. "¿Qué servicio deseas?") con los botones de respuesta que necesites.
           Las respuestas quedan guardadas en las notas de la cita.
         </p>
+        <p className="text-xs text-muted-foreground">
+          Usa las flechas para reorganizar el orden de las preguntas y de los botones.
+        </p>
 
         {customSteps.map((step, index) => (
           <div key={step.id} className="space-y-2 rounded-lg border p-3">
             <div className="flex items-start gap-2">
               <div className="flex-1 space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium text-muted-foreground">Pregunta {index + 1}</span>
+                </div>
                 <Input
                   value={step.label}
                   onChange={(e) => updateStep(index, { label: e.target.value })}
@@ -198,9 +220,31 @@ export const AppointmentConfig = ({ settings, onChange }: AppointmentConfigProps
                   rows={2}
                 />
               </div>
-              <Button type="button" variant="ghost" size="icon" onClick={() => removeStep(index)}>
-                <X className="h-4 w-4" />
-              </Button>
+              <div className="flex flex-col gap-1">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  disabled={index === 0}
+                  onClick={() => moveStep(index, -1)}
+                  aria-label="Subir pregunta"
+                >
+                  <ArrowUp className="h-4 w-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  disabled={index === customSteps.length - 1}
+                  onClick={() => moveStep(index, 1)}
+                  aria-label="Bajar pregunta"
+                >
+                  <ArrowDown className="h-4 w-4" />
+                </Button>
+                <Button type="button" variant="ghost" size="icon" onClick={() => removeStep(index)} aria-label="Eliminar pregunta">
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -212,6 +256,26 @@ export const AppointmentConfig = ({ settings, onChange }: AppointmentConfigProps
                     onChange={(e) => updateOption(index, optIndex, e.target.value)}
                     placeholder={`Botón ${optIndex + 1}`}
                   />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    disabled={optIndex === 0}
+                    onClick={() => moveOption(index, optIndex, -1)}
+                    aria-label="Subir botón"
+                  >
+                    <ArrowUp className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    disabled={optIndex === (step.options || []).length - 1}
+                    onClick={() => moveOption(index, optIndex, 1)}
+                    aria-label="Bajar botón"
+                  >
+                    <ArrowDown className="h-4 w-4" />
+                  </Button>
                   <Button type="button" variant="ghost" size="icon" onClick={() => removeOption(index, optIndex)}>
                     <X className="h-4 w-4" />
                   </Button>
