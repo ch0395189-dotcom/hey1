@@ -1915,6 +1915,39 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_button_clicks: {
+        Row: {
+          created_at: string
+          device: string | null
+          id: string
+          page_path: string | null
+          phone_number: string | null
+          referrer: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          device?: string | null
+          id?: string
+          page_path?: string | null
+          phone_number?: string | null
+          referrer?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          device?: string | null
+          id?: string
+          page_path?: string | null
+          phone_number?: string | null
+          referrer?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       whatsapp_quality_alerts: {
         Row: {
           created_at: string
