@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAdminCheck } from '@/hooks/useAdminCheck';
 import { supabase } from '@/integrations/supabase/client';
+import { getEffectiveUser } from '@/lib/effectiveAuth';
 import { toast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -84,9 +85,18 @@ export const AppointmentsPanel = () => {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const { data: authData } = await supabase.auth.getUser();
+    const { data: authData } = await getEffectiveUser();
     const uid = authData.user?.id ?? null;
     setMyUserId(uid);
+
+    // Un agente de equipo debe ver las citas de la cuenta dueña
+    let ownerId: string | null = null;
+    try {
+      const { data: owner } = await supabase.rpc('get_my_owner_id');
+      ownerId = (owner as string | null) ?? null;
+    } catch {
+      ownerId = null;
+    }
 
     let query = supabase
       .from('appointments')
@@ -96,7 +106,8 @@ export const AppointmentsPanel = () => {
 
     // Cada usuario ve solo las citas de su cuenta. El admin puede ampliar el alcance.
     if (uid && !(isAdmin && scope === 'all')) {
-      query = query.eq('user_id', uid);
+      const ids = Array.from(new Set([uid, ownerId].filter(Boolean) as string[]));
+      query = ids.length > 1 ? query.in('user_id', ids) : query.eq('user_id', uid);
     }
 
     const { data, error } = await query;
