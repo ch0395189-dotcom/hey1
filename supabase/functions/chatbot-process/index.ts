@@ -191,6 +191,8 @@ Deno.serve(async (req) => {
       platform,
       platform_account_id,
       recipient_id, // Customer's platform ID (PSID for Messenger, IG user ID, TikTok open_id)
+      media_url,
+      message_type,
     } = await req.json();
 
     console.log('Processing chatbot for conversation:', conversation_id, 'platform:', platform || 'whatsapp');
@@ -371,6 +373,8 @@ Deno.serve(async (req) => {
         chatbotConfig.whatsapp_account_id,
         chatbotConfig,
         currentPlatform,
+        media_url || null,
+        message_type || null,
       );
       return new Response(JSON.stringify({ processed: true, action: 'appointment', step: handled }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
