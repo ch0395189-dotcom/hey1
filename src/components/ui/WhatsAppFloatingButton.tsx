@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MessageCircle } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface WhatsAppFloatingButtonProps {
   phoneNumber?: string;
@@ -15,9 +16,26 @@ export const WhatsAppFloatingButton = ({
 }: WhatsAppFloatingButtonProps) => {
   const [isHovered, setIsHovered] = useState(false);
 
+  const logClick = async () => {
+    try {
+      const { data } = await supabase.auth.getUser();
+      await supabase.from("whatsapp_button_clicks").insert({
+        user_id: data?.user?.id ?? null,
+        page_path: window.location.pathname + window.location.search,
+        referrer: document.referrer || null,
+        user_agent: navigator.userAgent,
+        device: /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) ? "mobile" : "desktop",
+        phone_number: phoneNumber,
+      });
+    } catch {
+      // no bloquear la apertura de WhatsApp si falla el registro
+    }
+  };
+
   const handleClick = () => {
     const encodedMessage = encodeURIComponent(message);
     const cleanPhone = phoneNumber.replace(/\D/g, '');
+    void logClick();
     window.open(`https://wa.me/${cleanPhone}?text=${encodedMessage}`, '_blank');
   };
 
