@@ -520,6 +520,44 @@ export const AppointmentsPanel = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={!!infoAppt} onOpenChange={(o) => !o && setInfoAppt(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Quién agendó esta cita?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-1 text-sm text-left">
+                <p>
+                  Cuenta:{' '}
+                  <span className="text-foreground font-medium">
+                    {(infoAppt?.user_id && (owners[infoAppt.user_id]?.name || owners[infoAppt.user_id]?.email)) ||
+                      'Cuenta sin nombre'}
+                  </span>
+                </p>
+                {infoAppt?.user_id && owners[infoAppt.user_id]?.email && (
+                  <p>Correo: <span className="text-foreground">{owners[infoAppt.user_id].email}</span></p>
+                )}
+                <p>
+                  Origen:{' '}
+                  <span className="text-foreground">
+                    {infoAppt?.conversation_id ? 'Chatbot de WhatsApp' : 'Registro manual'}
+                  </span>
+                </p>
+                {infoAppt?.conversation_id && convs[infoAppt.conversation_id]?.phone && (
+                  <p>Chat: <span className="text-foreground">+{convs[infoAppt.conversation_id].phone}</span></p>
+                )}
+                {infoAppt && (
+                  <p>Creada el <span className="text-foreground">{new Date(infoAppt.created_at).toLocaleString('es-CO')}</span></p>
+                )}
+                {infoAppt?.user_id === myUserId && <p className="text-muted-foreground">Es tu propia cuenta.</p>}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cerrar</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
