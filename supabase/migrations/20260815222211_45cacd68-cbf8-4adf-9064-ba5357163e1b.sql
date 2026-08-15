@@ -1,0 +1,1 @@
+UPDATE public.conversations SET is_archived = false WHERE whatsapp_account_id = 'be021b5d-48a6-44fa-aa22-fa57691e3f5a' AND is_archived = true;

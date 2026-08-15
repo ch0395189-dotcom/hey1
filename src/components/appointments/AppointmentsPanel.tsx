@@ -72,6 +72,8 @@ export const AppointmentsPanel = () => {
   const { isAdmin } = useAdminCheck();
   const [owners, setOwners] = useState<Record<string, { name: string; email: string }>>({});
   const [convs, setConvs] = useState<Record<string, { phone: string; name: string | null }>>({});
+  // Citas cuyo chat original fue borrado: resolvemos por número de teléfono
+  const [convByPhone, setConvByPhone] = useState<Record<string, { id: string; name: string | null }>>({});
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [myUserId, setMyUserId] = useState<string | null>(null);
@@ -180,6 +182,41 @@ export const AppointmentsPanel = () => {
     })();
   }, [appointments]);
 
+  // Resolver el chat por teléfono para citas sin conversation_id
+  useEffect(() => {
+    const phones = Array.from(
+      new Set(
+        appointments
+          .filter((a) => !a.conversation_id)
+          .map((a) => (a.customer_phone ?? '').replace(/\D/g, ''))
+          .filter((p) => p.length >= 7),
+      ),
+    );
+    if (!phones.length) return;
+    (async () => {
+      const map: Record<string, { id: string; name: string | null }> = {};
+      for (let i = 0; i < phones.length; i += 100) {
+        const chunk = phones.slice(i, i + 100);
+        const { data } = await supabase
+          .from('conversations')
+          .select('id, customer_phone, customer_name, last_message_at')
+          .in('customer_phone', chunk)
+          .order('last_message_at', { ascending: false });
+        (data ?? []).forEach((c: any) => {
+          const key = String(c.customer_phone).replace(/\D/g, '');
+          if (!map[key]) map[key] = { id: c.id, name: c.customer_name };
+        });
+      }
+      setConvByPhone(map);
+    })();
+  }, [appointments]);
+
+  const chatIdFor = useCallback(
+    (a: Appointment) =>
+      a.conversation_id ?? convByPhone[(a.customer_phone ?? '').replace(/\D/g, '')]?.id ?? null,
+    [convByPhone],
+  );
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return appointments.filter((a) => {
@@ -231,7 +268,8 @@ export const AppointmentsPanel = () => {
   };
 
   const openConversation = (a: Appointment) => {
-    if (!a.conversation_id) {
+    const convId = chatIdFor(a);
+    if (!convId) {
       toast({
         title: 'Sin conversación vinculada',
         description: 'Esta cita no tiene un chat de WhatsApp asociado.',
@@ -239,14 +277,14 @@ export const AppointmentsPanel = () => {
       return;
     }
     if (window.location.pathname !== '/dashboard') {
-      navigate(`/dashboard?view=inbox&platform=whatsapp&conv=${a.conversation_id}`);
+      navigate(`/dashboard?view=inbox&platform=whatsapp&conv=${convId}`);
       return;
     }
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       next.set('view', 'inbox');
       next.set('platform', 'whatsapp');
-      next.set('conv', a.conversation_id as string);
+      next.set('conv', convId);
       return next;
     });
   };
@@ -361,12 +399,22 @@ export const AppointmentsPanel = () => {
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {filtered.map((a) => {
             const meta = statusMeta(a.status);
+            const convId = chatIdFor(a);
+            const convInfo = convId
+              ? convs[convId] ??
+                (convByPhone[(a.customer_phone ?? '').replace(/\D/g, '')]
+                  ? {
+                      phone: (a.customer_phone ?? '').replace(/\D/g, ''),
+                      name: convByPhone[(a.customer_phone ?? '').replace(/\D/g, '')].name,
+                    }
+                  : undefined)
+              : undefined;
             return (
               <Card
                 key={a.id}
                 onClick={() => openConversation(a)}
-                className={a.conversation_id ? 'cursor-pointer transition-colors hover:border-primary/50 hover:bg-accent/40' : ''}
-                title={a.conversation_id ? 'Abrir conversación de WhatsApp' : undefined}
+                className={convId ? 'cursor-pointer transition-colors hover:border-primary/50 hover:bg-accent/40' : ''}
+                title={convId ? 'Abrir conversación de WhatsApp' : undefined}
               >
                 <CardContent className="p-4 space-y-3">
                   <div className="flex items-start justify-between gap-2">
@@ -381,18 +429,16 @@ export const AppointmentsPanel = () => {
                     <Badge variant="outline" className={meta.className}>{meta.label}</Badge>
                   </div>
 
-                  {a.conversation_id ? (
+                  {convId ? (
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-md border border-primary/30 bg-primary/5 px-2 py-2 text-xs">
                       <span className="flex items-center gap-1.5 min-w-0 w-full">
                         <MessageSquare className="h-3.5 w-3.5 shrink-0 text-primary" />
                         <span className="truncate">
                           Chat:{' '}
                           <span className="font-medium text-foreground">
-                            {convs[a.conversation_id]?.phone
-                              ? `+${convs[a.conversation_id].phone}`
-                              : 'cargando…'}
+                            {convInfo?.phone ? `+${convInfo.phone}` : 'cargando…'}
                           </span>
-                          {convs[a.conversation_id]?.name ? ` · ${convs[a.conversation_id]?.name}` : ''}
+                          {convInfo?.name ? ` · ${convInfo.name}` : ''}
                         </span>
                       </span>
                       <Button
