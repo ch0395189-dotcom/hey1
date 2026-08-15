@@ -18,13 +18,15 @@ interface ListOption {
 }
 
 interface InteractiveMessage {
-  type: 'buttons' | 'list';
+  type: 'buttons' | 'list' | 'cta_url';
   headerText?: string;
   bodyText: string;
   footerText?: string;
   buttons?: ButtonOption[];
   listTitle?: string;
   listOptions?: ListOption[];
+  ctaText?: string;
+  ctaUrl?: string;
 }
 
 interface SendMessageRequest {
@@ -48,6 +50,33 @@ function buildInteractivePayload(interactive: InteractiveMessage, recipientPhone
     to: recipientPhone,
     type: 'interactive',
   };
+
+  if (interactive.type === 'buttons') {
+    // fallthrough below
+  }
+
+  if (interactive.type === 'cta_url') {
+    return {
+      ...basePayload,
+      interactive: {
+        type: 'cta_url',
+        ...(interactive.headerText ? {
+          header: { type: 'text', text: interactive.headerText },
+        } : {}),
+        body: { text: interactive.bodyText },
+        ...(interactive.footerText ? {
+          footer: { text: interactive.footerText },
+        } : {}),
+        action: {
+          name: 'cta_url',
+          parameters: {
+            display_text: interactive.ctaText || 'Abrir WhatsApp',
+            url: interactive.ctaUrl,
+          },
+        },
+      },
+    };
+  }
 
   if (interactive.type === 'buttons') {
     return {
