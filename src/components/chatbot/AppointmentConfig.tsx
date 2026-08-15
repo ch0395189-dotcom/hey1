@@ -3,7 +3,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
-import { CalendarDays, Calendar, Plus, X, MessageSquarePlus, ArrowUp, ArrowDown } from 'lucide-react';
+import { CalendarDays, Calendar, Plus, X, MessageSquarePlus, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 
 export interface AppointmentCustomStep {
   id: string;
@@ -27,6 +27,8 @@ export interface AppointmentSettings {
   sync_google_calendar: boolean;
   duration_minutes: number;
   custom_steps?: AppointmentCustomStep[];
+  /** Orden global de las preguntas (claves base + custom_<id>) */
+  step_order?: string[];
 }
 
 export const defaultAppointmentSettings: AppointmentSettings = {
@@ -44,7 +46,27 @@ export const defaultAppointmentSettings: AppointmentSettings = {
   sync_google_calendar: false,
   duration_minutes: 60,
   custom_steps: [],
+  step_order: [],
 };
+
+const BASE_STEPS: { key: string; label: string; flag: keyof AppointmentSettings }[] = [
+  { key: 'customer_name', label: 'Nombre', flag: 'ask_name' },
+  { key: 'customer_phone', label: 'Teléfono', flag: 'ask_phone' },
+  { key: 'birth_date', label: 'Fecha de nacimiento', flag: 'ask_birthdate' },
+  { key: 'appointment_date', label: 'Fecha de la cita', flag: 'ask_date' },
+  { key: 'appointment_time', label: 'Hora de la cita', flag: 'ask_time' },
+  { key: 'photo_url', label: 'Foto', flag: 'ask_photo' },
+];
+
+/** Devuelve el orden efectivo de todas las preguntas (base + personalizadas). */
+export function resolveStepOrder(settings: AppointmentSettings): string[] {
+  const all = [
+    ...BASE_STEPS.map((s) => s.key),
+    ...(settings.custom_steps || []).map((c, i) => `custom_${c.id || i}`),
+  ];
+  const saved = (settings.step_order || []).filter((k) => all.includes(k));
+  return [...saved, ...all.filter((k) => !saved.includes(k))];
+}
 
 interface AppointmentConfigProps {
   settings: AppointmentSettings;
@@ -106,6 +128,35 @@ export const AppointmentConfig = ({ settings, onChange }: AppointmentConfigProps
     updateStep(stepIndex, { options: opts });
   };
 
+  const order = resolveStepOrder(settings);
+  const labelForKey = (key: string) => {
+    const base = BASE_STEPS.find((b) => b.key === key);
+    if (base) return base.label;
+    const custom = (settings.custom_steps || []).find(
+      (c, i) => `custom_${c.id || i}` === key
+    );
+    return custom ? (custom.label || custom.question || 'Pregunta personalizada') : key;
+  };
+  const isActiveKey = (key: string) => {
+    const base = BASE_STEPS.find((b) => b.key === key);
+    if (base) {
+      return base.flag === 'ask_photo'
+        ? !!settings.ask_photo
+        : (settings[base.flag] as boolean) !== false;
+    }
+    const custom = (settings.custom_steps || []).find(
+      (c, i) => `custom_${c.id || i}` === key
+    );
+    return !!custom?.question?.trim();
+  };
+  const moveOrder = (index: number, direction: -1 | 1) => {
+    const target = index + direction;
+    if (target < 0 || target >= order.length) return;
+    const next = [...order];
+    [next[index], next[target]] = [next[target], next[index]];
+    update('step_order', next);
+  };
+
   return (
     <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
       <div className="flex items-center gap-2 text-primary">
@@ -154,6 +205,49 @@ export const AppointmentConfig = ({ settings, onChange }: AppointmentConfigProps
           </p>
         </div>
       )}
+
+      <div className="space-y-2">
+        <Label className="text-sm">Días disponibles</Label>
+</div>
+
+      {/* Orden global de las preguntas */}
+      <div className="rounded-lg border bg-background/50 p-3 space-y-2">
+        <div className="flex items-center gap-2 text-primary">
+          <ArrowUpDown className="h-4 w-4" />
+          <h5 className="text-sm font-semibold">Orden de las preguntas</h5>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Usa las flechas para definir en qué orden el bot hará cada pregunta. Las desactivadas no se envían.
+        </p>
+        {order.map((key, index) => (
+          <div key={key} className="flex items-center gap-2 rounded-md border px-3 py-2">
+            <span className="text-xs font-medium text-muted-foreground w-5">{index + 1}.</span>
+            <span className={`flex-1 text-sm ${isActiveKey(key) ? '' : 'text-muted-foreground line-through'}`}>
+              {labelForKey(key)}
+            </span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              disabled={index === 0}
+              onClick={() => moveOrder(index, -1)}
+              aria-label="Subir paso"
+            >
+              <ArrowUp className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              disabled={index === order.length - 1}
+              onClick={() => moveOrder(index, 1)}
+              aria-label="Bajar paso"
+            >
+              <ArrowDown className="h-4 w-4" />
+            </Button>
+          </div>
+        ))}
+      </div>
 
       <div className="space-y-2">
         <Label className="text-sm">Días disponibles</Label>

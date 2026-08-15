@@ -68,6 +68,7 @@ interface AppointmentSettings {
   sync_google_calendar?: boolean;
   duration_minutes?: number;
   custom_steps?: AppointmentCustomStep[];
+  step_order?: string[];
 }
 
 interface AppointmentCustomStep {
@@ -1716,7 +1717,20 @@ function buildApptSteps(settings: AppointmentSettings): ApptRuntimeStep[] {
       label: (c.label || '').trim() || c.question.trim(),
     }));
 
-  return [...base, ...custom];
+  const all = [...base, ...custom];
+
+  // Orden manual definido en la configuración (si existe)
+  const order = (settings as { step_order?: string[] }).step_order || [];
+  if (!Array.isArray(order) || order.length === 0) return all;
+
+  const ranked = all.map((s) => {
+    const idx = order.indexOf(s.key);
+    return { s, idx: idx === -1 ? Number.MAX_SAFE_INTEGER : idx };
+  });
+  return ranked
+    .map((r, i) => ({ ...r, i }))
+    .sort((a, b) => (a.idx - b.idx) || (a.i - b.i))
+    .map((r) => r.s);
 }
 
 // Normaliza la respuesta del cliente cuando el paso tiene botones/opciones
