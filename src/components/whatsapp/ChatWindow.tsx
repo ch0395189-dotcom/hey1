@@ -1002,6 +1002,67 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
     return _handleSendInteractive(data);
   };
 
+  const handleSendWhatsAppButton = async (data: WhatsAppButtonData) => {
+    if (!conversation || sending) return;
+    if (conversation.platform !== 'whatsapp') {
+      toast({
+        title: "No soportado",
+        description: "El botón de WhatsApp solo está disponible para WhatsApp.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSending(true);
+    try {
+      const isExternalConnection = accountConnectionType === 'external_qr' || accountConnectionType === 'z-api';
+
+      if (isExternalConnection) {
+        const textMessage = `${data.bodyText}\n\n👉 ${data.ctaText}: ${data.ctaUrl}${data.footerText ? `\n\n_${data.footerText}_` : ''}`;
+        const { data: result, error } = await supabase.functions.invoke('whatsapp-send-external', {
+          body: {
+            accountId: conversation.whatsapp_account_id,
+            to: conversation.customer_phone,
+            message: textMessage,
+            conversationId: conversation.id,
+            createConversation: true,
+          },
+        });
+        if (error) throw error;
+        if (result?.error) throw new Error(getFriendlyWhatsappError(result));
+        setTimeout(() => fetchMessages(), 200);
+      } else {
+        const { data: result, error } = await supabase.functions.invoke('whatsapp-send-message', {
+          body: {
+            conversation_id: conversation.id,
+            interactive: {
+              type: 'cta_url',
+              bodyText: data.bodyText,
+              footerText: data.footerText,
+              ctaText: data.ctaText,
+              ctaUrl: data.ctaUrl,
+            },
+          },
+        });
+        if (error) throw error;
+        if (result?.error) throw new Error(getFriendlyWhatsappError(result));
+        setTimeout(() => fetchMessages(), 300);
+      }
+
+      toast({ title: "Botón enviado", description: "El cliente ya puede abrir el chat con un toque." });
+    } catch (error: any) {
+      console.error('Error sending WhatsApp button:', error);
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo enviar el botón de WhatsApp.",
+        variant: "destructive",
+      });
+      throw error;
+    } finally {
+      setSending(false);
+    }
+  };
+
   // Handler used by the preview dialog: receives an already-generated audio blob
   const sendClonedVoiceBlob = async (
     audioBlob: Blob,
