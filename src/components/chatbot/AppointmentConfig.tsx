@@ -128,6 +128,35 @@ export const AppointmentConfig = ({ settings, onChange }: AppointmentConfigProps
     updateStep(stepIndex, { options: opts });
   };
 
+  const order = resolveStepOrder(settings);
+  const labelForKey = (key: string) => {
+    const base = BASE_STEPS.find((b) => b.key === key);
+    if (base) return base.label;
+    const custom = (settings.custom_steps || []).find(
+      (c, i) => `custom_${c.id || i}` === key
+    );
+    return custom ? (custom.label || custom.question || 'Pregunta personalizada') : key;
+  };
+  const isActiveKey = (key: string) => {
+    const base = BASE_STEPS.find((b) => b.key === key);
+    if (base) {
+      return base.flag === 'ask_photo'
+        ? !!settings.ask_photo
+        : (settings[base.flag] as boolean) !== false;
+    }
+    const custom = (settings.custom_steps || []).find(
+      (c, i) => `custom_${c.id || i}` === key
+    );
+    return !!custom?.question?.trim();
+  };
+  const moveOrder = (index: number, direction: -1 | 1) => {
+    const target = index + direction;
+    if (target < 0 || target >= order.length) return;
+    const next = [...order];
+    [next[index], next[target]] = [next[target], next[index]];
+    update('step_order', next);
+  };
+
   return (
     <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
       <div className="flex items-center gap-2 text-primary">
