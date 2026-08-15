@@ -2124,6 +2124,19 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
               <ListOrdered className="w-5 h-5 text-muted-foreground" />
             </Button>
           )}
+          {conversation?.platform === 'whatsapp' && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="shrink-0 h-8 w-8 md:h-10 md:w-10"
+              onClick={() => setShowWaButtonDialog(true)}
+              title="Enviar botón de WhatsApp"
+              aria-label="Enviar botón de WhatsApp"
+            >
+              <FaWhatsapp className="w-5 h-5 text-green-500" />
+            </Button>
+          )}
           {conversation?.platform === 'whatsapp' &&
             accountConnectionType !== 'external_qr' &&
             accountConnectionType !== 'external' && (
@@ -2259,6 +2272,12 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
         open={showInteractiveDialog}
         onOpenChange={setShowInteractiveDialog}
         onSend={handleSendInteractiveMessage}
+      />
+
+      <WhatsAppButtonDialog
+        open={showWaButtonDialog}
+        onOpenChange={setShowWaButtonDialog}
+        onSend={handleSendWhatsAppButton}
       />
 
       {/* Cloned voice preview & multi-voice selector */}
