@@ -72,6 +72,8 @@ export const AppointmentsPanel = () => {
   const { isAdmin } = useAdminCheck();
   const [owners, setOwners] = useState<Record<string, { name: string; email: string }>>({});
   const [convs, setConvs] = useState<Record<string, { phone: string; name: string | null }>>({});
+  // Citas cuyo chat original fue borrado: resolvemos por número de teléfono
+  const [convByPhone, setConvByPhone] = useState<Record<string, { id: string; name: string | null }>>({});
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [myUserId, setMyUserId] = useState<string | null>(null);
@@ -179,6 +181,41 @@ export const AppointmentsPanel = () => {
       setConvs(map);
     })();
   }, [appointments]);
+
+  // Resolver el chat por teléfono para citas sin conversation_id
+  useEffect(() => {
+    const phones = Array.from(
+      new Set(
+        appointments
+          .filter((a) => !a.conversation_id)
+          .map((a) => (a.customer_phone ?? '').replace(/\D/g, ''))
+          .filter((p) => p.length >= 7),
+      ),
+    );
+    if (!phones.length) return;
+    (async () => {
+      const map: Record<string, { id: string; name: string | null }> = {};
+      for (let i = 0; i < phones.length; i += 100) {
+        const chunk = phones.slice(i, i + 100);
+        const { data } = await supabase
+          .from('conversations')
+          .select('id, customer_phone, customer_name, last_message_at')
+          .in('customer_phone', chunk)
+          .order('last_message_at', { ascending: false });
+        (data ?? []).forEach((c: any) => {
+          const key = String(c.customer_phone).replace(/\D/g, '');
+          if (!map[key]) map[key] = { id: c.id, name: c.customer_name };
+        });
+      }
+      setConvByPhone(map);
+    })();
+  }, [appointments]);
+
+  const chatIdFor = useCallback(
+    (a: Appointment) =>
+      a.conversation_id ?? convByPhone[(a.customer_phone ?? '').replace(/\D/g, '')]?.id ?? null,
+    [convByPhone],
+  );
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
