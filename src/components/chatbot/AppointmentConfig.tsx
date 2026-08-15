@@ -208,6 +208,49 @@ export const AppointmentConfig = ({ settings, onChange }: AppointmentConfigProps
 
       <div className="space-y-2">
         <Label className="text-sm">Días disponibles</Label>
+</div>
+
+      {/* Orden global de las preguntas */}
+      <div className="rounded-lg border bg-background/50 p-3 space-y-2">
+        <div className="flex items-center gap-2 text-primary">
+          <ArrowUpDown className="h-4 w-4" />
+          <h5 className="text-sm font-semibold">Orden de las preguntas</h5>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Usa las flechas para definir en qué orden el bot hará cada pregunta. Las desactivadas no se envían.
+        </p>
+        {order.map((key, index) => (
+          <div key={key} className="flex items-center gap-2 rounded-md border px-3 py-2">
+            <span className="text-xs font-medium text-muted-foreground w-5">{index + 1}.</span>
+            <span className={`flex-1 text-sm ${isActiveKey(key) ? '' : 'text-muted-foreground line-through'}`}>
+              {labelForKey(key)}
+            </span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              disabled={index === 0}
+              onClick={() => moveOrder(index, -1)}
+              aria-label="Subir paso"
+            >
+              <ArrowUp className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              disabled={index === order.length - 1}
+              onClick={() => moveOrder(index, 1)}
+              aria-label="Bajar paso"
+            >
+              <ArrowDown className="h-4 w-4" />
+            </Button>
+          </div>
+        ))}
+      </div>
+
+      <div className="space-y-2">
+        <Label className="text-sm">Días disponibles</Label>
         <Input
           value={settings.available_days}
           onChange={(e) => update('available_days', e.target.value)}
