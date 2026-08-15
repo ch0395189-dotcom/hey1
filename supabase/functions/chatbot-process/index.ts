@@ -60,6 +60,8 @@ interface AppointmentSettings {
   ask_birthdate?: boolean;
   ask_date?: boolean;
   ask_time?: boolean;
+  ask_photo?: boolean;
+  photo_question?: string;
   confirmation_message?: string;
   available_days?: string;
   available_hours?: string;
@@ -1674,10 +1676,18 @@ const APPOINTMENT_STEPS: ApptStep[] = [
     question: (s) =>
       `🕐 ¿A qué *hora* te queda mejor?${s.available_hours ? `\n\nHorario: ${s.available_hours}` : ''}`,
   },
+  {
+    key: 'photo_url',
+    flag: 'ask_photo',
+    question: (s) =>
+      (s.photo_question || '').trim() || '📸 Por favor envía una *foto* para completar tu cita.',
+  },
 ];
 
 function activeApptSteps(settings: AppointmentSettings): ApptStep[] {
-  return APPOINTMENT_STEPS.filter((step) => settings[step.flag] !== false);
+  return APPOINTMENT_STEPS.filter((step) =>
+    step.flag === 'ask_photo' ? settings.ask_photo === true : settings[step.flag] !== false,
+  );
 }
 
 interface ApptRuntimeStep {
@@ -1686,12 +1696,14 @@ interface ApptRuntimeStep {
   options?: string[];
   custom?: boolean;
   label?: string;
+  photo?: boolean;
 }
 
 function buildApptSteps(settings: AppointmentSettings): ApptRuntimeStep[] {
   const base: ApptRuntimeStep[] = activeApptSteps(settings).map((s) => ({
     key: s.key,
     question: s.question(settings),
+    photo: s.key === 'photo_url',
   }));
 
   const custom: ApptRuntimeStep[] = (settings.custom_steps || [])
