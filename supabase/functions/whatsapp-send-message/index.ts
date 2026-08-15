@@ -515,9 +515,13 @@ Deno.serve(async (req) => {
       whatsappPayload = buildInteractivePayload(interactive, recipientPhone);
       actualMessageType = 'interactive';
       
-      const buttonLabels = interactive.buttons?.map(b => b.title).join(', ') || 
-                          interactive.listOptions?.map(o => o.title).join(', ') || '';
-      contentToSave = `${interactive.bodyText}\n\n[${interactive.type === 'buttons' ? 'Botones' : 'Lista'}: ${buttonLabels}]`;
+      if (interactive.type === 'cta_url') {
+        contentToSave = `${interactive.bodyText}\n\n[Botón: ${interactive.ctaText || 'Abrir WhatsApp'} → ${interactive.ctaUrl}]`;
+      } else {
+        const buttonLabels = interactive.buttons?.map(b => b.title).join(', ') ||
+                            interactive.listOptions?.map(o => o.title).join(', ') || '';
+        contentToSave = `${interactive.bodyText}\n\n[${interactive.type === 'buttons' ? 'Botones' : 'Lista'}: ${buttonLabels}]`;
+      }
     } else {
       actualMessageType = message_type || 'text';
       if (media_url && media_type) {
