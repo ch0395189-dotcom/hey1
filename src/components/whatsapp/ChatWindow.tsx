@@ -72,6 +72,7 @@ import { useNotificationSound } from "@/hooks/useNotificationSound";
 import { FaWhatsapp, FaFacebookMessenger, FaInstagram, FaTiktok } from "react-icons/fa";
 import { ImagePreviewDialog } from "@/components/whatsapp/ImagePreviewDialog";
 import { InteractiveMessageDialog, InteractiveMessageData } from "@/components/whatsapp/InteractiveMessageDialog";
+import { WhatsAppButtonDialog, WhatsAppButtonData } from "@/components/whatsapp/WhatsAppButtonDialog";
 import { SendTemplateDialog } from "@/components/whatsapp/SendTemplateDialog";
 import { ClonedVoicePreviewDialog } from "@/components/whatsapp/ClonedVoicePreviewDialog";
 import { ForwardMessageDialog } from "@/components/whatsapp/ForwardMessageDialog";
@@ -147,6 +148,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
   const [unreadCount, setUnreadCount] = useState(0);
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const [showInteractiveDialog, setShowInteractiveDialog] = useState(false);
+  const [showWaButtonDialog, setShowWaButtonDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [accountConnectionType, setAccountConnectionType] = useState<string | null>(null);
