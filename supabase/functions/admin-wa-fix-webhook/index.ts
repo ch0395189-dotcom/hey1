@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 /**
- * Admin-only helper: inspects (and optionally re-subscribes) the Meta webhook
+ * Account-owner/admin helper: inspects (and optionally re-subscribes) the Meta webhook
  * for a given WhatsApp account. Use this when messages stop arriving right after
  * a fresh Embedded Signup.
  *
@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
       .eq("user_id", userData.user.id)
       .eq("role", "admin")
       .maybeSingle();
-    if (!role) return json({ error: "Forbidden" });
+    const isAdmin = Boolean(role);
 
     const body = await req.json().catch(() => ({} as any));
     const { account_id, phone_number_id, resubscribe } = body as {
@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
     const admin = createClient(supabaseUrl, svcKey);
     let query = admin
       .from("whatsapp_accounts")
-      .select("id, phone_number, phone_number_id, business_account_id, access_token")
+      .select("id, user_id, phone_number, phone_number_id, business_account_id, access_token")
       .limit(1);
     if (account_id) query = query.eq("id", account_id);
     else if (phone_number_id) query = query.eq("phone_number_id", phone_number_id);
@@ -56,6 +56,7 @@ Deno.serve(async (req) => {
 
     const { data: acc, error: accErr } = await query.maybeSingle();
     if (accErr || !acc) return json({ error: "Account not found" });
+    if (!isAdmin && acc.user_id !== userData.user.id) return json({ error: "Forbidden" });
     if (!acc.access_token || !acc.business_account_id) {
       return json({ error: "Missing access_token or business_account_id on account" });
     }
@@ -103,6 +104,20 @@ Deno.serve(async (req) => {
       );
       subscribeResult = await postResp.json();
     }
+
+    const subscribedApps = Array.isArray(getData?.data) ? getData.data : [];
+    const subscribeSucceeded = (subscribeResult as { success?: boolean } | null)?.success === true;
+    const webhookSubscribed = subscribeSucceeded || subscribedApps.length > 0;
+    await admin.from("whatsapp_token_audit").upsert({
+      whatsapp_account_id: acc.id,
+      user_id: acc.user_id,
+      phone_number: acc.phone_number,
+      phone_number_id: acc.phone_number_id,
+      business_account_id: acc.business_account_id,
+      token_alive: true,
+      webhook_subscribed: webhookSubscribed,
+      checked_at: new Date().toISOString(),
+    }, { onConflict: "whatsapp_account_id" });
 
     return json({
       account: {
