@@ -368,6 +368,11 @@ Deno.serve(async (req) => {
                       ? (currentConv?.unread_count || 1)
                       : (currentConv?.unread_count || 0) + 1,
                     customer_name: customerName,
+                    // Si un contacto archivado vuelve a escribir, la conversación
+                    // debe regresar automáticamente a la bandeja principal.
+                    // Antes se guardaba el mensaje, pero el chat permanecía oculto
+                    // en "Archivados" y parecía haberse borrado al reabrir la app.
+                    ...(isUnsupported ? {} : { is_archived: false }),
                   })
                   .eq('id', conversationId);
               }
