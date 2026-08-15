@@ -1807,6 +1807,7 @@ function buildApptNotes(steps: ApptRuntimeStep[], answers: Record<string, string
   const lines = steps
     .filter((s) => s.custom && answers[s.key])
     .map((s) => `${s.label}: ${answers[s.key]}`);
+  if (answers.photo_url) lines.push(`Foto: ${answers.photo_url}`);
   return lines.length > 0 ? lines.join('\n') : null;
 }
 
@@ -1816,6 +1817,7 @@ const DEFAULT_APPT_SETTINGS: AppointmentSettings = {
   ask_birthdate: true,
   ask_date: true,
   ask_time: true,
+  ask_photo: false,
   confirmation_message:
     '✅ Listo {nombre}, tu cita quedó agendada para el {fecha} a las {hora}. ¡Te esperamos!',
   sync_google_calendar: false,
@@ -1869,6 +1871,8 @@ async function handleAppointmentAnswer(
   whatsappAccountId: string,
   chatbotConfig: ChatbotConfig,
   currentPlatform: string,
+  mediaUrl?: string | null,
+  messageType?: string | null,
 ): Promise<string> {
   const settings: AppointmentSettings = { ...DEFAULT_APPT_SETTINGS, ...(apptCtx.settings || {}) };
   const steps = buildApptSteps(settings);
@@ -1888,7 +1892,18 @@ async function handleAppointmentAnswer(
   }
 
   const currentStep = steps[stepIndex];
-  if (currentStep) {
+
+  // Paso de foto: requiere una imagen adjunta
+  if (currentStep?.photo) {
+    const isImage = !!mediaUrl && (messageType === 'image' || detectMediaType(mediaUrl) === 'image');
+    if (!isImage) {
+      const retry = `${currentStep.question}\n\n(Envía la foto como imagen adjunta)`;
+      await sendPlatformMessage(platformAccount, customerIdentifier, retry);
+      await saveOutboundMessage(supabase, conversationId, retry);
+      return `awaiting_photo_${stepIndex}`;
+    }
+    answers[currentStep.key] = mediaUrl!;
+  } else if (currentStep) {
     answers[currentStep.key] = resolveOptionAnswer(currentStep, answer);
   }
 
