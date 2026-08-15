@@ -19,6 +19,8 @@ export interface AppointmentSettings {
   ask_birthdate: boolean;
   ask_date: boolean;
   ask_time: boolean;
+  ask_photo?: boolean;
+  photo_question?: string;
   confirmation_message: string;
   available_days: string; // e.g. "lun,mar,mié,jue,vie"
   available_hours: string; // e.g. "9:00-18:00"
@@ -34,6 +36,8 @@ export const defaultAppointmentSettings: AppointmentSettings = {
   ask_birthdate: true,
   ask_date: true,
   ask_time: true,
+  ask_photo: false,
+  photo_question: '📸 Por favor envía una *foto* para completar tu cita.',
   confirmation_message: '✅ Tu cita ha sido agendada para el {fecha} a las {hora}. ¡Te esperamos!',
   available_days: 'lun,mar,mié,jue,vie',
   available_hours: '9:00-18:00',
@@ -114,7 +118,26 @@ export const AppointmentConfig = ({ settings, onChange }: AppointmentConfigProps
           <Label className="text-sm">Pedir hora</Label>
           <Switch checked={settings.ask_time} onCheckedChange={(v) => update('ask_time', v)} />
         </div>
+        <div className="flex items-center justify-between gap-2">
+          <Label className="text-sm">Pedir foto</Label>
+          <Switch checked={!!settings.ask_photo} onCheckedChange={(v) => update('ask_photo', v)} />
+        </div>
       </div>
+
+      {settings.ask_photo && (
+        <div className="space-y-2">
+          <Label className="text-sm">Mensaje para pedir la foto</Label>
+          <Textarea
+            value={settings.photo_question ?? defaultAppointmentSettings.photo_question}
+            onChange={(e) => update('photo_question', e.target.value)}
+            placeholder="📸 Por favor envía una foto..."
+            rows={2}
+          />
+          <p className="text-xs text-muted-foreground">
+            El cliente debe responder con una imagen; el enlace de la foto se guarda en las notas de la cita.
+          </p>
+        </div>
+      )}
 
       <div className="space-y-2">
         <Label className="text-sm">Días disponibles</Label>
