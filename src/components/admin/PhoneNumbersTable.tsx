@@ -503,6 +503,71 @@ export const PhoneNumbersTable = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        <Dialog open={statusOpen} onOpenChange={setStatusOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Estado en Meta</DialogTitle>
+              <DialogDescription>
+                {statusRow ? `Número ${statusRow.phone}` : ''}
+              </DialogDescription>
+            </DialogHeader>
+            {!statusDetail ? (
+              <div className="py-6 text-center text-muted-foreground text-sm">Consultando a Meta…</div>
+            ) : (
+              <div className="space-y-3 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Conectividad</span>
+                  {statusBadge(statusDetail.status)}
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Calidad</span>
+                  <span className="font-medium">{statusDetail.quality || '—'}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Nombre verificado</span>
+                  <span className="font-medium">{statusDetail.name_status || '—'}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Rendimiento</span>
+                  <span className="font-medium">{statusDetail.throughput || '—'}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Origen</span>
+                  <span className="font-medium">
+                    {statusDetail.source === 'external' ? 'WuzAPI (QR)' : 'Meta Cloud API'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Consultado</span>
+                  <span className="font-medium">
+                    {statusDetail.checked_at
+                      ? format(new Date(statusDetail.checked_at), "dd MMM yyyy HH:mm", { locale: es })
+                      : '—'}
+                  </span>
+                </div>
+                {statusDetail.error && (
+                  <div className="rounded-md border border-destructive/30 bg-destructive/10 p-2 text-destructive text-xs">
+                    {statusDetail.error}
+                  </div>
+                )}
+              </div>
+            )}
+            <DialogFooter>
+              {statusRow && (
+                <Button
+                  variant="outline"
+                  onClick={() => checkOne(statusRow)}
+                  disabled={checkingId === statusRow.id}
+                >
+                  <RefreshCw className={`h-4 w-4 mr-2 ${checkingId === statusRow.id ? 'animate-spin' : ''}`} />
+                  Volver a revisar
+                </Button>
+              )}
+              <Button onClick={() => setStatusOpen(false)}>Cerrar</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </CardContent>
     </Card>
   );
