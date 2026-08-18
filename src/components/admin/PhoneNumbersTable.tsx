@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { RefreshCw, ArrowRightLeft, Search, Phone, Inbox, UserCog } from 'lucide-react';
+import { RefreshCw, ArrowRightLeft, Search, Phone, Inbox, UserCog, Activity } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -66,6 +66,21 @@ export const PhoneNumbersTable = () => {
   const [newUserId, setNewUserId] = useState('');
   const [userSearch, setUserSearch] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  // Estado Meta por número
+  const [checkingId, setCheckingId] = useState<string | null>(null);
+  const [statusOpen, setStatusOpen] = useState(false);
+  const [statusRow, setStatusRow] = useState<PhoneRow | null>(null);
+  const [statusDetail, setStatusDetail] = useState<{
+    status: string;
+    quality: string | null;
+    name_status: string | null;
+    error: string | null;
+    source: string | null;
+    throughput: string | null;
+    platform_type: string | null;
+    checked_at: string | null;
+  } | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -156,6 +171,61 @@ export const PhoneNumbersTable = () => {
     await load();
     setRefreshing(false);
     toast.success('Estado actualizado');
+  };
+
+  const checkOne = async (row: PhoneRow) => {
+    setCheckingId(row.id);
+    setStatusRow(row);
+    setStatusDetail(null);
+    setStatusOpen(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('admin-wa-meta-status', {
+        body: { account_id: row.id },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const res = (data?.results || [])[0];
+      if (!res) throw new Error('Sin respuesta de Meta para este número');
+      setStatusDetail({
+        status: res.status,
+        quality: res.quality ?? null,
+        name_status: res.name_status ?? null,
+        error: res.error ?? null,
+        source: res.source ?? null,
+        throughput: res.throughput ?? null,
+        platform_type: res.platform_type ?? null,
+        checked_at: res.checked_at ?? new Date().toISOString(),
+      });
+      setRows((prev) =>
+        prev.map((r) =>
+          r.id === row.id
+            ? {
+                ...r,
+                meta_status: res.status,
+                meta_quality: res.quality ?? null,
+                meta_name_status: res.name_status ?? null,
+                meta_error: res.error ?? null,
+              }
+            : r,
+        ),
+      );
+    } catch (e) {
+      console.error(e);
+      const msg = e instanceof Error ? e.message : 'Error consultando Meta';
+      toast.error(msg);
+      setStatusDetail({
+        status: 'ERROR',
+        quality: null,
+        name_status: null,
+        error: msg,
+        source: null,
+        throughput: null,
+        platform_type: null,
+        checked_at: new Date().toISOString(),
+      });
+    } finally {
+      setCheckingId(null);
+    }
   };
 
   const filtered = useMemo(() => {
@@ -331,6 +401,15 @@ export const PhoneNumbersTable = () => {
                         <Button
                           size="sm"
                           variant="outline"
+                          onClick={() => checkOne(r)}
+                          disabled={checkingId === r.id}
+                          title="Revisar estado en Meta"
+                        >
+                          <Activity className={`h-4 w-4 ${checkingId === r.id ? 'animate-pulse' : ''}`} />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
                           onClick={() => navigate(`/admin/inbox/${r.user_id}`)}
                           title="Ver bandeja"
                         >
@@ -421,6 +500,71 @@ export const PhoneNumbersTable = () => {
               <Button onClick={submitReassign} disabled={!newUserId || submitting}>
                 {submitting ? 'Reasignando…' : 'Confirmar reasignación'}
               </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={statusOpen} onOpenChange={setStatusOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Estado en Meta</DialogTitle>
+              <DialogDescription>
+                {statusRow ? `Número ${statusRow.phone}` : ''}
+              </DialogDescription>
+            </DialogHeader>
+            {!statusDetail ? (
+              <div className="py-6 text-center text-muted-foreground text-sm">Consultando a Meta…</div>
+            ) : (
+              <div className="space-y-3 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Conectividad</span>
+                  {statusBadge(statusDetail.status)}
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Calidad</span>
+                  <span className="font-medium">{statusDetail.quality || '—'}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Nombre verificado</span>
+                  <span className="font-medium">{statusDetail.name_status || '—'}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Rendimiento</span>
+                  <span className="font-medium">{statusDetail.throughput || '—'}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Origen</span>
+                  <span className="font-medium">
+                    {statusDetail.source === 'external' ? 'WuzAPI (QR)' : 'Meta Cloud API'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Consultado</span>
+                  <span className="font-medium">
+                    {statusDetail.checked_at
+                      ? format(new Date(statusDetail.checked_at), "dd MMM yyyy HH:mm", { locale: es })
+                      : '—'}
+                  </span>
+                </div>
+                {statusDetail.error && (
+                  <div className="rounded-md border border-destructive/30 bg-destructive/10 p-2 text-destructive text-xs">
+                    {statusDetail.error}
+                  </div>
+                )}
+              </div>
+            )}
+            <DialogFooter>
+              {statusRow && (
+                <Button
+                  variant="outline"
+                  onClick={() => checkOne(statusRow)}
+                  disabled={checkingId === statusRow.id}
+                >
+                  <RefreshCw className={`h-4 w-4 mr-2 ${checkingId === statusRow.id ? 'animate-spin' : ''}`} />
+                  Volver a revisar
+                </Button>
+              )}
+              <Button onClick={() => setStatusOpen(false)}>Cerrar</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
