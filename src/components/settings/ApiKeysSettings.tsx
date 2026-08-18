@@ -73,6 +73,17 @@ export const ApiKeysSettings = () => {
       const { data: { user } } = await getEffectiveUser();
       if (!user) throw new Error('No autenticado');
 
+      // Limpiar espacios/saltos de línea pegados junto a la clave
+      apiKey = (apiKey || '').replace(/\s+/g, '');
+      voiceModelId = voiceModelId !== undefined ? voiceModelId.replace(/\s+/g, '') : voiceModelId;
+      if (!apiKey) throw new Error('La API Key está vacía');
+      if (apiKey.includes('…') || apiKey.includes('...') || apiKey.includes('*')) {
+        throw new Error('Pegaste una clave enmascarada. Copia la clave completa desde tu panel del proveedor.');
+      }
+      if (apiKey.length < 24) {
+        throw new Error('La API Key parece incompleta (muy corta). Copia la clave completa sin recortarla.');
+      }
+
       const existingKey = apiKeys?.find(k => k.provider === provider);
 
       if (existingKey) {
