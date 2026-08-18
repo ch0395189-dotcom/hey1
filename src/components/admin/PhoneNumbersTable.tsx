@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { RefreshCw, ArrowRightLeft, Search, Phone, Inbox, UserCog } from 'lucide-react';
+import { RefreshCw, ArrowRightLeft, Search, Phone, Inbox, UserCog, Activity } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -66,6 +66,21 @@ export const PhoneNumbersTable = () => {
   const [newUserId, setNewUserId] = useState('');
   const [userSearch, setUserSearch] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  // Estado Meta por número
+  const [checkingId, setCheckingId] = useState<string | null>(null);
+  const [statusOpen, setStatusOpen] = useState(false);
+  const [statusRow, setStatusRow] = useState<PhoneRow | null>(null);
+  const [statusDetail, setStatusDetail] = useState<{
+    status: string;
+    quality: string | null;
+    name_status: string | null;
+    error: string | null;
+    source: string | null;
+    throughput: string | null;
+    platform_type: string | null;
+    checked_at: string | null;
+  } | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -156,6 +171,61 @@ export const PhoneNumbersTable = () => {
     await load();
     setRefreshing(false);
     toast.success('Estado actualizado');
+  };
+
+  const checkOne = async (row: PhoneRow) => {
+    setCheckingId(row.id);
+    setStatusRow(row);
+    setStatusDetail(null);
+    setStatusOpen(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('admin-wa-meta-status', {
+        body: { account_id: row.id },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const res = (data?.results || [])[0];
+      if (!res) throw new Error('Sin respuesta de Meta para este número');
+      setStatusDetail({
+        status: res.status,
+        quality: res.quality ?? null,
+        name_status: res.name_status ?? null,
+        error: res.error ?? null,
+        source: res.source ?? null,
+        throughput: res.throughput ?? null,
+        platform_type: res.platform_type ?? null,
+        checked_at: res.checked_at ?? new Date().toISOString(),
+      });
+      setRows((prev) =>
+        prev.map((r) =>
+          r.id === row.id
+            ? {
+                ...r,
+                meta_status: res.status,
+                meta_quality: res.quality ?? null,
+                meta_name_status: res.name_status ?? null,
+                meta_error: res.error ?? null,
+              }
+            : r,
+        ),
+      );
+    } catch (e) {
+      console.error(e);
+      const msg = e instanceof Error ? e.message : 'Error consultando Meta';
+      toast.error(msg);
+      setStatusDetail({
+        status: 'ERROR',
+        quality: null,
+        name_status: null,
+        error: msg,
+        source: null,
+        throughput: null,
+        platform_type: null,
+        checked_at: new Date().toISOString(),
+      });
+    } finally {
+      setCheckingId(null);
+    }
   };
 
   const filtered = useMemo(() => {
@@ -328,6 +398,15 @@ export const PhoneNumbersTable = () => {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex gap-1 justify-end">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => checkOne(r)}
+                          disabled={checkingId === r.id}
+                          title="Revisar estado en Meta"
+                        >
+                          <Activity className={`h-4 w-4 ${checkingId === r.id ? 'animate-pulse' : ''}`} />
+                        </Button>
                         <Button
                           size="sm"
                           variant="outline"
