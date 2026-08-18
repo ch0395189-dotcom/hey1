@@ -51,9 +51,21 @@ serve(async (req) => {
     }
 
     const admin = createClient(supabaseUrl, supabaseServiceKey);
-    const { data: accounts } = await admin
+    let accountId: string | null = null;
+    if (req.method === "POST") {
+      try {
+        const body = await req.json();
+        if (body && typeof body.account_id === "string") accountId = body.account_id;
+      } catch (_) {
+        accountId = null;
+      }
+    }
+
+    let query = admin
       .from("whatsapp_accounts")
       .select("id, phone_number, phone_number_id, access_token, connection_type, is_active");
+    if (accountId) query = query.eq("id", accountId);
+    const { data: accounts } = await query;
 
     const list = accounts || [];
     const results = await Promise.all(
@@ -68,6 +80,9 @@ serve(async (req) => {
             quality: null,
             name_status: null,
             error: null,
+            throughput: null,
+            platform_type: null,
+            checked_at: new Date().toISOString(),
           };
         }
         try {
@@ -86,6 +101,9 @@ serve(async (req) => {
               quality: null,
               name_status: null,
               error: j?.error?.message || `HTTP ${r.status}`,
+              throughput: null,
+              platform_type: null,
+              checked_at: new Date().toISOString(),
             };
           }
           return {
@@ -97,6 +115,9 @@ serve(async (req) => {
             quality: j.quality_rating || null,
             name_status: j.name_status || null,
             error: null,
+            throughput: j?.throughput?.level || null,
+            platform_type: j.platform_type || null,
+            checked_at: new Date().toISOString(),
           };
         } catch (e: unknown) {
           return {
@@ -108,6 +129,9 @@ serve(async (req) => {
             quality: null,
             name_status: null,
             error: e instanceof Error ? e.message : String(e),
+            throughput: null,
+            platform_type: null,
+            checked_at: new Date().toISOString(),
           };
         }
       }),
