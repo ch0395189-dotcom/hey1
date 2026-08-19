@@ -291,16 +291,46 @@ serve(async (req) => {
           );
         }
 
-        // Activate subscription for 30 days
+        // Activate subscription for 30 days.
+        // If the user paid early (current period hasn't expired yet), ADD 30 days
+        // to the existing end date instead of resetting from today — so they don't
+        // lose the remaining days they already paid for.
         const now = new Date();
-        const periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+        // Fetch the existing subscription to check if the current period is still valid
+        const { data: existingSub } = await supabase
+          .from('subscriptions')
+          .select('current_period_end, status')
+          .eq('user_id', userId)
+          .maybeSingle();
+
+        let periodEnd: Date;
+        let periodStart: Date;
+
+        if (existingSub?.current_period_end) {
+          const currentEnd = new Date(existingSub.current_period_end);
+          if (currentEnd > now && existingSub.status === 'active') {
+            // Early renewal: extend from the current end date
+            periodEnd = new Date(currentEnd.getTime() + 30 * 24 * 60 * 60 * 1000);
+            periodStart = currentEnd; // new period starts when the old one ends
+            console.log(`📅 Early renewal: extending from ${currentEnd.toISOString()} → ${periodEnd.toISOString()}`);
+          } else {
+            // Normal/expired renewal: start from now
+            periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+            periodStart = now;
+          }
+        } else {
+          // No existing subscription: start fresh from now
+          periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+          periodStart = now;
+        }
 
         const { error: updateError } = await supabase
           .from('subscriptions')
           .update({
             plan: plan,
             status: 'active',
-            current_period_start: now.toISOString(),
+            current_period_start: periodStart.toISOString(),
             current_period_end: periodEnd.toISOString(),
             trial_end: null, // Clear trial since they're now paid
             updated_at: now.toISOString(),
