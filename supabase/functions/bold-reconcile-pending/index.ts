@@ -99,14 +99,39 @@ serve(async (req) => {
         }
 
         const now = new Date();
-        const periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+        // Check existing subscription for early-renewal extension
+        const { data: existingSub } = await admin
+          .from('subscriptions')
+          .select('current_period_end, status')
+          .eq('user_id', p.user_id)
+          .maybeSingle();
+
+        let periodEnd: Date;
+        let periodStart: Date;
+
+        if (existingSub?.current_period_end) {
+          const currentEnd = new Date(existingSub.current_period_end);
+          if (currentEnd > now && existingSub.status === 'active') {
+            // Early renewal: extend from the current end date
+            periodEnd = new Date(currentEnd.getTime() + 30 * 24 * 60 * 60 * 1000);
+            periodStart = currentEnd;
+            console.log(`📅 Early renewal for ${p.user_id}: extending from ${currentEnd.toISOString()} → ${periodEnd.toISOString()}`);
+          } else {
+            periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+            periodStart = now;
+          }
+        } else {
+          periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+          periodStart = now;
+        }
 
         const { error: subError } = await admin
           .from('subscriptions')
           .update({
             plan: p.plan,
             status: 'active',
-            current_period_start: now.toISOString(),
+            current_period_start: periodStart.toISOString(),
             current_period_end: periodEnd.toISOString(),
             trial_end: null,
             updated_at: now.toISOString(),
