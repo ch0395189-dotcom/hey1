@@ -162,9 +162,23 @@ serve(async (req) => {
 
     // Store the real Bold payment_link id so we can later poll Bold's
     // /online/link/v1/{id} endpoint for the actual payment status.
-    const boldPaymentLink = boldData.payload?.payment_link as string | undefined;
+    // Bold has changed the field name across API versions, so we try
+    // every known location and finally parse it out of the checkout URL.
+    const boldUrl = (boldData.payload?.url ?? boldData.url) as string | undefined;
+    const boldPaymentLink =
+      (boldData.payload?.payment_link ??
+        boldData.payload?.id ??
+        boldData.payload?.link_id ??
+        boldData.payment_link ??
+        boldData.id ??
+        boldUrl?.match(/LNK_[A-Z0-9]+/i)?.[0]) as string | undefined;
+
+    if (!boldPaymentLink) {
+      console.error('No payment_link found in Bold response:', JSON.stringify(boldData));
+    }
+
     if (boldPaymentLink) {
-      await adminSupabase
+      const { error: linkErr } = await adminSupabase
         .from('bold_payments')
         .update({
           metadata: {
@@ -173,18 +187,19 @@ serve(async (req) => {
             successUrl,
             cancelUrl,
             payment_link: boldPaymentLink,
-            url: boldData.payload?.url,
+            url: boldUrl,
           },
         })
         .eq('bold_transaction_id', reference)
         .eq('event_type', 'pending');
+      if (linkErr) console.error('Error saving payment_link:', linkErr);
     }
 
     return new Response(
       JSON.stringify({ 
-        paymentUrl: boldData.payload?.url,
+        paymentUrl: boldUrl,
         orderId: reference,
-        paymentLink: boldData.payload?.payment_link,
+        paymentLink: boldPaymentLink,
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

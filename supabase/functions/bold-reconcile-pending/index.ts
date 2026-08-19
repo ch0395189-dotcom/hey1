@@ -56,10 +56,16 @@ serve(async (req) => {
 
     for (const p of pending || []) {
       const reference = p.bold_transaction_id;
-      const paymentLink = (p as any).metadata?.payment_link as string | undefined;
+      const meta = (p as any).metadata ?? {};
+      const paymentLink =
+        (meta.payment_link as string | undefined) ||
+        (typeof meta.url === 'string' ? meta.url.match(/LNK_[A-Z0-9]+/i)?.[0] : undefined);
       // Bold's lookup endpoint expects the payment_link id (LNK_XXXX),
       // NOT the merchant reference. Fall back to reference for legacy rows.
       const lookupId = paymentLink || reference;
+      if (!paymentLink) {
+        console.warn(`⚠️ Pago ${reference} sin payment_link guardado: no se puede consultar en Bold`);
+      }
       if (!lookupId || !p.user_id || !p.plan) {
         results.push({ reference, skipped: 'missing data' });
         continue;
