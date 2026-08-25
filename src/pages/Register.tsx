@@ -157,6 +157,30 @@ const Register = () => {
               </div>
             </div>
 
+            <div className="space-y-2">
+              <Label>Elige tu plan</Label>
+              <div className="grid gap-2">
+                {PLAN_OPTIONS.map((p) => (
+                  <button
+                    key={p.key}
+                    type="button"
+                    onClick={() => setPlan(p.key)}
+                    className={`text-left rounded-lg border p-3 transition-colors ${
+                      plan === p.key
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:border-primary/50"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-medium text-sm">{p.name}</span>
+                      <span className="text-xs text-muted-foreground">{p.price}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">{p.note}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <Button
               type="submit"
               className="w-full h-12 bg-gradient-hero hover:opacity-90 transition-opacity"
