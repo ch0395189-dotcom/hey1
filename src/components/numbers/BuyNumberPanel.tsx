@@ -403,11 +403,17 @@ export const BuyNumberPanel = () => {
                   </div>
                 </div>
                 <div className="flex gap-2">
+                  {o.payment_status === "pending" && (
+                    <Button size="sm" variant="outline" onClick={() => verifyPayment(o.id)} disabled={busy}>
+                      Verificar pago
+                    </Button>
+                  )}
                   {o.payment_status === "paid" && !o.phone_number && (
                     <Button size="sm" onClick={() => claim(o.id, o)} disabled={busy}>
                       Obtener número
                     </Button>
                   )}
+
                   {o.phone_number && !o.whatsapp_account_id && (
                     <Button size="sm" variant="secondary" onClick={() => { setAttachOrder(attachOrder === o.id ? null : o.id); setAttachNote(null); }}>
                       Conectar a WhatsApp
