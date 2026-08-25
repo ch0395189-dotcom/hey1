@@ -48,11 +48,19 @@ const Register = () => {
           emailRedirectTo: window.location.origin + getRedirectTarget(),
           data: {
             full_name: name.trim(),
+            selected_plan: plan,
           },
         },
       });
 
       if (error) throw error;
+
+      try {
+        await supabase.functions.invoke("set-signup-plan", { body: { plan } });
+      } catch (planErr) {
+        console.warn("[Register] no se pudo fijar el plan", planErr);
+      }
+
 
       toast({
         title: "¡Cuenta creada!",
