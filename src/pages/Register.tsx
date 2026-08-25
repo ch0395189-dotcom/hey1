@@ -10,10 +10,20 @@ import { useToast } from "@/hooks/use-toast";
 import { useMetaPixel } from "@/hooks/useMetaPixel";
 import { WhatsAppFloatingButton } from "@/components/ui/WhatsAppFloatingButton";
 
+type PlanKey = "emprendedor" | "professional" | "esoterico_pro" | "esoterico_rental";
+
+const PLAN_OPTIONS: Array<{ key: PlanKey; name: string; price: string; note: string }> = [
+  { key: "emprendedor", name: "Emprendedor", price: "$89.000 COP/mes", note: "1 número propio, 1.000 mensajes" },
+  { key: "professional", name: "Professional", price: "$149.900 COP/mes", note: "1 número, equipo y 10.000 mensajes" },
+  { key: "esoterico_pro", name: "Nichos Difíciles", price: "$199.900 COP/mes", note: "Número blindado anti-bloqueo" },
+  { key: "esoterico_rental", name: "Nichos Difíciles + Alquiler", price: "$300.000 COP/mes", note: "Incluye número en alquiler: eliges uno de la lista disponible" },
+];
+
 const Register = () => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [plan, setPlan] = useState<PlanKey>("esoterico_pro");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
