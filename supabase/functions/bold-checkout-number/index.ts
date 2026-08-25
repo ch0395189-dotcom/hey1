@@ -142,10 +142,72 @@ Deno.serve(async (req) => {
         return json({ ok: false, error: "No se pudo crear el link de pago", details: boldData });
       }
 
+      const paymentUrl: string = boldData.payload?.url || "";
+      const paymentLink: string =
+        boldData.payload?.payment_link ||
+        paymentUrl.match(/LNK_[A-Z0-9]+/i)?.[0] ||
+        "";
+
+      // Guardamos el link para poder conciliar el pago si el webhook falla.
+      await admin
+        .from("bold_payments")
+        .update({
+          metadata: {
+            reference, number_order_id: order.id, mode, country, days,
+            successUrl: body.successUrl, cancelUrl: body.cancelUrl,
+            payment_link: paymentLink, url: paymentUrl,
+          },
+        })
+        .eq("bold_transaction_id", reference)
+        .eq("event_type", "pending");
+
       return json({
         ok: true, order_id: order.id, price_cop: price,
-        reference, paymentUrl: boldData.payload?.url,
+        reference, paymentUrl,
       });
+    }
+
+    // ---------- verificar el pago directamente con Bold ----------
+    if (action === "check_payment") {
+      if (!boldKey) return json({ ok: false, error: "Bold no está configurado" });
+      const orderId = String(body.order_id || "");
+      const { data: order } = await admin
+        .from("virtual_number_orders").select("*").eq("id", orderId).maybeSingle();
+      if (!order || order.user_id !== user.id) {
+        const { data: roleRow } = await admin
+          .from("user_roles").select("role")
+          .eq("user_id", user.id).eq("role", "admin").maybeSingle();
+        if (!order || !roleRow) return json({ ok: false, error: "Pedido no encontrado" });
+      }
+      if (order.payment_status === "paid") return json({ ok: true, paid: true });
+
+      const { data: pay } = await admin
+        .from("bold_payments").select("metadata")
+        .eq("bold_transaction_id", order.payment_reference).maybeSingle();
+      const meta: Json = (pay?.metadata as Json) ?? {};
+      const lookupId =
+        meta.payment_link ||
+        (typeof meta.url === "string" ? meta.url.match(/LNK_[A-Z0-9]+/i)?.[0] : null) ||
+        order.payment_reference;
+      if (!lookupId) return json({ ok: false, error: "No hay referencia de pago para consultar" });
+
+      const r = await fetch(`${BOLD_API_URL}/online/link/v1/${lookupId}`, {
+        headers: { Authorization: `x-api-key ${boldKey}`, "Content-Type": "application/json" },
+      });
+      const d: Json = await r.json().catch(() => ({}));
+      const status = d?.payload?.status || d?.payload?.payment_status || d?.status || null;
+      const approved = ["APPROVED", "PAID", "COMPLETED", "SUCCESS"].includes(String(status).toUpperCase());
+      if (!approved) return json({ ok: true, paid: false, status });
+
+      await admin.from("virtual_number_orders")
+        .update({ payment_status: "paid", paid_at: new Date().toISOString(), status: "paid" })
+        .eq("id", order.id);
+      await admin.from("bold_payments")
+        .update({ event_type: "completed" })
+        .eq("bold_transaction_id", order.payment_reference)
+        .eq("event_type", "pending");
+
+      return json({ ok: true, paid: true, status });
     }
 
     return json({ ok: false, error: "Acción no soportada" });
