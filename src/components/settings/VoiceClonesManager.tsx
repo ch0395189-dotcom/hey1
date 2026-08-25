@@ -141,12 +141,72 @@ export const VoiceClonesManager = ({ provider = 'fish_audio' }: Props) => {
             Guarda varias voces y elige cuál usar en cada chat.
           </p>
         </div>
-        {!showForm && (
-          <Button size="sm" variant="outline" onClick={() => setShowForm(true)} className="gap-1">
-            <Plus className="h-4 w-4" /> Agregar voz
-          </Button>
-        )}
+        <div className="flex gap-2">
+          {provider === 'fish_audio' && !showClone && (
+            <Button size="sm" onClick={() => setShowClone(true)} className="gap-1">
+              <Wand2 className="h-4 w-4" /> Clonar audio
+            </Button>
+          )}
+          {!showForm && (
+            <Button size="sm" variant="outline" onClick={() => setShowForm(true)} className="gap-1">
+              <Plus className="h-4 w-4" /> Agregar voz
+            </Button>
+          )}
+        </div>
       </div>
+
+      {showClone && provider === 'fish_audio' && (
+        <div className="p-3 border rounded-lg space-y-3 bg-muted/30">
+          <div className="space-y-1">
+            <Label htmlFor="clone-name" className="text-xs">Nombre de la voz</Label>
+            <Input
+              id="clone-name"
+              value={cloneName}
+              onChange={(e) => setCloneName(e.target.value)}
+              placeholder="Ej: Voz Laura"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="clone-file" className="text-xs">Audio de muestra (10-60 seg, mp3/wav/m4a)</Label>
+            <Input
+              id="clone-file"
+              ref={fileRef}
+              type="file"
+              accept="audio/*"
+              multiple
+              onChange={(e) => setCloneFiles(Array.from(e.target.files || []))}
+            />
+            {cloneFiles.length > 0 && (
+              <p className="text-xs text-muted-foreground">
+                {cloneFiles.length} archivo(s): {cloneFiles.map((f) => f.name).join(', ')}
+              </p>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              onClick={() => cloneMutation.mutate()}
+              disabled={!cloneName.trim() || cloneFiles.length === 0 || cloneMutation.isPending}
+              className="gap-1"
+            >
+              {cloneMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+              {cloneMutation.isPending ? 'Clonando...' : 'Clonar y guardar'}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => { setShowClone(false); setCloneName(''); setCloneFiles([]); }}
+              disabled={cloneMutation.isPending}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            La voz se crea en tu cuenta de Fish Audio con tu API Key y queda disponible al instante para enviar audios en HeyHey.
+          </p>
+        </div>
+      )}
+
 
       {showForm && (
         <div className="p-3 border rounded-lg space-y-3 bg-muted/30">
