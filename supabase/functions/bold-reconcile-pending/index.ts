@@ -66,7 +66,8 @@ serve(async (req) => {
       if (!paymentLink) {
         console.warn(`⚠️ Pago ${reference} sin payment_link guardado: no se puede consultar en Bold`);
       }
-      if (!lookupId || !p.user_id || !p.plan) {
+      const numberOrderId = meta.number_order_id as string | undefined;
+      if (!lookupId || !p.user_id || (!p.plan && !numberOrderId)) {
         results.push({ reference, skipped: 'missing data' });
         continue;
       }
@@ -97,6 +98,24 @@ serve(async (req) => {
           results.push({ reference, status, activated: false });
           continue;
         }
+
+        // Compra de número virtual: marcar el pedido como pagado.
+        if (numberOrderId) {
+          await admin
+            .from('virtual_number_orders')
+            .update({ payment_status: 'paid', paid_at: new Date().toISOString(), status: 'paid' })
+            .eq('id', numberOrderId);
+          await admin
+            .from('bold_payments')
+            .update({ event_type: 'completed' })
+            .eq('bold_transaction_id', reference)
+            .eq('event_type', 'pending');
+          activatedCount++;
+          results.push({ reference, status, number_order: numberOrderId, activated: true });
+          continue;
+        }
+
+
 
         const now = new Date();
 
