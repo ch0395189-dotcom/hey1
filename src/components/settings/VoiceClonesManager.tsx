@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Mic, Plus, Star, Trash2, Loader2, Save, X } from 'lucide-react';
+import { Mic, Plus, Star, Trash2, Loader2, Save, X, Upload, Wand2 } from 'lucide-react';
 
 interface VoiceClone {
   id: string;
