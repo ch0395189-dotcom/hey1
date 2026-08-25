@@ -200,6 +200,26 @@ export const BuyNumberPanel = () => {
     } finally { setBusy(false); }
   };
 
+  const verifyPayment = async (orderId: string) => {
+    setBusy(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("bold-checkout-number", {
+        body: { action: "check_payment", order_id: orderId },
+      });
+      if (error) throw new Error(error.message);
+      const r = data as { ok?: boolean; paid?: boolean; error?: string; status?: string };
+      if (!r?.ok) throw new Error(r?.error || "No se pudo verificar el pago");
+      if (r.paid) {
+        toast({ title: "Pago confirmado", description: "Ya puedes presionar “Obtener número”." });
+      } else {
+        toast({ title: "El pago aún no aparece como aprobado", description: r.status ? `Estado en Bold: ${r.status}` : undefined });
+      }
+      await loadOrders();
+    } catch (e: any) {
+      toast({ title: "Error al verificar el pago", description: e.message, variant: "destructive" });
+    } finally { setBusy(false); }
+  };
+
   const cancel = async (id: string) => {
     try {
       await call("cancel", { order_id: id });
@@ -209,6 +229,7 @@ export const BuyNumberPanel = () => {
       toast({ title: "Error", description: e.message, variant: "destructive" });
     }
   };
+
 
   const attach = async (orderId: string) => {
     if (!bizName.trim() || pin.replace(/\D/g, "").length !== 6) {
@@ -382,11 +403,17 @@ export const BuyNumberPanel = () => {
                   </div>
                 </div>
                 <div className="flex gap-2">
+                  {o.payment_status === "pending" && (
+                    <Button size="sm" variant="outline" onClick={() => verifyPayment(o.id)} disabled={busy}>
+                      Verificar pago
+                    </Button>
+                  )}
                   {o.payment_status === "paid" && !o.phone_number && (
                     <Button size="sm" onClick={() => claim(o.id, o)} disabled={busy}>
                       Obtener número
                     </Button>
                   )}
+
                   {o.phone_number && !o.whatsapp_account_id && (
                     <Button size="sm" variant="secondary" onClick={() => { setAttachOrder(attachOrder === o.id ? null : o.id); setAttachNote(null); }}>
                       Conectar a WhatsApp
