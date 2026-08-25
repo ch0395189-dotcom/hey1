@@ -27,6 +27,7 @@ import { TestMessageSender } from "./TestMessageSender";
 import { ManualWhatsAppSetup } from "./ManualWhatsAppSetup";
 import { ExternalWhatsAppSetup } from "./ExternalWhatsAppSetup";
 import { BuyNumberPanel } from "@/components/numbers/BuyNumberPanel";
+import { RentalNumberPicker } from "@/components/numbers/RentalNumberPicker";
 import { EditAccountDialog } from "./EditAccountDialog";
 import { WhatsAppDiagnostics } from "./WhatsAppDiagnostics";
 import { ConnectionVerification } from "./ConnectionVerification";
@@ -978,6 +979,10 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
             </Button>
           )}
         </div>
+      )}
+
+      {planLimits.plan === "esoterico_rental" && planLimits.currentCount === 0 && (
+        <RentalNumberPicker onClaimed={() => { planLimits.refresh(); fetchAccounts(); }} />
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
