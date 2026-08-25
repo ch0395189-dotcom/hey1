@@ -27,6 +27,7 @@ import { TestMessageSender } from "./TestMessageSender";
 import { ManualWhatsAppSetup } from "./ManualWhatsAppSetup";
 import { ExternalWhatsAppSetup } from "./ExternalWhatsAppSetup";
 import { BuyNumberPanel } from "@/components/numbers/BuyNumberPanel";
+import { RentalNumberPicker } from "@/components/numbers/RentalNumberPicker";
 import { EditAccountDialog } from "./EditAccountDialog";
 import { WhatsAppDiagnostics } from "./WhatsAppDiagnostics";
 import { ConnectionVerification } from "./ConnectionVerification";
