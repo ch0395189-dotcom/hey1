@@ -27,6 +27,32 @@ export const VoiceClonesManager = ({ provider = 'fish_audio' }: Props) => {
   const [showForm, setShowForm] = useState(false);
   const [voiceName, setVoiceName] = useState('');
   const [voiceModelId, setVoiceModelId] = useState('');
+  const [showClone, setShowClone] = useState(false);
+  const [cloneName, setCloneName] = useState('');
+  const [cloneFiles, setCloneFiles] = useState<File[]>([]);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const cloneMutation = useMutation({
+    mutationFn: async () => {
+      const fd = new FormData();
+      fd.append('title', cloneName.trim());
+      cloneFiles.forEach((f) => fd.append('audio', f));
+      const { data, error } = await supabase.functions.invoke('fish-audio-clone-voice', { body: fd });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['user-voice-clones'] });
+      toast.success('Voz clonada y lista para usar');
+      setCloneName('');
+      setCloneFiles([]);
+      if (fileRef.current) fileRef.current.value = '';
+      setShowClone(false);
+    },
+    onError: (e) => toast.error('Error al clonar: ' + (e as Error).message),
+  });
+
 
   const { data: voices, isLoading } = useQuery({
     queryKey: ['user-voice-clones', provider],
