@@ -980,6 +980,10 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
         </div>
       )}
 
+      {planLimits.plan === "esoterico_rental" && planLimits.currentCount === 0 && (
+        <RentalNumberPicker onClaimed={() => { planLimits.refresh(); fetchAccounts(); }} />
+      )}
+
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="automatic" className="flex items-center gap-2">
