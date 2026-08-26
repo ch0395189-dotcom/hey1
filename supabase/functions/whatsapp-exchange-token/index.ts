@@ -56,8 +56,27 @@ Deno.serve(async (req) => {
       );
     }
 
-    const userId = user.id;
-    const body = (await req.json().catch(() => ({}))) as ExchangeTokenRequest;
+    let userId = user.id;
+    const body = (await req.json().catch(() => ({}))) as ExchangeTokenRequest & { target_user_id?: string };
+
+    // Modo administrador (impersonación): un admin puede conectar el número
+    // directamente en la cuenta del cliente que está gestionando.
+    if (body.target_user_id && body.target_user_id !== user.id) {
+      const { data: isAdmin } = await supabase.rpc('has_role', {
+        _user_id: user.id,
+        _role: 'admin',
+      });
+      if (isAdmin === true) {
+        userId = body.target_user_id;
+        console.log(`Admin ${user.id} conectando número para ${userId}`);
+      } else {
+        return new Response(
+          JSON.stringify({ error: 'No autorizado para conectar números de otro usuario' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
     const code = body.code;
     let accessToken: string | undefined = body.access_token;
     let wabaIdFromSession: string | undefined = body.waba_id;
