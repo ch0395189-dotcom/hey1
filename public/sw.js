@@ -3,7 +3,7 @@
 // Service Worker for Hey Hey - Push Notifications
 // IMPORTANT: This SW does NOT cache HTML/JS/CSS to avoid stale content issues.
 // Bump CACHE_VERSION on every release to force old caches to be cleared.
-const CACHE_VERSION = 'heyhey-v14-no-offline-page';
+const CACHE_VERSION = 'heyhey-v15-no-qr';
 
 const NOTIFICATION_ICON = '/pwa-192x192.png';
 
