@@ -1812,13 +1812,13 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                         <button
                           onClick={() => setForwardMessage(msg)}
                           title="Reenviar"
-                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-full hover:bg-accent text-muted-foreground"
+                          className="shrink-0 opacity-60 md:opacity-0 md:group-hover:opacity-100 transition-opacity p-1.5 rounded-full hover:bg-accent text-muted-foreground"
                         >
                           <Forward className="w-4 h-4" />
                         </button>
                       )}
                       <div
-                        className={`${isUnsupportedMsg ? 'max-w-[90%] md:max-w-lg' : 'max-w-[85%] md:max-w-md'} px-3 py-2 ${isUnsupportedMsg ? 'bg-muted/40 border border-dashed border-border rounded-lg' : 'shadow-soft'} ${
+                        className={`${isUnsupportedMsg ? 'max-w-[90%] md:max-w-lg' : 'max-w-[78%] sm:max-w-[70%] md:max-w-md'} min-w-0 overflow-hidden px-3 py-2 ${isUnsupportedMsg ? 'bg-muted/40 border border-dashed border-border rounded-lg' : 'shadow-soft'} ${
                           isUnsupportedMsg ? '' :
                           msg.direction === 'outbound'
                             ? 'chat-bubble-out'
