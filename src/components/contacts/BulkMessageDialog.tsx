@@ -425,7 +425,6 @@ export const BulkMessageDialog = ({
                       {accounts.map((account) => (
                         <SelectItem key={account.id} value={account.id}>
                           {account.display_name || account.phone_number}
-                          {(account.connection_type === 'external_qr' || account.connection_type === 'z-api') ? ' (QR)' : ''}
                         </SelectItem>
                       ))}
                     </SelectContent>

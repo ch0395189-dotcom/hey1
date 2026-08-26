@@ -115,8 +115,7 @@ var send_whatsapp_message_default = defineTool3({
         isError: true
       };
     }
-    const fnName = conv.platform === "whatsapp_external" ? "whatsapp-send-external" : "whatsapp-send-message";
-    const { data, error } = await client.functions.invoke(fnName, {
+    const { data, error } = await client.functions.invoke("whatsapp-send-message", {
       body: {
         conversationId: conversation_id,
         conversation_id,

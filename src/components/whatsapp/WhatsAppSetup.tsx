@@ -26,7 +26,6 @@ import {
 } from "lucide-react";
 import { TestMessageSender } from "./TestMessageSender";
 import { ManualWhatsAppSetup } from "./ManualWhatsAppSetup";
-import { ExternalWhatsAppSetup } from "./ExternalWhatsAppSetup";
 import { BuyNumberPanel } from "@/components/numbers/BuyNumberPanel";
 import { RentalNumberPicker } from "@/components/numbers/RentalNumberPicker";
 import { EditAccountDialog } from "./EditAccountDialog";
@@ -768,10 +767,7 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
   };
 
   const copyWebhookUrl = (account: WhatsAppAccount) => {
-    // For external QR connections, include account_id in the webhook URL
-    const baseUrl = account.connection_type === 'external_qr'
-      ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-webhook-external?account_id=${account.id}`
-      : `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-webhook-v2`;
+    const baseUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-webhook-v2`;
     navigator.clipboard.writeText(baseUrl);
     toast({
       title: "URL copiada",
@@ -1019,14 +1015,10 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="automatic" className="flex items-center gap-2">
             <Zap className="w-4 h-4" />
             Automática
-          </TabsTrigger>
-          <TabsTrigger value="qr" className="flex items-center gap-2">
-            <QrCode className="w-4 h-4" />
-            Por QR
           </TabsTrigger>
           <TabsTrigger value="buy" className="flex items-center gap-2">
             <ShoppingCart className="w-4 h-4" />
@@ -1218,13 +1210,6 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
           </Card>
         </TabsContent>
         
-        <TabsContent value="qr" className="mt-4">
-          <ExternalWhatsAppSetup onAccountConnected={() => {
-            fetchAccounts();
-            onAccountConnected?.();
-          }} />
-        </TabsContent>
-
         <TabsContent value="buy" className="mt-4">
           <BuyNumberPanel />
         </TabsContent>
