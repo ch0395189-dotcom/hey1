@@ -62,6 +62,8 @@ export const ReassignableNumbers = () => {
   const [busy, setBusy] = useState<string | null>(null);
   const [myUserId, setMyUserId] = useState<string | null>(null);
   const [history, setHistory] = useState<LogRow[]>([]);
+  const [search, setSearch] = useState("");
+  const [sortOldest, setSortOldest] = useState(true);
   const { toast } = useToast();
 
   const load = async () => {
