@@ -66,7 +66,7 @@ export const WhatsAppTemplateList = ({ accountId, connectionType, refreshSignal 
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
 
-  const isOfficial = connectionType !== "external_qr" && connectionType !== "external";
+  const isOfficial = true;
 
   const load = useCallback(async () => {
     if (!isOfficial) return;

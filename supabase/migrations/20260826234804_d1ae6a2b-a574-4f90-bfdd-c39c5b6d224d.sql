@@ -1,0 +1,1 @@
+DELETE FROM public.whatsapp_accounts WHERE connection_type IN ('external','external_qr','z-api');

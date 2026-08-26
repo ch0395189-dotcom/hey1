@@ -53,74 +53,38 @@ export const TestMessageSender = ({ accountId, accountPhone, connectionType }: T
     setResult(null);
 
     try {
-      const isExternal = connectionType === 'external_qr' || connectionType === 'z-api';
       
-      if (isExternal) {
-        // Use external function for Z-API/external connections
-        const { data, error } = await supabase.functions.invoke('whatsapp-send-external', {
-          body: {
-            accountId,
-            to: phoneNumber,
-            message: message,
-            createConversation: true, // Create conversation so it appears in inbox
-          },
+      // Use Meta API - let the edge function handle conversation creation
+      const { data, error } = await supabase.functions.invoke('whatsapp-send-message', {
+        body: {
+          phone_number: phoneNumber.replace(/[\s\-()]/g, ''),
+          whatsapp_account_id: accountId,
+          message: message,
+          message_type: 'text',
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.error) {
+        setResult({
+          success: false,
+          error: data.error,
+          details: data.details,
+          timestamp: new Date(),
         });
-
-        if (error) throw error;
-
-        if (data.error) {
-          setResult({
-            success: false,
-            error: data.error,
-            details: data.details,
-            timestamp: new Date(),
-          });
-        } else {
-          setResult({
-            success: true,
-            message_id: data.messageId || 'sent',
-            whatsapp_message_id: data.result?.messageId || data.messageId,
-            timestamp: new Date(),
-          });
-
-          toast({
-            title: "¡Mensaje enviado!",
-            description: `El mensaje de prueba fue enviado a ${phoneNumber}`,
-          });
-        }
       } else {
-        // Use Meta API - let the edge function handle conversation creation
-        const { data, error } = await supabase.functions.invoke('whatsapp-send-message', {
-          body: {
-            phone_number: phoneNumber.replace(/[\s\-()]/g, ''),
-            whatsapp_account_id: accountId,
-            message: message,
-            message_type: 'text',
-          },
+        setResult({
+          success: true,
+          message_id: data.message_id,
+          whatsapp_message_id: data.whatsapp_message_id,
+          timestamp: new Date(),
         });
 
-        if (error) throw error;
-
-        if (data?.error) {
-          setResult({
-            success: false,
-            error: data.error,
-            details: data.details,
-            timestamp: new Date(),
-          });
-        } else {
-          setResult({
-            success: true,
-            message_id: data.message_id,
-            whatsapp_message_id: data.whatsapp_message_id,
-            timestamp: new Date(),
-          });
-
-          toast({
-            title: "¡Mensaje enviado!",
-            description: `El mensaje de prueba fue enviado a ${phoneNumber}`,
-          });
-        }
+        toast({
+          title: "¡Mensaje enviado!",
+          description: `El mensaje de prueba fue enviado a ${phoneNumber}`,
+        });
       }
     } catch (error: any) {
       console.error('Error sending test message:', error);

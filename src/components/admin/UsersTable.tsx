@@ -140,7 +140,7 @@ export const UsersTable = () => {
       waAccounts?.forEach(wa => {
         if (wa.is_active) {
           const list = platformsMap.get(wa.user_id) || [];
-          const label = wa.connection_type === 'external' ? 'WA External' : 'WhatsApp';
+          const label = 'WhatsApp';
           if (!list.includes(label)) list.push(label);
           platformsMap.set(wa.user_id, list);
         }

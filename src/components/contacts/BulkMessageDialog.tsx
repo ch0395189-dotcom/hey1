@@ -257,7 +257,6 @@ export const BulkMessageDialog = ({
 
     // Immediate sending
     const selectedAccount = accounts.find(a => a.id === selectedAccountId);
-    const isExternal = selectedAccount?.connection_type === 'external_qr' || selectedAccount?.connection_type === 'z-api';
 
     setSending(true);
     setProgress(0);
@@ -316,27 +315,14 @@ export const BulkMessageDialog = ({
           const partMessage = parts[p];
           let data, error;
 
-          if (isExternal) {
-            ({ data, error } = await supabase.functions.invoke('whatsapp-send-external', {
-              body: {
-                accountId: selectedAccountId,
-                to: contact.customer_phone.replace(/[\s+\-()]/g, ''),
-                message: partMessage || undefined,
-                mediaUrl: isFirst ? mediaUrl : undefined,
-                mediaType: isFirst ? mediaType : undefined,
-                createConversation: true,
-              },
-            }));
-          } else {
-            ({ data, error } = await supabase.functions.invoke('whatsapp-send-message', {
-              body: {
-                conversation_id: contact.id,
-                message: partMessage || undefined,
-                media_url: isFirst ? mediaUrl : undefined,
-                media_type: isFirst ? mediaType : undefined,
-              },
-            }));
-          }
+          ({ data, error } = await supabase.functions.invoke('whatsapp-send-message', {
+            body: {
+              conversation_id: contact.id,
+              message: partMessage || undefined,
+              media_url: isFirst ? mediaUrl : undefined,
+              media_type: isFirst ? mediaType : undefined,
+            },
+          }));
 
           if (error) throw error;
           if (data && !data.success) throw new Error(getFriendlyWhatsappError(data));
@@ -439,7 +425,6 @@ export const BulkMessageDialog = ({
                       {accounts.map((account) => (
                         <SelectItem key={account.id} value={account.id}>
                           {account.display_name || account.phone_number}
-                          {(account.connection_type === 'external_qr' || account.connection_type === 'z-api') ? ' (QR)' : ''}
                         </SelectItem>
                       ))}
                     </SelectContent>

@@ -357,7 +357,7 @@ export const PhoneNumbersTable = () => {
                   <TableRow key={r.id}>
                     <TableCell className="font-mono text-sm">{r.phone}</TableCell>
                     <TableCell>
-                      <Badge variant="outline">{r.connection_type === 'external' ? 'WuzAPI' : 'Meta'}</Badge>
+                      <Badge variant="outline">Meta</Badge>
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-col gap-1">
@@ -535,7 +535,7 @@ export const PhoneNumbersTable = () => {
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Origen</span>
                   <span className="font-medium">
-                    {statusDetail.source === 'external' ? 'WuzAPI (QR)' : 'Meta Cloud API'}
+                    Meta Cloud API
                   </span>
                 </div>
                 <div className="flex items-center justify-between">

@@ -6,16 +6,7 @@ verify_jwt = false
 [functions.elevenlabs-tts]
 verify_jwt = false
 
-[functions.whatsapp-send-external]
-verify_jwt = false
-
-[functions.whatsapp-webhook-external]
-verify_jwt = false
-
 [functions.chatbot-process]
-verify_jwt = false
-
-[functions.heyhey-setup-webhook]
 verify_jwt = false
 
 [functions.send-push-notification]

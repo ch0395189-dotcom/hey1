@@ -100,7 +100,7 @@ const AdminInbox = () => {
               <SelectContent>
                 {accounts.map((a) => (
                   <SelectItem key={a.id} value={a.id}>
-                    {a.phone_number} {a.connection_type === 'external' ? '(QR)' : '(Meta)'}
+                    {a.phone_number} (Meta)
                   </SelectItem>
                 ))}
               </SelectContent>

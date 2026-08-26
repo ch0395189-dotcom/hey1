@@ -135,45 +135,25 @@ export const NewMessageDialog = ({
     setSending(true);
     try {
       const selectedAccount = accounts.find(a => a.id === selectedAccountId);
-      const isExternal = selectedAccount?.connection_type === 'external_qr' || selectedAccount?.connection_type === 'z-api';
 
       let conversationId: string | null = null;
 
-      if (isExternal) {
-        // Use external function for Z-API/WuzAPI connections
-        const { data, error } = await supabase.functions.invoke(
-          "whatsapp-send-external",
-          {
-            body: {
-              accountId: selectedAccountId,
-              to: digitsOnly,
-              message: message.trim(),
-              createConversation: true,
-            },
-          }
-        );
+      // Use Meta API - edge function handles conversation creation
+      const { data, error } = await supabase.functions.invoke(
+        "whatsapp-send-message",
+        {
+          body: {
+            phone_number: digitsOnly,
+            whatsapp_account_id: selectedAccountId,
+            message: message.trim(),
+            message_type: 'text',
+          },
+        }
+      );
 
-        if (error) throw error;
-        if (data?.error) throw new Error(getFriendlyWhatsappError(data));
-        conversationId = data?.conversationId;
-      } else {
-        // Use Meta API - edge function handles conversation creation
-        const { data, error } = await supabase.functions.invoke(
-          "whatsapp-send-message",
-          {
-            body: {
-              phone_number: digitsOnly,
-              whatsapp_account_id: selectedAccountId,
-              message: message.trim(),
-              message_type: 'text',
-            },
-          }
-        );
-
-        if (error) throw error;
-        if (data?.error) throw new Error(getFriendlyWhatsappError(data));
-        conversationId = data?.conversationId;
-      }
+      if (error) throw error;
+      if (data?.error) throw new Error(getFriendlyWhatsappError(data));
+      conversationId = data?.conversationId;
 
       toast({
         title: "Mensaje enviado",

@@ -44,11 +44,7 @@ export function WhatsAppDownAlert({ accountIds }: Props) {
           return;
         }
 
-        // Las cuentas de la API oficial de Meta se guardan como "meta" u
-        // "official_api"; solo las de QR externo ("external_qr") se excluyen.
-        const metaAccounts = accounts.filter(
-          (a: any) => !a.connection_type || a.connection_type !== "external_qr"
-        );
+        const metaAccounts = accounts as any[];
 
         const results: DownAccount[] = [];
 

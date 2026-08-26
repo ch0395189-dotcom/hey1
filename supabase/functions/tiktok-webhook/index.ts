@@ -307,26 +307,14 @@ Deno.serve(async (req) => {
                 `💬 ${preview}\n\n` +
                 `Abrir: https://www.heyhey.site/dashboard?view=messages&platform=tiktok&conv=${conversationId}`;
 
-              const isExternal =
-                waAcc.connection_type === 'external_qr' ||
-                waAcc.connection_type === 'z-api';
-
-              const fn = isExternal ? 'whatsapp-send-external' : 'whatsapp-send-message';
-              const body = isExternal
-                ? {
-                    accountId: waAcc.id,
-                    to: digits,
-                    message: notifyText,
-                    createConversation: false,
-                  }
-                : {
-                    phone_number: digits,
-                    whatsapp_account_id: waAcc.id,
-                    message: notifyText,
-                    message_type: 'text',
-                  };
-
-              const { error: notifyErr } = await supabase.functions.invoke(fn, { body });
+              const { error: notifyErr } = await supabase.functions.invoke('whatsapp-send-message', {
+                body: {
+                  phone_number: digits,
+                  whatsapp_account_id: waAcc.id,
+                  message: notifyText,
+                  message_type: 'text',
+                },
+              });
               if (notifyErr) console.error('WA notify error:', notifyErr);
             }
           }

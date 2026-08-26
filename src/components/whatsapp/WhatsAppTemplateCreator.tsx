@@ -28,7 +28,7 @@ export const WhatsAppTemplateCreator = ({ accountId, connectionType, onCreated }
   const [body, setBody] = useState(SAFE_TIKTOK_TEMPLATE);
   const { toast } = useToast();
 
-  const isOfficial = connectionType !== "external_qr" && connectionType !== "external";
+  const isOfficial = true;
 
   const createTemplate = async () => {
     setCreating(true);

@@ -98,9 +98,6 @@ export const ForwardMessageDialog = ({
   const sendTo = async (toPhone: string, accountId: string) => {
     if (!message) return;
     const account = accounts.find((a) => a.id === accountId);
-    const isExternal =
-      account?.connection_type === "external_qr" ||
-      account?.connection_type === "z-api";
     const digits = toPhone.replace(/\D/g, "");
     if (digits.length < 10) {
       toast({ title: "Número inválido", description: "Mínimo 10 dígitos.", variant: "destructive" });
@@ -110,33 +107,18 @@ export const ForwardMessageDialog = ({
     const hasMedia = !!message.media_url;
     const mediaType = hasMedia ? (message.message_type as any) : undefined;
 
-    if (isExternal) {
-      const { data, error } = await supabase.functions.invoke("whatsapp-send-external", {
-        body: {
-          accountId,
-          to: digits,
-          message: message.content || undefined,
-          mediaUrl: message.media_url || undefined,
-          mediaType,
-          createConversation: true,
-        },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(getFriendlyWhatsappError(data));
-    } else {
-      const { data, error } = await supabase.functions.invoke("whatsapp-send-message", {
-        body: {
-          phone_number: digits,
-          whatsapp_account_id: accountId,
-          message: message.content || undefined,
-          message_type: hasMedia ? mediaType : "text",
-          media_url: message.media_url || undefined,
-          media_type: mediaType,
-        },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(getFriendlyWhatsappError(data));
-    }
+    const { data, error } = await supabase.functions.invoke("whatsapp-send-message", {
+      body: {
+        phone_number: digits,
+        whatsapp_account_id: accountId,
+        message: message.content || undefined,
+        message_type: hasMedia ? mediaType : "text",
+        media_url: message.media_url || undefined,
+        media_type: mediaType,
+      },
+    });
+    if (error) throw error;
+    if (data?.error) throw new Error(getFriendlyWhatsappError(data));
   };
 
   const handleForwardToConv = async (conv: ConvRow) => {
