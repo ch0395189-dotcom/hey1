@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, RefreshCw, Link2, RotateCcw, History } from "lucide-react";
+import { Loader2, RefreshCw, Link2, RotateCcw, History, Search, ArrowDownWideNarrow, ArrowUpNarrowWide } from "lucide-react";
 
 interface WAAccount {
   id: string;
@@ -62,6 +62,8 @@ export const ReassignableNumbers = () => {
   const [busy, setBusy] = useState<string | null>(null);
   const [myUserId, setMyUserId] = useState<string | null>(null);
   const [history, setHistory] = useState<LogRow[]>([]);
+  const [search, setSearch] = useState("");
+  const [sortOldest, setSortOldest] = useState(true);
   const { toast } = useToast();
 
   const load = async () => {
@@ -135,7 +137,7 @@ export const ReassignableNumbers = () => {
   useEffect(() => { load(); }, []);
 
   const reassignable = useMemo(() => {
-    return accounts
+    const rows = accounts
       .filter((a) => !a.quality_paused && isGoodQuality(a.quality_rating))
       .map((a) => {
         const sub = subs[a.user_id];
@@ -164,10 +166,48 @@ export const ReassignableNumbers = () => {
           }
         }
         if (inactive) reasons.push(`Sin login ${Math.floor(daysSince(last))}d`);
-        return { account: a, reasons, eligible: reasons.length > 0 };
+
+        // Inactivity score: días desde el vencimiento del plan (si aplica), si no, días desde último login.
+        let planExpiredDays = -Infinity;
+        if (sub?.current_period_end && new Date(sub.current_period_end) < new Date()) {
+          planExpiredDays = daysSince(sub.current_period_end);
+        } else if (sub?.status === "trialing" && sub?.trial_end && new Date(sub.trial_end) < new Date()) {
+          planExpiredDays = daysSince(sub.trial_end);
+        } else if (!sub || sub.status === "canceled" || sub.status === "past_due") {
+          planExpiredDays = 0;
+        }
+        const loginDays = last ? daysSince(last) : Infinity;
+        // Usamos el máximo entre vencimiento del plan y último login como métrica de inactividad
+        const inactivityDays = Math.max(planExpiredDays === -Infinity ? 0 : planExpiredDays, loginDays);
+        return { account: a, reasons, eligible: reasons.length > 0, inactivityDays };
       })
       .filter((x) => x.eligible);
-  }, [accounts, subs, lastSignIn]);
+
+    // Buscar por número, nombre, email o plan
+    const q = search.trim().toLowerCase();
+    const filtered = q
+      ? rows.filter((x) => {
+          const a = x.account;
+          const ownerEmail = emails[a.user_id] ?? "";
+          const ownerName = profiles[a.user_id] ?? "";
+          const sub = subs[a.user_id];
+          return (
+            (a.phone_number || "").toLowerCase().includes(q) ||
+            (a.display_name || "").toLowerCase().includes(q) ||
+            ownerEmail.toLowerCase().includes(q) ||
+            ownerName.toLowerCase().includes(q) ||
+            (sub?.plan || "").toLowerCase().includes(q) ||
+            (sub?.status || "").toLowerCase().includes(q)
+          );
+        })
+      : rows;
+
+    // Ordenar: por defecto de mayor a menor inactividad (más antiguo primero)
+    filtered.sort((a, b) =>
+      sortOldest ? b.inactivityDays - a.inactivityDays : a.inactivityDays - b.inactivityDays
+    );
+    return filtered;
+  }, [accounts, subs, lastSignIn, search, sortOldest, emails, profiles]);
 
   const reassign = async (accountId: string, newUserId: string | null) => {
     if (!newUserId) {
@@ -224,23 +264,47 @@ export const ReassignableNumbers = () => {
           </p>
         ) : (
           <div className="overflow-x-auto">
+            <div className="flex items-center gap-2 mb-3 flex-wrap">
+              <div className="relative flex-1 min-w-[220px]">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar por número, nombre, email o plan..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-8 h-9"
+                />
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSortOldest((s) => !s)}
+                title={sortOldest ? "Ordenado: más antiguo primero" : "Ordenado: más reciente primero"}
+              >
+                {sortOldest ? <ArrowDownWideNarrow className="w-4 h-4 mr-1" /> : <ArrowUpNarrowWide className="w-4 h-4 mr-1" />}
+                {sortOldest ? "Más antiguo" : "Más reciente"}
+              </Button>
+              <Badge variant="secondary">{reassignable.length}</Badge>
+            </div>
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Número</TableHead>
                   <TableHead>Calidad</TableHead>
                   <TableHead>Dueño actual</TableHead>
-                  <TableHead>Motivo</TableHead>
+                  <TableHead>Inactividad / Motivo</TableHead>
                   <TableHead className="min-w-[280px]">Reasignar a</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {reassignable.map(({ account: a, reasons }) => {
+                {reassignable.map(({ account: a, reasons, inactivityDays }) => {
                   const ownerEmail = emails[a.user_id];
                   const ownerName = profiles[a.user_id];
                   const sub = subs[a.user_id];
                   const inputEmail = (targetEmail[a.id] ?? "").trim().toLowerCase();
                   const resolvedId = inputEmail ? emailToId[inputEmail] : null;
+                  const inactLabel = Number.isFinite(inactivityDays)
+                    ? `${Math.floor(inactivityDays)}d`
+                    : "—";
                   return (
                     <TableRow key={a.id}>
                       <TableCell>
@@ -260,6 +324,7 @@ export const ReassignableNumbers = () => {
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col gap-1">
+                          <Badge variant="outline" className="w-fit">{inactLabel}</Badge>
                           {reasons.map((r) => (
                             <Badge key={r} variant="secondary" className="w-fit">{r}</Badge>
                           ))}
