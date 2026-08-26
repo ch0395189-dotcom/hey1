@@ -940,8 +940,8 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
       // recibe la burbuja sin audio reproducible).
       const sniffed = await sniffAudioContainer(finalBlob);
       console.log('[Audio] Real container:', sniffed.container);
-      if (sniffed.container === 'webm') {
-        throw new Error('Tu navegador grabó el audio en un formato que WhatsApp no acepta (WebM) y no se pudo convertir. Prueba de nuevo o usa la app.');
+      if (sniffed.container === 'webm' || sniffed.container === 'unknown') {
+        throw new Error('Tu dispositivo generó un audio que WhatsApp no puede reproducir. Grábalo nuevamente e intenta enviarlo.');
       }
       const extension = sniffed.ext;
       const contentType = sniffed.mime;
@@ -1874,26 +1874,14 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                                 <span className="text-sm truncate">Documento adjunto</span>
                               </a>
                             ) : msg.message_type === 'audio' ? (
-                              <div className="flex flex-col gap-1 w-full min-w-0 sm:min-w-[220px]">
+                              <div className="w-[min(68vw,320px)] min-w-[210px] max-w-full overflow-hidden">
                                 <audio
+                                  src={msg.media_url!}
                                   controls
-                                  className="w-full max-w-full h-10"
+                                  className="block w-full h-12"
                                   preload="metadata"
-                                >
-                                  {/* Provide multiple type hints so browsers (incl. Safari/iOS)
-                                      pick a compatible decoder for OGG/Opus or MP4/AAC. */}
-                                  <source src={msg.media_url!} type="audio/ogg; codecs=opus" />
-                                  <source src={msg.media_url!} type="audio/mp4" />
-                                  <source src={msg.media_url!} />
-                                </audio>
-                                <a
-                                  href={msg.media_url!}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-[11px] underline opacity-70 hover:opacity-100 self-end"
-                                >
-                                  Descargar audio
-                                </a>
+                                  playsInline
+                                />
                               </div>
                             ) : null}
                           </div>
