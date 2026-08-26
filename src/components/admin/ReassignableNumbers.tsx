@@ -264,12 +264,34 @@ export const ReassignableNumbers = () => {
           </p>
         ) : (
           <div className="overflow-x-auto">
+            <div className="flex items-center gap-2 mb-3 flex-wrap">
+              <div className="relative flex-1 min-w-[220px]">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar por número, nombre, email o plan..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-8 h-9"
+                />
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSortOldest((s) => !s)}
+                title={sortOldest ? "Ordenado: más antiguo primero" : "Ordenado: más reciente primero"}
+              >
+                {sortOldest ? <ArrowDownWideNarrow className="w-4 h-4 mr-1" /> : <ArrowUpNarrowWide className="w-4 h-4 mr-1" />}
+                {sortOldest ? "Más antiguo" : "Más reciente"}
+              </Button>
+              <Badge variant="secondary">{reassignable.length}</Badge>
+            </div>
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Número</TableHead>
                   <TableHead>Calidad</TableHead>
                   <TableHead>Dueño actual</TableHead>
+                  <TableHead>Inactividad</TableHead>
                   <TableHead>Motivo</TableHead>
                   <TableHead className="min-w-[280px]">Reasignar a</TableHead>
                 </TableRow>
