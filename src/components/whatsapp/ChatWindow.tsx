@@ -1911,7 +1911,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                                 <Copy className="w-4 h-4 text-emerald-600 shrink-0" />
                               </button>
                             )}
-                            <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                            <p className="text-sm whitespace-pre-wrap leading-relaxed break-words [overflow-wrap:anywhere]">{msg.content}</p>
                           </>
                         )}
                         <div
