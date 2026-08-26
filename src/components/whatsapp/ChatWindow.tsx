@@ -1827,12 +1827,14 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                       >
                         {/* Media content */}
                         {msg.media_url && (
-                          <div className="mb-1.5 -mx-1 -mt-1">
+                          <div className="mb-1.5 -mx-1 -mt-1 max-w-full">
                             {msg.message_type === 'image' ? (
                               <img 
                                 src={msg.media_url} 
                                 alt="Imagen" 
-                                className="rounded-lg max-w-full cursor-pointer hover:opacity-90 transition-opacity"
+                                loading="lazy"
+                                decoding="async"
+                                className="rounded-lg w-full max-w-full max-h-[60vh] object-contain bg-muted/30 cursor-pointer hover:opacity-90 transition-opacity"
                                 onClick={() => setPreviewImageUrl(msg.media_url!)}
                                 onLoad={() => { if (isAtBottom) scrollToBottom(); }}
                               />
@@ -1840,23 +1842,24 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                               <video 
                                 src={msg.media_url} 
                                 controls 
-                                className="rounded-lg max-w-full"
+                                preload="metadata"
+                                className="rounded-lg w-full max-w-full max-h-[60vh] bg-black/5"
                               />
                             ) : msg.message_type === 'document' ? (
                               <a 
                                 href={msg.media_url} 
                                 target="_blank" 
                                 rel="noopener noreferrer"
-                                className="flex items-center gap-2 p-2 bg-muted/50 rounded-lg hover:bg-muted"
+                                className="flex items-center gap-2 p-2 bg-muted/50 rounded-lg hover:bg-muted min-w-0"
                               >
-                                <FileText className="w-8 h-8" />
-                                <span className="text-sm">Documento adjunto</span>
+                                <FileText className="w-8 h-8 shrink-0" />
+                                <span className="text-sm truncate">Documento adjunto</span>
                               </a>
                             ) : msg.message_type === 'audio' ? (
-                              <div className="flex flex-col gap-1 min-w-[220px]">
+                              <div className="flex flex-col gap-1 w-full min-w-0 sm:min-w-[220px]">
                                 <audio
                                   controls
-                                  className="w-full h-10"
+                                  className="w-full max-w-full h-10"
                                   preload="metadata"
                                 >
                                   {/* Provide multiple type hints so browsers (incl. Safari/iOS)
