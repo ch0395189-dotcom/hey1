@@ -118,6 +118,29 @@ export async function isRealOggContainer(input: Blob): Promise<boolean> {
   return header[0] === 0x4f && header[1] === 0x67 && header[2] === 0x67 && header[3] === 0x53; // OggS
 }
 
+/**
+ * Sniffs the REAL container of an audio blob by reading its magic bytes.
+ * Never trust blob.type: several mobile browsers lie about it, and uploading
+ * a WebM/MP4 labelled as `audio/ogg` makes WhatsApp deliver a broken voice
+ * note (the recipient only sees the bubble with no playable audio).
+ */
+export async function sniffAudioContainer(
+  input: Blob
+): Promise<{ container: 'ogg' | 'webm' | 'mp4' | 'mp3' | 'amr' | 'unknown'; ext: string; mime: string }> {
+  const head = new Uint8Array(await input.slice(0, 16).arrayBuffer());
+  const ascii = (start: number, len: number) =>
+    String.fromCharCode(...Array.from(head.slice(start, start + len)));
+
+  if (ascii(0, 4) === 'OggS') return { container: 'ogg', ext: 'ogg', mime: 'audio/ogg' };
+  if (head[0] === 0x1a && head[1] === 0x45 && head[2] === 0xdf && head[3] === 0xa3)
+    return { container: 'webm', ext: 'webm', mime: 'audio/webm' };
+  if (ascii(4, 4) === 'ftyp') return { container: 'mp4', ext: 'm4a', mime: 'audio/mp4' };
+  if (ascii(0, 3) === 'ID3' || (head[0] === 0xff && (head[1] & 0xe0) === 0xe0))
+    return { container: 'mp3', ext: 'mp3', mime: 'audio/mpeg' };
+  if (ascii(0, 5) === '#!AMR') return { container: 'amr', ext: 'amr', mime: 'audio/amr' };
+  return { container: 'unknown', ext: 'ogg', mime: input.type || 'audio/ogg' };
+}
+
 export async function prepareRecordedAudioForWhatsApp(input: Blob): Promise<Blob> {
   // Do not trust MediaRecorder's MIME type alone. Some mobile browsers report
   // audio/ogg while writing MP4 bytes, which Meta accepts but recipients get a
