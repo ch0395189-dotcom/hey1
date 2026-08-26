@@ -817,9 +817,50 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
       }
 
       const platform = conversation.platform || 'whatsapp';
+      const isExternalConnection = accountConnectionType === 'external_qr' || accountConnectionType === 'z-api';
       
       // Choose the correct edge function based on platform and connection type
       if (platform === 'whatsapp') {
+        if (isExternalConnection) {
+          // Use external API (HeyHey/WuzAPI) for external connections
+          const { data, error } = await supabase.functions.invoke('whatsapp-send-external', {
+            body: {
+              accountId: conversation.whatsapp_account_id,
+              to: conversation.customer_phone,
+              message: newMessage.trim() || undefined,
+              mediaUrl: mediaUrl,
+              mediaType: mediaType,
+              conversationId: conversation.id,
+              createConversation: true, // Ensure message is saved
+            },
+          });
+          if (error) throw error;
+          if (data?.error === 'message_limit_reached') {
+            throw new Error(data.message || 'Has alcanzado el límite mensual de mensajes de tu plan.');
+          }
+          if (data?.error) throw new Error(getFriendlyWhatsappError(data));
+          
+          // Refresh messages to show the newly sent message immediately
+          // (in case realtime is slow or fails)
+          setTimeout(() => fetchMessages(), 200);
+        } else {
+          // Use Meta API for official connections
+          const { data, error } = await supabase.functions.invoke('whatsapp-send-message', {
+            body: {
+              conversation_id: conversation.id,
+              message: newMessage.trim() || undefined,
+              media_url: mediaUrl,
+              media_type: mediaType,
+            },
+          });
+          if (error) throw error;
+          if (data?.error === 'message_limit_reached') {
+            throw new Error(data.message || 'Has alcanzado el límite mensual de mensajes de tu plan.');
+          }
+          if (data?.success === false && data?.error) {
+            throw new Error(getFriendlyWhatsappError(data));
+          }
+        }
       } else {
         // For Messenger, Instagram, TikTok - use platform-specific send functions
         const functionName = `${platform}-send-message`;
@@ -923,8 +964,32 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
         .from('media')
         .getPublicUrl(filePath);
 
+      const isExternalConnection = accountConnectionType === 'external_qr' || accountConnectionType === 'z-api';
 
       const sendOnce = async () => {
+        if (isExternalConnection) {
+          const { data, error } = await supabase.functions.invoke('whatsapp-send-external', {
+            body: {
+              accountId: conversation.whatsapp_account_id,
+              to: conversation.customer_phone,
+              mediaUrl: urlData.publicUrl,
+              mediaType: 'audio',
+              conversationId: conversation.id,
+            },
+          });
+          if (error) throw error;
+          if (data?.error) throw new Error(getFriendlyWhatsappError(data));
+        } else {
+          const { data, error } = await supabase.functions.invoke('whatsapp-send-message', {
+            body: {
+              conversation_id: conversation.id,
+              media_url: urlData.publicUrl,
+              media_type: 'audio',
+            },
+          });
+          if (error) throw error;
+          if (data?.error) throw new Error(getFriendlyWhatsappError(data));
+        }
       };
 
       try {
@@ -967,7 +1032,39 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
 
     setSending(true);
     try {
+      const isExternalConnection = accountConnectionType === 'external_qr' || accountConnectionType === 'z-api';
 
+      if (isExternalConnection) {
+        const textMessage = `${data.bodyText}\n\n👉 ${data.ctaText}: ${data.ctaUrl}${data.footerText ? `\n\n_${data.footerText}_` : ''}`;
+        const { data: result, error } = await supabase.functions.invoke('whatsapp-send-external', {
+          body: {
+            accountId: conversation.whatsapp_account_id,
+            to: conversation.customer_phone,
+            message: textMessage,
+            conversationId: conversation.id,
+            createConversation: true,
+          },
+        });
+        if (error) throw error;
+        if (result?.error) throw new Error(getFriendlyWhatsappError(result));
+        setTimeout(() => fetchMessages(), 200);
+      } else {
+        const { data: result, error } = await supabase.functions.invoke('whatsapp-send-message', {
+          body: {
+            conversation_id: conversation.id,
+            interactive: {
+              type: 'cta_url',
+              bodyText: data.bodyText,
+              footerText: data.footerText,
+              ctaText: data.ctaText,
+              ctaUrl: data.ctaUrl,
+            },
+          },
+        });
+        if (error) throw error;
+        if (result?.error) throw new Error(getFriendlyWhatsappError(result));
+        setTimeout(() => fetchMessages(), 300);
+      }
 
       toast({ title: "Botón enviado", description: "El cliente ya puede abrir el chat con un toque." });
     } catch (error: any) {
@@ -1014,6 +1111,31 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
       if (uploadError) throw uploadError;
       const { data: urlData } = supabase.storage.from('media').getPublicUrl(filePath);
 
+      const isExternalConnection =
+        accountConnectionType === 'external_qr' || accountConnectionType === 'z-api';
+      if (isExternalConnection) {
+        const { data, error } = await supabase.functions.invoke('whatsapp-send-external', {
+          body: {
+            accountId: conversation.whatsapp_account_id,
+            to: conversation.customer_phone,
+            mediaUrl: urlData.publicUrl,
+            mediaType: 'audio',
+            conversationId: conversation.id,
+          },
+        });
+        if (error) throw error;
+        if (data?.error) throw new Error(getFriendlyWhatsappError(data));
+      } else {
+        const { data, error } = await supabase.functions.invoke('whatsapp-send-message', {
+          body: {
+            conversation_id: conversation.id,
+            media_url: urlData.publicUrl,
+            media_type: 'audio',
+          },
+        });
+        if (error) throw error;
+        if (data?.error) throw new Error(getFriendlyWhatsappError(data));
+      }
 
       setNewMessage('');
       toast({
@@ -1102,6 +1224,30 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
       const { data: urlData } = supabase.storage.from("media").getPublicUrl(filePath);
 
       // 4. Send via the right WhatsApp channel
+      const isExternalConnection = accountConnectionType === "external_qr" || accountConnectionType === "z-api";
+      if (isExternalConnection) {
+        const { data, error } = await supabase.functions.invoke("whatsapp-send-external", {
+          body: {
+            accountId: conversation.whatsapp_account_id,
+            to: conversation.customer_phone,
+            mediaUrl: urlData.publicUrl,
+            mediaType: "audio",
+            conversationId: conversation.id,
+          },
+        });
+        if (error) throw error;
+        if (data?.error) throw new Error(getFriendlyWhatsappError(data));
+      } else {
+        const { data, error } = await supabase.functions.invoke("whatsapp-send-message", {
+          body: {
+            conversation_id: conversation.id,
+            media_url: urlData.publicUrl,
+            media_type: "audio",
+          },
+        });
+        if (error) throw error;
+        if (data?.error) throw new Error(getFriendlyWhatsappError(data));
+      }
 
       setNewMessage("");
       toast({ title: "Nota de voz enviada", description: "Tu audio con voz clonada se envió correctamente." });
@@ -1132,7 +1278,54 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
 
     setSending(true);
     try {
+      const isExternalConnection = accountConnectionType === 'external_qr' || accountConnectionType === 'z-api';
       
+      if (isExternalConnection) {
+        // For external QR, convert interactive message to text with numbered options
+        let textMessage = data.bodyText || '';
+        if (data.headerText) {
+          textMessage = `*${data.headerText}*\n\n${textMessage}`;
+        }
+        if (data.type === 'buttons' && data.buttons) {
+          textMessage += '\n\n';
+          data.buttons.forEach((btn, idx) => {
+            textMessage += `${idx + 1}. ${btn.title}\n`;
+          });
+        } else if (data.type === 'list' && data.listOptions) {
+          textMessage += '\n\n';
+          data.listOptions.forEach((opt, idx) => {
+            textMessage += `${idx + 1}. ${opt.title}${opt.description ? ' - ' + opt.description : ''}\n`;
+          });
+        }
+        if (data.footerText) {
+          textMessage += `\n_${data.footerText}_`;
+        }
+        
+        const { data: result, error } = await supabase.functions.invoke('whatsapp-send-external', {
+          body: {
+            accountId: conversation.whatsapp_account_id,
+            to: conversation.customer_phone,
+            message: textMessage.trim(),
+            conversationId: conversation.id,
+            createConversation: true,
+          },
+        });
+        if (error) throw error;
+        if (result?.error) throw new Error(getFriendlyWhatsappError(result));
+        
+        setTimeout(() => fetchMessages(), 200);
+      } else {
+        // Use Meta API for interactive messages
+        const { data: result, error } = await supabase.functions.invoke('whatsapp-send-message', {
+          body: {
+            conversation_id: conversation.id,
+            interactive: data,
+          },
+        });
+
+        if (error) throw error;
+        if (result?.error) throw new Error(getFriendlyWhatsappError(result));
+      }
 
       toast({
         title: "Mensaje enviado",
