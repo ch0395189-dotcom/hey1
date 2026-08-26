@@ -176,11 +176,12 @@ export async function prepareRecordedAudioForWhatsApp(input: Blob): Promise<Blob
     } catch (mp3Err) {
       console.warn('[audioConvert] MP3 fallback failed:', mp3Err);
     }
-    if (input.type && input.type.startsWith('audio/')) {
+    const originalContainer = await sniffAudioContainer(input);
+    if (originalContainer.container !== 'webm' && originalContainer.container !== 'unknown') {
       console.warn('[audioConvert] ffmpeg unavailable, sending original blob as-is:', input.type, err);
       return input;
     }
-    throw err;
+    throw new Error('Este dispositivo generó un audio WebM que no se pudo convertir a MP3 u OGG.');
   }
 }
 

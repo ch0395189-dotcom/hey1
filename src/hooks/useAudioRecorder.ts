@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import { getBestAudioMimeType } from '@/utils/audioConverter';
+import { isIOS } from '@/utils/mp3Encode';
 import { Capacitor } from '@capacitor/core';
 
 /**
@@ -90,8 +91,17 @@ export const useAudioRecorder = (): UseAudioRecorderReturn => {
       const selectedMimeType = getBestAudioMimeType();
       setMimeType(selectedMimeType);
 
-      const mediaRecorder = new MediaRecorder(stream, { mimeType: selectedMimeType });
+      // Some WebViews claim support for a MIME type and still reject it in the
+      // constructor. Falling back to the browser default keeps recording usable.
+      let mediaRecorder: MediaRecorder;
+      try {
+        mediaRecorder = new MediaRecorder(stream, { mimeType: selectedMimeType });
+      } catch {
+        mediaRecorder = new MediaRecorder(stream);
+      }
       mediaRecorderRef.current = mediaRecorder;
+      const actualMimeType = mediaRecorder.mimeType || selectedMimeType;
+      setMimeType(actualMimeType);
 
       mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
@@ -100,7 +110,7 @@ export const useAudioRecorder = (): UseAudioRecorderReturn => {
       };
 
       mediaRecorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: selectedMimeType });
+        const blob = new Blob(chunksRef.current, { type: actualMimeType });
         setAudioBlob(blob);
         const url = URL.createObjectURL(blob);
         setAudioUrl(url);
@@ -109,7 +119,11 @@ export const useAudioRecorder = (): UseAudioRecorderReturn => {
         stream.getTracks().forEach(track => track.stop());
       };
 
-      mediaRecorder.start(100); // Collect data every 100ms
+      // iOS produces fragmented MP4 when a timeslice is supplied. Those small
+      // fragments often lack the metadata required by WebAudio/Meta. Recording
+      // a single finalized blob produces a normal, decodable MP4 instead.
+      if (isIOS()) mediaRecorder.start();
+      else mediaRecorder.start(250);
       setIsRecording(true);
       setIsPaused(false);
       setAudioBlob(null);

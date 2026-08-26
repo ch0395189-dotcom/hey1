@@ -488,7 +488,24 @@ Deno.serve(async (req) => {
                   }
 
                   const mediaBlob = await mediaResponse.blob();
-                  const mimeType = mediaInfo.mime_type || 'application/octet-stream';
+                  const arrayBuffer = await mediaBlob.arrayBuffer();
+                  const bytes = new Uint8Array(arrayBuffer.slice(0, 16));
+                  const ascii = (start: number, length: number) =>
+                    String.fromCharCode(...Array.from(bytes.slice(start, start + length)));
+                  let mimeType = String(
+                    mediaInfo.mime_type || mediaResponse.headers.get('content-type') || 'application/octet-stream'
+                  ).split(';')[0].trim().toLowerCase();
+
+                  // Meta occasionally reports voice notes as octet-stream. Detect
+                  // the real container so Storage and mobile browsers receive a
+                  // usable extension and Content-Type instead of a generic .bin.
+                  if (message.type === 'audio') {
+                    if (ascii(0, 4) === 'OggS') mimeType = 'audio/ogg';
+                    else if (ascii(4, 4) === 'ftyp') mimeType = 'audio/mp4';
+                    else if (ascii(0, 3) === 'ID3' || (bytes[0] === 0xff && (bytes[1] & 0xe0) === 0xe0)) mimeType = 'audio/mpeg';
+                    else if (ascii(0, 5) === '#!AMR') mimeType = 'audio/amr';
+                    else if (bytes[0] === 0x1a && bytes[1] === 0x45 && bytes[2] === 0xdf && bytes[3] === 0xa3) mimeType = 'audio/webm';
+                  }
                   
                   // Determine file extension
                   let extension = 'bin';
@@ -507,7 +524,6 @@ Deno.serve(async (req) => {
                   const filePath = `whatsapp-media/${fileName}`;
 
                   // Upload to Supabase Storage
-                  const arrayBuffer = await mediaBlob.arrayBuffer();
                   const { error: uploadError } = await supabase.storage
                     .from('media')
                     .upload(filePath, arrayBuffer, {
