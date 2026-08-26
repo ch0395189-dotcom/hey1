@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, RefreshCw, Link2, RotateCcw, History } from "lucide-react";
+import { Loader2, RefreshCw, Link2, RotateCcw, History, Search, ArrowDownWideNarrow, ArrowUpNarrowWide } from "lucide-react";
 
 interface WAAccount {
   id: string;
