@@ -2146,9 +2146,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
               <FaWhatsapp className="w-5 h-5 text-green-500" />
             </Button>
           )}
-          {conversation?.platform === 'whatsapp' &&
-            accountConnectionType !== 'external_qr' &&
-            accountConnectionType !== 'external' && (
+          {conversation?.platform === 'whatsapp' && (
               <Popover
                 open={templatesPopoverOpen}
                 onOpenChange={(o) => {
