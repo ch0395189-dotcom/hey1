@@ -1196,15 +1196,15 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
       // 2. Try to remux MP3 → OGG/Opus so WhatsApp shows it as PTT.
       //    Fall back to sending the MP3 as-is when ffmpeg.wasm can't load (iOS).
       let finalBlob: Blob = mp3Blob;
-      let ext = 'ogg';
-      let contentType = 'audio/ogg';
       try {
         finalBlob = await convertToOggOpus(mp3Blob);
       } catch (e) {
         console.warn('[voice-clone] ffmpeg unavailable, sending MP3 as-is:', e);
-        ext = 'mp3';
-        contentType = 'audio/mpeg';
+        finalBlob = mp3Blob;
       }
+      const sniffedTts = await sniffAudioContainer(finalBlob);
+      const ext = sniffedTts.ext;
+      const contentType = sniffedTts.mime;
       const outFile = new File([finalBlob], `cloned_${Date.now()}.${ext}`, { type: contentType });
 
       // 3. Upload to storage
