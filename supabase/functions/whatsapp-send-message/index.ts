@@ -43,6 +43,66 @@ interface SendMessageRequest {
   interactive?: InteractiveMessage;
 }
 
+function getAudioMimeType(mediaUrl: string, responseType: string | null): string {
+  const cleanUrl = mediaUrl.toLowerCase().split('?')[0];
+  if (cleanUrl.endsWith('.mp3')) return 'audio/mpeg';
+  if (cleanUrl.endsWith('.m4a') || cleanUrl.endsWith('.mp4')) return 'audio/mp4';
+  if (cleanUrl.endsWith('.aac')) return 'audio/aac';
+  if (cleanUrl.endsWith('.amr')) return 'audio/amr';
+  if (cleanUrl.endsWith('.ogg') || cleanUrl.endsWith('.opus')) return 'audio/ogg';
+  const mime = responseType?.split(';')[0].trim().toLowerCase();
+  return mime?.startsWith('audio/') ? mime : 'audio/ogg';
+}
+
+async function uploadAudioToWhatsApp(
+  phoneNumberId: string,
+  accessToken: string,
+  mediaUrl: string,
+): Promise<string> {
+  const mediaResponse = await fetch(mediaUrl);
+  if (!mediaResponse.ok) {
+    throw new Error(`No se pudo descargar el audio (${mediaResponse.status})`);
+  }
+
+  const audioData = await mediaResponse.arrayBuffer();
+  if (audioData.byteLength === 0) throw new Error('El audio está vacío');
+
+  const mimeType = getAudioMimeType(mediaUrl, mediaResponse.headers.get('content-type'));
+  const extensionByMime: Record<string, string> = {
+    'audio/ogg': 'ogg',
+    'audio/mpeg': 'mp3',
+    'audio/mp4': 'm4a',
+    'audio/aac': 'aac',
+    'audio/amr': 'amr',
+  };
+  const extension = extensionByMime[mimeType] || 'ogg';
+  const form = new FormData();
+  form.append('messaging_product', 'whatsapp');
+  form.append('type', mimeType);
+  form.append('file', new Blob([audioData], { type: mimeType }), `voice.${extension}`);
+
+  const uploadResponse = await fetch(
+    `https://graph.facebook.com/v21.0/${phoneNumberId}/media`,
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}` },
+      body: form,
+    },
+  );
+  const rawResponse = await uploadResponse.text();
+  let uploadData: { id?: string; error?: { message?: string } } = {};
+  try {
+    uploadData = JSON.parse(rawResponse);
+  } catch {
+    throw new Error(`Meta devolvió una respuesta inválida al cargar el audio (${uploadResponse.status})`);
+  }
+
+  if (!uploadResponse.ok || !uploadData.id) {
+    throw new Error(uploadData.error?.message || `Meta rechazó el audio (${uploadResponse.status})`);
+  }
+  return uploadData.id;
+}
+
 function buildInteractivePayload(interactive: InteractiveMessage, recipientPhone: string): Record<string, unknown> {
   const basePayload = {
     messaging_product: 'whatsapp',
@@ -561,8 +621,16 @@ Deno.serve(async (req) => {
         };
         contentToSave = message || null;
       } else if (actualMessageType === 'audio' && media_url) {
+        // Upload first and send by media ID. Sending audio by a public link can
+        // return an initial success while Meta later fails to fetch/process it,
+        // which leaves recipients without the voice note.
+        const audioMediaId = await uploadAudioToWhatsApp(
+          whatsappAccount.phone_number_id,
+          whatsappAccount.access_token,
+          media_url,
+        );
         whatsappPayload.audio = {
-          link: media_url,
+          id: audioMediaId,
         };
       }
     }

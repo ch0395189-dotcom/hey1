@@ -1,7 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { prepareAttachedAudioForWhatsApp, prepareRecordedAudioForWhatsApp, preloadFFmpeg, convertToOggOpus, sniffAudioContainer } from "@/utils/audioConvert";
-import { startAudioDiagnostic } from "@/lib/audioDiagnostics";
-import { AudioDiagnosticsDialog } from "@/components/whatsapp/AudioDiagnosticsDialog";
 import { compressMediaIfNeeded, formatFileSize, exceedsWhatsAppLimit } from "@/utils/mediaCompressor";
 import { getFriendlyWhatsappError } from "@/lib/whatsappErrors";
 import { detectOTP } from "@/lib/otpDetect";
@@ -166,7 +164,6 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
   const [hasFishAudioKey, setHasFishAudioKey] = useState(false);
   const [voicePreviewOpen, setVoicePreviewOpen] = useState(false);
   const [forwardMessage, setForwardMessage] = useState<Message | null>(null);
-  const [audioDiagOpen, setAudioDiagOpen] = useState(false);
   const [approvedTemplates, setApprovedTemplates] = useState<any[]>([]);
   const [templatesPopoverOpen, setTemplatesPopoverOpen] = useState(false);
   const [templatesLoading, setTemplatesLoading] = useState(false);
@@ -917,11 +914,6 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
     if (!audioBlob || !conversation || sending) return;
 
     setSending(true);
-    const diag = startAudioDiagnostic("Audio grabado", {
-      conversationId: conversation.id,
-      originalType: audioBlob.type || "desconocido",
-      originalSize: audioBlob.size,
-    });
     try {
       toast({
         title: "Enviando audio...",
@@ -938,11 +930,8 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
       try {
         finalBlob = await prepareRecordedAudioForWhatsApp(audioBlob);
         console.log('[Audio] Prepared blob size:', finalBlob.size);
-        diag.update({ convertedSize: finalBlob.size, converted: finalBlob !== audioBlob });
-        diag.step('Conversión a OGG/Opus', true, `${finalBlob.size} bytes`);
       } catch (convErr) {
         console.error('[Audio] ffmpeg conversion failed:', convErr);
-        diag.step('Conversión a OGG/Opus', false, convErr instanceof Error ? convErr.message : String(convErr));
         throw new Error('No se pudo convertir el audio a un formato compatible con WhatsApp. Intenta grabarlo de nuevo.');
       }
 
@@ -951,8 +940,6 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
       // recibe la burbuja sin audio reproducible).
       const sniffed = await sniffAudioContainer(finalBlob);
       console.log('[Audio] Real container:', sniffed.container);
-      diag.update({ container: sniffed.container, mime: sniffed.mime, extension: sniffed.ext });
-      diag.step('Detección de contenedor real', sniffed.container !== 'webm', sniffed.container);
       if (sniffed.container === 'webm') {
         throw new Error('Tu navegador grabó el audio en un formato que WhatsApp no acepta (WebM) y no se pudo convertir. Prueba de nuevo o usa la app.');
       }
@@ -970,17 +957,14 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
         });
 
       if (uploadError) {
-        diag.step('Subida a almacenamiento', false, uploadError.message);
         throw uploadError;
       }
-      diag.step('Subida a almacenamiento', true, filePath);
 
       const { data: urlData } = supabase.storage
         .from('media')
         .getPublicUrl(filePath);
 
       const isExternalConnection = accountConnectionType === 'external_qr' || accountConnectionType === 'z-api';
-      diag.update({ transport: isExternalConnection ? 'QR externo' : 'Meta Cloud API' });
 
       const sendOnce = async () => {
         if (isExternalConnection) {
@@ -1011,12 +995,8 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
       try {
         await sendOnce();
       } catch (firstErr: any) {
-        diag.step('Primer envío', false, firstErr?.message || String(firstErr));
-        diag.retry();
         await sendOnce();
       }
-      diag.step('Envío a WhatsApp', true);
-      diag.success('Audio entregado a la API');
 
       clearRecording();
       toast({
@@ -1025,7 +1005,6 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
       });
     } catch (error: any) {
       console.error('Error sending audio:', error);
-      diag.fail(error);
       toast({
         title: "Error al enviar audio",
         description: error.message || "No se pudo enviar el audio.",
@@ -1591,7 +1570,6 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
         message={forwardMessage}
         sourceAccountId={conversation?.whatsapp_account_id || ""}
       />
-      <AudioDiagnosticsDialog open={audioDiagOpen} onOpenChange={setAudioDiagOpen} />
 
       {/* Chat Header - WhatsApp Style */}
       <div
@@ -2091,15 +2069,6 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                 <audio src={audioUrl} controls className="w-full h-10" />
 
                 <div className="mt-2 flex items-center justify-end gap-2">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="text-xs text-muted-foreground mr-auto"
-                    onClick={() => setAudioDiagOpen(true)}
-                  >
-                    Diagnóstico
-                  </Button>
                   <Button
                     type="button"
                     variant="ghost"
