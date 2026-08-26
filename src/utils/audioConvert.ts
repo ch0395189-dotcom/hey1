@@ -146,12 +146,22 @@ export async function prepareRecordedAudioForWhatsApp(input: Blob): Promise<Blob
   // audio/ogg while writing MP4 bytes, which Meta accepts but recipients get a
   // broken voice note. Only skip conversion when the actual bytes are OGG.
   if (await isRealOggContainer(input)) return input;
-  // iOS Safari records audio/mp4 (AAC) natively and cannot run ffmpeg.wasm
-  // (requires SharedArrayBuffer + COOP/COEP). If the blob is already a
-  // WhatsApp-compatible container (mp4/m4a/mp3/aac/amr) send it as-is.
-  // WhatsApp will show it as a music attachment instead of a PTT voice
-  // note, but it plays — much better than failing silently.
-  if (isAlreadyWhatsAppCompatible(input)) return input;
+
+  const { isIOS, encodeBlobToMp3 } = await import('./mp3Encode');
+
+  // iOS records *fragmented* MP4 (no leading moov atom). Meta accepts the
+  // upload but the recipient gets an unplayable bubble, and ffmpeg.wasm can't
+  // run on iOS (no SharedArrayBuffer). Re-encode to MP3, which WhatsApp plays.
+  if (isIOS()) {
+    try {
+      return await encodeBlobToMp3(input);
+    } catch (err) {
+      console.warn('[audioConvert] MP3 encode failed on iOS, sending original:', err);
+      if (isAlreadyWhatsAppCompatible(input)) return input;
+      throw err;
+    }
+  }
+
   try {
     const converted = await convertToOggOpus(input);
     if (!(await isRealOggContainer(converted))) {
@@ -159,8 +169,13 @@ export async function prepareRecordedAudioForWhatsApp(input: Blob): Promise<Blob
     }
     return converted;
   } catch (err) {
-    // Fallback: if ffmpeg.wasm can't run (typical on iOS WebView / restricted
-    // headers) and the source is any recognizable audio format, send it as-is.
+    // Fallback: ffmpeg.wasm unavailable → try the pure-JS MP3 encoder before
+    // giving up, so the recipient always gets playable audio.
+    try {
+      return await encodeBlobToMp3(input);
+    } catch (mp3Err) {
+      console.warn('[audioConvert] MP3 fallback failed:', mp3Err);
+    }
     if (input.type && input.type.startsWith('audio/')) {
       console.warn('[audioConvert] ffmpeg unavailable, sending original blob as-is:', input.type, err);
       return input;
@@ -168,6 +183,7 @@ export async function prepareRecordedAudioForWhatsApp(input: Blob): Promise<Blob
     throw err;
   }
 }
+
 
 export async function prepareAttachedAudioForWhatsApp(file: File): Promise<File> {
   const sniffedInput = await sniffAudioContainer(file);
