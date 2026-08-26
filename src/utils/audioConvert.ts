@@ -170,15 +170,17 @@ export async function prepareRecordedAudioForWhatsApp(input: Blob): Promise<Blob
 }
 
 export async function prepareAttachedAudioForWhatsApp(file: File): Promise<File> {
-  const type = (file.type || '').toLowerCase();
-  const isWebm = type.includes('webm');
-  const isClaimedOggButNotReal = type.includes('ogg') && !(await isRealOggContainer(file));
-
-  if (!isWebm && !isClaimedOggButNotReal) return file;
+  const sniffedInput = await sniffAudioContainer(file);
+  // Already a container WhatsApp can decode and correctly labelled → send as-is.
+  if (sniffedInput.container !== 'webm' && sniffedInput.container !== 'unknown') {
+    const base = file.name.replace(/\.[^.]+$/, '') || 'audio';
+    return new File([file], `${base}.${sniffedInput.ext}`, { type: sniffedInput.mime });
+  }
 
   const converted = await prepareRecordedAudioForWhatsApp(file);
-  return new File([converted], `${file.name.replace(/\.[^.]+$/, '') || 'audio'}.ogg`, {
-    type: 'audio/ogg',
+  const sniffed = await sniffAudioContainer(converted);
+  return new File([converted], `${file.name.replace(/\.[^.]+$/, '') || 'audio'}.${sniffed.ext}`, {
+    type: sniffed.mime,
   });
 }
 
