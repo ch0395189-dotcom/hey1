@@ -8,6 +8,61 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, token, x-webhook-token, x-account-id',
 }
 
+async function normalizeExternalAudio(
+  supabase: ReturnType<typeof createClient>,
+  sourceUrl: string,
+  messageId: string,
+  apiKey?: string | null,
+): Promise<string | null> {
+  try {
+    const parsedUrl = new URL(sourceUrl);
+    if (!['https:', 'http:'].includes(parsedUrl.protocol)) return null;
+
+    const headers: Record<string, string> = {};
+    if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+    let response = await fetch(parsedUrl, { headers });
+    // Some provider CDN URLs are public and reject an Authorization header.
+    if (!response.ok && apiKey) response = await fetch(parsedUrl);
+    if (!response.ok) {
+      console.error('❌ No se pudo descargar audio externo:', response.status);
+      return null;
+    }
+
+    const data = await response.arrayBuffer();
+    if (data.byteLength === 0) return null;
+    const bytes = new Uint8Array(data.slice(0, 16));
+    const ascii = (start: number, length: number) =>
+      String.fromCharCode(...Array.from(bytes.slice(start, start + length)));
+    let mimeType = String(response.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
+    let extension = '';
+
+    if (ascii(0, 4) === 'OggS') [mimeType, extension] = ['audio/ogg', 'ogg'];
+    else if (ascii(4, 4) === 'ftyp') [mimeType, extension] = ['audio/mp4', 'm4a'];
+    else if (ascii(0, 3) === 'ID3' || (bytes[0] === 0xff && (bytes[1] & 0xe0) === 0xe0)) [mimeType, extension] = ['audio/mpeg', 'mp3'];
+    else if (ascii(0, 5) === '#!AMR') [mimeType, extension] = ['audio/amr', 'amr'];
+    else if (bytes[0] === 0x1a && bytes[1] === 0x45 && bytes[2] === 0xdf && bytes[3] === 0xa3) [mimeType, extension] = ['audio/webm', 'webm'];
+    else {
+      console.error('❌ Contenedor de audio externo desconocido:', mimeType);
+      return null;
+    }
+
+    const safeId = messageId.replace(/[^a-zA-Z0-9]/g, '').slice(-40) || crypto.randomUUID();
+    const filePath = `whatsapp-media/external-${Date.now()}-${safeId}.${extension}`;
+    const { error } = await supabase.storage.from('media').upload(filePath, data, {
+      contentType: mimeType,
+      upsert: false,
+    });
+    if (error) {
+      console.error('❌ No se pudo almacenar audio externo:', error);
+      return null;
+    }
+    return supabase.storage.from('media').getPublicUrl(filePath).data.publicUrl;
+  } catch (error) {
+    console.error('❌ Error normalizando audio externo:', error);
+    return null;
+  }
+}
+
 // WuzAPI webhook payload format
 interface WuzApiMessage {
   event?: string;
@@ -240,7 +295,7 @@ Deno.serve(async (req) => {
       if (accountId) {
         const { data: specificAccount } = await supabase
           .from('whatsapp_accounts')
-          .select('id, user_id, phone_number')
+          .select('id, user_id, phone_number, external_api_key')
           .eq('id', accountId)
           .eq('connection_type', 'external_qr')
           .eq('is_active', true)
@@ -255,7 +310,7 @@ Deno.serve(async (req) => {
       if (!account) {
         const { data: accounts } = await supabase
           .from('whatsapp_accounts')
-          .select('id, user_id, phone_number')
+          .select('id, user_id, phone_number, external_api_key')
           .eq('connection_type', 'external_qr')
           .eq('is_active', true);
 
@@ -273,6 +328,16 @@ Deno.serve(async (req) => {
       if (!account) {
         console.error('❌ No se encontró cuenta válida');
         continue;
+      }
+
+      if (messageType === 'audio' && mediaUrl) {
+        const normalizedUrl = await normalizeExternalAudio(
+          supabase,
+          mediaUrl,
+          String(messageId),
+          account.external_api_key,
+        );
+        if (normalizedUrl) mediaUrl = normalizedUrl;
       }
 
       // Buscar o crear conversación
