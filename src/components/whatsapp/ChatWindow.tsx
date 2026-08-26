@@ -924,18 +924,27 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
       // MP4 can be fragmented, which Meta later reports as application/octet-stream.
       // Send a real OGG/Opus file unless the recorder already produced OGG.
       let finalBlob: Blob = audioBlob;
-      let extension = 'ogg';
-      let contentType = 'audio/ogg';
 
       console.log('[Audio] Original type:', audioBlob.type, 'size:', audioBlob.size);
 
       try {
         finalBlob = await prepareRecordedAudioForWhatsApp(audioBlob);
-        console.log('[Audio] Prepared as real OGG/Opus, new size:', finalBlob.size);
+        console.log('[Audio] Prepared blob size:', finalBlob.size);
       } catch (convErr) {
         console.error('[Audio] ffmpeg conversion failed:', convErr);
         throw new Error('No se pudo convertir el audio a un formato compatible con WhatsApp. Intenta grabarlo de nuevo.');
       }
+
+      // Never trust the blob MIME type: upload with the REAL container so Meta
+      // downloads a file it can actually decode (otherwise el cliente solo
+      // recibe la burbuja sin audio reproducible).
+      const sniffed = await sniffAudioContainer(finalBlob);
+      console.log('[Audio] Real container:', sniffed.container);
+      if (sniffed.container === 'webm') {
+        throw new Error('Tu navegador grabó el audio en un formato que WhatsApp no acepta (WebM) y no se pudo convertir. Prueba de nuevo o usa la app.');
+      }
+      const extension = sniffed.ext;
+      const contentType = sniffed.mime;
 
       const fileName = `audio_${Date.now()}.${extension}`;
       const filePath = `${conversation.id}/${fileName}`;
