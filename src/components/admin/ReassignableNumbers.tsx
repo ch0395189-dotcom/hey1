@@ -291,8 +291,7 @@ export const ReassignableNumbers = () => {
                   <TableHead>Número</TableHead>
                   <TableHead>Calidad</TableHead>
                   <TableHead>Dueño actual</TableHead>
-                  <TableHead>Inactividad</TableHead>
-                  <TableHead>Motivo</TableHead>
+                  <TableHead>Inactividad / Motivo</TableHead>
                   <TableHead className="min-w-[280px]">Reasignar a</TableHead>
                 </TableRow>
               </TableHeader>
