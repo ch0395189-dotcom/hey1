@@ -17,6 +17,7 @@ import {
   Settings2,
   Zap,
   Pencil,
+  ImagePlus,
   Trash2,
   Bug,
   QrCode,
@@ -29,6 +30,7 @@ import { ExternalWhatsAppSetup } from "./ExternalWhatsAppSetup";
 import { BuyNumberPanel } from "@/components/numbers/BuyNumberPanel";
 import { RentalNumberPicker } from "@/components/numbers/RentalNumberPicker";
 import { EditAccountDialog } from "./EditAccountDialog";
+import { ProfilePhotoDialog } from "./ProfilePhotoDialog";
 import { WhatsAppDiagnostics } from "./WhatsAppDiagnostics";
 import { ConnectionVerification } from "./ConnectionVerification";
 import { WhatsAppTemplateCreator } from "./WhatsAppTemplateCreator";
@@ -177,6 +179,8 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
   const [templateRefresh, setTemplateRefresh] = useState(0);
   const [editingAccount, setEditingAccount] = useState<WhatsAppAccount | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [photoAccount, setPhotoAccount] = useState<WhatsAppAccount | null>(null);
+  const [photoDialogOpen, setPhotoDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [accountToDelete, setAccountToDelete] = useState<WhatsAppAccount | null>(null);
   const [verifyingAccount, setVerifyingAccount] = useState<WhatsAppAccount | null>(null);
@@ -892,6 +896,17 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
                       <Button
                         variant="outline"
                         size="icon"
+                        onClick={() => {
+                          setPhotoAccount(account);
+                          setPhotoDialogOpen(true);
+                        }}
+                        title="Cambiar foto de perfil"
+                      >
+                        <ImagePlus className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="icon"
                         onClick={() => handleEditAccount(account)}
                         title="Editar cuenta"
                       >
@@ -1227,6 +1242,16 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
           />
         </TabsContent>
       </Tabs>
+
+      <ProfilePhotoDialog
+        accountId={photoAccount?.id || null}
+        accountLabel={photoAccount ? getAccountName(photoAccount) : undefined}
+        open={photoDialogOpen}
+        onOpenChange={(o) => {
+          setPhotoDialogOpen(o);
+          if (!o) setPhotoAccount(null);
+        }}
+      />
 
       {/* Edit Account Dialog */}
       <EditAccountDialog
