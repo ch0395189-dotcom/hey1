@@ -914,6 +914,11 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
     if (!audioBlob || !conversation || sending) return;
 
     setSending(true);
+    const diag = startAudioDiagnostic("Audio grabado", {
+      conversationId: conversation.id,
+      originalType: audioBlob.type || "desconocido",
+      originalSize: audioBlob.size,
+    });
     try {
       toast({
         title: "Enviando audio...",
@@ -930,8 +935,11 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
       try {
         finalBlob = await prepareRecordedAudioForWhatsApp(audioBlob);
         console.log('[Audio] Prepared blob size:', finalBlob.size);
+        diag.update({ convertedSize: finalBlob.size, converted: finalBlob !== audioBlob });
+        diag.step('Conversión a OGG/Opus', true, `${finalBlob.size} bytes`);
       } catch (convErr) {
         console.error('[Audio] ffmpeg conversion failed:', convErr);
+        diag.step('Conversión a OGG/Opus', false, convErr instanceof Error ? convErr.message : String(convErr));
         throw new Error('No se pudo convertir el audio a un formato compatible con WhatsApp. Intenta grabarlo de nuevo.');
       }
 
@@ -940,6 +948,8 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
       // recibe la burbuja sin audio reproducible).
       const sniffed = await sniffAudioContainer(finalBlob);
       console.log('[Audio] Real container:', sniffed.container);
+      diag.update({ container: sniffed.container, mime: sniffed.mime, extension: sniffed.ext });
+      diag.step('Detección de contenedor real', sniffed.container !== 'webm', sniffed.container);
       if (sniffed.container === 'webm') {
         throw new Error('Tu navegador grabó el audio en un formato que WhatsApp no acepta (WebM) y no se pudo convertir. Prueba de nuevo o usa la app.');
       }
@@ -956,39 +966,54 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
           upsert: false,
         });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        diag.step('Subida a almacenamiento', false, uploadError.message);
+        throw uploadError;
+      }
+      diag.step('Subida a almacenamiento', true, filePath);
 
       const { data: urlData } = supabase.storage
         .from('media')
         .getPublicUrl(filePath);
 
       const isExternalConnection = accountConnectionType === 'external_qr' || accountConnectionType === 'z-api';
-      
-      if (isExternalConnection) {
-        // Use external API for audio
-        const { data, error } = await supabase.functions.invoke('whatsapp-send-external', {
-          body: {
-            accountId: conversation.whatsapp_account_id,
-            to: conversation.customer_phone,
-            mediaUrl: urlData.publicUrl,
-            mediaType: 'audio',
-            conversationId: conversation.id,
-          },
-        });
-        if (error) throw error;
-        if (data?.error) throw new Error(getFriendlyWhatsappError(data));
-      } else {
-        // Use Meta API for audio
-        const { data, error } = await supabase.functions.invoke('whatsapp-send-message', {
-          body: {
-            conversation_id: conversation.id,
-            media_url: urlData.publicUrl,
-            media_type: 'audio',
-          },
-        });
-        if (error) throw error;
-        if (data?.error) throw new Error(getFriendlyWhatsappError(data));
+      diag.update({ transport: isExternalConnection ? 'QR externo' : 'Meta Cloud API' });
+
+      const sendOnce = async () => {
+        if (isExternalConnection) {
+          const { data, error } = await supabase.functions.invoke('whatsapp-send-external', {
+            body: {
+              accountId: conversation.whatsapp_account_id,
+              to: conversation.customer_phone,
+              mediaUrl: urlData.publicUrl,
+              mediaType: 'audio',
+              conversationId: conversation.id,
+            },
+          });
+          if (error) throw error;
+          if (data?.error) throw new Error(getFriendlyWhatsappError(data));
+        } else {
+          const { data, error } = await supabase.functions.invoke('whatsapp-send-message', {
+            body: {
+              conversation_id: conversation.id,
+              media_url: urlData.publicUrl,
+              media_type: 'audio',
+            },
+          });
+          if (error) throw error;
+          if (data?.error) throw new Error(getFriendlyWhatsappError(data));
+        }
+      };
+
+      try {
+        await sendOnce();
+      } catch (firstErr: any) {
+        diag.step('Primer envío', false, firstErr?.message || String(firstErr));
+        diag.retry();
+        await sendOnce();
       }
+      diag.step('Envío a WhatsApp', true);
+      diag.success('Audio entregado a la API');
 
       clearRecording();
       toast({
@@ -997,6 +1022,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
       });
     } catch (error: any) {
       console.error('Error sending audio:', error);
+      diag.fail(error);
       toast({
         title: "Error al enviar audio",
         description: error.message || "No se pudo enviar el audio.",
