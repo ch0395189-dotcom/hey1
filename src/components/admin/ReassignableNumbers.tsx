@@ -297,12 +297,15 @@ export const ReassignableNumbers = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {reassignable.map(({ account: a, reasons }) => {
+                {reassignable.map(({ account: a, reasons, inactivityDays }) => {
                   const ownerEmail = emails[a.user_id];
                   const ownerName = profiles[a.user_id];
                   const sub = subs[a.user_id];
                   const inputEmail = (targetEmail[a.id] ?? "").trim().toLowerCase();
                   const resolvedId = inputEmail ? emailToId[inputEmail] : null;
+                  const inactLabel = Number.isFinite(inactivityDays)
+                    ? `${Math.floor(inactivityDays)}d`
+                    : "—";
                   return (
                     <TableRow key={a.id}>
                       <TableCell>
@@ -322,6 +325,7 @@ export const ReassignableNumbers = () => {
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col gap-1">
+                          <Badge variant="outline" className="w-fit">{inactLabel}</Badge>
                           {reasons.map((r) => (
                             <Badge key={r} variant="secondary" className="w-fit">{r}</Badge>
                           ))}
