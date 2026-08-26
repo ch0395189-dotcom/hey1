@@ -34,7 +34,20 @@ import { ConnectionVerification } from "./ConnectionVerification";
 import { WhatsAppTemplateCreator } from "./WhatsAppTemplateCreator";
 import { WhatsAppTemplateList } from "./WhatsAppTemplateList";
 import { supabase } from "@/integrations/supabase/client";
-import { getEffectiveUser } from "@/lib/effectiveAuth";
+import { getEffectiveUser, getImpersonationId } from "@/lib/effectiveAuth";
+
+/**
+ * Usuario dueño de los números que se están gestionando: el usuario impersonado
+ * cuando un admin entra en "modo administrador", o el usuario autenticado.
+ * Sin este filtro, el admin (que tiene RLS de acceso total) veía y borraba
+ * números de todos los clientes.
+ */
+async function getEffectiveUserId(): Promise<string | null> {
+  const impersonated = getImpersonationId();
+  if (impersonated) return impersonated;
+  const { data } = await getEffectiveUser();
+  return data.user?.id ?? null;
+}
 import { useToast } from "@/hooks/use-toast";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { useNavigate } from "react-router-dom";
@@ -286,9 +299,11 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
 
   const fetchAccounts = useCallback(async () => {
     try {
+      const effectiveUserId = await getEffectiveUserId();
       const { data, error } = await supabase
         .from('whatsapp_accounts')
         .select('*')
+        .eq('user_id', effectiveUserId ?? '')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -387,7 +402,7 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
 
       console.log('Calling whatsapp-exchange-token with:', params);
       const { data, error } = await supabase.functions.invoke('whatsapp-exchange-token', {
-        body: { ...params, variant: 'backup' },
+        body: { ...params, variant: 'backup', target_user_id: getImpersonationId() || undefined },
       });
 
       console.log('Exchange response:', { data, error });
@@ -407,6 +422,7 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
       const { data: updatedAccounts } = await supabase
         .from('whatsapp_accounts')
         .select('*')
+        .eq('user_id', (await getEffectiveUserId()) ?? '')
         .order('created_at', { ascending: false });
       
       if (updatedAccounts) {
@@ -559,6 +575,7 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
         const { data, error } = await supabase
           .from('whatsapp_accounts')
           .select('*')
+          .eq('user_id', (await getEffectiveUserId()) ?? '')
           .order('created_at', { ascending: false });
 
         if (error) throw error;
@@ -701,6 +718,7 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
                 const { data: finalCheck } = await supabase
                   .from('whatsapp_accounts')
                   .select('*')
+                  .eq('user_id', (await getEffectiveUserId()) ?? '')
                   .order('created_at', { ascending: false });
                   
                 if (!finalCheck || finalCheck.length === initialAccountCount) {
