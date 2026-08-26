@@ -1591,6 +1591,8 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
         message={forwardMessage}
         sourceAccountId={conversation?.whatsapp_account_id || ""}
       />
+      <AudioDiagnosticsDialog open={audioDiagOpen} onOpenChange={setAudioDiagOpen} />
+
       {/* Chat Header - WhatsApp Style */}
       <div
         className="px-2 md:px-4 border-b border-border flex items-center justify-between bg-primary text-primary-foreground shrink-0"
