@@ -166,6 +166,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
   const [hasFishAudioKey, setHasFishAudioKey] = useState(false);
   const [voicePreviewOpen, setVoicePreviewOpen] = useState(false);
   const [forwardMessage, setForwardMessage] = useState<Message | null>(null);
+  const [audioDiagOpen, setAudioDiagOpen] = useState(false);
   const [approvedTemplates, setApprovedTemplates] = useState<any[]>([]);
   const [templatesPopoverOpen, setTemplatesPopoverOpen] = useState(false);
   const [templatesLoading, setTemplatesLoading] = useState(false);
@@ -2088,6 +2089,15 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                 <audio src={audioUrl} controls className="w-full h-10" />
 
                 <div className="mt-2 flex items-center justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs text-muted-foreground mr-auto"
+                    onClick={() => setAudioDiagOpen(true)}
+                  >
+                    Diagnóstico
+                  </Button>
                   <Button
                     type="button"
                     variant="ghost"
