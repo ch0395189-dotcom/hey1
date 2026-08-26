@@ -994,7 +994,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
 
       try {
         await sendOnce();
-      } catch (firstErr: any) {
+      } catch {
         await sendOnce();
       }
 
