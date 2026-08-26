@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { prepareAttachedAudioForWhatsApp, prepareRecordedAudioForWhatsApp, preloadFFmpeg, convertToOggOpus } from "@/utils/audioConvert";
+import { prepareAttachedAudioForWhatsApp, prepareRecordedAudioForWhatsApp, preloadFFmpeg, convertToOggOpus, sniffAudioContainer } from "@/utils/audioConvert";
 import { compressMediaIfNeeded, formatFileSize, exceedsWhatsAppLimit } from "@/utils/mediaCompressor";
 import { getFriendlyWhatsappError } from "@/lib/whatsappErrors";
 import { detectOTP } from "@/lib/otpDetect";
@@ -924,18 +924,27 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
       // MP4 can be fragmented, which Meta later reports as application/octet-stream.
       // Send a real OGG/Opus file unless the recorder already produced OGG.
       let finalBlob: Blob = audioBlob;
-      let extension = 'ogg';
-      let contentType = 'audio/ogg';
 
       console.log('[Audio] Original type:', audioBlob.type, 'size:', audioBlob.size);
 
       try {
         finalBlob = await prepareRecordedAudioForWhatsApp(audioBlob);
-        console.log('[Audio] Prepared as real OGG/Opus, new size:', finalBlob.size);
+        console.log('[Audio] Prepared blob size:', finalBlob.size);
       } catch (convErr) {
         console.error('[Audio] ffmpeg conversion failed:', convErr);
         throw new Error('No se pudo convertir el audio a un formato compatible con WhatsApp. Intenta grabarlo de nuevo.');
       }
+
+      // Never trust the blob MIME type: upload with the REAL container so Meta
+      // downloads a file it can actually decode (otherwise el cliente solo
+      // recibe la burbuja sin audio reproducible).
+      const sniffed = await sniffAudioContainer(finalBlob);
+      console.log('[Audio] Real container:', sniffed.container);
+      if (sniffed.container === 'webm') {
+        throw new Error('Tu navegador grabó el audio en un formato que WhatsApp no acepta (WebM) y no se pudo convertir. Prueba de nuevo o usa la app.');
+      }
+      const extension = sniffed.ext;
+      const contentType = sniffed.mime;
 
       const fileName = `audio_${Date.now()}.${extension}`;
       const filePath = `${conversation.id}/${fileName}`;
@@ -1076,15 +1085,15 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
       // case we upload the original MP3 so the send still works (as a music
       // attachment instead of a PTT).
       let finalBlob: Blob = audioBlob;
-      let ext = 'ogg';
-      let contentType = 'audio/ogg';
       try {
         finalBlob = await convertToOggOpus(audioBlob);
       } catch (e) {
         console.warn('[voice-clone] ffmpeg unavailable, sending MP3 as-is:', e);
-        ext = 'mp3';
-        contentType = 'audio/mpeg';
+        finalBlob = audioBlob;
       }
+      const sniffed = await sniffAudioContainer(finalBlob);
+      const ext = sniffed.ext;
+      const contentType = sniffed.mime;
       const outFile = new File([finalBlob], `cloned_${Date.now()}.${ext}`, { type: contentType });
 
       const filePath = `${conversation.id}/cloned_${Date.now()}.${ext}`;
@@ -1187,15 +1196,15 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
       // 2. Try to remux MP3 → OGG/Opus so WhatsApp shows it as PTT.
       //    Fall back to sending the MP3 as-is when ffmpeg.wasm can't load (iOS).
       let finalBlob: Blob = mp3Blob;
-      let ext = 'ogg';
-      let contentType = 'audio/ogg';
       try {
         finalBlob = await convertToOggOpus(mp3Blob);
       } catch (e) {
         console.warn('[voice-clone] ffmpeg unavailable, sending MP3 as-is:', e);
-        ext = 'mp3';
-        contentType = 'audio/mpeg';
+        finalBlob = mp3Blob;
       }
+      const sniffedTts = await sniffAudioContainer(finalBlob);
+      const ext = sniffedTts.ext;
+      const contentType = sniffedTts.mime;
       const outFile = new File([finalBlob], `cloned_${Date.now()}.${ext}`, { type: contentType });
 
       // 3. Upload to storage
@@ -1812,13 +1821,13 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                         <button
                           onClick={() => setForwardMessage(msg)}
                           title="Reenviar"
-                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-full hover:bg-accent text-muted-foreground"
+                          className="shrink-0 opacity-60 md:opacity-0 md:group-hover:opacity-100 transition-opacity p-1.5 rounded-full hover:bg-accent text-muted-foreground"
                         >
                           <Forward className="w-4 h-4" />
                         </button>
                       )}
                       <div
-                        className={`${isUnsupportedMsg ? 'max-w-[90%] md:max-w-lg' : 'max-w-[85%] md:max-w-md'} px-3 py-2 ${isUnsupportedMsg ? 'bg-muted/40 border border-dashed border-border rounded-lg' : 'shadow-soft'} ${
+                        className={`${isUnsupportedMsg ? 'max-w-[90%] md:max-w-lg' : 'max-w-[78%] sm:max-w-[70%] md:max-w-md'} min-w-0 overflow-hidden px-3 py-2 ${isUnsupportedMsg ? 'bg-muted/40 border border-dashed border-border rounded-lg' : 'shadow-soft'} ${
                           isUnsupportedMsg ? '' :
                           msg.direction === 'outbound'
                             ? 'chat-bubble-out'
@@ -1827,12 +1836,14 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                       >
                         {/* Media content */}
                         {msg.media_url && (
-                          <div className="mb-1.5 -mx-1 -mt-1">
+                          <div className="mb-1.5 -mx-1 -mt-1 max-w-full">
                             {msg.message_type === 'image' ? (
                               <img 
                                 src={msg.media_url} 
                                 alt="Imagen" 
-                                className="rounded-lg max-w-full cursor-pointer hover:opacity-90 transition-opacity"
+                                loading="lazy"
+                                decoding="async"
+                                className="rounded-lg w-full max-w-full max-h-[60vh] object-contain bg-muted/30 cursor-pointer hover:opacity-90 transition-opacity"
                                 onClick={() => setPreviewImageUrl(msg.media_url!)}
                                 onLoad={() => { if (isAtBottom) scrollToBottom(); }}
                               />
@@ -1840,23 +1851,24 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                               <video 
                                 src={msg.media_url} 
                                 controls 
-                                className="rounded-lg max-w-full"
+                                preload="metadata"
+                                className="rounded-lg w-full max-w-full max-h-[60vh] bg-black/5"
                               />
                             ) : msg.message_type === 'document' ? (
                               <a 
                                 href={msg.media_url} 
                                 target="_blank" 
                                 rel="noopener noreferrer"
-                                className="flex items-center gap-2 p-2 bg-muted/50 rounded-lg hover:bg-muted"
+                                className="flex items-center gap-2 p-2 bg-muted/50 rounded-lg hover:bg-muted min-w-0"
                               >
-                                <FileText className="w-8 h-8" />
-                                <span className="text-sm">Documento adjunto</span>
+                                <FileText className="w-8 h-8 shrink-0" />
+                                <span className="text-sm truncate">Documento adjunto</span>
                               </a>
                             ) : msg.message_type === 'audio' ? (
-                              <div className="flex flex-col gap-1 min-w-[220px]">
+                              <div className="flex flex-col gap-1 w-full min-w-0 sm:min-w-[220px]">
                                 <audio
                                   controls
-                                  className="w-full h-10"
+                                  className="w-full max-w-full h-10"
                                   preload="metadata"
                                 >
                                   {/* Provide multiple type hints so browsers (incl. Safari/iOS)
@@ -1908,7 +1920,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                                 <Copy className="w-4 h-4 text-emerald-600 shrink-0" />
                               </button>
                             )}
-                            <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                            <p className="text-sm whitespace-pre-wrap leading-relaxed break-words [overflow-wrap:anywhere]">{msg.content}</p>
                           </>
                         )}
                         <div
@@ -1933,7 +1945,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                         <button
                           onClick={() => setForwardMessage(msg)}
                           title="Reenviar"
-                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-full hover:bg-accent text-muted-foreground"
+                          className="shrink-0 opacity-60 md:opacity-0 md:group-hover:opacity-100 transition-opacity p-1.5 rounded-full hover:bg-accent text-muted-foreground"
                         >
                           <Forward className="w-4 h-4" />
                         </button>
