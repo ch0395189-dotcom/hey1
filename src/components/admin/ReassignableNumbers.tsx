@@ -137,7 +137,7 @@ export const ReassignableNumbers = () => {
   useEffect(() => { load(); }, []);
 
   const reassignable = useMemo(() => {
-    return accounts
+    const rows = accounts
       .filter((a) => !a.quality_paused && isGoodQuality(a.quality_rating))
       .map((a) => {
         const sub = subs[a.user_id];
@@ -166,10 +166,48 @@ export const ReassignableNumbers = () => {
           }
         }
         if (inactive) reasons.push(`Sin login ${Math.floor(daysSince(last))}d`);
-        return { account: a, reasons, eligible: reasons.length > 0 };
+
+        // Inactivity score: días desde el vencimiento del plan (si aplica), si no, días desde último login.
+        let planExpiredDays = -Infinity;
+        if (sub?.current_period_end && new Date(sub.current_period_end) < new Date()) {
+          planExpiredDays = daysSince(sub.current_period_end);
+        } else if (sub?.status === "trialing" && sub?.trial_end && new Date(sub.trial_end) < new Date()) {
+          planExpiredDays = daysSince(sub.trial_end);
+        } else if (!sub || sub.status === "canceled" || sub.status === "past_due") {
+          planExpiredDays = 0;
+        }
+        const loginDays = last ? daysSince(last) : Infinity;
+        // Usamos el máximo entre vencimiento del plan y último login como métrica de inactividad
+        const inactivityDays = Math.max(planExpiredDays === -Infinity ? 0 : planExpiredDays, loginDays);
+        return { account: a, reasons, eligible: reasons.length > 0, inactivityDays };
       })
       .filter((x) => x.eligible);
-  }, [accounts, subs, lastSignIn]);
+
+    // Buscar por número, nombre, email o plan
+    const q = search.trim().toLowerCase();
+    const filtered = q
+      ? rows.filter((x) => {
+          const a = x.account;
+          const ownerEmail = emails[a.user_id] ?? "";
+          const ownerName = profiles[a.user_id] ?? "";
+          const sub = subs[a.user_id];
+          return (
+            (a.phone_number || "").toLowerCase().includes(q) ||
+            (a.display_name || "").toLowerCase().includes(q) ||
+            ownerEmail.toLowerCase().includes(q) ||
+            ownerName.toLowerCase().includes(q) ||
+            (sub?.plan || "").toLowerCase().includes(q) ||
+            (sub?.status || "").toLowerCase().includes(q)
+          );
+        })
+      : rows;
+
+    // Ordenar: por defecto de mayor a menor inactividad (más antiguo primero)
+    filtered.sort((a, b) =>
+      sortOldest ? b.inactivityDays - a.inactivityDays : a.inactivityDays - b.inactivityDays
+    );
+    return filtered;
+  }, [accounts, subs, lastSignIn, search, sortOldest, emails, profiles]);
 
   const reassign = async (accountId: string, newUserId: string | null) => {
     if (!newUserId) {
