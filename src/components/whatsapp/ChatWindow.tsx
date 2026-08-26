@@ -1085,15 +1085,15 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
       // case we upload the original MP3 so the send still works (as a music
       // attachment instead of a PTT).
       let finalBlob: Blob = audioBlob;
-      let ext = 'ogg';
-      let contentType = 'audio/ogg';
       try {
         finalBlob = await convertToOggOpus(audioBlob);
       } catch (e) {
         console.warn('[voice-clone] ffmpeg unavailable, sending MP3 as-is:', e);
-        ext = 'mp3';
-        contentType = 'audio/mpeg';
+        finalBlob = audioBlob;
       }
+      const sniffed = await sniffAudioContainer(finalBlob);
+      const ext = sniffed.ext;
+      const contentType = sniffed.mime;
       const outFile = new File([finalBlob], `cloned_${Date.now()}.${ext}`, { type: contentType });
 
       const filePath = `${conversation.id}/cloned_${Date.now()}.${ext}`;
