@@ -1936,7 +1936,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
                         <button
                           onClick={() => setForwardMessage(msg)}
                           title="Reenviar"
-                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-full hover:bg-accent text-muted-foreground"
+                          className="shrink-0 opacity-60 md:opacity-0 md:group-hover:opacity-100 transition-opacity p-1.5 rounded-full hover:bg-accent text-muted-foreground"
                         >
                           <Forward className="w-4 h-4" />
                         </button>
