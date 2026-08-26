@@ -181,7 +181,7 @@ export async function prepareRecordedAudioForWhatsApp(input: Blob): Promise<Blob
       console.warn('[audioConvert] ffmpeg unavailable, sending original blob as-is:', input.type, err);
       return input;
     }
-    throw new Error('Este dispositivo generó un audio WebM que no se pudo convertir a MP3 u OGG.', { cause: err });
+    throw new Error('Este dispositivo generó un audio WebM que no se pudo convertir a MP3 u OGG.');
   }
 }
 
