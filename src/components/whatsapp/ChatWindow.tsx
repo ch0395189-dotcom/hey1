@@ -1031,17 +1031,9 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
     if (!conversation) return;
     setSendingClonedVoice(true);
     try {
-      // Try to remux to OGG/Opus so WhatsApp renders it as a voice note (PTT).
-      // On iOS Safari / restricted WebViews ffmpeg.wasm can't load — in that
-      // case we upload the original MP3 so the send still works (as a music
-      // attachment instead of a PTT).
-      let finalBlob: Blob = audioBlob;
-      try {
-        finalBlob = await convertToOggOpus(audioBlob);
-      } catch (e) {
-        console.warn('[voice-clone] ffmpeg unavailable, sending MP3 as-is:', e);
-        finalBlob = audioBlob;
-      }
+      // Fish Audio ya devuelve MP3, un formato que WhatsApp reproduce siempre.
+      // No hacemos conversiones extra para no introducir puntos de fallo.
+      const finalBlob: Blob = audioBlob;
       const sniffed = await sniffAudioContainer(finalBlob);
       const ext = sniffed.ext;
       const contentType = sniffed.mime;
