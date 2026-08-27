@@ -187,6 +187,18 @@ export const AppointmentConfig = ({ settings, onChange }: AppointmentConfigProps
           <Switch checked={settings.ask_birthdate} onCheckedChange={(v) => update('ask_birthdate', v)} />
         </div>
         <div className="flex items-center justify-between gap-2">
+          <Label className="text-sm">Pedir país</Label>
+          <Switch checked={!!settings.ask_country} onCheckedChange={(v) => update('ask_country', v)} />
+        </div>
+        <div className="flex items-center justify-between gap-2">
+          <Label className="text-sm">Pedir ciudad</Label>
+          <Switch checked={!!settings.ask_city} onCheckedChange={(v) => update('ask_city', v)} />
+        </div>
+        <div className="flex items-center justify-between gap-2">
+          <Label className="text-sm">Pedir estado (EE.UU.)</Label>
+          <Switch checked={!!settings.ask_state} onCheckedChange={(v) => update('ask_state', v)} />
+        </div>
+        <div className="flex items-center justify-between gap-2">
           <Label className="text-sm">Pedir fecha</Label>
           <Switch checked={settings.ask_date} onCheckedChange={(v) => update('ask_date', v)} />
         </div>
