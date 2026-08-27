@@ -58,6 +58,9 @@ interface AppointmentSettings {
   ask_name?: boolean;
   ask_phone?: boolean;
   ask_birthdate?: boolean;
+  ask_country?: boolean;
+  ask_city?: boolean;
+  ask_state?: boolean;
   ask_date?: boolean;
   ask_time?: boolean;
   ask_photo?: boolean;
@@ -1664,6 +1667,21 @@ const APPOINTMENT_STEPS: ApptStep[] = [
     key: 'birth_date',
     flag: 'ask_birthdate',
     question: () => '🎂 ¿Cuál es tu *fecha de nacimiento*? (día/mes/año)',
+  },
+  {
+    key: 'country',
+    flag: 'ask_country',
+    question: () => '🌍 ¿En qué *país* te encuentras?',
+  },
+  {
+    key: 'city',
+    flag: 'ask_city',
+    question: () => '🏙️ ¿En qué *ciudad* te encuentras?',
+  },
+  {
+    key: 'state',
+    flag: 'ask_state',
+    question: () => '🗺️ ¿En qué *estado* (EE.UU.) te encuentras?',
   },
   {
     key: 'appointment_date',
