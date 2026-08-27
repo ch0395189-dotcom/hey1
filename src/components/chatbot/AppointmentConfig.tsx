@@ -17,6 +17,9 @@ export interface AppointmentSettings {
   ask_name: boolean;
   ask_phone: boolean;
   ask_birthdate: boolean;
+  ask_country?: boolean;
+  ask_city?: boolean;
+  ask_state?: boolean;
   ask_date: boolean;
   ask_time: boolean;
   ask_photo?: boolean;
@@ -36,6 +39,9 @@ export const defaultAppointmentSettings: AppointmentSettings = {
   ask_name: true,
   ask_phone: true,
   ask_birthdate: true,
+  ask_country: false,
+  ask_city: false,
+  ask_state: false,
   ask_date: true,
   ask_time: true,
   ask_photo: false,
@@ -53,6 +59,9 @@ const BASE_STEPS: { key: string; label: string; flag: keyof AppointmentSettings 
   { key: 'customer_name', label: 'Nombre', flag: 'ask_name' },
   { key: 'customer_phone', label: 'Teléfono', flag: 'ask_phone' },
   { key: 'birth_date', label: 'Fecha de nacimiento', flag: 'ask_birthdate' },
+  { key: 'country', label: 'País', flag: 'ask_country' },
+  { key: 'city', label: 'Ciudad', flag: 'ask_city' },
+  { key: 'state', label: 'Estado (EE.UU.)', flag: 'ask_state' },
   { key: 'appointment_date', label: 'Fecha de la cita', flag: 'ask_date' },
   { key: 'appointment_time', label: 'Hora de la cita', flag: 'ask_time' },
   { key: 'photo_url', label: 'Foto', flag: 'ask_photo' },
@@ -178,6 +187,18 @@ export const AppointmentConfig = ({ settings, onChange }: AppointmentConfigProps
           <Switch checked={settings.ask_birthdate} onCheckedChange={(v) => update('ask_birthdate', v)} />
         </div>
         <div className="flex items-center justify-between gap-2">
+          <Label className="text-sm">Pedir país</Label>
+          <Switch checked={!!settings.ask_country} onCheckedChange={(v) => update('ask_country', v)} />
+        </div>
+        <div className="flex items-center justify-between gap-2">
+          <Label className="text-sm">Pedir ciudad</Label>
+          <Switch checked={!!settings.ask_city} onCheckedChange={(v) => update('ask_city', v)} />
+        </div>
+        <div className="flex items-center justify-between gap-2">
+          <Label className="text-sm">Pedir estado (EE.UU.)</Label>
+          <Switch checked={!!settings.ask_state} onCheckedChange={(v) => update('ask_state', v)} />
+        </div>
+        <div className="flex items-center justify-between gap-2">
           <Label className="text-sm">Pedir fecha</Label>
           <Switch checked={settings.ask_date} onCheckedChange={(v) => update('ask_date', v)} />
         </div>
@@ -277,7 +298,7 @@ export const AppointmentConfig = ({ settings, onChange }: AppointmentConfigProps
           rows={2}
         />
         <p className="text-xs text-muted-foreground">
-          Variables: {'{nombre}'}, {'{fecha}'}, {'{hora}'}, {'{telefono}'}, {'{nacimiento}'}
+          Variables: {'{nombre}'}, {'{fecha}'}, {'{hora}'}, {'{telefono}'}, {'{nacimiento}'}, {'{pais}'}, {'{ciudad}'}, {'{estado}'}
         </p>
       </div>
 

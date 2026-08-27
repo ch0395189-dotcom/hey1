@@ -58,6 +58,9 @@ interface AppointmentSettings {
   ask_name?: boolean;
   ask_phone?: boolean;
   ask_birthdate?: boolean;
+  ask_country?: boolean;
+  ask_city?: boolean;
+  ask_state?: boolean;
   ask_date?: boolean;
   ask_time?: boolean;
   ask_photo?: boolean;
@@ -1666,6 +1669,21 @@ const APPOINTMENT_STEPS: ApptStep[] = [
     question: () => '🎂 ¿Cuál es tu *fecha de nacimiento*? (día/mes/año)',
   },
   {
+    key: 'country',
+    flag: 'ask_country',
+    question: () => '🌍 ¿En qué *país* te encuentras?',
+  },
+  {
+    key: 'city',
+    flag: 'ask_city',
+    question: () => '🏙️ ¿En qué *ciudad* te encuentras?',
+  },
+  {
+    key: 'state',
+    flag: 'ask_state',
+    question: () => '🗺️ ¿En qué *estado* (EE.UU.) te encuentras?',
+  },
+  {
     key: 'appointment_date',
     flag: 'ask_date',
     question: (s) =>
@@ -1821,6 +1839,9 @@ function buildApptNotes(steps: ApptRuntimeStep[], answers: Record<string, string
   const lines = steps
     .filter((s) => s.custom && answers[s.key])
     .map((s) => `${s.label}: ${answers[s.key]}`);
+  if (answers.country) lines.push(`País: ${answers.country}`);
+  if (answers.city) lines.push(`Ciudad: ${answers.city}`);
+  if (answers.state) lines.push(`Estado: ${answers.state}`);
   if (answers.photo_url) lines.push(`Foto: ${answers.photo_url}`);
   return lines.length > 0 ? lines.join('\n') : null;
 }
@@ -1829,6 +1850,9 @@ const DEFAULT_APPT_SETTINGS: AppointmentSettings = {
   ask_name: true,
   ask_phone: true,
   ask_birthdate: true,
+  ask_country: false,
+  ask_city: false,
+  ask_state: false,
   ask_date: true,
   ask_time: true,
   ask_photo: false,
@@ -1957,7 +1981,10 @@ async function handleAppointmentAnswer(
     .replace(/\{telefono\}/gi, answers.customer_phone || customerIdentifier)
     .replace(/\{fecha\}/gi, answers.appointment_date || '')
     .replace(/\{hora\}/gi, answers.appointment_time || '')
-    .replace(/\{nacimiento\}/gi, answers.birth_date || '');
+    .replace(/\{nacimiento\}/gi, answers.birth_date || '')
+    .replace(/\{pais\}/gi, answers.country || '')
+    .replace(/\{ciudad\}/gi, answers.city || '')
+    .replace(/\{estado\}/gi, answers.state || '');
 
   await sendPlatformMessage(platformAccount, customerIdentifier, confirmation);
   await saveOutboundMessage(supabase, conversationId, confirmation);
@@ -2134,7 +2161,7 @@ async function syncAppointmentToGoogleCalendar(
     const endDate = new Date(startDate.getTime() + durationMinutes * 60_000);
     const eventBody = {
       summary: `Cita: ${answers.customer_name || 'Cliente'}`,
-      description: `Cita agendada desde HeyHey\nTeléfono: ${answers.customer_phone || ''}\nFecha de nacimiento: ${answers.birth_date || ''}`,
+      description: `Cita agendada desde HeyHey\nTeléfono: ${answers.customer_phone || ''}\nFecha de nacimiento: ${answers.birth_date || ''}${answers.country ? `\nPaís: ${answers.country}` : ''}${answers.city ? `\nCiudad: ${answers.city}` : ''}${answers.state ? `\nEstado: ${answers.state}` : ''}`,
       start: { dateTime: startDate.toISOString(), timeZone: 'America/Bogota' },
       end: { dateTime: endDate.toISOString(), timeZone: 'America/Bogota' },
       attendees: answers.customer_phone ? [{ email: `${answers.customer_phone.replace(/\D/g, '')}@placeholder.heyhey` }] : undefined,
