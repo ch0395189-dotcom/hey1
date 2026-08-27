@@ -261,211 +261,301 @@ export const BuyNumberPanel = () => {
     } finally { setAttaching(false); }
   };
 
+  const activeOrder =
+    orders.find((o) => o.id === attachOrder) ??
+    orders.find((o) => o.phone_number && !o.whatsapp_account_id) ??
+    orders.find((o) => o.payment_status === "paid" && !o.phone_number) ??
+    orders[0] ?? null;
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <ShoppingCart className="h-5 w-5" /> Comprar número virtual
-        </CardTitle>
-        <CardDescription>
-          Obtén un número para verificar tu WhatsApp. Para WhatsApp Business conviene el
-          alquiler de larga duración: permite recibir futuras re-verificaciones de Meta.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-5">
-        <div className="flex items-start gap-2 rounded-md border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
-          <Info className="mt-0.5 h-4 w-4 shrink-0" />
-          <span>
-            Meta puede rechazar números virtuales o marcarlos con baja calidad. Si el número
-            queda bloqueado, cancela el pedido e intenta con otro país.
-          </span>
-        </div>
+    <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
+      {/* ---------- Columna izquierda: compra ---------- */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <ShoppingCart className="h-5 w-5" /> Comprar número virtual
+          </CardTitle>
+          <CardDescription>
+            Obtén un número para verificar tu WhatsApp. Para WhatsApp Business conviene el
+            alquiler de larga duración: permite recibir futuras re-verificaciones de Meta.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="flex items-start gap-2 rounded-md border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
+            <Info className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>
+              Meta puede rechazar números virtuales o marcarlos con baja calidad. Si el número
+              queda bloqueado, cancela el pedido e intenta con otro país.
+            </span>
+          </div>
 
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div className="space-y-1">
-            <Label>Modalidad</Label>
-            <Select value={mode} onValueChange={(v) => setMode(v as "activation" | "rent")}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="rent">Alquiler largo plazo</SelectItem>
-                <SelectItem value="activation">Activación temporal</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1">
-            <Label>País</Label>
-            <Select value={country} onValueChange={setCountry}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {COUNTRIES.map((c) => (
-                  <SelectItem key={c.code} value={c.code}>{c.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          {mode === "rent" && (
+          <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1">
-              <Label>Días de alquiler</Label>
-              <Input value={days} onChange={(e) => setDays(e.target.value.replace(/\D/g, ""))} placeholder="30" />
+              <Label>Modalidad</Label>
+              <Select value={mode} onValueChange={(v) => setMode(v as "activation" | "rent")}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="rent">Alquiler largo plazo</SelectItem>
+                  <SelectItem value="activation">Activación temporal</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-          )}
-        </div>
+            <div className="space-y-1">
+              <Label>País</Label>
+              <Select value={country} onValueChange={setCountry}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {COUNTRIES.map((c) => (
+                    <SelectItem key={c.code} value={c.code}>{c.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {mode === "rent" && (
+              <div className="space-y-1">
+                <Label>Días de alquiler</Label>
+                <Input value={days} onChange={(e) => setDays(e.target.value.replace(/\D/g, ""))} placeholder="30" />
+              </div>
+            )}
+          </div>
 
-        {(() => {
-          const noStock = stock !== null && stock <= 0;
-          const countryLabel = COUNTRIES.find((c) => c.code === country)?.label ?? country.toUpperCase();
-          return (
-            <div
-              className={`flex items-start gap-2 rounded-md border p-3 text-sm ${
-                checkingStock || stock === null
-                  ? "border-border bg-muted/40 text-muted-foreground"
-                  : noStock
-                    ? "border-destructive/40 bg-destructive/10 text-destructive"
-                    : "border-primary/40 bg-primary/10 text-foreground"
-              }`}
-            >
-              {checkingStock ? (
-                <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin" />
-              ) : noStock ? (
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-              ) : (
-                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
-              )}
-              <div className="flex-1 space-y-1">
+          {(() => {
+            const noStock = stock !== null && stock <= 0;
+            const countryLabel = COUNTRIES.find((c) => c.code === country)?.label ?? country.toUpperCase();
+            return (
+              <div
+                className={`flex items-start gap-2 rounded-md border p-3 text-sm ${
+                  checkingStock || stock === null
+                    ? "border-border bg-muted/40 text-muted-foreground"
+                    : noStock
+                      ? "border-destructive/40 bg-destructive/10 text-destructive"
+                      : "border-primary/40 bg-primary/10 text-foreground"
+                }`}
+              >
                 {checkingStock ? (
-                  <span>Consultando disponibilidad en {countryLabel}…</span>
-                ) : stock === null ? (
-                  <span>No pudimos consultar la disponibilidad ahora mismo.</span>
+                  <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin" />
                 ) : noStock ? (
-                  <span>
-                    <strong>Sin números disponibles en {countryLabel}</strong> en este momento.
-                    Prueba con otro país o vuelve a consultar en unos minutos. No realices el pago
-                    hasta que haya stock.
-                  </span>
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
                 ) : (
-                  <span>
-                    <strong>{stock} número{stock === 1 ? "" : "s"} disponible{stock === 1 ? "" : "s"}</strong>{" "}
-                    en {countryLabel}.
-                  </span>
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
                 )}
-                <Button variant="ghost" size="sm" className="h-7 px-2" onClick={checkAvailability} disabled={checkingStock}>
-                  <RefreshCw className="mr-1 h-3 w-3" /> Volver a consultar
-                </Button>
+                <div className="flex-1 space-y-1">
+                  {checkingStock ? (
+                    <span>Consultando disponibilidad en {countryLabel}…</span>
+                  ) : stock === null ? (
+                    <span>No pudimos consultar la disponibilidad ahora mismo.</span>
+                  ) : noStock ? (
+                    <span>
+                      <strong>Sin números disponibles en {countryLabel}</strong> en este momento.
+                      Prueba con otro país o vuelve a consultar en unos minutos. No realices el pago
+                      hasta que haya stock.
+                    </span>
+                  ) : (
+                    <span>
+                      <strong>{stock} número{stock === 1 ? "" : "s"} disponible{stock === 1 ? "" : "s"}</strong>{" "}
+                      en {countryLabel}.
+                    </span>
+                  )}
+                  <Button variant="ghost" size="sm" className="h-7 px-2" onClick={checkAvailability} disabled={checkingStock}>
+                    <RefreshCw className="mr-1 h-3 w-3" /> Volver a consultar
+                  </Button>
+                </div>
               </div>
+            );
+          })()}
+
+          <div className="flex flex-wrap gap-2">
+            {isAdmin ? (
+              <Button onClick={buyDirect} disabled={busy || stock === 0}>
+                {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShoppingCart className="mr-2 h-4 w-4" />}
+                Comprar directo (admin, sin pago)
+              </Button>
+            ) : (
+              <Button onClick={payAndBuy} disabled={busy || quoting || stock === 0}>
+                {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShoppingCart className="mr-2 h-4 w-4" />}
+                {quoting ? "Calculando precio…" : stock === 0 ? "Sin stock" : `Pagar ${price !== null ? cop(price) : ""}`}
+              </Button>
+            )}
+            <Button variant="outline" onClick={loadOrders}>
+              <RefreshCw className="mr-2 h-4 w-4" /> Actualizar
+            </Button>
+          </div>
+
+          {isAdmin && (
+            <div className="rounded-md border bg-muted/40 p-3 text-sm text-muted-foreground">
+              Costo proveedor: <strong>{costUsd ? `US$ ${costUsd}` : "—"}</strong>
+              {" · "}Precio al cliente: <strong>{price !== null ? cop(price) : "—"}</strong>
+              {" · "}Como administrador compras al costo, sin pasar por Bold.
             </div>
-          );
-        })()}
-
-        <div className="flex gap-2">
-          {isAdmin ? (
-            <Button onClick={buyDirect} disabled={busy || stock === 0}>
-              {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShoppingCart className="mr-2 h-4 w-4" />}
-              Comprar directo (admin, sin pago)
-            </Button>
-          ) : (
-            <Button onClick={payAndBuy} disabled={busy || quoting || stock === 0}>
-              {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShoppingCart className="mr-2 h-4 w-4" />}
-              {quoting ? "Calculando precio…" : stock === 0 ? "Sin stock" : `Pagar ${price !== null ? cop(price) : ""}`}
-            </Button>
           )}
-          <Button variant="outline" onClick={loadOrders}>
-            <RefreshCw className="mr-2 h-4 w-4" /> Actualizar
-          </Button>
-        </div>
 
-        {isAdmin && (
-          <div className="rounded-md border bg-muted/40 p-3 text-sm text-muted-foreground">
-            Costo proveedor: <strong>{costUsd ? `US$ ${costUsd}` : "—"}</strong>
-            {" · "}Precio al cliente: <strong>{price !== null ? cop(price) : "—"}</strong>
-            {" · "}Como administrador compras al costo, sin pasar por Bold.
-          </div>
-        )}
-
-        {orders.length > 0 && (
-          <div className="space-y-2 border-t pt-4">
-            <Label>Mis números</Label>
-            {orders.map((o) => (
-              <div key={o.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-3 text-sm">
-                <div className="space-y-1">
-                  <div className="font-medium">
-                    {o.phone_number ? `+${o.phone_number}` : "Pendiente de asignar"}
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2 text-muted-foreground">
-                    <Badge variant="secondary">{o.mode === "rent" ? "Alquiler" : "Activación"}</Badge>
-                    <Badge variant="outline">{o.country.toUpperCase()}</Badge>
-                    <Badge variant={o.status === "received" || o.status === "completed" ? "default" : "secondary"}>
-                      {o.status}
-                    </Badge>
-                    {o.price_cop ? <Badge variant="outline">{cop(o.price_cop)}</Badge> : null}
-                    {o.payment_status === "pending" && <Badge variant="destructive">Pago pendiente</Badge>}
-                    {o.sms_code && <span>Código: <strong>{o.sms_code}</strong></span>}
-                    {polling === o.id && <span className="flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" /> esperando SMS…</span>}
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  {o.payment_status === "pending" && (
-                    <Button size="sm" variant="outline" onClick={() => verifyPayment(o.id)} disabled={busy}>
-                      Verificar pago
-                    </Button>
-                  )}
-                  {o.payment_status === "paid" && !o.phone_number && (
-                    <Button size="sm" onClick={() => claim(o.id, o)} disabled={busy}>
-                      Obtener número
-                    </Button>
-                  )}
-
-                  {o.phone_number && !o.whatsapp_account_id && (
-                    <Button size="sm" variant="secondary" onClick={() => { setAttachOrder(attachOrder === o.id ? null : o.id); setAttachNote(null); }}>
-                      Conectar a WhatsApp
-                    </Button>
-                  )}
-                  <Button size="sm" variant="outline" onClick={() => {
-                    navigator.clipboard.writeText(`+${o.phone_number ?? ""}`);
-                    toast({ title: "Número copiado" });
-                  }}>
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => startPolling(o.id)} disabled={polling === o.id}>
-                    <RefreshCw className="h-4 w-4" />
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={() => cancel(o.id)}>
-                    <XCircle className="h-4 w-4" />
-                  </Button>
-                </div>
-                {attachOrder === o.id && (
-                  <div className="w-full space-y-3 rounded-md border bg-muted/30 p-3">
-                    <p className="text-xs text-muted-foreground">
-                      Conectamos el número a tu portafolio de Meta automáticamente: lo agregamos,
-                      pedimos el SMS, lo verificamos y lo registramos. Si tu portafolio está
-                      restringido, lo conectamos con el portafolio de HeyHey.
-                    </p>
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      <div className="space-y-1">
-                        <Label>Nombre del negocio</Label>
-                        <Input value={bizName} onChange={(e) => setBizName(e.target.value)} placeholder="Mi Negocio" />
-                      </div>
-                      <div className="space-y-1">
-                        <Label>PIN de 6 dígitos</Label>
-                        <Input value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="123456" inputMode="numeric" />
-                      </div>
+          {orders.length > 0 && (
+            <div className="space-y-2 border-t pt-4">
+              <Label>Mis pedidos</Label>
+              {orders.map((o) => (
+                <div
+                  key={o.id}
+                  className={`flex flex-wrap items-center justify-between gap-2 rounded-md border p-3 text-sm ${
+                    activeOrder?.id === o.id ? "border-primary bg-primary/5" : ""
+                  }`}
+                >
+                  <div className="space-y-1">
+                    <div className="font-medium">
+                      {o.phone_number ? `+${o.phone_number}` : "Pendiente de asignar"}
                     </div>
-                    {attachNote && (
-                      <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-2 text-xs text-destructive">
-                        <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
-                        <span>{attachNote}</span>
-                      </div>
+                    <div className="flex flex-wrap items-center gap-2 text-muted-foreground">
+                      <Badge variant="secondary">{o.mode === "rent" ? "Alquiler" : "Activación"}</Badge>
+                      <Badge variant="outline">{o.country.toUpperCase()}</Badge>
+                      <Badge variant={o.status === "received" || o.status === "completed" ? "default" : "secondary"}>
+                        {o.status}
+                      </Badge>
+                      {o.price_cop ? <Badge variant="outline">{cop(o.price_cop)}</Badge> : null}
+                      {o.payment_status === "pending" && <Badge variant="destructive">Pago pendiente</Badge>}
+                      {polling === o.id && <span className="flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" /> esperando SMS…</span>}
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    {o.payment_status === "pending" && (
+                      <Button size="sm" variant="outline" onClick={() => verifyPayment(o.id)} disabled={busy}>
+                        Verificar pago
+                      </Button>
                     )}
-                    <Button size="sm" onClick={() => attach(o.id)} disabled={attaching}>
-                      {attaching ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
-                      {attaching ? "Conectando (puede tardar ~2 min)…" : "Conectar automáticamente"}
+                    {o.payment_status === "paid" && !o.phone_number && (
+                      <Button size="sm" onClick={() => claim(o.id, o)} disabled={busy}>
+                        Obtener número
+                      </Button>
+                    )}
+                    <Button size="sm" variant="secondary" onClick={() => { setAttachOrder(o.id); setAttachNote(null); }}>
+                      Ver
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => cancel(o.id)}>
+                      <XCircle className="h-4 w-4" />
                     </Button>
                   </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ---------- Columna derecha: código SMS y conexión ---------- */}
+      <Card className="lg:sticky lg:top-4">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CheckCircle2 className="h-5 w-5" /> Código y conexión
+          </CardTitle>
+          <CardDescription>
+            Aquí llega el código SMS de tu número y conectas el WhatsApp sin salir de la pantalla.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {!activeOrder ? (
+            <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
+              Aún no tienes pedidos. Compra un número a la izquierda y aquí verás el código y la
+              configuración.
+            </div>
+          ) : (
+            <>
+              <div className="rounded-md border p-3">
+                <div className="text-xs text-muted-foreground">Número</div>
+                <div className="flex items-center gap-2">
+                  <span className="text-lg font-semibold">
+                    {activeOrder.phone_number ? `+${activeOrder.phone_number}` : "Pendiente de asignar"}
+                  </span>
+                  {activeOrder.phone_number && (
+                    <Button size="sm" variant="outline" onClick={() => {
+                      navigator.clipboard.writeText(`+${activeOrder.phone_number}`);
+                      toast({ title: "Número copiado" });
+                    }}>
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-md border p-3">
+                <div className="mb-1 flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">Código SMS</span>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => startPolling(activeOrder.id)}
+                    disabled={polling === activeOrder.id || !activeOrder.phone_number}
+                  >
+                    {polling === activeOrder.id
+                      ? <><Loader2 className="mr-1 h-3 w-3 animate-spin" /> Esperando…</>
+                      : <><RefreshCw className="mr-1 h-3 w-3" /> Buscar código</>}
+                  </Button>
+                </div>
+                {activeOrder.sms_code ? (
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-2xl font-bold tracking-widest">{activeOrder.sms_code}</span>
+                    <Button size="sm" variant="outline" onClick={() => {
+                      navigator.clipboard.writeText(activeOrder.sms_code!);
+                      toast({ title: "Código copiado" });
+                    }}>
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Aún no llega el código. Se actualiza automáticamente mientras esperas.
+                  </p>
                 )}
               </div>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+
+              {activeOrder.payment_status === "pending" && (
+                <Button variant="outline" className="w-full" onClick={() => verifyPayment(activeOrder.id)} disabled={busy}>
+                  Verificar pago
+                </Button>
+              )}
+              {activeOrder.payment_status === "paid" && !activeOrder.phone_number && (
+                <Button className="w-full" onClick={() => claim(activeOrder.id, activeOrder)} disabled={busy}>
+                  Obtener número
+                </Button>
+              )}
+
+              {activeOrder.phone_number && !activeOrder.whatsapp_account_id && (
+                <div className="space-y-3 rounded-md border bg-muted/30 p-3">
+                  <p className="text-xs text-muted-foreground">
+                    Conectamos el número a tu portafolio de Meta automáticamente: lo agregamos,
+                    pedimos el SMS, lo verificamos y lo registramos. Si tu portafolio está
+                    restringido, lo conectamos con el portafolio de HeyHey.
+                  </p>
+                  <div className="space-y-2">
+                    <div className="space-y-1">
+                      <Label>Nombre del negocio</Label>
+                      <Input value={bizName} onChange={(e) => setBizName(e.target.value)} placeholder="Mi Negocio" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>PIN de 6 dígitos</Label>
+                      <Input value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="123456" inputMode="numeric" />
+                    </div>
+                  </div>
+                  {attachNote && (
+                    <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-2 text-xs text-destructive">
+                      <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
+                      <span>{attachNote}</span>
+                    </div>
+                  )}
+                  <Button className="w-full" onClick={() => attach(activeOrder.id)} disabled={attaching}>
+                    {attaching ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
+                    {attaching ? "Conectando (puede tardar ~2 min)…" : "Conectar automáticamente"}
+                  </Button>
+                </div>
+              )}
+
+              {activeOrder.whatsapp_account_id && (
+                <div className="flex items-start gap-2 rounded-md border border-primary/40 bg-primary/10 p-3 text-sm">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>Este número ya está conectado a tu bandeja de entrada.</span>
+                </div>
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 };
