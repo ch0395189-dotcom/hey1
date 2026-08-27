@@ -93,7 +93,7 @@ export const BuyNumberPanel = () => {
       .select("id, mode, country, phone_number, country_code, status, sms_code, expires_at, created_at, price_cop, payment_status, whatsapp_account_id, operator")
       .order("created_at", { ascending: false })
       .limit(20);
-    setOrders((data ?? []) as Order[]);
+    setOrders((data ?? []) as unknown as Order[]);
   }, []);
 
   useEffect(() => { loadOrders(); }, [loadOrders]);
