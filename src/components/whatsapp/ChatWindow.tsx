@@ -975,6 +975,44 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
     }
   };
 
+  type SavedWaButton = {
+    id: string;
+    label: string;
+    phone: string;
+    prefilled: string;
+    bodyText: string;
+    footerText: string;
+    ctaText: string;
+  };
+
+  const loadSavedWaButtons = (): SavedWaButton[] => {
+    try {
+      const raw = localStorage.getItem("heyhey_saved_wa_buttons");
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const savedButtonToData = (b: SavedWaButton): WhatsAppButtonData => ({
+    bodyText: b.bodyText,
+    footerText: b.footerText || undefined,
+    ctaText: b.ctaText,
+    ctaUrl: `https://wa.me/${b.phone}${b.prefilled.trim() ? `?text=${encodeURIComponent(b.prefilled.trim())}` : ""}`,
+    phone: b.phone,
+    prefilledMessage: b.prefilled,
+  });
+
+  const handleWaStickerClick = async () => {
+    const saved = loadSavedWaButtons();
+    if (saved.length === 0) {
+      setShowWaButtonDialog(true);
+      return;
+    }
+    await handleSendWhatsAppButton(savedButtonToData(saved[0]));
+  };
+
   const handleSendInteractiveMessage = async (data: InteractiveMessageData) => {
     return _handleSendInteractive(data);
   };
