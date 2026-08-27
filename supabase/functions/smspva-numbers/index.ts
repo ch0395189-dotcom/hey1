@@ -29,6 +29,40 @@ async function pvaGet(path: string, params: Record<string, string>) {
   return { httpOk: resp.ok, status: resp.status, data };
 }
 
+async function pvaApi(path: string, apikey: string, params: Record<string, string> = {}) {
+  const url = new URL(`https://api.smspva.com${path}`);
+  Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+  const resp = await fetch(url.toString(), { headers: { apikey, Accept: "application/json" } });
+  const text = await resp.text();
+  let data: Json;
+  try { data = JSON.parse(text); } catch { data = { raw: text }; }
+  return { status: resp.status, data };
+}
+
+// Convierte días a los parámetros de alquiler del proveedor (semanas o meses)
+function rentPeriod(daysRaw: number) {
+  const days = Math.max(7, Number(daysRaw) || 30);
+  if (days % 30 === 0) return { dtype: "month", dcount: String(days / 30) };
+  return { dtype: "week", dcount: String(Math.max(1, Math.ceil(days / 7))) };
+}
+
+// Cuenta de números por operador para un servicio
+function operatorCounts(data: any, service: string) {
+  const rows: any[] = Array.isArray(data?.data) ? data.data : [];
+  const out: { name: string; count: number }[] = [];
+  let total = 0;
+  for (const row of rows) {
+    const svc = (row?.services || []).find((x: any) => x?.service === service);
+    const n = Number(svc?.total ?? 0);
+    const name = String(row?.operator ?? "");
+    if (/^Total_/i.test(name)) { total = n; continue; }
+    if (name) out.push({ name, count: Number.isFinite(n) ? n : 0 });
+  }
+  out.sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+  if (!total) total = out.reduce((a, b) => a + b.count, 0);
+  return { total, operators: out };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
@@ -69,45 +103,71 @@ Deno.serve(async (req) => {
 
     // ---------- disponibilidad / precio ----------
     if (action === "availability") {
-      const [count, price] = await Promise.all([
-        pvaGet("/priemnik.php", { metod: "get_count_new", service, country, apikey }),
+      const cc = country.toUpperCase();
+      if (mode === "rent") {
+        const days = Number(body.days || 30);
+        const { dtype, dcount } = rentPeriod(days);
+        const r = await pvaGet("/api/rent.php", { method: "getdataWithProviders", apikey, country: cc, dtype, dcount });
+        const svc = (r.data?.data?.services ?? []).find((x: any) => x?.service === service);
+        const countMap = svc?.count && !Array.isArray(svc.count) ? svc.count : {};
+        const ops = Object.entries(countMap).map(([name, n]) => ({ name, count: Number(n) || 0 }))
+          .filter((o) => o.count > 0)
+          .sort((a, b) => b.count - a.count);
+        return json({
+          ok: true,
+          total: Number(svc?.totalCount ?? 0),
+          operators: ops,
+          price: { price: svc?.price_day != null ? String(Number(svc.price_day) * days) : null },
+        });
+      }
+      const [counts, price, legacy] = await Promise.all([
+        pvaApi(`/activation/countnumbers/${cc}`, apikey),
         pvaGet("/priemnik.php", { metod: "get_service_price", service, country, apikey }),
-      ]);
-      return json({ ok: true, count: count.data, price: price.data });
-    }
-
-    // ---------- operadores reales del proveedor ----------
-    if (action === "operators") {
-      const [a, b, c] = await Promise.all([
-        pvaGet("/priemnik.php", { metod: "get_operators", service, country, apikey }),
         pvaGet("/priemnik.php", { metod: "get_count_new", service, country, apikey }),
-        pvaGet("/api/rent.php", { method: "getoperators", apikey, service, country }),
       ]);
-      const list = new Set<string>();
-      const harvest = (d: any) => {
-        if (!d) return;
-        if (Array.isArray(d)) { d.forEach((x) => harvest(x)); return; }
-        if (typeof d === "string") { if (d && d.length < 40) list.add(d); return; }
-        if (typeof d === "object") {
-          for (const [k, v] of Object.entries(d)) {
-            if (["response", "response_text", "status", "error", "raw", "message"].includes(k)) continue;
-            if (typeof v === "number" || typeof v === "string") {
-              if (isNaN(Number(k)) && k.length < 40) list.add(k);
-            } else harvest(v);
-          }
-        }
-      };
-      harvest(a.data?.operators ?? a.data?.data ?? a.data);
-      harvest(b.data?.operators ?? b.data?.data?.operators);
-      harvest(c.data?.data ?? c.data?.operators);
-      list.delete("online"); list.delete("total"); list.delete("forOnline");
+      const { total, operators } = operatorCounts(counts.data, service);
+      const legacyCount = Number(legacy.data?.online ?? legacy.data?.total ?? 0);
       return json({
         ok: true,
-        operators: [...list].sort(),
-        raw: isAdmin ? { get_operators: a.data, get_count_new: b.data, rent: c.data } : undefined,
+        total: total || (Number.isFinite(legacyCount) ? legacyCount : 0),
+        operators,
+        count: legacy.data,
+        price: price.data,
       });
     }
 
+    // ---------- operadores reales por país ----------
+    if (action === "operators") {
+      const cc = country.toUpperCase();
+      const [ops, counts] = await Promise.all([
+        pvaApi(`/activation/operators/${cc}`, apikey),
+        pvaApi(`/activation/countnumbers/${cc}`, apikey),
+      ]);
+      const names: string[] = ops.data?.data?.operators ?? [];
+      const { total, operators } = operatorCounts(counts.data, service);
+      const byName = new Map(operators.map((o) => [o.name, o.count]));
+      const list = names.map((name) => ({ name, count: byName.get(name) ?? 0 }));
+      for (const o of operators) if (!names.includes(o.name)) list.push(o);
+      list.sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+      return json({ ok: true, country: cc, total, operators: list });
+    }
+
+    // ---------- sonda de diagnóstico (solo admin) ----------
+    if (action === "probe") {
+      if (!isAdmin) return json({ ok: false, error: "Solo administradores" });
+      const path = String(body.path || "/priemnik.php");
+      if (body.api) {
+        const u = new URL(`https://api.smspva.com${path}`);
+        Object.entries(body.params || {}).forEach(([k, v]) => u.searchParams.set(k, String(v)));
+        const resp = await fetch(u.toString(), { headers: { apikey, Accept: "application/json" } });
+        const t = await resp.text();
+        let d: any; try { d = JSON.parse(t); } catch { d = { raw: t }; }
+        return json({ ok: true, status: resp.status, raw: d });
+      }
+      const params = { ...(body.params || {}), apikey } as Record<string, string>;
+      const r = await pvaGet(path, params);
+      return json({ ok: true, raw: r.data });
+    }
 
     // ---------- comprar / alquilar ----------
     if (action === "buy") {
@@ -137,16 +197,24 @@ Deno.serve(async (req) => {
       let raw: Json = {};
 
       if (mode === "rent") {
-        const days = String(body.days || "30");
-        const r = await pvaGet("/api/rent.php", { method: "getnumber", apikey, service, country, days });
+        const { dtype, dcount } = rentPeriod(Number(body.days || 30));
+        const params: Record<string, string> = {
+          method: "create", apikey, service, country: country.toUpperCase(), dtype, dcount,
+        };
+        if (operator) params.provider = operator;
+        const r = await pvaGet("/api/rent.php", params);
         raw = r.data;
-        const d = r.data?.data ?? r.data;
-        if (!d || (r.data?.status !== undefined && Number(r.data.status) !== 1) || !(d.number || d.pnumber)) {
-          return json({ ok: false, error: d?.error || r.data?.error || "No se pudo alquilar el número", raw: r.data });
+        const d = Array.isArray(r.data?.data) ? r.data.data[0] : (r.data?.data ?? r.data);
+        if (!d || Number(r.data?.status ?? 0) !== 1 || !(d.pnumber || d.number)) {
+          return json({
+            ok: false,
+            error: typeof r.data?.data === "string" ? r.data.data : (d?.error || r.data?.error || "No se pudo alquilar el número"),
+            raw: r.data,
+          });
         }
-        providerOrderId = String(d.id ?? d.orderid ?? "");
-        phone = String(d.number ?? d.pnumber ?? "");
-        countryCode = String(d.numbercode ?? d.CountryCode ?? "");
+        providerOrderId = String(d.id ?? d.orderId ?? "");
+        phone = String(d.pnumber ?? d.number ?? "");
+        countryCode = String(d.ccode ?? d.numbercode ?? "").replace("+", "");
         if (d.until) expiresAt = new Date(Number(d.until) * 1000).toISOString();
       } else {
         const r = await pvaGet("/priemnik.php", { metod: "get_number", service, country, apikey });
@@ -198,14 +266,18 @@ Deno.serve(async (req) => {
       if (order.user_id !== userId && !isAdmin) return json({ ok: false, error: "No autorizado" });
 
       const r = order.mode === "rent"
-        ? await pvaGet("/api/rent.php", { method: "getsms", apikey, orderid: String(order.provider_order_id) })
+        ? await pvaGet("/api/rent.php", { method: "sms", apikey, id: String(order.provider_order_id) })
         : await pvaGet("/priemnik.php", {
             metod: "get_sms", service: order.service, country: order.country,
             id: String(order.provider_order_id), apikey,
           });
 
-      const code = r.data?.sms ?? r.data?.data?.code ?? null;
-      const text = r.data?.text ?? r.data?.data?.text ?? null;
+      const smsList: any[] = r.data?.data?.SmsList ?? r.data?.data?.OtherSms ?? [];
+      const last = Array.isArray(smsList) && smsList.length ? smsList[smsList.length - 1] : null;
+      const rentText = last ? String(last.text ?? last.sms ?? last.message ?? "") : "";
+      const rentCode = rentText ? (rentText.match(/\b(\d{3}[- ]?\d{3})\b/)?.[1]?.replace(/\D/g, "") ?? null) : null;
+      const code = r.data?.sms ?? r.data?.data?.code ?? rentCode ?? null;
+      const text = r.data?.text ?? r.data?.data?.text ?? (rentText || null);
       if (code) {
         await admin.from("virtual_number_orders")
           .update({ sms_code: String(code), sms_text: text, status: "received" })
@@ -223,7 +295,7 @@ Deno.serve(async (req) => {
       if (order.user_id !== userId && !isAdmin) return json({ ok: false, error: "No autorizado" });
 
       const r = order.mode === "rent"
-        ? await pvaGet("/api/rent.php", { method: "close", apikey, orderid: String(order.provider_order_id) })
+        ? { data: { note: "Los alquileres no se cancelan en el proveedor; siguen activos hasta su vencimiento." } }
         : await pvaGet("/priemnik.php", {
             metod: "denial", service: order.service, country: order.country,
             id: String(order.provider_order_id), apikey,
@@ -264,14 +336,16 @@ Deno.serve(async (req) => {
       };
 
       // 1. Comprar número
+      const rp = rentPeriod(Number(body.days || 30));
       const buyResp = mode === "rent"
-        ? await pvaGet("/api/rent.php", { method: "getnumber", apikey, service, country, days: String(body.days || "30") })
+        ? await pvaGet("/api/rent.php", { method: "create", apikey, service, country: country.toUpperCase(), dtype: rp.dtype, dcount: rp.dcount })
         : await pvaGet("/priemnik.php", { metod: "get_number", service, country, apikey });
 
-      const bd = buyResp.data?.data ?? buyResp.data;
+      const bdRaw = buyResp.data?.data ?? buyResp.data;
+      const bd = Array.isArray(bdRaw) ? bdRaw[0] : bdRaw;
       const fullPhone = String(bd?.number ?? bd?.pnumber ?? "");
       const provOrderId = String(bd?.id ?? buyResp.data?.id ?? "");
-      const ccRaw = String(bd?.numbercode ?? buyResp.data?.CountryCode ?? "").replace(/\D/g, "");
+      const ccRaw = String(bd?.ccode ?? bd?.numbercode ?? buyResp.data?.CountryCode ?? "").replace(/\D/g, "");
       if (!fullPhone || !provOrderId) {
         return json({ ok: false, error: buyResp.data?.response_text || "No se pudo obtener número del proveedor", raw: buyResp.data });
       }
@@ -313,9 +387,11 @@ Deno.serve(async (req) => {
       for (let i = 0; i < 20; i++) {
         await sleep(6000);
         const s = mode === "rent"
-          ? await pvaGet("/api/rent.php", { method: "getsms", apikey, orderid: provOrderId })
+          ? await pvaGet("/api/rent.php", { method: "sms", apikey, id: provOrderId })
           : await pvaGet("/priemnik.php", { metod: "get_sms", service, country, id: provOrderId, apikey });
-        const c = s.data?.sms ?? s.data?.data?.code ?? null;
+        const list: any[] = s.data?.data?.SmsList ?? [];
+        const lastSms = Array.isArray(list) && list.length ? String(list[list.length - 1]?.text ?? "") : "";
+        const c = s.data?.sms ?? s.data?.data?.code ?? (lastSms.match(/\b(\d{3}[- ]?\d{3})\b/)?.[1] ?? null);
         if (c) { code = String(c).replace(/\D/g, ""); break; }
       }
       if (!code) return await fail("No llegó el código SMS a tiempo");

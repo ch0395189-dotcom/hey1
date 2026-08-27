@@ -89,19 +89,6 @@ export const COUNTRIES = [
   { code: "uz", label: "Uzbekistán" },
 ];
 
-export const OPERATORS: Record<string, string[]> = {
-  co: ["Claro", "Movistar", "Tigo", "WOM", "ETB", "Virgin Mobile"],
-  mx: ["Telcel", "Movistar", "AT&T", "Unefon", "Virgin Mobile", "Altan"],
-  us: ["AT&T", "T-Mobile", "Verizon", "Mint Mobile", "Cricket", "Metro by T-Mobile"],
-  es: ["Movistar", "Orange", "Vodafone", "Yoigo", "MásMóvil", "Digi"],
-  ar: ["Claro", "Movistar", "Personal", "Tuenti"],
-  pe: ["Claro", "Movistar", "Entel", "Bitel"],
-  cl: ["Movistar", "Entel", "Claro", "WOM", "VTR"],
-  br: ["Vivo", "Claro", "TIM", "Oi", "Algar"],
-  ec: ["Claro", "Movistar", "CNT", "Tuenti"],
-  uk: ["EE", "O2", "Vodafone", "Three", "giffgaff"],
-};
-
 interface Order {
   id: string;
   mode: string;
@@ -124,7 +111,7 @@ const cop = (n: number) =>
 export const BuyNumberPanel = () => {
   const { toast } = useToast();
   const { isAdmin } = useAdminCheck();
-  const [mode, setMode] = useState<"activation" | "rent">("rent");
+  const [mode, setMode] = useState<"activation" | "rent">("activation");
   const [country, setCountry] = useState("co");
   const [operator, setOperator] = useState("");
   const [days, setDays] = useState("30");
@@ -135,6 +122,7 @@ export const BuyNumberPanel = () => {
   const [quoting, setQuoting] = useState(false);
   const [costUsd, setCostUsd] = useState<string | null>(null);
   const [stock, setStock] = useState<number | null>(null);
+  const [operators, setOperators] = useState<{ name: string; count: number }[]>([]);
   const [checkingStock, setCheckingStock] = useState(false);
   const [attachOrder, setAttachOrder] = useState<string | null>(null);
   const [bizName, setBizName] = useState("");
@@ -188,20 +176,22 @@ export const BuyNumberPanel = () => {
   const checkAvailability = useCallback(async () => {
     setCheckingStock(true);
     try {
-      const r = await call("availability", { country, service: "opt20" });
-      const c: any = (r as any).count;
-      const online = Number(c?.online ?? c?.forOnline ?? c?.total ?? 0);
-      setStock(Number.isFinite(online) ? online : null);
+      const r = await call("availability", { country, service: "opt20", mode, days: Number(days) || 30 });
+      const total = Number((r as any).total ?? 0);
+      setStock(Number.isFinite(total) ? total : null);
+      const ops = ((r as any).operators ?? []) as { name: string; count: number }[];
+      setOperators(ops.filter((o) => o.count > 0 && o.count < 9999));
       const p: any = (r as any).price;
       const val = p?.price ?? p?.cost ?? p?.data?.price ?? null;
       setCostUsd(val != null ? String(val) : null);
     } catch {
       setStock(null);
+      setOperators([]);
       setCostUsd(null);
     } finally {
       setCheckingStock(false);
     }
-  }, [country]);
+  }, [country, mode, days]);
 
   useEffect(() => { checkAvailability(); }, [checkAvailability]);
 
@@ -376,8 +366,8 @@ export const BuyNumberPanel = () => {
               <Select value={mode} onValueChange={(v) => setMode(v as "activation" | "rent")}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="activation">Activación temporal (recomendado)</SelectItem>
                   <SelectItem value="rent">Alquiler largo plazo</SelectItem>
-                  <SelectItem value="activation">Activación temporal</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -393,16 +383,28 @@ export const BuyNumberPanel = () => {
               </Select>
             </div>
             <div className="space-y-1">
-              <Label>Operador (opcional)</Label>
+              <Label className="flex items-center gap-2">
+                Operador
+                {checkingStock && <Loader2 className="h-3 w-3 animate-spin" />}
+              </Label>
               <Select value={operator || "any"} onValueChange={(v) => setOperator(v === "any" ? "" : v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Cualquiera" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="any">Cualquiera</SelectItem>
-                  {(OPERATORS[country] ?? []).map((op) => (
-                    <SelectItem key={op} value={op}>{op}</SelectItem>
+                  {operators.map((op) => (
+                    <SelectItem key={op.name} value={op.name}>
+                      {op.name.replace(/_[A-Z]{2}$/, "")} · {op.count} disp.
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              <p className="text-xs text-muted-foreground">
+                {operators.length === 0
+                  ? "Sin operadores con stock para WhatsApp en este país."
+                  : mode === "rent"
+                    ? "En alquiler el operador elegido se respeta."
+                    : "En activación temporal el proveedor asigna el operador automáticamente."}
+              </p>
             </div>
             {mode === "rent" && (
               <div className="space-y-1">
