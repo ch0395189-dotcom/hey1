@@ -90,7 +90,7 @@ export const BuyNumberPanel = () => {
   const loadOrders = useCallback(async () => {
     const { data } = await supabase
       .from("virtual_number_orders")
-      .select("id, mode, country, phone_number, country_code, status, sms_code, expires_at, created_at, price_cop, payment_status, whatsapp_account_id")
+      .select("id, mode, country, phone_number, country_code, status, sms_code, expires_at, created_at, price_cop, payment_status, whatsapp_account_id, operator")
       .order("created_at", { ascending: false })
       .limit(20);
     setOrders((data ?? []) as Order[]);
@@ -317,11 +317,23 @@ export const BuyNumberPanel = () => {
             </div>
             <div className="space-y-1">
               <Label>País</Label>
-              <Select value={country} onValueChange={setCountry}>
+              <Select value={country} onValueChange={(v) => { setCountry(v); setOperator(""); }}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {COUNTRIES.map((c) => (
                     <SelectItem key={c.code} value={c.code}>{c.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label>Operador (opcional)</Label>
+              <Select value={operator || "any"} onValueChange={(v) => setOperator(v === "any" ? "" : v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="any">Cualquiera</SelectItem>
+                  {(OPERATORS[country] ?? []).map((op) => (
+                    <SelectItem key={op} value={op}>{op}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -421,6 +433,7 @@ export const BuyNumberPanel = () => {
                     <div className="flex flex-wrap items-center gap-2 text-muted-foreground">
                       <Badge variant="secondary">{o.mode === "rent" ? "Alquiler" : "Activación"}</Badge>
                       <Badge variant="outline">{o.country.toUpperCase()}</Badge>
+                      {o.operator && <Badge variant="outline">{o.operator}</Badge>}
                       <Badge variant={o.status === "received" || o.status === "completed" ? "default" : "secondary"}>
                         {o.status}
                       </Badge>
