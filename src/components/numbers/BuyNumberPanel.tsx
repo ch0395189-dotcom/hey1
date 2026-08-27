@@ -536,9 +536,7 @@ export const BuyNumberPanel = () => {
                   }`}
                 >
                   <div className="space-y-1">
-                    <div className="font-medium">
-                      {o.phone_number ? `+${o.phone_number}` : "Pendiente de asignar"}
-                    </div>
+                    <div className="font-medium">{fmtPhone(o)}</div>
                     <div className="flex flex-wrap items-center gap-2 text-muted-foreground">
                       <Badge variant="secondary">{o.mode === "rent" ? "Alquiler" : "Activación"}</Badge>
                       <Badge variant="outline">{o.country.toUpperCase()}</Badge>
@@ -597,12 +595,10 @@ export const BuyNumberPanel = () => {
               <div className="rounded-md border p-3">
                 <div className="text-xs text-muted-foreground">Número</div>
                 <div className="flex items-center gap-2">
-                  <span className="text-lg font-semibold">
-                    {activeOrder.phone_number ? `+${activeOrder.phone_number}` : "Pendiente de asignar"}
-                  </span>
+                  <span className="text-lg font-semibold">{fmtPhone(activeOrder)}</span>
                   {activeOrder.phone_number && (
                     <Button size="sm" variant="outline" onClick={() => {
-                      navigator.clipboard.writeText(`+${activeOrder.phone_number}`);
+                      navigator.clipboard.writeText(fmtPhone(activeOrder));
                       toast({ title: "Número copiado" });
                     }}>
                       <Copy className="h-4 w-4" />
