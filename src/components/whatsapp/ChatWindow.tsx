@@ -1120,15 +1120,9 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
       const mp3Buffer = await ttsRes.arrayBuffer();
       const mp3Blob = new Blob([mp3Buffer], { type: "audio/mpeg" });
 
-      // 2. Try to remux MP3 → OGG/Opus so WhatsApp shows it as PTT.
-      //    Fall back to sending the MP3 as-is when ffmpeg.wasm can't load (iOS).
-      let finalBlob: Blob = mp3Blob;
-      try {
-        finalBlob = await convertToOggOpus(mp3Blob);
-      } catch (e) {
-        console.warn('[voice-clone] ffmpeg unavailable, sending MP3 as-is:', e);
-        finalBlob = mp3Blob;
-      }
+      // 2. El MP3 se envía tal cual: WhatsApp lo reproduce en todos los
+      //    dispositivos y evitamos conversiones que puedan fallar.
+      const finalBlob: Blob = mp3Blob;
       const sniffedTts = await sniffAudioContainer(finalBlob);
       const ext = sniffedTts.ext;
       const contentType = sniffedTts.mime;
