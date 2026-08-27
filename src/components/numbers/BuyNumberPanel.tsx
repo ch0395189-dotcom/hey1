@@ -179,8 +179,8 @@ export const BuyNumberPanel = () => {
       const r = await call("availability", { country, service: "opt20", mode, days: Number(days) || 30 });
       const total = Number((r as any).total ?? 0);
       setStock(Number.isFinite(total) ? total : null);
-      const ops = ((r as any).operators ?? []) as { name: string; count: number }[];
-      setOperators(ops.filter((o) => o.count > 0 && o.count < 9999));
+      const ops = ((r as any).operators ?? []) as { name: string; count: number; kind?: string }[];
+      setOperators(ops.filter((o) => o.kind === "provider" || (o.count > 0 && o.count < 9999)));
       const p: any = (r as any).price;
       const val = p?.price ?? p?.cost ?? p?.data?.price ?? null;
       setCostUsd(val != null ? String(val) : null);
