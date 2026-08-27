@@ -30,6 +30,28 @@ interface WhatsAppButtonDialogProps {
   onSend: (data: WhatsAppButtonData) => Promise<void>;
 }
 
+interface SavedButton {
+  id: string;
+  label: string;
+  phone: string;
+  prefilled: string;
+  bodyText: string;
+  footerText: string;
+  ctaText: string;
+}
+
+const STORAGE_KEY = "heyhey_saved_wa_buttons";
+
+const loadSaved = (): SavedButton[] => {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
 export function WhatsAppButtonDialog({ open, onOpenChange, onSend }: WhatsAppButtonDialogProps) {
   const [phone, setPhone] = useState("");
   const [prefilled, setPrefilled] = useState("Hola, vengo del chat y quiero más información.");
