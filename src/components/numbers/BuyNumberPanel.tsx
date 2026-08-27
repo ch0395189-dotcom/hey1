@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, ShoppingCart, Copy, XCircle, RefreshCw, Info, CheckCircle2, AlertTriangle } from "lucide-react";
 import { useAdminCheck } from "@/hooks/useAdminCheck";
@@ -122,7 +122,7 @@ export const BuyNumberPanel = () => {
   const [quoting, setQuoting] = useState(false);
   const [costUsd, setCostUsd] = useState<string | null>(null);
   const [stock, setStock] = useState<number | null>(null);
-  const [operators, setOperators] = useState<{ name: string; count: number }[]>([]);
+  const [operators, setOperators] = useState<{ name: string; count: number; kind?: string }[]>([]);
   const [checkingStock, setCheckingStock] = useState(false);
   const [attachOrder, setAttachOrder] = useState<string | null>(null);
   const [bizName, setBizName] = useState("");
@@ -179,8 +179,8 @@ export const BuyNumberPanel = () => {
       const r = await call("availability", { country, service: "opt20", mode, days: Number(days) || 30 });
       const total = Number((r as any).total ?? 0);
       setStock(Number.isFinite(total) ? total : null);
-      const ops = ((r as any).operators ?? []) as { name: string; count: number }[];
-      setOperators(ops.filter((o) => o.count > 0 && o.count < 9999));
+      const ops = ((r as any).operators ?? []) as { name: string; count: number; kind?: string }[];
+      setOperators(ops.filter((o) => o.kind === "provider" || (o.count > 0 && o.count < 9999)));
       const p: any = (r as any).price;
       const val = p?.price ?? p?.cost ?? p?.data?.price ?? null;
       setCostUsd(val != null ? String(val) : null);
@@ -384,28 +384,39 @@ export const BuyNumberPanel = () => {
             </div>
             <div className="space-y-1">
               <Label className="flex items-center gap-2">
-                Operador
+                Operador / proveedor
                 {checkingStock && <Loader2 className="h-3 w-3 animate-spin" />}
               </Label>
               <Select value={operator || "any"} onValueChange={(v) => setOperator(v === "any" ? "" : v)}>
                 <SelectTrigger><SelectValue placeholder="Cualquiera" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="any">Cualquiera</SelectItem>
-                  {operators.map((op) => (
-                    <SelectItem key={op.name} value={op.name}>
+                  {operators.filter((o) => o.kind !== "provider").map((op) => (
+                    <SelectItem key={`op-${op.name}`} value={op.name}>
                       {op.name.replace(/_[A-Z]{2}$/, "")} · {op.count} disp.
                     </SelectItem>
                   ))}
+                  {operators.some((o) => o.kind === "provider") && (
+                    <SelectGroup>
+                      <SelectLabel>Proveedores externos</SelectLabel>
+                      {operators.filter((o) => o.kind === "provider").map((op) => (
+                        <SelectItem key={`pv-${op.name}`} value={op.name}>
+                          {op.name.replace(/_[A-Z]{2}$/, "")} · {op.count} disp.
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  )}
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
                 {operators.length === 0
-                  ? "Sin operadores con stock para WhatsApp en este país."
+                  ? "Sin operadores ni proveedores disponibles para WhatsApp en este país."
                   : mode === "rent"
-                    ? "En alquiler el operador elegido se respeta."
+                    ? "En alquiler el operador o proveedor elegido se respeta."
                     : "En activación temporal el proveedor asigna el operador automáticamente."}
               </p>
             </div>
+
             {mode === "rent" && (
               <div className="space-y-1">
                 <Label>Días de alquiler</Label>
