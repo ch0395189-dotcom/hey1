@@ -384,28 +384,39 @@ export const BuyNumberPanel = () => {
             </div>
             <div className="space-y-1">
               <Label className="flex items-center gap-2">
-                Operador
+                Operador / proveedor
                 {checkingStock && <Loader2 className="h-3 w-3 animate-spin" />}
               </Label>
               <Select value={operator || "any"} onValueChange={(v) => setOperator(v === "any" ? "" : v)}>
                 <SelectTrigger><SelectValue placeholder="Cualquiera" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="any">Cualquiera</SelectItem>
-                  {operators.map((op) => (
-                    <SelectItem key={op.name} value={op.name}>
+                  {operators.filter((o) => o.kind !== "provider").map((op) => (
+                    <SelectItem key={`op-${op.name}`} value={op.name}>
                       {op.name.replace(/_[A-Z]{2}$/, "")} · {op.count} disp.
                     </SelectItem>
                   ))}
+                  {operators.some((o) => o.kind === "provider") && (
+                    <SelectGroup>
+                      <SelectLabel>Proveedores externos</SelectLabel>
+                      {operators.filter((o) => o.kind === "provider").map((op) => (
+                        <SelectItem key={`pv-${op.name}`} value={op.name}>
+                          {op.name.replace(/_[A-Z]{2}$/, "")} · {op.count} disp.
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  )}
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
                 {operators.length === 0
-                  ? "Sin operadores con stock para WhatsApp en este país."
+                  ? "Sin operadores ni proveedores disponibles para WhatsApp en este país."
                   : mode === "rent"
-                    ? "En alquiler el operador elegido se respeta."
+                    ? "En alquiler el operador o proveedor elegido se respeta."
                     : "En activación temporal el proveedor asigna el operador automáticamente."}
               </p>
             </div>
+
             {mode === "rent" && (
               <div className="space-y-1">
                 <Label>Días de alquiler</Label>
