@@ -975,6 +975,44 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
     }
   };
 
+  type SavedWaButton = {
+    id: string;
+    label: string;
+    phone: string;
+    prefilled: string;
+    bodyText: string;
+    footerText: string;
+    ctaText: string;
+  };
+
+  const loadSavedWaButtons = (): SavedWaButton[] => {
+    try {
+      const raw = localStorage.getItem("heyhey_saved_wa_buttons");
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const savedButtonToData = (b: SavedWaButton): WhatsAppButtonData => ({
+    bodyText: b.bodyText,
+    footerText: b.footerText || undefined,
+    ctaText: b.ctaText,
+    ctaUrl: `https://wa.me/${b.phone}${b.prefilled.trim() ? `?text=${encodeURIComponent(b.prefilled.trim())}` : ""}`,
+    phone: b.phone,
+    prefilledMessage: b.prefilled,
+  });
+
+  const handleWaStickerClick = async () => {
+    const saved = loadSavedWaButtons();
+    if (saved.length === 0) {
+      setShowWaButtonDialog(true);
+      return;
+    }
+    await handleSendWhatsAppButton(savedButtonToData(saved[0]));
+  };
+
   const handleSendInteractiveMessage = async (data: InteractiveMessageData) => {
     return _handleSendInteractive(data);
   };
@@ -1995,17 +2033,49 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
             </Button>
           )}
           {conversation?.platform === 'whatsapp' && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="shrink-0 h-8 w-8 md:h-10 md:w-10"
-              onClick={() => setShowWaButtonDialog(true)}
-              title="Enviar botón de WhatsApp"
-              aria-label="Enviar botón de WhatsApp"
-            >
-              <FaWhatsapp className="w-5 h-5 text-green-500" />
-            </Button>
+            <div className="flex items-center shrink-0">
+              <button
+                type="button"
+                onClick={handleWaStickerClick}
+                title="Enviar botón de WhatsApp (usa tu botón guardado)"
+                aria-label="Enviar botón de WhatsApp"
+                className="h-8 w-8 md:h-10 md:w-10 rounded-full bg-[#25D366] shadow-md ring-2 ring-white/70 -rotate-6 hover:rotate-0 hover:scale-110 active:scale-95 transition-transform flex items-center justify-center"
+              >
+                <FaWhatsapp className="w-5 h-5 md:w-6 md:h-6 text-white" />
+              </button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label="Opciones de botón de WhatsApp"
+                    className="-ml-1 mt-4 text-muted-foreground hover:text-foreground"
+                  >
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-64">
+                  {loadSavedWaButtons().length === 0 && (
+                    <DropdownMenuItem disabled className="text-xs text-muted-foreground">
+                      No tienes botones guardados
+                    </DropdownMenuItem>
+                  )}
+                  {loadSavedWaButtons().map((b) => (
+                    <DropdownMenuItem
+                      key={b.id}
+                      onClick={() => handleSendWhatsAppButton(savedButtonToData(b))}
+                      className="text-xs"
+                    >
+                      <FaWhatsapp className="w-3.5 h-3.5 text-[#25D366] mr-2" />
+                      {b.label}
+                    </DropdownMenuItem>
+                  ))}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setShowWaButtonDialog(true)} className="text-xs">
+                    Crear / editar botones
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           )}
           {conversation?.platform === 'whatsapp' && (
               <Popover
