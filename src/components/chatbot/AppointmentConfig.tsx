@@ -298,7 +298,7 @@ export const AppointmentConfig = ({ settings, onChange }: AppointmentConfigProps
           rows={2}
         />
         <p className="text-xs text-muted-foreground">
-          Variables: {'{nombre}'}, {'{fecha}'}, {'{hora}'}, {'{telefono}'}, {'{nacimiento}'}
+          Variables: {'{nombre}'}, {'{fecha}'}, {'{hora}'}, {'{telefono}'}, {'{nacimiento}'}, {'{pais}'}, {'{ciudad}'}, {'{estado}'}
         </p>
       </div>
 
