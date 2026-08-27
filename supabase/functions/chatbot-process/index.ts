@@ -1839,6 +1839,9 @@ function buildApptNotes(steps: ApptRuntimeStep[], answers: Record<string, string
   const lines = steps
     .filter((s) => s.custom && answers[s.key])
     .map((s) => `${s.label}: ${answers[s.key]}`);
+  if (answers.country) lines.push(`País: ${answers.country}`);
+  if (answers.city) lines.push(`Ciudad: ${answers.city}`);
+  if (answers.state) lines.push(`Estado: ${answers.state}`);
   if (answers.photo_url) lines.push(`Foto: ${answers.photo_url}`);
   return lines.length > 0 ? lines.join('\n') : null;
 }
@@ -1847,6 +1850,9 @@ const DEFAULT_APPT_SETTINGS: AppointmentSettings = {
   ask_name: true,
   ask_phone: true,
   ask_birthdate: true,
+  ask_country: false,
+  ask_city: false,
+  ask_state: false,
   ask_date: true,
   ask_time: true,
   ask_photo: false,
