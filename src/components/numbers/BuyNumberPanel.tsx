@@ -60,6 +60,7 @@ export const BuyNumberPanel = () => {
   const { isAdmin } = useAdminCheck();
   const [mode, setMode] = useState<"activation" | "rent">("rent");
   const [country, setCountry] = useState("co");
+  const [operator, setOperator] = useState("");
   const [days, setDays] = useState("30");
   const [busy, setBusy] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -168,7 +169,7 @@ export const BuyNumberPanel = () => {
       const { data, error } = await supabase.functions.invoke("bold-checkout-number", {
         body: {
           action: "checkout",
-          mode, country, days: Number(days) || 30,
+          mode, country, days: Number(days) || 30, operator,
           successUrl: `${window.location.origin}/dashboard?view=whatsapp&number_paid=1`,
           cancelUrl: window.location.href,
         },
@@ -203,7 +204,7 @@ export const BuyNumberPanel = () => {
     setBusy(true);
     try {
       const r = await call("buy", {
-        mode, country, service: "opt20", days,
+        mode, country, service: "opt20", days, operator,
       });
       const order = r.order as Order;
       toast({ title: "Número comprado (sin pago)", description: `+${order.phone_number}` });
