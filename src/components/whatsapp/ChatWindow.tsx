@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { prepareAttachedAudioForWhatsApp, prepareRecordedAudioForWhatsApp, preloadFFmpeg, convertToOggOpus, sniffAudioContainer } from "@/utils/audioConvert";
+import { prepareAttachedAudioForWhatsApp, prepareRecordedAudioForWhatsApp, preloadAudioEncoder, sniffAudioContainer } from "@/utils/audioConvert";
 import { compressMediaIfNeeded, formatFileSize, exceedsWhatsAppLimit } from "@/utils/mediaCompressor";
 import { getFriendlyWhatsappError } from "@/lib/whatsappErrors";
 import { detectOTP } from "@/lib/otpDetect";
@@ -414,7 +414,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
       (window as any).requestIdleCallback
         ? (window as any).requestIdleCallback(cb, { timeout: 3000 })
         : window.setTimeout(cb, 1500);
-    idle(() => preloadFFmpeg());
+    idle(() => preloadAudioEncoder());
   }, [audioSupported]);
 
   // Detect if user has Fish Audio voice cloning configured
@@ -895,9 +895,9 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
         description: "Preparando el audio para WhatsApp.",
       });
 
-      // Meta is strict with recorder output: WebM is unsupported and browser-recorded
-      // MP4 can be fragmented, which Meta later reports as application/octet-stream.
-      // Send a real OGG/Opus file unless the recorder already produced OGG.
+      // Meta rechaza WebM y el MP4 fragmentado de los navegadores. Convertimos
+      // siempre a MP3 localmente (sin red ni wasm) para que el envío sea
+      // determinista en cualquier dispositivo.
       let finalBlob: Blob = audioBlob;
 
       console.log('[Audio] Original type:', audioBlob.type, 'size:', audioBlob.size);
@@ -906,8 +906,8 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
         finalBlob = await prepareRecordedAudioForWhatsApp(audioBlob);
         console.log('[Audio] Prepared blob size:', finalBlob.size);
       } catch (convErr) {
-        console.error('[Audio] ffmpeg conversion failed:', convErr);
-        throw new Error('No se pudo convertir el audio a un formato compatible con WhatsApp. Intenta grabarlo de nuevo.');
+        console.error('[Audio] audio prepare failed:', convErr);
+        throw new Error((convErr as Error)?.message || 'No se pudo procesar el audio. Grábalo de nuevo e inténtalo otra vez.');
       }
 
       // Never trust the blob MIME type: upload with the REAL container so Meta
@@ -1031,17 +1031,9 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
     if (!conversation) return;
     setSendingClonedVoice(true);
     try {
-      // Try to remux to OGG/Opus so WhatsApp renders it as a voice note (PTT).
-      // On iOS Safari / restricted WebViews ffmpeg.wasm can't load — in that
-      // case we upload the original MP3 so the send still works (as a music
-      // attachment instead of a PTT).
-      let finalBlob: Blob = audioBlob;
-      try {
-        finalBlob = await convertToOggOpus(audioBlob);
-      } catch (e) {
-        console.warn('[voice-clone] ffmpeg unavailable, sending MP3 as-is:', e);
-        finalBlob = audioBlob;
-      }
+      // Fish Audio ya devuelve MP3, un formato que WhatsApp reproduce siempre.
+      // No hacemos conversiones extra para no introducir puntos de fallo.
+      const finalBlob: Blob = audioBlob;
       const sniffed = await sniffAudioContainer(finalBlob);
       const ext = sniffed.ext;
       const contentType = sniffed.mime;
@@ -1128,15 +1120,9 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
       const mp3Buffer = await ttsRes.arrayBuffer();
       const mp3Blob = new Blob([mp3Buffer], { type: "audio/mpeg" });
 
-      // 2. Try to remux MP3 → OGG/Opus so WhatsApp shows it as PTT.
-      //    Fall back to sending the MP3 as-is when ffmpeg.wasm can't load (iOS).
-      let finalBlob: Blob = mp3Blob;
-      try {
-        finalBlob = await convertToOggOpus(mp3Blob);
-      } catch (e) {
-        console.warn('[voice-clone] ffmpeg unavailable, sending MP3 as-is:', e);
-        finalBlob = mp3Blob;
-      }
+      // 2. El MP3 se envía tal cual: WhatsApp lo reproduce en todos los
+      //    dispositivos y evitamos conversiones que puedan fallar.
+      const finalBlob: Blob = mp3Blob;
       const sniffedTts = await sniffAudioContainer(finalBlob);
       const ext = sniffedTts.ext;
       const contentType = sniffedTts.mime;

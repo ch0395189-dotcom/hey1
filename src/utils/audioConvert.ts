@@ -1,117 +1,20 @@
 /**
- * Real WebM → OGG/Opus conversion using ffmpeg.wasm.
+ * Audio pipeline for WhatsApp — deterministic, 100% local.
  *
- * Browsers (especially Chrome/Android Chrome) record audio as
- * `audio/webm;codecs=opus`. WhatsApp Cloud API rejects WebM containers
- * (it accepts OGG/Opus, MP4/AAC, MP3, AMR). Previously we just relabeled
- * the blob as `audio/ogg` without changing the actual bytes — Meta still
- * received WebM and sent corrupted/unplayable audio to the recipient,
- * and our own UI could not play it back reliably either.
+ * Historia: antes dependíamos de ffmpeg.wasm descargado desde un CDN para
+ * convertir WebM → OGG/Opus. Eso fallaba de forma intermitente (CDN bloqueado,
+ * falta de SharedArrayBuffer/COOP-COEP, WebViews del APK, iOS) y por eso los
+ * audios "a veces salían y a veces no".
  *
- * This util lazily loads ffmpeg.wasm from a CDN (so the main bundle
- * stays small) and properly remuxes the Opus stream into a real OGG
- * container.
+ * Solución de raíz: nunca dependemos de la red ni de wasm. Decodificamos la
+ * grabación con la Web Audio API (disponible en todos los navegadores y
+ * WebViews) y la re-codificamos a MP3 con lamejs (JS puro). MP3 (`audio/mpeg`)
+ * es un formato de primera clase para WhatsApp Cloud API y se reproduce en
+ * todos los dispositivos.
  */
 
-let ffmpegInstance: any | null = null;
-let loadingPromise: Promise<any> | null = null;
-
-async function getFFmpeg() {
-  if (ffmpegInstance) return ffmpegInstance;
-  if (loadingPromise) return loadingPromise;
-
-  const coreBaseUrls = [
-    'https://unpkg.com/@ffmpeg/core@0.12.10/dist/esm',
-    'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/esm',
-  ];
-
-  loadingPromise = (async () => {
-    const { FFmpeg } = await import('@ffmpeg/ffmpeg');
-    const { toBlobURL } = await import('@ffmpeg/util');
-    // FFmpeg's worker is a module worker in Vite. Loading the UMD core as a
-    // module makes @ffmpeg/ffmpeg throw "failed to import ffmpeg-core.js".
-    // Use the ESM core so the dynamic import exposes the expected default export.
-    const ffmpeg = new FFmpeg();
-    try {
-      let lastError: unknown;
-      for (const baseURL of coreBaseUrls) {
-        try {
-          await ffmpeg.load({
-            coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-            wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
-          });
-          lastError = null;
-          break;
-        } catch (error) {
-          lastError = error;
-        }
-      }
-
-      if (lastError) throw lastError;
-      ffmpegInstance = ffmpeg;
-      return ffmpeg;
-    } catch (error) {
-      loadingPromise = null;
-      ffmpeg.terminate();
-      throw error;
-    }
-  })();
-
-  return loadingPromise;
-}
-
-/**
- * Warm up ffmpeg.wasm in the background so the first audio send doesn't
- * pay the 2-4s download/compile cost. Safe to call multiple times — it's
- * a no-op after the first call.
- */
-export function preloadFFmpeg(): void {
-  // Only preload on capable devices to avoid wasting data/CPU on low-end
-  // phones that may never actually record audio.
-  if (typeof window === "undefined") return;
-  if (!("MediaRecorder" in window)) return;
-  // Fire-and-forget; errors are non-fatal — real conversion will retry.
-  getFFmpeg().catch(() => {
-    /* ignore — will be retried on actual use */
-  });
-}
-
-/**
- * Converts an audio blob (typically WebM/Opus from MediaRecorder) into a
- * real OGG/Opus blob that WhatsApp Cloud API and all modern browsers
- * accept.
- */
-export async function convertToOggOpus(input: Blob): Promise<Blob> {
-  const ffmpeg = await getFFmpeg();
-  const inputName = 'input';
-  const outputName = 'output.ogg';
-
-  const arrayBuffer = await input.arrayBuffer();
-  await ffmpeg.writeFile(inputName, new Uint8Array(arrayBuffer));
-
-  // -c:a libopus re-encodes (or copies if already opus) into a clean OGG container.
-  // Using -c:a copy when source is already opus keeps quality and is fast.
-  await ffmpeg.exec([
-    '-i', inputName,
-    '-vn',
-    '-c:a', 'libopus',
-    '-b:a', '32k',
-    '-ar', '48000',
-    '-ac', '1',
-    outputName,
-  ]);
-
-  const data = await ffmpeg.readFile(outputName);
-  // Cleanup
-  try { await ffmpeg.deleteFile(inputName); } catch { /* noop */ }
-  try { await ffmpeg.deleteFile(outputName); } catch { /* noop */ }
-
-  const u8 = data instanceof Uint8Array ? data : new Uint8Array(data as ArrayBuffer);
-  // Copy into a fresh ArrayBuffer to satisfy strict BlobPart typing.
-  const buf = new ArrayBuffer(u8.byteLength);
-  new Uint8Array(buf).set(u8);
-  return new Blob([buf], { type: 'audio/ogg; codecs=opus' });
-}
+/** Formatos que Meta acepta y reproduce sin problemas. */
+const SAFE_CONTAINERS = new Set(['mp3', 'ogg', 'amr']);
 
 export async function isRealOggContainer(input: Blob): Promise<boolean> {
   const header = new Uint8Array(await input.slice(0, 4).arrayBuffer());
@@ -119,10 +22,9 @@ export async function isRealOggContainer(input: Blob): Promise<boolean> {
 }
 
 /**
- * Sniffs the REAL container of an audio blob by reading its magic bytes.
- * Never trust blob.type: several mobile browsers lie about it, and uploading
- * a WebM/MP4 labelled as `audio/ogg` makes WhatsApp deliver a broken voice
- * note (the recipient only sees the bubble with no playable audio).
+ * Detecta el contenedor REAL leyendo los magic bytes. Nunca confiamos en
+ * `blob.type`: varios navegadores móviles mienten y subir un WebM/MP4
+ * etiquetado como `audio/ogg` hace que WhatsApp entregue una nota de voz rota.
  */
 export async function sniffAudioContainer(
   input: Blob
@@ -141,74 +43,90 @@ export async function sniffAudioContainer(
   return { container: 'unknown', ext: 'ogg', mime: input.type || 'audio/ogg' };
 }
 
+/**
+ * Precalienta el codificador MP3 (import dinámico) para que el primer envío
+ * no pague el costo de descarga del chunk. Es un no-op tras la primera vez.
+ */
+export function preloadAudioEncoder(): void {
+  if (typeof window === 'undefined') return;
+  import('./mp3Encode').catch(() => {
+    /* se reintenta al usarlo de verdad */
+  });
+}
+
+/** Alias retrocompatible. */
+export const preloadFFmpeg = preloadAudioEncoder;
+
+/**
+ * Convierte cualquier blob de audio a MP3 mono reproducible por WhatsApp.
+ * No usa red ni wasm: Web Audio API + lamejs.
+ */
+export async function convertToWhatsAppAudio(input: Blob): Promise<Blob> {
+  const { encodeBlobToMp3 } = await import('./mp3Encode');
+  return encodeBlobToMp3(input);
+}
+
+/** Alias retrocompatible (ya no produce OGG; produce MP3 válido). */
+export const convertToOggOpus = convertToWhatsAppAudio;
+
+/**
+ * Prepara una grabación del micrófono para enviarla por WhatsApp.
+ * Siempre devuelve un contenedor que Meta puede decodificar.
+ */
 export async function prepareRecordedAudioForWhatsApp(input: Blob): Promise<Blob> {
-  // Do not trust MediaRecorder's MIME type alone. Some mobile browsers report
-  // audio/ogg while writing MP4 bytes, which Meta accepts but recipients get a
-  // broken voice note. Only skip conversion when the actual bytes are OGG.
-  if (await isRealOggContainer(input)) return input;
-
-  const { isIOS, encodeBlobToMp3 } = await import('./mp3Encode');
-
-  // iOS records *fragmented* MP4 (no leading moov atom). Meta accepts the
-  // upload but the recipient gets an unplayable bubble, and ffmpeg.wasm can't
-  // run on iOS (no SharedArrayBuffer). Re-encode to MP3, which WhatsApp plays.
-  if (isIOS()) {
-    try {
-      return await encodeBlobToMp3(input);
-    } catch (err) {
-      console.warn('[audioConvert] MP3 encode failed on iOS, sending original:', err);
-      if (isAlreadyWhatsAppCompatible(input)) return input;
-      throw err;
-    }
+  if (!input || input.size === 0) {
+    throw new Error('La grabación quedó vacía. Intenta grabar de nuevo.');
   }
 
+  const original = await sniffAudioContainer(input);
+
+  // MP3 ya es óptimo: no re-codificamos.
+  if (original.container === 'mp3') return input;
+
   try {
-    const converted = await convertToOggOpus(input);
-    if (!(await isRealOggContainer(converted))) {
-      throw new Error('La conversión del audio no generó un archivo OGG válido.');
-    }
-    return converted;
+    const mp3 = await convertToWhatsAppAudio(input);
+    const sniffed = await sniffAudioContainer(mp3);
+    if (sniffed.container !== 'mp3') throw new Error('La codificación MP3 no produjo un archivo válido.');
+    return mp3;
   } catch (err) {
-    // Fallback: ffmpeg.wasm unavailable → try the pure-JS MP3 encoder before
-    // giving up, so the recipient always gets playable audio.
-    try {
-      return await encodeBlobToMp3(input);
-    } catch (mp3Err) {
-      console.warn('[audioConvert] MP3 fallback failed:', mp3Err);
-    }
-    const originalContainer = await sniffAudioContainer(input);
-    if (originalContainer.container !== 'webm' && originalContainer.container !== 'unknown') {
-      console.warn('[audioConvert] ffmpeg unavailable, sending original blob as-is:', input.type, err);
+    console.warn('[audioConvert] MP3 encode failed:', err);
+    // Último recurso: si el contenedor original ya es seguro para Meta, lo
+    // enviamos tal cual en vez de fallar (mejor que no enviar nada).
+    if (SAFE_CONTAINERS.has(original.container)) return input;
+    if (original.container === 'mp4') {
+      // MP4 de MediaRecorder puede ser fragmentado; aún así Meta suele
+      // reproducirlo mejor que un error. Se envía como último recurso.
       return input;
     }
-    throw new Error('Este dispositivo generó un audio WebM que no se pudo convertir a MP3 u OGG.');
+    throw new Error('No se pudo procesar el audio en este dispositivo. Grábalo de nuevo e inténtalo otra vez.');
   }
 }
 
-
+/**
+ * Prepara un archivo de audio adjuntado por el usuario.
+ * Los formatos ya compatibles se envían tal cual (evita re-codificar archivos
+ * grandes); WebM o desconocidos se convierten a MP3.
+ */
 export async function prepareAttachedAudioForWhatsApp(file: File): Promise<File> {
   const sniffedInput = await sniffAudioContainer(file);
-  // Already a container WhatsApp can decode and correctly labelled → send as-is.
-  if (sniffedInput.container !== 'webm' && sniffedInput.container !== 'unknown') {
-    const base = file.name.replace(/\.[^.]+$/, '') || 'audio';
+  const base = file.name.replace(/\.[^.]+$/, '') || 'audio';
+
+  if (SAFE_CONTAINERS.has(sniffedInput.container) || sniffedInput.container === 'mp4') {
     return new File([file], `${base}.${sniffedInput.ext}`, { type: sniffedInput.mime });
   }
 
   const converted = await prepareRecordedAudioForWhatsApp(file);
   const sniffed = await sniffAudioContainer(converted);
-  return new File([converted], `${file.name.replace(/\.[^.]+$/, '') || 'audio'}.${sniffed.ext}`, {
-    type: sniffed.mime,
-  });
+  return new File([converted], `${base}.${sniffed.ext}`, { type: sniffed.mime });
 }
 
 /**
- * Returns true if the blob is already a proper WhatsApp-compatible
- * container (OGG, MP4/M4A, MP3, AAC, AMR) and does not need conversion.
+ * Devuelve true si el blob ya es un contenedor compatible con WhatsApp.
  */
 export function isAlreadyWhatsAppCompatible(blob: Blob): boolean {
   const t = (blob.type || '').toLowerCase();
   if (!t) return false;
-  if (t.includes('webm')) return false; // needs conversion
+  if (t.includes('webm')) return false;
   return (
     t.includes('ogg') ||
     t.includes('mp4') ||
