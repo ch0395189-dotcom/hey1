@@ -59,7 +59,54 @@ export function WhatsAppButtonDialog({ open, onOpenChange, onSend }: WhatsAppBut
   const [footerText, setFooterText] = useState("");
   const [ctaText, setCtaText] = useState("Abrir WhatsApp");
   const [sending, setSending] = useState(false);
+  const [saved, setSaved] = useState<SavedButton[]>([]);
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (open) setSaved(loadSaved());
+  }, [open]);
+
+  const persist = (list: SavedButton[]) => {
+    setSaved(list);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    } catch { /* almacenamiento no disponible */ }
+  };
+
+  const applySaved = (b: SavedButton) => {
+    setPhone(b.phone);
+    setPrefilled(b.prefilled);
+    setBodyText(b.bodyText);
+    setFooterText(b.footerText);
+    setCtaText(b.ctaText);
+  };
+
+  const saveCurrent = () => {
+    const d = phone.replace(/\D/g, "");
+    if (d.length < 10 || !bodyText.trim() || !ctaText.trim()) {
+      toast({
+        title: "Faltan datos",
+        description: "Completa número, mensaje y texto del botón antes de guardar.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const entry: SavedButton = {
+      id: crypto.randomUUID(),
+      label: `${ctaText.trim()} · +${d}`,
+      phone: d,
+      prefilled,
+      bodyText,
+      footerText,
+      ctaText,
+    };
+    const next = [entry, ...saved.filter((s) => !(s.phone === d && s.ctaText === ctaText))].slice(0, 10);
+    persist(next);
+    toast({ title: "Botón guardado", description: "Podrás reutilizarlo con un solo toque." });
+  };
+
+  const removeSaved = (id: string) => persist(saved.filter((s) => s.id !== id));
+
 
   const digits = phone.replace(/\D/g, "");
   const waUrl = digits
