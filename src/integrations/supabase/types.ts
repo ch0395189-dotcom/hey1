@@ -1753,6 +1753,7 @@ export type Database = {
           expires_at: string | null
           id: string
           mode: string
+          operator: string | null
           paid_at: string | null
           payment_reference: string | null
           payment_status: string
@@ -1780,6 +1781,7 @@ export type Database = {
           expires_at?: string | null
           id?: string
           mode?: string
+          operator?: string | null
           paid_at?: string | null
           payment_reference?: string | null
           payment_status?: string
@@ -1807,6 +1809,7 @@ export type Database = {
           expires_at?: string | null
           id?: string
           mode?: string
+          operator?: string | null
           paid_at?: string | null
           payment_reference?: string | null
           payment_status?: string
