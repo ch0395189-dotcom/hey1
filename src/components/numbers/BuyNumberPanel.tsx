@@ -123,7 +123,6 @@ export const BuyNumberPanel = () => {
   const [costUsd, setCostUsd] = useState<string | null>(null);
   const [stock, setStock] = useState<number | null>(null);
   const [operators, setOperators] = useState<{ name: string; count: number }[]>([]);
-  const [loadingOps, setLoadingOps] = useState(false);
   const [checkingStock, setCheckingStock] = useState(false);
   const [attachOrder, setAttachOrder] = useState<string | null>(null);
   const [bizName, setBizName] = useState("");
