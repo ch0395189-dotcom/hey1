@@ -414,7 +414,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
       (window as any).requestIdleCallback
         ? (window as any).requestIdleCallback(cb, { timeout: 3000 })
         : window.setTimeout(cb, 1500);
-    idle(() => preloadFFmpeg());
+    idle(() => preloadAudioEncoder());
   }, [audioSupported]);
 
   // Detect if user has Fish Audio voice cloning configured
