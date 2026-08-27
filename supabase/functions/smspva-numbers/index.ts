@@ -46,6 +46,29 @@ function rentPeriod(daysRaw: number) {
   return { dtype: "week", dcount: String(Math.max(1, Math.ceil(days / 7))) };
 }
 
+// Indicativos internacionales por país (fallback cuando el proveedor no lo devuelve)
+const DIAL: Record<string, string> = {
+  co: "57", mx: "52", us: "1", es: "34", ar: "54", pe: "51", cl: "56", br: "55",
+  ec: "593", uk: "44", ve: "58", pa: "507", cr: "506", do: "1", gt: "502", hn: "504",
+  sv: "503", bo: "591", py: "595", uy: "598", pr: "1", ca: "1", de: "49", fr: "33",
+  it: "39", pt: "351", nl: "31", be: "32", ch: "41", at: "43", se: "46", no: "47",
+  dk: "45", fi: "358", ie: "353", pl: "48", cz: "420", sk: "421", hu: "36", ro: "40",
+  bg: "359", gr: "30", hr: "385", rs: "381", ua: "380", ru: "7", tr: "90", il: "972",
+  ae: "971", sa: "966", qa: "974", kw: "965", eg: "20", ma: "212", dz: "213", ng: "234",
+  gh: "233", ke: "254", za: "27", sn: "221", ci: "225", cm: "237", in: "91", id: "62",
+  my: "60", sg: "65", th: "66", vn: "84", ph: "63", hk: "852", tw: "886", jp: "81",
+  au: "61", nz: "64", kz: "7", uz: "998",
+};
+
+// Normaliza el número: solo dígitos y siempre con el indicativo del país al inicio
+function normalizePhone(country: string, rawPhone: unknown, rawCc: unknown) {
+  let phone = String(rawPhone ?? "").replace(/\D/g, "");
+  let cc = String(rawCc ?? "").replace(/\D/g, "");
+  if (!cc) cc = DIAL[String(country || "").toLowerCase()] || "";
+  if (cc && phone && !phone.startsWith(cc)) phone = cc + phone;
+  return { phone, cc };
+}
+
 // Cuenta de números por operador para un servicio
 function operatorCounts(data: any, service: string) {
   const rows: any[] = Array.isArray(data?.data) ? data.data : [];
