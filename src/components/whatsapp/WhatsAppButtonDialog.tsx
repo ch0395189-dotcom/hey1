@@ -59,6 +59,7 @@ export function WhatsAppButtonDialog({ open, onOpenChange, onSend }: WhatsAppBut
   const [bodyText, setBodyText] = useState("Toca el botón para hablar directamente con un asesor.");
   const [footerText, setFooterText] = useState("");
   const [ctaText, setCtaText] = useState("Abrir WhatsApp");
+  const [includeLogo, setIncludeLogo] = useState(true);
   const [sending, setSending] = useState(false);
   const [saved, setSaved] = useState<SavedButton[]>([]);
   const { toast } = useToast();
@@ -141,6 +142,7 @@ export function WhatsAppButtonDialog({ open, onOpenChange, onSend }: WhatsAppBut
         ctaUrl: waUrl,
         phone: digits,
         prefilledMessage: prefilled.trim() || undefined,
+        includeLogo,
       });
       onOpenChange(false);
     } catch {
