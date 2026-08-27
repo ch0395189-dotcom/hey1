@@ -895,9 +895,9 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
         description: "Preparando el audio para WhatsApp.",
       });
 
-      // Meta is strict with recorder output: WebM is unsupported and browser-recorded
-      // MP4 can be fragmented, which Meta later reports as application/octet-stream.
-      // Send a real OGG/Opus file unless the recorder already produced OGG.
+      // Meta rechaza WebM y el MP4 fragmentado de los navegadores. Convertimos
+      // siempre a MP3 localmente (sin red ni wasm) para que el envío sea
+      // determinista en cualquier dispositivo.
       let finalBlob: Blob = audioBlob;
 
       console.log('[Audio] Original type:', audioBlob.type, 'size:', audioBlob.size);
@@ -906,8 +906,8 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
         finalBlob = await prepareRecordedAudioForWhatsApp(audioBlob);
         console.log('[Audio] Prepared blob size:', finalBlob.size);
       } catch (convErr) {
-        console.error('[Audio] ffmpeg conversion failed:', convErr);
-        throw new Error('No se pudo convertir el audio a un formato compatible con WhatsApp. Intenta grabarlo de nuevo.');
+        console.error('[Audio] audio prepare failed:', convErr);
+        throw new Error((convErr as Error)?.message || 'No se pudo procesar el audio. Grábalo de nuevo e inténtalo otra vez.');
       }
 
       // Never trust the blob MIME type: upload with the REAL container so Meta
