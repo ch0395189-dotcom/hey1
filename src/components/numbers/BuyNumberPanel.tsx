@@ -108,6 +108,30 @@ interface Order {
 const cop = (n: number) =>
   new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(n);
 
+// Indicativos internacionales por país (fallback si el pedido no trae country_code)
+const DIAL: Record<string, string> = {
+  co: "57", mx: "52", us: "1", es: "34", ar: "54", pe: "51", cl: "56", br: "55",
+  ec: "593", uk: "44", ve: "58", pa: "507", cr: "506", do: "1", gt: "502", hn: "504",
+  sv: "503", bo: "591", py: "595", uy: "598", pr: "1", ca: "1", de: "49", fr: "33",
+  it: "39", pt: "351", nl: "31", be: "32", ch: "41", at: "43", se: "46", no: "47",
+  dk: "45", fi: "358", ie: "353", pl: "48", cz: "420", sk: "421", hu: "36", ro: "40",
+  bg: "359", gr: "30", hr: "385", rs: "381", ua: "380", ru: "7", tr: "90", il: "972",
+  ae: "971", sa: "966", qa: "974", kw: "965", eg: "20", ma: "212", dz: "213", ng: "234",
+  gh: "233", ke: "254", za: "27", sn: "221", ci: "225", cm: "237", in: "91", id: "62",
+  my: "60", sg: "65", th: "66", vn: "84", ph: "63", hk: "852", tw: "886", jp: "81",
+  au: "61", nz: "64", kz: "7", uz: "998",
+};
+
+// Muestra el número siempre como +<indicativo><número>, solo dígitos
+const fmtPhone = (o: { phone_number?: string | null; country_code?: string | null; country?: string }) => {
+  let p = String(o.phone_number ?? "").replace(/\D/g, "");
+  if (!p) return "Pendiente de asignar";
+  let cc = String(o.country_code ?? "").replace(/\D/g, "");
+  if (!cc) cc = DIAL[String(o.country ?? "").toLowerCase()] ?? "";
+  if (cc && !p.startsWith(cc)) p = cc + p;
+  return `+${p}`;
+};
+
 export const BuyNumberPanel = () => {
   const { toast } = useToast();
   const { isAdmin } = useAdminCheck();
