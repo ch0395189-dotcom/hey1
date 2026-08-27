@@ -94,6 +94,7 @@ Deno.serve(async (req) => {
     if (action === "checkout") {
       if (!boldKey) return json({ ok: false, error: "Bold no está configurado" });
 
+      const operator = String(body.operator || "").slice(0, 60);
       const shortId = user.id.replace(/-/g, "").substring(0, 12);
       const reference = `num${shortId}${Date.now().toString(36)}`;
 
@@ -102,6 +103,7 @@ Deno.serve(async (req) => {
         .insert({
           user_id: user.id, provider: "smspva", mode, country, service, days,
           status: "awaiting_payment", payment_status: "pending",
+          operator: operator || null,
           payment_reference: reference, price_cop: price, provider_cost_usd: costUsd,
         })
         .select("*").single();

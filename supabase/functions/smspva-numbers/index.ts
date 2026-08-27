@@ -148,6 +148,7 @@ Deno.serve(async (req) => {
           provider_order_id: providerOrderId, phone_number: phone,
           country_code: countryCode, status: "waiting_sms", expires_at: expiresAt, raw,
           payment_status: isAdmin ? "waived" : "unpaid",
+          operator: operator || null,
         })
         .select("*").single();
       if (insErr) return json({ ok: false, error: insErr.message });
