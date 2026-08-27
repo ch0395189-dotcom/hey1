@@ -23,6 +23,19 @@ export const COUNTRIES = [
   { code: "uk", label: "Reino Unido" },
 ];
 
+export const OPERATORS: Record<string, string[]> = {
+  co: ["Claro", "Movistar", "Tigo", "WOM", "ETB", "Virgin Mobile"],
+  mx: ["Telcel", "Movistar", "AT&T", "Unefon", "Virgin Mobile", "Altan"],
+  us: ["AT&T", "T-Mobile", "Verizon", "Mint Mobile", "Cricket", "Metro by T-Mobile"],
+  es: ["Movistar", "Orange", "Vodafone", "Yoigo", "MásMóvil", "Digi"],
+  ar: ["Claro", "Movistar", "Personal", "Tuenti"],
+  pe: ["Claro", "Movistar", "Entel", "Bitel"],
+  cl: ["Movistar", "Entel", "Claro", "WOM", "VTR"],
+  br: ["Vivo", "Claro", "TIM", "Oi", "Algar"],
+  ec: ["Claro", "Movistar", "CNT", "Tuenti"],
+  uk: ["EE", "O2", "Vodafone", "Three", "giffgaff"],
+};
+
 interface Order {
   id: string;
   mode: string;
@@ -31,6 +44,7 @@ interface Order {
   country_code: string | null;
   status: string;
   sms_code: string | null;
+  operator?: string | null;
   expires_at: string | null;
   created_at: string;
   price_cop?: number | null;
