@@ -277,8 +277,9 @@ Deno.serve(async (req) => {
           });
         }
         providerOrderId = String(d.id ?? d.orderId ?? "");
-        phone = String(d.pnumber ?? d.number ?? "");
-        countryCode = String(d.ccode ?? d.numbercode ?? "").replace("+", "");
+        const norm = normalizePhone(country, d.pnumber ?? d.number, d.ccode ?? d.numbercode);
+        phone = norm.phone;
+        countryCode = norm.cc;
         if (d.until) expiresAt = new Date(Number(d.until) * 1000).toISOString();
       } else {
         const params: Record<string, string> = { metod: "get_number", service, country, apikey };
@@ -289,8 +290,9 @@ Deno.serve(async (req) => {
           return json({ ok: false, error: r.data?.response_text || r.data?.response || "No hay números disponibles", raw: r.data });
         }
         providerOrderId = String(r.data.id);
-        phone = String(r.data.number);
-        countryCode = String(r.data.CountryCode ?? "");
+        const norm = normalizePhone(country, r.data.number, r.data.CountryCode);
+        phone = norm.phone;
+        countryCode = norm.cc;
         expiresAt = new Date(Date.now() + 20 * 60 * 1000).toISOString();
       }
 
@@ -409,13 +411,13 @@ Deno.serve(async (req) => {
 
       const bdRaw = buyResp.data?.data ?? buyResp.data;
       const bd = Array.isArray(bdRaw) ? bdRaw[0] : bdRaw;
-      const fullPhone = String(bd?.number ?? bd?.pnumber ?? "");
       const provOrderId = String(bd?.id ?? buyResp.data?.id ?? "");
-      const ccRaw = String(bd?.ccode ?? bd?.numbercode ?? buyResp.data?.CountryCode ?? "").replace(/\D/g, "");
+      const norm = normalizePhone(country, bd?.number ?? bd?.pnumber, bd?.ccode ?? bd?.numbercode ?? buyResp.data?.CountryCode);
+      const fullPhone = norm.phone;
       if (!fullPhone || !provOrderId) {
         return json({ ok: false, error: buyResp.data?.response_text || "No se pudo obtener número del proveedor", raw: buyResp.data });
       }
-      const cc = ccRaw || "";
+      const cc = norm.cc;
       const local = cc && fullPhone.startsWith(cc) ? fullPhone.slice(cc.length) : fullPhone;
 
       const { data: order } = await admin.from("virtual_number_orders").insert({
