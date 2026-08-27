@@ -1981,7 +1981,10 @@ async function handleAppointmentAnswer(
     .replace(/\{telefono\}/gi, answers.customer_phone || customerIdentifier)
     .replace(/\{fecha\}/gi, answers.appointment_date || '')
     .replace(/\{hora\}/gi, answers.appointment_time || '')
-    .replace(/\{nacimiento\}/gi, answers.birth_date || '');
+    .replace(/\{nacimiento\}/gi, answers.birth_date || '')
+    .replace(/\{pais\}/gi, answers.country || '')
+    .replace(/\{ciudad\}/gi, answers.city || '')
+    .replace(/\{estado\}/gi, answers.state || '');
 
   await sendPlatformMessage(platformAccount, customerIdentifier, confirmation);
   await saveOutboundMessage(supabase, conversationId, confirmation);
