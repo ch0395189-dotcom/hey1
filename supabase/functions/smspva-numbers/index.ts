@@ -80,6 +80,14 @@ Deno.serve(async (req) => {
     if (action === "probe") {
       if (!isAdmin) return json({ ok: false, error: "Solo administradores" });
       const path = String(body.path || "/priemnik.php");
+      if (body.api) {
+        const u = new URL(`https://api.smspva.com${path}`);
+        Object.entries(body.params || {}).forEach(([k, v]) => u.searchParams.set(k, String(v)));
+        const resp = await fetch(u.toString(), { headers: { apikey, Accept: "application/json" } });
+        const t = await resp.text();
+        let d: any; try { d = JSON.parse(t); } catch { d = { raw: t }; }
+        return json({ ok: true, status: resp.status, raw: d });
+      }
       const params = { ...(body.params || {}), apikey } as Record<string, string>;
       const r = await pvaGet(path, params);
       return json({ ok: true, raw: r.data });
