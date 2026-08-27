@@ -2161,7 +2161,7 @@ async function syncAppointmentToGoogleCalendar(
     const endDate = new Date(startDate.getTime() + durationMinutes * 60_000);
     const eventBody = {
       summary: `Cita: ${answers.customer_name || 'Cliente'}`,
-      description: `Cita agendada desde HeyHey\nTeléfono: ${answers.customer_phone || ''}\nFecha de nacimiento: ${answers.birth_date || ''}`,
+      description: `Cita agendada desde HeyHey\nTeléfono: ${answers.customer_phone || ''}\nFecha de nacimiento: ${answers.birth_date || ''}${answers.country ? `\nPaís: ${answers.country}` : ''}${answers.city ? `\nCiudad: ${answers.city}` : ''}${answers.state ? `\nEstado: ${answers.state}` : ''}`,
       start: { dateTime: startDate.toISOString(), timeZone: 'America/Bogota' },
       end: { dateTime: endDate.toISOString(), timeZone: 'America/Bogota' },
       attendees: answers.customer_phone ? [{ email: `${answers.customer_phone.replace(/\D/g, '')}@placeholder.heyhey` }] : undefined,
