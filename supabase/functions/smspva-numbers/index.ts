@@ -76,6 +76,39 @@ Deno.serve(async (req) => {
       return json({ ok: true, count: count.data, price: price.data });
     }
 
+    // ---------- operadores reales del proveedor ----------
+    if (action === "operators") {
+      const [a, b, c] = await Promise.all([
+        pvaGet("/priemnik.php", { metod: "get_operators", service, country, apikey }),
+        pvaGet("/priemnik.php", { metod: "get_count_new", service, country, apikey }),
+        pvaGet("/api/rent.php", { method: "getoperators", apikey, service, country }),
+      ]);
+      const list = new Set<string>();
+      const harvest = (d: any) => {
+        if (!d) return;
+        if (Array.isArray(d)) { d.forEach((x) => harvest(x)); return; }
+        if (typeof d === "string") { if (d && d.length < 40) list.add(d); return; }
+        if (typeof d === "object") {
+          for (const [k, v] of Object.entries(d)) {
+            if (["response", "response_text", "status", "error", "raw", "message"].includes(k)) continue;
+            if (typeof v === "number" || typeof v === "string") {
+              if (isNaN(Number(k)) && k.length < 40) list.add(k);
+            } else harvest(v);
+          }
+        }
+      };
+      harvest(a.data?.operators ?? a.data?.data ?? a.data);
+      harvest(b.data?.operators ?? b.data?.data?.operators);
+      harvest(c.data?.data ?? c.data?.operators);
+      list.delete("online"); list.delete("total"); list.delete("forOnline");
+      return json({
+        ok: true,
+        operators: [...list].sort(),
+        raw: isAdmin ? { get_operators: a.data, get_count_new: b.data, rent: c.data } : undefined,
+      });
+    }
+
+
     // ---------- comprar / alquilar ----------
     if (action === "buy") {
       const paidOrderId = String(body.paid_order_id || "");
