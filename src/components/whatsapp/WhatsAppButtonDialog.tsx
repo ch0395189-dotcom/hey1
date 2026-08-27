@@ -255,9 +255,12 @@ export function WhatsAppButtonDialog({ open, onOpenChange, onSend }: WhatsAppBut
           )}
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="gap-2 sm:gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={sending}>
             Cancelar
+          </Button>
+          <Button variant="secondary" onClick={saveCurrent} disabled={sending}>
+            <Bookmark className="w-4 h-4 mr-2" /> Guardar botón
           </Button>
           <Button onClick={handleSend} disabled={sending}>
             {sending ? (
