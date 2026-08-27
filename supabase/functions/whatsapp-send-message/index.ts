@@ -117,7 +117,9 @@ function buildInteractivePayload(interactive: InteractiveMessage, recipientPhone
       ...basePayload,
       interactive: {
         type: 'cta_url',
-        ...(interactive.headerText ? {
+        ...(interactive.headerImageUrl ? {
+          header: { type: 'image', image: { link: interactive.headerImageUrl } },
+        } : interactive.headerText ? {
           header: { type: 'text', text: interactive.headerText },
         } : {}),
         body: { text: interactive.bodyText },

@@ -22,6 +22,7 @@ export interface WhatsAppButtonData {
   ctaUrl: string;
   phone: string;
   prefilledMessage?: string;
+  includeLogo?: boolean;
 }
 
 interface WhatsAppButtonDialogProps {
