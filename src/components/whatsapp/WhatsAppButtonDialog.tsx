@@ -163,6 +163,38 @@ export function WhatsAppButtonDialog({ open, onOpenChange, onSend }: WhatsAppBut
         </DialogHeader>
 
         <div className="space-y-4 py-2">
+          {saved.length > 0 && (
+            <div className="space-y-2 rounded-lg border p-3 bg-muted/40">
+              <Label className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
+                <Star className="w-3.5 h-3.5" /> Botones guardados
+              </Label>
+              <div className="flex flex-col gap-2">
+                {saved.map((b) => (
+                  <div key={b.id} className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 justify-start truncate"
+                      onClick={() => applySaved(b)}
+                    >
+                      {b.label}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Eliminar botón guardado"
+                      onClick={() => removeSaved(b.id)}
+                    >
+                      <Trash2 className="w-4 h-4 text-destructive" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label htmlFor="wa-btn-phone">Número destino</Label>
             <Input
