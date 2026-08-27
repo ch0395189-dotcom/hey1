@@ -92,8 +92,8 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const action: string = body.action || "";
     const service: string = String(body.service || "opt20"); // opt20 = WhatsApp
-    const country: string = String(body.country || "co").toLowerCase();
-    const mode: "activation" | "rent" = body.mode === "rent" ? "rent" : "activation";
+    let country: string = String(body.country || "co").toLowerCase();
+    let mode: "activation" | "rent" = body.mode === "rent" ? "rent" : "activation";
 
     // ---------- balance ----------
     if (action === "balance") {
@@ -203,7 +203,8 @@ Deno.serve(async (req) => {
     // ---------- comprar / alquilar ----------
     if (action === "buy") {
       const paidOrderId = String(body.paid_order_id || "");
-      const operator = String(body.operator || "").slice(0, 60);
+      let operator = String(body.operator || "").slice(0, 60);
+      let requestedDays = Number(body.days || 30);
       let paidOrder: Json | null = null;
       if (!isAdmin) {
         if (!paidOrderId) {
@@ -221,6 +222,15 @@ Deno.serve(async (req) => {
         if (po && !po.phone_number) paidOrder = po;
       }
 
+      // A paid order is authoritative. This prevents the UI's current filters
+      // from changing the country, modality, period or provider after checkout.
+      if (paidOrder) {
+        country = String(paidOrder.country || country).toLowerCase();
+        mode = paidOrder.mode === "rent" ? "rent" : "activation";
+        operator = String(paidOrder.operator || operator).slice(0, 60);
+        requestedDays = Number(paidOrder.days || requestedDays || 30);
+      }
+
       let providerOrderId = "";
       let phone = "";
       let countryCode = "";
@@ -228,7 +238,7 @@ Deno.serve(async (req) => {
       let raw: Json = {};
 
       if (mode === "rent") {
-        const { dtype, dcount } = rentPeriod(Number(body.days || 30));
+        const { dtype, dcount } = rentPeriod(requestedDays);
         const params: Record<string, string> = {
           method: "create", apikey, service, country: country.toUpperCase(), dtype, dcount,
         };
