@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Camera, Video, Mic, MicOff, Square } from 'lucide-react';
-import { prepareRecordedAudioForWhatsApp } from '@/utils/audioConvert';
+import { prepareRecordedAudioForWhatsApp, sniffAudioContainer } from '@/utils/audioConvert';
 
 interface MediaCaptureButtonsProps {
   onMediaCaptured: (url: string, type: string) => void;
