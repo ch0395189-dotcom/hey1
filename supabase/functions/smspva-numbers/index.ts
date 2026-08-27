@@ -79,6 +79,7 @@ Deno.serve(async (req) => {
     // ---------- comprar / alquilar ----------
     if (action === "buy") {
       const paidOrderId = String(body.paid_order_id || "");
+      const operator = String(body.operator || "").slice(0, 60);
       let paidOrder: Json | null = null;
       if (!isAdmin) {
         if (!paidOrderId) {
@@ -132,6 +133,7 @@ Deno.serve(async (req) => {
           .update({
             provider_order_id: providerOrderId, phone_number: phone,
             country_code: countryCode, status: "waiting_sms", expires_at: expiresAt, raw,
+            operator: operator || paidOrder.operator || null,
           })
           .eq("id", paidOrder.id)
           .select("*").single();
@@ -146,6 +148,7 @@ Deno.serve(async (req) => {
           provider_order_id: providerOrderId, phone_number: phone,
           country_code: countryCode, status: "waiting_sms", expires_at: expiresAt, raw,
           payment_status: isAdmin ? "waived" : "unpaid",
+          operator: operator || null,
         })
         .select("*").single();
       if (insErr) return json({ ok: false, error: insErr.message });

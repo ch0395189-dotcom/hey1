@@ -23,6 +23,19 @@ export const COUNTRIES = [
   { code: "uk", label: "Reino Unido" },
 ];
 
+export const OPERATORS: Record<string, string[]> = {
+  co: ["Claro", "Movistar", "Tigo", "WOM", "ETB", "Virgin Mobile"],
+  mx: ["Telcel", "Movistar", "AT&T", "Unefon", "Virgin Mobile", "Altan"],
+  us: ["AT&T", "T-Mobile", "Verizon", "Mint Mobile", "Cricket", "Metro by T-Mobile"],
+  es: ["Movistar", "Orange", "Vodafone", "Yoigo", "MásMóvil", "Digi"],
+  ar: ["Claro", "Movistar", "Personal", "Tuenti"],
+  pe: ["Claro", "Movistar", "Entel", "Bitel"],
+  cl: ["Movistar", "Entel", "Claro", "WOM", "VTR"],
+  br: ["Vivo", "Claro", "TIM", "Oi", "Algar"],
+  ec: ["Claro", "Movistar", "CNT", "Tuenti"],
+  uk: ["EE", "O2", "Vodafone", "Three", "giffgaff"],
+};
+
 interface Order {
   id: string;
   mode: string;
@@ -31,6 +44,7 @@ interface Order {
   country_code: string | null;
   status: string;
   sms_code: string | null;
+  operator?: string | null;
   expires_at: string | null;
   created_at: string;
   price_cop?: number | null;
@@ -46,6 +60,7 @@ export const BuyNumberPanel = () => {
   const { isAdmin } = useAdminCheck();
   const [mode, setMode] = useState<"activation" | "rent">("rent");
   const [country, setCountry] = useState("co");
+  const [operator, setOperator] = useState("");
   const [days, setDays] = useState("30");
   const [busy, setBusy] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -75,10 +90,10 @@ export const BuyNumberPanel = () => {
   const loadOrders = useCallback(async () => {
     const { data } = await supabase
       .from("virtual_number_orders")
-      .select("id, mode, country, phone_number, country_code, status, sms_code, expires_at, created_at, price_cop, payment_status, whatsapp_account_id")
+      .select("id, mode, country, phone_number, country_code, status, sms_code, expires_at, created_at, price_cop, payment_status, whatsapp_account_id, operator")
       .order("created_at", { ascending: false })
       .limit(20);
-    setOrders((data ?? []) as Order[]);
+    setOrders((data ?? []) as unknown as Order[]);
   }, []);
 
   useEffect(() => { loadOrders(); }, [loadOrders]);
@@ -154,7 +169,7 @@ export const BuyNumberPanel = () => {
       const { data, error } = await supabase.functions.invoke("bold-checkout-number", {
         body: {
           action: "checkout",
-          mode, country, days: Number(days) || 30,
+          mode, country, days: Number(days) || 30, operator,
           successUrl: `${window.location.origin}/dashboard?view=whatsapp&number_paid=1`,
           cancelUrl: window.location.href,
         },
@@ -189,7 +204,7 @@ export const BuyNumberPanel = () => {
     setBusy(true);
     try {
       const r = await call("buy", {
-        mode, country, service: "opt20", days,
+        mode, country, service: "opt20", days, operator,
       });
       const order = r.order as Order;
       toast({ title: "Número comprado (sin pago)", description: `+${order.phone_number}` });
@@ -302,11 +317,23 @@ export const BuyNumberPanel = () => {
             </div>
             <div className="space-y-1">
               <Label>País</Label>
-              <Select value={country} onValueChange={setCountry}>
+              <Select value={country} onValueChange={(v) => { setCountry(v); setOperator(""); }}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {COUNTRIES.map((c) => (
                     <SelectItem key={c.code} value={c.code}>{c.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label>Operador (opcional)</Label>
+              <Select value={operator || "any"} onValueChange={(v) => setOperator(v === "any" ? "" : v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="any">Cualquiera</SelectItem>
+                  {(OPERATORS[country] ?? []).map((op) => (
+                    <SelectItem key={op} value={op}>{op}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -406,6 +433,7 @@ export const BuyNumberPanel = () => {
                     <div className="flex flex-wrap items-center gap-2 text-muted-foreground">
                       <Badge variant="secondary">{o.mode === "rent" ? "Alquiler" : "Activación"}</Badge>
                       <Badge variant="outline">{o.country.toUpperCase()}</Badge>
+                      {o.operator && <Badge variant="outline">{o.operator}</Badge>}
                       <Badge variant={o.status === "received" || o.status === "completed" ? "default" : "secondary"}>
                         {o.status}
                       </Badge>
