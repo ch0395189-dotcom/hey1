@@ -101,17 +101,46 @@ Deno.serve(async (req) => {
       return json({ ok: true, balance: r.data?.balance ?? null, raw: r.data });
     }
 
-    // ---------- disponibilidad / precio ----------
-    if (action === "availability") {
-      const cc = country.toUpperCase();
-      if (mode === "rent") {
-        const days = Number(body.days || 30);
+    // Proveedores externos que SMSPVA tiene integrados (Foxtrot, etc.)
+    const externalProviders = async (cc: string, days: number) => {
+      try {
         const { dtype, dcount } = rentPeriod(days);
         const r = await pvaGet("/api/rent.php", { method: "getdataWithProviders", apikey, country: cc, dtype, dcount });
         const svc = (r.data?.data?.services ?? []).find((x: any) => x?.service === service);
         const countMap = svc?.count && !Array.isArray(svc.count) ? svc.count : {};
-        const ops = Object.entries(countMap).map(([name, n]) => ({ name, count: Number(n) || 0 }))
-          .filter((o) => o.count > 0)
+        return Object.entries(countMap).map(([name, n]) => ({
+          name,
+          count: Number(n) || 0,
+          kind: "provider" as const,
+        }));
+      } catch {
+        return [] as { name: string; count: number; kind: "provider" }[];
+      }
+    };
+
+    const mergeLists = (
+      ops: { name: string; count: number }[],
+      provs: { name: string; count: number; kind: "provider" }[],
+    ) => {
+      const seen = new Set(ops.map((o) => o.name.toLowerCase()));
+      const merged: { name: string; count: number; kind: "operator" | "provider" }[] = [
+        ...ops.map((o) => ({ ...o, kind: "operator" as const })),
+      ];
+      for (const p of provs) if (!seen.has(p.name.toLowerCase())) merged.push(p);
+      merged.sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+      return merged;
+    };
+
+    // ---------- disponibilidad / precio ----------
+    if (action === "availability") {
+      const cc = country.toUpperCase();
+      const days = Number(body.days || 30);
+      if (mode === "rent") {
+        const { dtype, dcount } = rentPeriod(days);
+        const r = await pvaGet("/api/rent.php", { method: "getdataWithProviders", apikey, country: cc, dtype, dcount });
+        const svc = (r.data?.data?.services ?? []).find((x: any) => x?.service === service);
+        const countMap = svc?.count && !Array.isArray(svc.count) ? svc.count : {};
+        const ops = Object.entries(countMap).map(([name, n]) => ({ name, count: Number(n) || 0, kind: "provider" as const }))
           .sort((a, b) => b.count - a.count);
         return json({
           ok: true,
@@ -120,17 +149,18 @@ Deno.serve(async (req) => {
           price: { price: svc?.price_day != null ? String(Number(svc.price_day) * days) : null },
         });
       }
-      const [counts, price, legacy] = await Promise.all([
+      const [counts, price, legacy, provs] = await Promise.all([
         pvaApi(`/activation/countnumbers/${cc}`, apikey),
         pvaGet("/priemnik.php", { metod: "get_service_price", service, country, apikey }),
         pvaGet("/priemnik.php", { metod: "get_count_new", service, country, apikey }),
+        externalProviders(cc, days),
       ]);
       const { total, operators } = operatorCounts(counts.data, service);
       const legacyCount = Number(legacy.data?.online ?? legacy.data?.total ?? 0);
       return json({
         ok: true,
         total: total || (Number.isFinite(legacyCount) ? legacyCount : 0),
-        operators,
+        operators: mergeLists(operators, provs),
         count: legacy.data,
         price: price.data,
       });
@@ -139,18 +169,19 @@ Deno.serve(async (req) => {
     // ---------- operadores reales por país ----------
     if (action === "operators") {
       const cc = country.toUpperCase();
-      const [ops, counts] = await Promise.all([
+      const [ops, counts, provs] = await Promise.all([
         pvaApi(`/activation/operators/${cc}`, apikey),
         pvaApi(`/activation/countnumbers/${cc}`, apikey),
+        externalProviders(cc, Number(body.days || 30)),
       ]);
       const names: string[] = ops.data?.data?.operators ?? [];
       const { total, operators } = operatorCounts(counts.data, service);
       const byName = new Map(operators.map((o) => [o.name, o.count]));
       const list = names.map((name) => ({ name, count: byName.get(name) ?? 0 }));
       for (const o of operators) if (!names.includes(o.name)) list.push(o);
-      list.sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
-      return json({ ok: true, country: cc, total, operators: list });
+      return json({ ok: true, country: cc, total, operators: mergeLists(list, provs) });
     }
+
 
     // ---------- sonda de diagnóstico (solo admin) ----------
     if (action === "probe") {
