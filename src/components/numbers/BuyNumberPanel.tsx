@@ -111,7 +111,7 @@ const cop = (n: number) =>
 export const BuyNumberPanel = () => {
   const { toast } = useToast();
   const { isAdmin } = useAdminCheck();
-  const [mode, setMode] = useState<"activation" | "rent">("rent");
+  const [mode, setMode] = useState<"activation" | "rent">("activation");
   const [country, setCountry] = useState("co");
   const [operator, setOperator] = useState("");
   const [days, setDays] = useState("30");
@@ -176,7 +176,7 @@ export const BuyNumberPanel = () => {
   const checkAvailability = useCallback(async () => {
     setCheckingStock(true);
     try {
-      const r = await call("availability", { country, service: "opt20" });
+      const r = await call("availability", { country, service: "opt20", mode, days: Number(days) || 30 });
       const total = Number((r as any).total ?? 0);
       setStock(Number.isFinite(total) ? total : null);
       const ops = ((r as any).operators ?? []) as { name: string; count: number }[];
@@ -191,7 +191,7 @@ export const BuyNumberPanel = () => {
     } finally {
       setCheckingStock(false);
     }
-  }, [country]);
+  }, [country, mode, days]);
 
   useEffect(() => { checkAvailability(); }, [checkAvailability]);
 
@@ -366,8 +366,8 @@ export const BuyNumberPanel = () => {
               <Select value={mode} onValueChange={(v) => setMode(v as "activation" | "rent")}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="activation">Activación temporal (recomendado)</SelectItem>
                   <SelectItem value="rent">Alquiler largo plazo</SelectItem>
-                  <SelectItem value="activation">Activación temporal</SelectItem>
                 </SelectContent>
               </Select>
             </div>

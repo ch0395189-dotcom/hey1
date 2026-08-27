@@ -104,6 +104,22 @@ Deno.serve(async (req) => {
     // ---------- disponibilidad / precio ----------
     if (action === "availability") {
       const cc = country.toUpperCase();
+      if (mode === "rent") {
+        const days = Number(body.days || 30);
+        const { dtype, dcount } = rentPeriod(days);
+        const r = await pvaGet("/api/rent.php", { method: "getdataWithProviders", apikey, country: cc, dtype, dcount });
+        const svc = (r.data?.data?.services ?? []).find((x: any) => x?.service === service);
+        const countMap = svc?.count && !Array.isArray(svc.count) ? svc.count : {};
+        const ops = Object.entries(countMap).map(([name, n]) => ({ name, count: Number(n) || 0 }))
+          .filter((o) => o.count > 0)
+          .sort((a, b) => b.count - a.count);
+        return json({
+          ok: true,
+          total: Number(svc?.totalCount ?? 0),
+          operators: ops,
+          price: { price: svc?.price_day != null ? String(Number(svc.price_day) * days) : null },
+        });
+      }
       const [counts, price, legacy] = await Promise.all([
         pvaApi(`/activation/countnumbers/${cc}`, apikey),
         pvaGet("/priemnik.php", { metod: "get_service_price", service, country, apikey }),
