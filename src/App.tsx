@@ -23,6 +23,7 @@ const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const UpdatePassword = lazy(() => import("./pages/UpdatePassword"));
 const Install = lazy(() => import("./pages/Install"));
 const Descargar = lazy(() => import("./pages/Descargar"));
+const BuyNumber = lazy(() => import("./pages/BuyNumber"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const OAuthConsent = lazy(() => import("./pages/OAuthConsent"));
 const GoogleCalendarReturn = lazy(() => import("./pages/oauth/GoogleCalendarReturn"));
@@ -98,6 +99,7 @@ const App = () => {
               <Route path="/admin/inbox/:userId" element={<AdminInbox />} />
               <Route path="/admin/impersonate/:userId" element={<AdminImpersonate />} />
               <Route path="/admin/payments" element={<Payments />} />
+              <Route path="/comprar-numero" element={<BuyNumber />} />
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/terms" element={<Terms />} />
               <Route path="/data-deletion" element={<DataDeletion />} />

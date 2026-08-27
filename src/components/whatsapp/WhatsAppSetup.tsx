@@ -1122,7 +1122,7 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
                             className="w-full mt-2"
                             onClick={() => {
                               setLastError(null);
-                              setActiveTab("buy");
+                              window.open("/comprar-numero", "_blank", "noopener");
                             }}
                           >
                             <ShoppingCart className="w-4 h-4 mr-2" />
@@ -1148,7 +1148,7 @@ export const WhatsAppSetup = ({ onAccountConnected }: WhatsAppSetupProps) => {
                       className="w-full"
                       onClick={() => {
                         setLastError(null);
-                        setActiveTab("buy");
+                        window.open("/comprar-numero", "_blank", "noopener");
                       }}
                     >
                       <ShoppingCart className="w-4 h-4 mr-2" />
