@@ -278,7 +278,7 @@ export const BuyNumberPanel = () => {
         paid_order_id: orderId,
       });
       const order = r.order as Order;
-      toast({ title: "Número obtenido", description: `+${order.phone_number}` });
+      toast({ title: "Número obtenido", description: fmtPhone(order as Order) });
       await loadOrders();
       startPolling(order.id);
     } catch (e: any) {
@@ -293,7 +293,7 @@ export const BuyNumberPanel = () => {
         mode, country, service: "opt20", days, operator,
       });
       const order = r.order as Order;
-      toast({ title: "Número comprado (sin pago)", description: `+${order.phone_number}` });
+      toast({ title: "Número comprado (sin pago)", description: fmtPhone(order as Order) });
       await loadOrders();
       startPolling(order.id);
     } catch (e: any) {
