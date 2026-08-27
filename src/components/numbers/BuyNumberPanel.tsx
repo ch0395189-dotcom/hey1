@@ -180,7 +180,7 @@ export const BuyNumberPanel = () => {
       const total = Number((r as any).total ?? 0);
       setStock(Number.isFinite(total) ? total : null);
       const ops = ((r as any).operators ?? []) as { name: string; count: number; kind?: string }[];
-      setOperators(ops.filter((o) => o.kind === "provider" || (o.count > 0 && o.count < 9999)));
+      setOperators(ops.filter((o) => o.count > 0));
       const p: any = (r as any).price;
       const val = p?.price ?? p?.cost ?? p?.data?.price ?? null;
       setCostUsd(val != null ? String(val) : null);
@@ -399,7 +399,7 @@ export const BuyNumberPanel = () => {
                   <SelectItem value="any">Cualquiera</SelectItem>
                   {operators.filter((o) => o.kind !== "provider").map((op) => (
                     <SelectItem key={`op-${op.name}`} value={op.name}>
-                      {op.name.replace(/_[A-Z]{2}$/, "")} · {op.count} disp.
+                      {op.name.replace(/_[A-Z]{2}$/, "")} · {op.count >= 9999 ? "stock variable" : `${op.count} disp.`}
                     </SelectItem>
                   ))}
                   {operators.some((o) => o.kind === "provider") && (
@@ -407,7 +407,7 @@ export const BuyNumberPanel = () => {
                       <SelectLabel>Proveedores externos</SelectLabel>
                       {operators.filter((o) => o.kind === "provider").map((op) => (
                         <SelectItem key={`pv-${op.name}`} value={op.name}>
-                          {op.name.replace(/_[A-Z]{2}$/, "")} · {op.count} disp.
+                          {op.name.replace(/_[A-Z]{2}$/, "")} · {op.count >= 9999 ? "stock variable" : `${op.count} disp.`}
                         </SelectItem>
                       ))}
                     </SelectGroup>
