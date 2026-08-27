@@ -76,6 +76,15 @@ Deno.serve(async (req) => {
       return json({ ok: true, count: count.data, price: price.data });
     }
 
+    // ---------- sonda de diagnóstico (solo admin) ----------
+    if (action === "probe") {
+      if (!isAdmin) return json({ ok: false, error: "Solo administradores" });
+      const path = String(body.path || "/priemnik.php");
+      const params = { ...(body.params || {}), apikey } as Record<string, string>;
+      const r = await pvaGet(path, params);
+      return json({ ok: true, raw: r.data });
+    }
+
     // ---------- operadores reales del proveedor ----------
     if (action === "operators") {
       const [a, b, c] = await Promise.all([
