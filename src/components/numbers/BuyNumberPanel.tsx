@@ -108,6 +108,30 @@ interface Order {
 const cop = (n: number) =>
   new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(n);
 
+// Indicativos internacionales por país (fallback si el pedido no trae country_code)
+const DIAL: Record<string, string> = {
+  co: "57", mx: "52", us: "1", es: "34", ar: "54", pe: "51", cl: "56", br: "55",
+  ec: "593", uk: "44", ve: "58", pa: "507", cr: "506", do: "1", gt: "502", hn: "504",
+  sv: "503", bo: "591", py: "595", uy: "598", pr: "1", ca: "1", de: "49", fr: "33",
+  it: "39", pt: "351", nl: "31", be: "32", ch: "41", at: "43", se: "46", no: "47",
+  dk: "45", fi: "358", ie: "353", pl: "48", cz: "420", sk: "421", hu: "36", ro: "40",
+  bg: "359", gr: "30", hr: "385", rs: "381", ua: "380", ru: "7", tr: "90", il: "972",
+  ae: "971", sa: "966", qa: "974", kw: "965", eg: "20", ma: "212", dz: "213", ng: "234",
+  gh: "233", ke: "254", za: "27", sn: "221", ci: "225", cm: "237", in: "91", id: "62",
+  my: "60", sg: "65", th: "66", vn: "84", ph: "63", hk: "852", tw: "886", jp: "81",
+  au: "61", nz: "64", kz: "7", uz: "998",
+};
+
+// Muestra el número siempre como +<indicativo><número>, solo dígitos
+const fmtPhone = (o: { phone_number?: string | null; country_code?: string | null; country?: string }) => {
+  let p = String(o.phone_number ?? "").replace(/\D/g, "");
+  if (!p) return "Pendiente de asignar";
+  let cc = String(o.country_code ?? "").replace(/\D/g, "");
+  if (!cc) cc = DIAL[String(o.country ?? "").toLowerCase()] ?? "";
+  if (cc && !p.startsWith(cc)) p = cc + p;
+  return `+${p}`;
+};
+
 export const BuyNumberPanel = () => {
   const { toast } = useToast();
   const { isAdmin } = useAdminCheck();
@@ -254,7 +278,7 @@ export const BuyNumberPanel = () => {
         paid_order_id: orderId,
       });
       const order = r.order as Order;
-      toast({ title: "Número obtenido", description: `+${order.phone_number}` });
+      toast({ title: "Número obtenido", description: fmtPhone(order as Order) });
       await loadOrders();
       startPolling(order.id);
     } catch (e: any) {
@@ -269,7 +293,7 @@ export const BuyNumberPanel = () => {
         mode, country, service: "opt20", days, operator,
       });
       const order = r.order as Order;
-      toast({ title: "Número comprado (sin pago)", description: `+${order.phone_number}` });
+      toast({ title: "Número comprado (sin pago)", description: fmtPhone(order as Order) });
       await loadOrders();
       startPolling(order.id);
     } catch (e: any) {
@@ -512,9 +536,7 @@ export const BuyNumberPanel = () => {
                   }`}
                 >
                   <div className="space-y-1">
-                    <div className="font-medium">
-                      {o.phone_number ? `+${o.phone_number}` : "Pendiente de asignar"}
-                    </div>
+                    <div className="font-medium">{fmtPhone(o)}</div>
                     <div className="flex flex-wrap items-center gap-2 text-muted-foreground">
                       <Badge variant="secondary">{o.mode === "rent" ? "Alquiler" : "Activación"}</Badge>
                       <Badge variant="outline">{o.country.toUpperCase()}</Badge>
@@ -573,12 +595,10 @@ export const BuyNumberPanel = () => {
               <div className="rounded-md border p-3">
                 <div className="text-xs text-muted-foreground">Número</div>
                 <div className="flex items-center gap-2">
-                  <span className="text-lg font-semibold">
-                    {activeOrder.phone_number ? `+${activeOrder.phone_number}` : "Pendiente de asignar"}
-                  </span>
+                  <span className="text-lg font-semibold">{fmtPhone(activeOrder)}</span>
                   {activeOrder.phone_number && (
                     <Button size="sm" variant="outline" onClick={() => {
-                      navigator.clipboard.writeText(`+${activeOrder.phone_number}`);
+                      navigator.clipboard.writeText(fmtPhone(activeOrder));
                       toast({ title: "Número copiado" });
                     }}>
                       <Copy className="h-4 w-4" />

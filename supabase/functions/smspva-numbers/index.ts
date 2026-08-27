@@ -46,6 +46,29 @@ function rentPeriod(daysRaw: number) {
   return { dtype: "week", dcount: String(Math.max(1, Math.ceil(days / 7))) };
 }
 
+// Indicativos internacionales por país (fallback cuando el proveedor no lo devuelve)
+const DIAL: Record<string, string> = {
+  co: "57", mx: "52", us: "1", es: "34", ar: "54", pe: "51", cl: "56", br: "55",
+  ec: "593", uk: "44", ve: "58", pa: "507", cr: "506", do: "1", gt: "502", hn: "504",
+  sv: "503", bo: "591", py: "595", uy: "598", pr: "1", ca: "1", de: "49", fr: "33",
+  it: "39", pt: "351", nl: "31", be: "32", ch: "41", at: "43", se: "46", no: "47",
+  dk: "45", fi: "358", ie: "353", pl: "48", cz: "420", sk: "421", hu: "36", ro: "40",
+  bg: "359", gr: "30", hr: "385", rs: "381", ua: "380", ru: "7", tr: "90", il: "972",
+  ae: "971", sa: "966", qa: "974", kw: "965", eg: "20", ma: "212", dz: "213", ng: "234",
+  gh: "233", ke: "254", za: "27", sn: "221", ci: "225", cm: "237", in: "91", id: "62",
+  my: "60", sg: "65", th: "66", vn: "84", ph: "63", hk: "852", tw: "886", jp: "81",
+  au: "61", nz: "64", kz: "7", uz: "998",
+};
+
+// Normaliza el número: solo dígitos y siempre con el indicativo del país al inicio
+function normalizePhone(country: string, rawPhone: unknown, rawCc: unknown) {
+  let phone = String(rawPhone ?? "").replace(/\D/g, "");
+  let cc = String(rawCc ?? "").replace(/\D/g, "");
+  if (!cc) cc = DIAL[String(country || "").toLowerCase()] || "";
+  if (cc && phone && !phone.startsWith(cc)) phone = cc + phone;
+  return { phone, cc };
+}
+
 // Cuenta de números por operador para un servicio
 function operatorCounts(data: any, service: string) {
   const rows: any[] = Array.isArray(data?.data) ? data.data : [];
@@ -254,8 +277,9 @@ Deno.serve(async (req) => {
           });
         }
         providerOrderId = String(d.id ?? d.orderId ?? "");
-        phone = String(d.pnumber ?? d.number ?? "");
-        countryCode = String(d.ccode ?? d.numbercode ?? "").replace("+", "");
+        const norm = normalizePhone(country, d.pnumber ?? d.number, d.ccode ?? d.numbercode);
+        phone = norm.phone;
+        countryCode = norm.cc;
         if (d.until) expiresAt = new Date(Number(d.until) * 1000).toISOString();
       } else {
         const params: Record<string, string> = { metod: "get_number", service, country, apikey };
@@ -266,8 +290,9 @@ Deno.serve(async (req) => {
           return json({ ok: false, error: r.data?.response_text || r.data?.response || "No hay números disponibles", raw: r.data });
         }
         providerOrderId = String(r.data.id);
-        phone = String(r.data.number);
-        countryCode = String(r.data.CountryCode ?? "");
+        const norm = normalizePhone(country, r.data.number, r.data.CountryCode);
+        phone = norm.phone;
+        countryCode = norm.cc;
         expiresAt = new Date(Date.now() + 20 * 60 * 1000).toISOString();
       }
 
@@ -386,13 +411,13 @@ Deno.serve(async (req) => {
 
       const bdRaw = buyResp.data?.data ?? buyResp.data;
       const bd = Array.isArray(bdRaw) ? bdRaw[0] : bdRaw;
-      const fullPhone = String(bd?.number ?? bd?.pnumber ?? "");
       const provOrderId = String(bd?.id ?? buyResp.data?.id ?? "");
-      const ccRaw = String(bd?.ccode ?? bd?.numbercode ?? buyResp.data?.CountryCode ?? "").replace(/\D/g, "");
+      const norm = normalizePhone(country, bd?.number ?? bd?.pnumber, bd?.ccode ?? bd?.numbercode ?? buyResp.data?.CountryCode);
+      const fullPhone = norm.phone;
       if (!fullPhone || !provOrderId) {
         return json({ ok: false, error: buyResp.data?.response_text || "No se pudo obtener número del proveedor", raw: buyResp.data });
       }
-      const cc = ccRaw || "";
+      const cc = norm.cc;
       const local = cc && fullPhone.startsWith(cc) ? fullPhone.slice(cc.length) : fullPhone;
 
       const { data: order } = await admin.from("virtual_number_orders").insert({
