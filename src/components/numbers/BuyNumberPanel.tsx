@@ -180,7 +180,7 @@ export const BuyNumberPanel = () => {
       const total = Number((r as any).total ?? 0);
       setStock(Number.isFinite(total) ? total : null);
       const ops = ((r as any).operators ?? []) as { name: string; count: number; kind?: string }[];
-      setOperators(ops.filter((o) => o.kind === "provider" || (o.count > 0 && o.count < 9999)));
+      setOperators(ops.filter((o) => o.count > 0));
       const p: any = (r as any).price;
       const val = p?.price ?? p?.cost ?? p?.data?.price ?? null;
       setCostUsd(val != null ? String(val) : null);
@@ -221,6 +221,9 @@ export const BuyNumberPanel = () => {
 
   const payAndBuy = async () => {
     setBusy(true);
+    // Open the checkout tab from the click itself. Opening it after awaiting the
+    // function response is blocked as a popup by Safari and some mobile browsers.
+    const checkoutTab = window.open("", "_blank");
     try {
       const { data, error } = await supabase.functions.invoke("bold-checkout-number", {
         body: {
@@ -233,10 +236,12 @@ export const BuyNumberPanel = () => {
       if (error) throw new Error(error.message);
       const r = data as { ok?: boolean; error?: string; paymentUrl?: string };
       if (!r?.ok || !r.paymentUrl) throw new Error(r?.error || "No se pudo crear el pago");
+      if (checkoutTab) checkoutTab.location.href = r.paymentUrl;
+      else window.location.href = r.paymentUrl;
       await loadOrders();
-      window.open(r.paymentUrl, "_blank");
       toast({ title: "Pago creado", description: "Al confirmarse, presiona “Obtener número” en el pedido pagado." });
     } catch (e: any) {
+      checkoutTab?.close();
       toast({ title: "Error al crear el pago", description: e.message, variant: "destructive" });
     } finally { setBusy(false); }
   };
@@ -245,7 +250,8 @@ export const BuyNumberPanel = () => {
     setBusy(true);
     try {
       const r = await call("buy", {
-        mode: o.mode, country: o.country, service: "opt20", days, paid_order_id: orderId,
+        mode: o.mode, country: o.country, service: "opt20", operator: o.operator || "",
+        paid_order_id: orderId,
       });
       const order = r.order as Order;
       toast({ title: "Número obtenido", description: `+${order.phone_number}` });
@@ -393,7 +399,7 @@ export const BuyNumberPanel = () => {
                   <SelectItem value="any">Cualquiera</SelectItem>
                   {operators.filter((o) => o.kind !== "provider").map((op) => (
                     <SelectItem key={`op-${op.name}`} value={op.name}>
-                      {op.name.replace(/_[A-Z]{2}$/, "")} · {op.count} disp.
+                      {op.name.replace(/_[A-Z]{2}$/, "")} · {op.count >= 9999 ? "stock variable" : `${op.count} disp.`}
                     </SelectItem>
                   ))}
                   {operators.some((o) => o.kind === "provider") && (
@@ -401,7 +407,7 @@ export const BuyNumberPanel = () => {
                       <SelectLabel>Proveedores externos</SelectLabel>
                       {operators.filter((o) => o.kind === "provider").map((op) => (
                         <SelectItem key={`pv-${op.name}`} value={op.name}>
-                          {op.name.replace(/_[A-Z]{2}$/, "")} · {op.count} disp.
+                          {op.name.replace(/_[A-Z]{2}$/, "")} · {op.count >= 9999 ? "stock variable" : `${op.count} disp.`}
                         </SelectItem>
                       ))}
                     </SelectGroup>

@@ -92,8 +92,8 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const action: string = body.action || "";
     const service: string = String(body.service || "opt20"); // opt20 = WhatsApp
-    const country: string = String(body.country || "co").toLowerCase();
-    const mode: "activation" | "rent" = body.mode === "rent" ? "rent" : "activation";
+    let country: string = String(body.country || "co").toLowerCase();
+    let mode: "activation" | "rent" = body.mode === "rent" ? "rent" : "activation";
 
     // ---------- balance ----------
     if (action === "balance") {
@@ -203,7 +203,8 @@ Deno.serve(async (req) => {
     // ---------- comprar / alquilar ----------
     if (action === "buy") {
       const paidOrderId = String(body.paid_order_id || "");
-      const operator = String(body.operator || "").slice(0, 60);
+      let operator = String(body.operator || "").slice(0, 60);
+      let requestedDays = Number(body.days || 30);
       let paidOrder: Json | null = null;
       if (!isAdmin) {
         if (!paidOrderId) {
@@ -221,6 +222,15 @@ Deno.serve(async (req) => {
         if (po && !po.phone_number) paidOrder = po;
       }
 
+      // A paid order is authoritative. This prevents the UI's current filters
+      // from changing the country, modality, period or provider after checkout.
+      if (paidOrder) {
+        country = String(paidOrder.country || country).toLowerCase();
+        mode = paidOrder.mode === "rent" ? "rent" : "activation";
+        operator = String(paidOrder.operator || operator).slice(0, 60);
+        requestedDays = Number(paidOrder.days || requestedDays || 30);
+      }
+
       let providerOrderId = "";
       let phone = "";
       let countryCode = "";
@@ -228,7 +238,7 @@ Deno.serve(async (req) => {
       let raw: Json = {};
 
       if (mode === "rent") {
-        const { dtype, dcount } = rentPeriod(Number(body.days || 30));
+        const { dtype, dcount } = rentPeriod(requestedDays);
         const params: Record<string, string> = {
           method: "create", apikey, service, country: country.toUpperCase(), dtype, dcount,
         };
@@ -248,7 +258,9 @@ Deno.serve(async (req) => {
         countryCode = String(d.ccode ?? d.numbercode ?? "").replace("+", "");
         if (d.until) expiresAt = new Date(Number(d.until) * 1000).toISOString();
       } else {
-        const r = await pvaGet("/priemnik.php", { metod: "get_number", service, country, apikey });
+        const params: Record<string, string> = { metod: "get_number", service, country, apikey };
+        if (operator) params.operator = operator;
+        const r = await pvaGet("/priemnik.php", params);
         raw = r.data;
         if (Number(r.data?.response) !== 1 || !r.data?.number) {
           return json({ ok: false, error: r.data?.response_text || r.data?.response || "No hay números disponibles", raw: r.data });
@@ -548,12 +560,16 @@ Deno.serve(async (req) => {
         for (let i = 0; i < 20; i++) {
           await sleep(6000);
           const s = order.mode === "rent"
-            ? await pvaGet("/api/rent.php", { method: "getsms", apikey, orderid: String(order.provider_order_id) })
+            ? await pvaGet("/api/rent.php", { method: "sms", apikey, id: String(order.provider_order_id) })
             : await pvaGet("/priemnik.php", {
                 metod: "get_sms", service: order.service, country: order.country,
                 id: String(order.provider_order_id), apikey,
               });
-          const c = s.data?.sms ?? s.data?.data?.code ?? null;
+          const smsList: any[] = s.data?.data?.SmsList ?? s.data?.data?.OtherSms ?? [];
+          const lastSms = Array.isArray(smsList) && smsList.length ? smsList[smsList.length - 1] : null;
+          const smsText = lastSms ? String(lastSms.text ?? lastSms.sms ?? lastSms.message ?? "") : "";
+          const parsedCode = smsText.match(/\b(\d{3}[- ]?\d{3})\b/)?.[1]?.replace(/\D/g, "") ?? null;
+          const c = s.data?.sms ?? s.data?.data?.code ?? parsedCode;
           if (c) { code = String(c).replace(/\D/g, ""); break; }
         }
         if (!code) return { ok: false as const, error: "No llegó el código SMS a tiempo", restricted: false };
