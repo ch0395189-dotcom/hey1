@@ -20,6 +20,7 @@ interface ListOption {
 interface InteractiveMessage {
   type: 'buttons' | 'list' | 'cta_url';
   headerText?: string;
+  headerImageUrl?: string;
   bodyText: string;
   footerText?: string;
   buttons?: ButtonOption[];
