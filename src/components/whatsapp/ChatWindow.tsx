@@ -1040,6 +1040,9 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
             footerText: data.footerText,
             ctaText: data.ctaText,
             ctaUrl: data.ctaUrl,
+            ...(data.includeLogo !== false
+              ? { headerImageUrl: `${window.location.origin}/wa-cta-logo.png` }
+              : {}),
           },
         },
       });

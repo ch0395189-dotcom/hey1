@@ -22,6 +22,7 @@ export interface WhatsAppButtonData {
   ctaUrl: string;
   phone: string;
   prefilledMessage?: string;
+  includeLogo?: boolean;
 }
 
 interface WhatsAppButtonDialogProps {
@@ -58,6 +59,7 @@ export function WhatsAppButtonDialog({ open, onOpenChange, onSend }: WhatsAppBut
   const [bodyText, setBodyText] = useState("Toca el botón para hablar directamente con un asesor.");
   const [footerText, setFooterText] = useState("");
   const [ctaText, setCtaText] = useState("Abrir WhatsApp");
+  const [includeLogo, setIncludeLogo] = useState(true);
   const [sending, setSending] = useState(false);
   const [saved, setSaved] = useState<SavedButton[]>([]);
   const { toast } = useToast();
@@ -140,6 +142,7 @@ export function WhatsAppButtonDialog({ open, onOpenChange, onSend }: WhatsAppBut
         ctaUrl: waUrl,
         phone: digits,
         prefilledMessage: prefilled.trim() || undefined,
+        includeLogo,
       });
       onOpenChange(false);
     } catch {
@@ -247,6 +250,25 @@ export function WhatsAppButtonDialog({ open, onOpenChange, onSend }: WhatsAppBut
               />
             </div>
           </div>
+
+          <button
+            type="button"
+            onClick={() => setIncludeLogo((v) => !v)}
+            className={`flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-colors ${
+              includeLogo ? "border-green-500/50 bg-green-500/10" : "border-border bg-muted/40"
+            }`}
+          >
+            <img src="/wa-cta-logo.png" alt="Logo de WhatsApp" width={40} height={40} loading="lazy" className="shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-medium">Incluir logo de WhatsApp</p>
+              <p className="text-xs text-muted-foreground">
+                El cliente recibe el logo tipo sticker; al tocar el botón abre el chat automáticamente.
+              </p>
+            </div>
+            <span className={`flex h-5 w-5 items-center justify-center rounded-full border text-xs ${
+              includeLogo ? "border-green-500 bg-green-500 text-white" : "border-muted-foreground/40 text-transparent"
+            }`}>✓</span>
+          </button>
 
           {waUrl && (
             <p className="text-xs text-muted-foreground break-all">
