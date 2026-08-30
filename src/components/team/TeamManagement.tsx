@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { RoundRobinSettings } from "@/components/team/RoundRobinSettings";
-import { UserPlus, Trash2, KeyRound, Users, Loader2, ShieldCheck } from "lucide-react";
+import { UserPlus, Trash2, KeyRound, Users, Loader2, ShieldCheck, Pencil } from "lucide-react";
 
 const PLAN_LABEL: Record<string, string> = {
   starter: "Starter",
