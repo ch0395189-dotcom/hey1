@@ -33,10 +33,10 @@ function sanitizeRole(input: unknown): TeamRole {
 }
 
 const ROLE_PERMISSIONS: Record<TeamRole, Record<string, boolean>> = {
-  admin: { block_contacts: true, tag_contacts: true, create_tags: true, archive_conversations: true, view_contacts: true, view_statistics: true },
-  supervisor: { block_contacts: true, tag_contacts: true, create_tags: true, archive_conversations: true, view_contacts: true, view_statistics: true },
-  agent: { block_contacts: false, tag_contacts: true, create_tags: false, archive_conversations: true, view_contacts: false, view_statistics: false },
-  viewer: { block_contacts: false, tag_contacts: false, create_tags: false, archive_conversations: false, view_contacts: false, view_statistics: false },
+  admin: { block_contacts: true, tag_contacts: true, create_tags: true, archive_conversations: true, view_contacts: true, view_statistics: true, only_assigned_chats: false },
+  supervisor: { block_contacts: true, tag_contacts: true, create_tags: true, archive_conversations: true, view_contacts: true, view_statistics: true, only_assigned_chats: false },
+  agent: { block_contacts: false, tag_contacts: true, create_tags: false, archive_conversations: true, view_contacts: false, view_statistics: false, only_assigned_chats: true },
+  viewer: { block_contacts: false, tag_contacts: false, create_tags: false, archive_conversations: false, view_contacts: false, view_statistics: false, only_assigned_chats: true },
 };
 
 /** A role never grants more than its ceiling. */

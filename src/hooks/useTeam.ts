@@ -29,6 +29,7 @@ export const ROLE_PERMISSIONS: Record<TeamRole, AgentPermissions> = {
     archive_conversations: true,
     view_contacts: true,
     view_statistics: true,
+    only_assigned_chats: false,
   },
   supervisor: {
     block_contacts: true,
@@ -37,6 +38,7 @@ export const ROLE_PERMISSIONS: Record<TeamRole, AgentPermissions> = {
     archive_conversations: true,
     view_contacts: true,
     view_statistics: true,
+    only_assigned_chats: false,
   },
   agent: {
     block_contacts: false,
@@ -45,6 +47,7 @@ export const ROLE_PERMISSIONS: Record<TeamRole, AgentPermissions> = {
     archive_conversations: true,
     view_contacts: false,
     view_statistics: false,
+    only_assigned_chats: true,
   },
   viewer: {
     block_contacts: false,
@@ -53,6 +56,7 @@ export const ROLE_PERMISSIONS: Record<TeamRole, AgentPermissions> = {
     archive_conversations: false,
     view_contacts: false,
     view_statistics: false,
+    only_assigned_chats: true,
   },
 };
 
@@ -63,6 +67,7 @@ export const DEFAULT_PERMISSIONS: AgentPermissions = {
   archive_conversations: false,
   view_contacts: false,
   view_statistics: false,
+  only_assigned_chats: false,
 };
 
 export interface TeamAgent {
@@ -92,6 +97,7 @@ const normalizePermissions = (raw: any): AgentPermissions => ({
   archive_conversations: Boolean(raw?.archive_conversations),
   view_contacts: Boolean(raw?.view_contacts),
   view_statistics: Boolean(raw?.view_statistics),
+  only_assigned_chats: Boolean(raw?.only_assigned_chats),
 });
 
 const normalizeRole = (raw: any): TeamRole =>

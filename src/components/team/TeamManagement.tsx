@@ -47,6 +47,7 @@ const PERMISSION_LABELS: { key: keyof AgentPermissions; title: string; descripti
   { key: "archive_conversations", title: "Archivar conversaciones", description: "Archivar y desarchivar sus chats asignados." },
   { key: "view_contacts", title: "Ver Contactos", description: "Acceso a la sección de Contactos." },
   { key: "view_statistics", title: "Ver Estadísticas", description: "Acceso a la sección de Estadísticas." },
+  { key: "only_assigned_chats", title: "Solo chats asignados", description: "En la bandeja solo verá las conversaciones que le asignen." },
 ];
 
 const RoleSelector = ({ value, onChange }: { value: TeamRole; onChange: (r: TeamRole) => void }) => (
