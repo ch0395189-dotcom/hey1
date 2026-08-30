@@ -5,7 +5,15 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Search, Plus, Archive, Inbox, MessageCircle, RefreshCw, CheckSquare, Trash2, X, Ban, Mic, Image as ImageIcon, Video, FileText, MapPin, User as UserIcon, Smile, Sticker as StickerIcon, Paperclip, ListChecks, ThumbsUp, Smartphone, Download, Sparkles } from "lucide-react";
+import { Search, Plus, Archive, Inbox, MessageCircle, RefreshCw, CheckSquare, Trash2, X, Ban, Mic, Image as ImageIcon, Video, FileText, MapPin, User as UserIcon, Smile, Sticker as StickerIcon, Paperclip, ListChecks, ThumbsUp, Smartphone, Download, Sparkles, UserCog } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Tag as TagIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -619,6 +627,33 @@ export const ConversationsList = ({
     }
   };
 
+  const handleBulkAssign = async (agentId: string | null) => {
+    if (selectedIds.size === 0) return;
+    setBulkLoading(true);
+    try {
+      const ids = Array.from(selectedIds);
+      for (const id of ids) {
+        const { error } = await supabase.rpc('assign_conversation', {
+          p_conversation_id: id,
+          p_agent_user_id: agentId as any,
+        });
+        if (error) throw error;
+      }
+      toast.success(
+        agentId
+          ? `${ids.length} conversación(es) asignada(s)`
+          : `${ids.length} conversación(es) sin asignar`
+      );
+      exitSelectMode();
+      fetchConversations();
+    } catch (error: any) {
+      console.error('Error assigning:', error);
+      toast.error(error?.message || 'Error al asignar conversaciones');
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
   const maybeSendReport = async (
     convs: Conversation[],
     reason: string,
@@ -963,6 +998,46 @@ export const ConversationsList = ({
               <Ban className="w-3.5 h-3.5 mr-1" />
               {viewMode === 'blocked' ? 'Desbloquear' : 'Bloquear'}
             </Button>
+            )}
+            {!isAgent && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0"
+                  disabled={selectedIds.size === 0 || bulkLoading}
+                >
+                  <UserCog className="w-3.5 h-3.5 mr-1" />
+                  Asignar a
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="bg-card w-56 z-50">
+                <DropdownMenuLabel>Asignar {selectedIds.size} chat(s) a</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {myUserId && (
+                  <DropdownMenuItem onClick={() => handleBulkAssign(myUserId)}>
+                    Yo (propietario)
+                  </DropdownMenuItem>
+                )}
+                {Object.entries(agentsById).map(([id, a]) => (
+                  <DropdownMenuItem key={id} onClick={() => handleBulkAssign(id)}>
+                    <span className="flex items-center gap-2 min-w-0">
+                      <span
+                        className="w-2.5 h-2.5 rounded-full shrink-0"
+                        style={{ backgroundColor: a.color }}
+                        aria-hidden="true"
+                      />
+                      <span className="truncate">{a.name}</span>
+                    </span>
+                  </DropdownMenuItem>
+                ))}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => handleBulkAssign(null)} className="text-muted-foreground">
+                  Sin asignar
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             )}
             {!isAgent && (
             <Button 
