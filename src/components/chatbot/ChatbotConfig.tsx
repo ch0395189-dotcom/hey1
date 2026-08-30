@@ -48,6 +48,10 @@ export const ChatbotConfig = ({ whatsappAccountId, whatsappAccountName }: Chatbo
   const [accountPhone, setAccountPhone] = useState<string | undefined>(undefined);
   const { plan } = usePlanLimits();
   const voiceAgentEnabled = plan === 'esoterico_pro' || plan === 'esoterico_rental';
+  const { isAgent, myUserId, agents } = useTeam();
+  // null = bot del dueño (principal). Para agentes, siempre es su propio user id.
+  const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
+  const effectiveAgentId = isAgent ? myUserId : selectedAgentId;
   const [config, setConfig] = useState<ChatbotConfigData>({
     whatsapp_account_id: whatsappAccountId,
     name: 'Mi Chatbot',
@@ -66,18 +70,37 @@ export const ChatbotConfig = ({ whatsappAccountId, whatsappAccountName }: Chatbo
   useEffect(() => {
     fetchConfig();
     fetchConsent();
-  }, [whatsappAccountId]);
+  }, [whatsappAccountId, effectiveAgentId]);
 
   const fetchConfig = async () => {
     setLoading(true);
-    const { data, error } = await supabase
+    let query = supabase
       .from('chatbot_configs')
       .select('*')
-      .eq('whatsapp_account_id', whatsappAccountId)
-      .single();
+      .eq('whatsapp_account_id', whatsappAccountId);
+    if (effectiveAgentId) {
+      query = query.eq('agent_user_id', effectiveAgentId);
+    } else {
+      query = query.is('agent_user_id', null);
+    }
+    const { data, error } = await query.maybeSingle();
 
     if (data) {
       setConfig(data as ChatbotConfigData);
+    } else {
+      // No config yet for this scope: reset to defaults.
+      setConfig({
+        whatsapp_account_id: whatsappAccountId,
+        name: isAgent && effectiveAgentId ? 'Mi Chatbot' : 'Bot principal',
+        is_enabled: false,
+        mode: 'manual',
+        ai_system_prompt: 'Eres un asistente amable y profesional. Responde de manera concisa y útil.',
+        ai_greeting: '¡Hola! Soy un asistente virtual. ¿En qué puedo ayudarte?',
+        escalation_keywords: ['agente', 'humano', 'persona', 'hablar con alguien'],
+        welcome_message: '¡Hola! Bienvenido. ¿En qué puedo ayudarte?',
+        fallback_message: 'No entendí tu mensaje. ¿Podrías reformularlo?',
+        auto_end_on_leaf: false,
+      });
     }
     setLoading(false);
   };
