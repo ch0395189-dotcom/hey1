@@ -203,6 +203,27 @@ export const TeamManagement = () => {
     refresh();
   };
 
+  const saveProfile = async () => {
+    if (!editTarget) return;
+    const email = editEmail.trim();
+    if (!email) {
+      toast({ title: "Email requerido", variant: "destructive" });
+      return;
+    }
+    setSubmitting(true);
+    const { data, error } = await supabase.functions.invoke("team-invite-agent", {
+      body: { action: "update_profile", agent_user_id: editTarget.agent_user_id, email, name: editName.trim() },
+    });
+    setSubmitting(false);
+    if (error || (data as any)?.error) {
+      toast({ title: "Error", description: (data as any)?.error || error?.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Información actualizada", description: `El agente ahora usa ${email}.` });
+    setEditTarget(null);
+    refresh();
+  };
+
   return (
     <div className="p-4 md:p-6 max-w-4xl mx-auto w-full">
       <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
