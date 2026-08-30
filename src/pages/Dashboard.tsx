@@ -551,13 +551,14 @@ const Dashboard = () => {
     return <SuspendedServiceScreen plan={suspendedPlan} daysExpired={daysExpired} reason={suspendedReason} />;
   }
 
-  // Bloquear acceso si se agotaron los mensajes del mes (no admins)
-  if (!isAdmin && !msgUsageLoading && msgBlocked && msgUsage) {
+  // Bloquear acceso si se agotaron los mensajes del mes (no admins ni agentes)
+  if (!isAdmin && !isAgent && !msgUsageLoading && msgBlocked && msgUsage) {
     return <MessageLimitBlockScreen usage={msgUsage} plan={suspendedPlan} />;
   }
 
-  // Show setup if no WhatsApp accounts
-  if (hasWhatsAppAccount === false) {
+  // Show setup if no WhatsApp accounts (los agentes nunca ven el asistente
+  // de "usuario nuevo": entran directo a la bandeja del dueño)
+  if (hasWhatsAppAccount === false && !isAgent) {
     return (
       <div className="h-[100dvh] flex bg-background">
         <motion.aside
