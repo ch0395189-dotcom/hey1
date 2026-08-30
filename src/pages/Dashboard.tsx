@@ -213,7 +213,7 @@ const Dashboard = () => {
   usePushHeartbeat();
   const { isSuspended, loading: suspendedLoading, plan: suspendedPlan, daysExpired, reason: suspendedReason } = useSubscriptionGuard();
   const { usage: msgUsage, blocked: msgBlocked, loading: msgUsageLoading } = useMessageLimit();
-  const { isAgent, myPermissions } = useTeam();
+  const { isAgent, myPermissions, loading: teamLoading } = useTeam();
   const canViewContacts = !isAgent || myPermissions.view_contacts;
   const canViewStatistics = !isAgent || myPermissions.view_statistics;
 
@@ -538,7 +538,7 @@ const Dashboard = () => {
     navigate("/");
   };
 
-  if (isInitializing || (!accountCheckFinished && hasWhatsAppAccount === null)) {
+  if (isInitializing || teamLoading || (!accountCheckFinished && hasWhatsAppAccount === null)) {
     return (
       <div className="h-[100dvh] flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
