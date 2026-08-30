@@ -54,6 +54,7 @@ export interface Conversation {
   platform: string;
   platform_account_id: string | null;
   blocked_at: string | null;
+  assigned_to?: string | null;
   last_message?: {
     content: string | null;
     direction: string;
@@ -307,6 +308,23 @@ export const ConversationsList = ({
       setLoading(false);
     }
   }, [viewMode, platform, whatsappAccountId, isAgent, myPermissions.only_assigned_chats, myUserId]);
+
+  // Agent colors (etiqueta por agente) for assigned chats
+  const [agentsById, setAgentsById] = useState<Record<string, { name: string; color: string }>>({});
+
+  useEffect(() => {
+    const loadAgents = async () => {
+      const { data } = await supabase
+        .from('team_agents')
+        .select('agent_user_id, agent_name, agent_email, color');
+      const map: Record<string, { name: string; color: string }> = {};
+      for (const a of (data || []) as any[]) {
+        map[a.agent_user_id] = { name: a.agent_name || a.agent_email, color: a.color || '#6366f1' };
+      }
+      setAgentsById(map);
+    };
+    loadAgents();
+  }, []);
 
   // Load all available tags for the filter
   const fetchAllTags = useCallback(async () => {
@@ -1157,6 +1175,15 @@ export const ConversationsList = ({
                         <Ban className="w-2.5 h-2.5" />
                         Bloqueado
                       </Badge>
+                    )}
+                    {conversation.assigned_to && agentsById[conversation.assigned_to] && (
+                      <span
+                        title={`Asignado a ${agentsById[conversation.assigned_to].name}`}
+                        className="inline-flex items-center gap-1 h-4 px-1.5 rounded-full text-[10px] font-medium text-white max-w-[90px] shrink-0"
+                        style={{ backgroundColor: agentsById[conversation.assigned_to].color }}
+                      >
+                        <span className="truncate">{agentsById[conversation.assigned_to].name}</span>
+                      </span>
                     )}
                     {conversation.tags && conversation.tags.length > 0 && (
                       <div className="flex items-center gap-1 shrink-0">
