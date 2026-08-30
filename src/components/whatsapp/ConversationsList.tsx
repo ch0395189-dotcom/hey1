@@ -5,7 +5,15 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Search, Plus, Archive, Inbox, MessageCircle, RefreshCw, CheckSquare, Trash2, X, Ban, Mic, Image as ImageIcon, Video, FileText, MapPin, User as UserIcon, Smile, Sticker as StickerIcon, Paperclip, ListChecks, ThumbsUp, Smartphone, Download, Sparkles } from "lucide-react";
+import { Search, Plus, Archive, Inbox, MessageCircle, RefreshCw, CheckSquare, Trash2, X, Ban, Mic, Image as ImageIcon, Video, FileText, MapPin, User as UserIcon, Smile, Sticker as StickerIcon, Paperclip, ListChecks, ThumbsUp, Smartphone, Download, Sparkles, UserCog } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Tag as TagIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
