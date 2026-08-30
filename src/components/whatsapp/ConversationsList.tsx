@@ -1000,6 +1000,46 @@ export const ConversationsList = ({
             </Button>
             )}
             {!isAgent && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0"
+                  disabled={selectedIds.size === 0 || bulkLoading}
+                >
+                  <UserCog className="w-3.5 h-3.5 mr-1" />
+                  Asignar a
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="bg-card w-56 z-50">
+                <DropdownMenuLabel>Asignar {selectedIds.size} chat(s) a</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {myUserId && (
+                  <DropdownMenuItem onClick={() => handleBulkAssign(myUserId)}>
+                    Yo (propietario)
+                  </DropdownMenuItem>
+                )}
+                {Object.entries(agentsById).map(([id, a]) => (
+                  <DropdownMenuItem key={id} onClick={() => handleBulkAssign(id)}>
+                    <span className="flex items-center gap-2 min-w-0">
+                      <span
+                        className="w-2.5 h-2.5 rounded-full shrink-0"
+                        style={{ backgroundColor: a.color }}
+                        aria-hidden="true"
+                      />
+                      <span className="truncate">{a.name}</span>
+                    </span>
+                  </DropdownMenuItem>
+                ))}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => handleBulkAssign(null)} className="text-muted-foreground">
+                  Sin asignar
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            )}
+            {!isAgent && (
             <Button 
               variant="destructive" 
               size="sm"
