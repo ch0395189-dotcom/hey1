@@ -376,6 +376,35 @@ export const TeamManagement = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Edit profile dialog */}
+      <Dialog open={!!editTarget} onOpenChange={(o) => { if (!o) setEditTarget(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar información del agente</DialogTitle>
+            <DialogDescription>
+              Cambia el correo o nombre del agente. Si cambias el correo, deberá iniciar sesión con el nuevo.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>Nombre</Label>
+              <Input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Ej. María Pérez" />
+            </div>
+            <div>
+              <Label>Email</Label>
+              <Input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} placeholder="agente@empresa.com" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditTarget(null)} disabled={submitting}>Cancelar</Button>
+            <Button onClick={saveProfile} disabled={submitting}>
+              {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Guardar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Reset password dialog */}
       <Dialog open={!!resetTarget} onOpenChange={(o) => { if (!o) { setResetTarget(null); setResetPwd(""); } }}>
         <DialogContent>
