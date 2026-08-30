@@ -137,12 +137,9 @@ serve(async (req) => {
       const agentUserId = String(body.agent_user_id || "");
       if (!agentUserId) return json({ error: "agent_user_id requerido" }, 200);
 
-      const { data: link } = await admin
-        .from("team_agents")
-        .select("id")
-        .eq("owner_id", ownerId)
-        .eq("agent_user_id", agentUserId)
-        .maybeSingle();
+      let q = admin.from("team_agents").select("id").eq("agent_user_id", agentUserId);
+      if (!isAdmin) q = q.eq("owner_id", ownerId);
+      const { data: link } = await q.maybeSingle();
       if (!link) return json({ error: "Agente no encontrado" }, 200);
 
       // Unassign conversations from this agent
@@ -184,12 +181,9 @@ serve(async (req) => {
         body.permissions ? sanitizePermissions(body.permissions) : ROLE_PERMISSIONS[teamRole],
       );
 
-      const { data: link } = await admin
-        .from("team_agents")
-        .select("id")
-        .eq("owner_id", ownerId)
-        .eq("agent_user_id", agentUserId)
-        .maybeSingle();
+      let q = admin.from("team_agents").select("id").eq("agent_user_id", agentUserId);
+      if (!isAdmin) q = q.eq("owner_id", ownerId);
+      const { data: link } = await q.maybeSingle();
       if (!link) return json({ error: "Agente no encontrado" }, 200);
 
       const { error } = await admin
