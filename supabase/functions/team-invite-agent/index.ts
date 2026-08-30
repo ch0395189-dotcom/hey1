@@ -156,17 +156,18 @@ serve(async (req) => {
       return json({ ok: true });
     }
 
+    // Platform admins can act on any owner's agents (e.g. while impersonating or from admin panel)
+    let { data: isAdmin } = await admin.rpc("has_role", { _user_id: ownerId, _role: "admin" });
+    isAdmin = Boolean(isAdmin);
+
     if (action === "reset_password") {
       const agentUserId = String(body.agent_user_id || "");
       const password = String(body.password || "");
       if (!agentUserId || password.length < 6) return json({ error: "Datos inválidos" }, 200);
 
-      const { data: link } = await admin
-        .from("team_agents")
-        .select("id")
-        .eq("owner_id", ownerId)
-        .eq("agent_user_id", agentUserId)
-        .maybeSingle();
+      let q = admin.from("team_agents").select("id").eq("agent_user_id", agentUserId);
+      if (!isAdmin) q = q.eq("owner_id", ownerId);
+      const { data: link } = await q.maybeSingle();
       if (!link) return json({ error: "Agente no encontrado" }, 200);
 
       const { error } = await admin.auth.admin.updateUserById(agentUserId, { password });
