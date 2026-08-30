@@ -111,6 +111,7 @@ export const useTeam = () => {
   const [isAgent, setIsAgent] = useState(false);
   const [myPermissions, setMyPermissions] = useState<AgentPermissions>(DEFAULT_PERMISSIONS);
   const [myRole, setMyRole] = useState<TeamRole | null>(null);
+  const [myUserId, setMyUserId] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
