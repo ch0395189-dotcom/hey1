@@ -13,12 +13,22 @@ interface Props {
   activeAgents: number;
 }
 
+interface RotationAgent {
+  id: string;
+  agent_name: string | null;
+  agent_email: string;
+  color: string;
+  round_robin_enabled: boolean;
+}
+
 export const RoundRobinSettings = ({ ownerId, plan, activeAgents }: Props) => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [enabled, setEnabled] = useState(false);
   const [includeOwner, setIncludeOwner] = useState(false);
+  const [rotationAgents, setRotationAgents] = useState<RotationAgent[]>([]);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
 
   const isEnterprise = plan === "enterprise";
 
@@ -26,14 +36,23 @@ export const RoundRobinSettings = ({ ownerId, plan, activeAgents }: Props) => {
     let active = true;
     const load = async () => {
       if (!ownerId) return;
-      const { data } = await supabase
-        .from("round_robin_settings")
-        .select("enabled, include_owner")
-        .eq("owner_id", ownerId)
-        .maybeSingle();
+      const [{ data }, { data: list }] = await Promise.all([
+        supabase
+          .from("round_robin_settings")
+          .select("enabled, include_owner")
+          .eq("owner_id", ownerId)
+          .maybeSingle(),
+        supabase
+          .from("team_agents")
+          .select("id, agent_name, agent_email, color, round_robin_enabled")
+          .eq("owner_id", ownerId)
+          .eq("is_active", true)
+          .order("created_at", { ascending: true }),
+      ]);
       if (!active) return;
       setEnabled(!!data?.enabled);
       setIncludeOwner(!!data?.include_owner);
+      setRotationAgents((list ?? []) as RotationAgent[]);
       setLoading(false);
     };
     load();
@@ -41,6 +60,26 @@ export const RoundRobinSettings = ({ ownerId, plan, activeAgents }: Props) => {
       active = false;
     };
   }, [ownerId]);
+
+  const toggleAgent = async (agent: RotationAgent, value: boolean) => {
+    setTogglingId(agent.id);
+    const { error } = await supabase
+      .from("team_agents")
+      .update({ round_robin_enabled: value })
+      .eq("id", agent.id);
+    setTogglingId(null);
+    if (error) {
+      toast({ title: "No se pudo actualizar", description: error.message, variant: "destructive" });
+      return;
+    }
+    setRotationAgents((prev) =>
+      prev.map((a) => (a.id === agent.id ? { ...a, round_robin_enabled: value } : a))
+    );
+    toast({
+      title: value ? "Agente activado en la rotación" : "Agente pausado en la rotación",
+      description: agent.agent_name || agent.agent_email,
+    });
+  };
 
   const save = async (next: { enabled?: boolean; include_owner?: boolean }) => {
     if (!ownerId) return;
