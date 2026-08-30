@@ -104,6 +104,20 @@ serve(async (req) => {
         return json({ error: `Tu plan permite máximo ${limit} agente(s). Mejora tu plan para añadir más.` }, 200);
       }
 
+      // Pick a color different from existing agents: cycle through the palette
+      // and prefer the first color not already used.
+      const AGENT_COLORS = [
+        "#6366f1", "#ec4899", "#f59e0b", "#10b981", "#3b82f6",
+        "#ef4444", "#8b5cf6", "#14b8a6", "#f97316", "#64748b",
+      ];
+      const { data: existing } = await admin
+        .from("team_agents")
+        .select("color")
+        .eq("owner_id", ownerId);
+      const usedColors = new Set((existing ?? []).map((r: any) => r.color));
+      const color = AGENT_COLORS.find((c) => !usedColors.has(c))
+        ?? AGENT_COLORS[(existing?.length ?? 0) % AGENT_COLORS.length];
+
       // Create auth user (auto confirm so they can log in immediately)
       const { data: created, error: createErr } = await admin.auth.admin.createUser({
         email,
@@ -125,6 +139,7 @@ serve(async (req) => {
         is_active: true,
         permissions,
         team_role: teamRole,
+        color,
       });
       if (linkErr) {
         await admin.auth.admin.deleteUser(newUserId);
