@@ -345,6 +345,20 @@ Deno.serve(async (req) => {
                 }
                 conversationId = newConversation.id;
                 isNewConversation = true;
+
+                // Enrutamiento Round Robin (plan Enterprise): asigna el chat
+                // nuevo al siguiente agente del equipo en rotación equitativa.
+                try {
+                  const { data: assignedAgent, error: rrError } = await supabase
+                    .rpc('round_robin_assign', { _conversation_id: conversationId });
+                  if (rrError) {
+                    console.error('round_robin_assign error:', rrError);
+                  } else if (assignedAgent) {
+                    console.log('Round robin assigned conversation', conversationId, 'to', assignedAgent);
+                  }
+                } catch (e) {
+                  console.error('round_robin_assign exception:', e);
+                }
               } else {
                 // Check if this conversation is blocked
                 if (existingConversation.blocked_at) {
