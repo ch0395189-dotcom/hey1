@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { RoundRobinSettings } from "@/components/team/RoundRobinSettings";
-import { UserPlus, Trash2, KeyRound, Users, Loader2, ShieldCheck } from "lucide-react";
+import { UserPlus, Trash2, KeyRound, Users, Loader2, ShieldCheck, Pencil } from "lucide-react";
 
 const PLAN_LABEL: Record<string, string> = {
   starter: "Starter",
@@ -110,6 +110,9 @@ export const TeamManagement = () => {
   const [permsTarget, setPermsTarget] = useState<TeamAgent | null>(null);
   const [permsDraft, setPermsDraft] = useState<AgentPermissions>(DEFAULT_PERMISSIONS);
   const [roleDraft, setRoleDraft] = useState<TeamRole>("agent");
+  const [editTarget, setEditTarget] = useState<TeamAgent | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editEmail, setEditEmail] = useState("");
 
   const applyRole = (role: TeamRole, setPerms: (p: AgentPermissions) => void) => {
     setPerms({ ...ROLE_PERMISSIONS[role] });
@@ -200,6 +203,27 @@ export const TeamManagement = () => {
     refresh();
   };
 
+  const saveProfile = async () => {
+    if (!editTarget) return;
+    const email = editEmail.trim();
+    if (!email) {
+      toast({ title: "Email requerido", variant: "destructive" });
+      return;
+    }
+    setSubmitting(true);
+    const { data, error } = await supabase.functions.invoke("team-invite-agent", {
+      body: { action: "update_profile", agent_user_id: editTarget.agent_user_id, email, name: editName.trim() },
+    });
+    setSubmitting(false);
+    if (error || (data as any)?.error) {
+      toast({ title: "Error", description: (data as any)?.error || error?.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Información actualizada", description: `El agente ahora usa ${email}.` });
+    setEditTarget(null);
+    refresh();
+  };
+
   return (
     <div className="p-4 md:p-6 max-w-4xl mx-auto w-full">
       <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
@@ -260,6 +284,9 @@ export const TeamManagement = () => {
                 <p className="text-sm text-muted-foreground truncate">{a.agent_email}</p>
               </div>
               <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => { setEditTarget(a); setEditName(a.agent_name || ""); setEditEmail(a.agent_email); }}>
+                  <Pencil className="w-4 h-4" />
+                </Button>
                 <Button variant="outline" size="sm" onClick={() => { setPermsTarget(a); setPermsDraft(a.permissions); setRoleDraft(a.team_role); }}>
                   <ShieldCheck className="w-4 h-4" />
                 </Button>
@@ -342,6 +369,35 @@ export const TeamManagement = () => {
           <DialogFooter>
             <Button variant="outline" onClick={() => setPermsTarget(null)} disabled={submitting}>Cancelar</Button>
             <Button onClick={savePermissions} disabled={submitting}>
+              {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Guardar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit profile dialog */}
+      <Dialog open={!!editTarget} onOpenChange={(o) => { if (!o) setEditTarget(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar información del agente</DialogTitle>
+            <DialogDescription>
+              Cambia el correo o nombre del agente. Si cambias el correo, deberá iniciar sesión con el nuevo.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>Nombre</Label>
+              <Input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Ej. María Pérez" />
+            </div>
+            <div>
+              <Label>Email</Label>
+              <Input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} placeholder="agente@empresa.com" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditTarget(null)} disabled={submitting}>Cancelar</Button>
+            <Button onClick={saveProfile} disabled={submitting}>
               {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Guardar
             </Button>
