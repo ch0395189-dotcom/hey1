@@ -14,6 +14,7 @@ const PERMISSION_KEYS = [
   "archive_conversations",
   "view_contacts",
   "view_statistics",
+  "only_assigned_chats",
 ] as const;
 
 function sanitizePermissions(input: unknown): Record<string, boolean> {
@@ -32,10 +33,10 @@ function sanitizeRole(input: unknown): TeamRole {
 }
 
 const ROLE_PERMISSIONS: Record<TeamRole, Record<string, boolean>> = {
-  admin: { block_contacts: true, tag_contacts: true, create_tags: true, archive_conversations: true, view_contacts: true, view_statistics: true },
-  supervisor: { block_contacts: true, tag_contacts: true, create_tags: true, archive_conversations: true, view_contacts: true, view_statistics: true },
-  agent: { block_contacts: false, tag_contacts: true, create_tags: false, archive_conversations: true, view_contacts: false, view_statistics: false },
-  viewer: { block_contacts: false, tag_contacts: false, create_tags: false, archive_conversations: false, view_contacts: false, view_statistics: false },
+  admin: { block_contacts: true, tag_contacts: true, create_tags: true, archive_conversations: true, view_contacts: true, view_statistics: true, only_assigned_chats: false },
+  supervisor: { block_contacts: true, tag_contacts: true, create_tags: true, archive_conversations: true, view_contacts: true, view_statistics: true, only_assigned_chats: false },
+  agent: { block_contacts: false, tag_contacts: true, create_tags: false, archive_conversations: true, view_contacts: false, view_statistics: false, only_assigned_chats: true },
+  viewer: { block_contacts: false, tag_contacts: false, create_tags: false, archive_conversations: false, view_contacts: false, view_statistics: false, only_assigned_chats: true },
 };
 
 /** A role never grants more than its ceiling. */
@@ -137,12 +138,9 @@ serve(async (req) => {
       const agentUserId = String(body.agent_user_id || "");
       if (!agentUserId) return json({ error: "agent_user_id requerido" }, 200);
 
-      const { data: link } = await admin
-        .from("team_agents")
-        .select("id")
-        .eq("owner_id", ownerId)
-        .eq("agent_user_id", agentUserId)
-        .maybeSingle();
+      let q = admin.from("team_agents").select("id").eq("agent_user_id", agentUserId);
+      if (!isAdmin) q = q.eq("owner_id", ownerId);
+      const { data: link } = await q.maybeSingle();
       if (!link) return json({ error: "Agente no encontrado" }, 200);
 
       // Unassign conversations from this agent
@@ -156,17 +154,18 @@ serve(async (req) => {
       return json({ ok: true });
     }
 
+    // Platform admins can act on any owner's agents (e.g. while impersonating or from admin panel)
+    let { data: isAdmin } = await admin.rpc("has_role", { _user_id: ownerId, _role: "admin" });
+    isAdmin = Boolean(isAdmin);
+
     if (action === "reset_password") {
       const agentUserId = String(body.agent_user_id || "");
       const password = String(body.password || "");
       if (!agentUserId || password.length < 6) return json({ error: "Datos inválidos" }, 200);
 
-      const { data: link } = await admin
-        .from("team_agents")
-        .select("id")
-        .eq("owner_id", ownerId)
-        .eq("agent_user_id", agentUserId)
-        .maybeSingle();
+      let q = admin.from("team_agents").select("id").eq("agent_user_id", agentUserId);
+      if (!isAdmin) q = q.eq("owner_id", ownerId);
+      const { data: link } = await q.maybeSingle();
       if (!link) return json({ error: "Agente no encontrado" }, 200);
 
       const { error } = await admin.auth.admin.updateUserById(agentUserId, { password });
@@ -183,12 +182,9 @@ serve(async (req) => {
         body.permissions ? sanitizePermissions(body.permissions) : ROLE_PERMISSIONS[teamRole],
       );
 
-      const { data: link } = await admin
-        .from("team_agents")
-        .select("id")
-        .eq("owner_id", ownerId)
-        .eq("agent_user_id", agentUserId)
-        .maybeSingle();
+      let q = admin.from("team_agents").select("id").eq("agent_user_id", agentUserId);
+      if (!isAdmin) q = q.eq("owner_id", ownerId);
+      const { data: link } = await q.maybeSingle();
       if (!link) return json({ error: "Agente no encontrado" }, 200);
 
       const { error } = await admin

@@ -9,6 +9,7 @@ export interface AgentPermissions {
   archive_conversations: boolean;
   view_contacts: boolean;
   view_statistics: boolean;
+  only_assigned_chats: boolean;
 }
 
 export type TeamRole = "admin" | "supervisor" | "agent" | "viewer";
@@ -28,6 +29,7 @@ export const ROLE_PERMISSIONS: Record<TeamRole, AgentPermissions> = {
     archive_conversations: true,
     view_contacts: true,
     view_statistics: true,
+    only_assigned_chats: false,
   },
   supervisor: {
     block_contacts: true,
@@ -36,6 +38,7 @@ export const ROLE_PERMISSIONS: Record<TeamRole, AgentPermissions> = {
     archive_conversations: true,
     view_contacts: true,
     view_statistics: true,
+    only_assigned_chats: false,
   },
   agent: {
     block_contacts: false,
@@ -44,6 +47,7 @@ export const ROLE_PERMISSIONS: Record<TeamRole, AgentPermissions> = {
     archive_conversations: true,
     view_contacts: false,
     view_statistics: false,
+    only_assigned_chats: true,
   },
   viewer: {
     block_contacts: false,
@@ -52,6 +56,7 @@ export const ROLE_PERMISSIONS: Record<TeamRole, AgentPermissions> = {
     archive_conversations: false,
     view_contacts: false,
     view_statistics: false,
+    only_assigned_chats: true,
   },
 };
 
@@ -62,6 +67,7 @@ export const DEFAULT_PERMISSIONS: AgentPermissions = {
   archive_conversations: false,
   view_contacts: false,
   view_statistics: false,
+  only_assigned_chats: false,
 };
 
 export interface TeamAgent {
@@ -91,6 +97,7 @@ const normalizePermissions = (raw: any): AgentPermissions => ({
   archive_conversations: Boolean(raw?.archive_conversations),
   view_contacts: Boolean(raw?.view_contacts),
   view_statistics: Boolean(raw?.view_statistics),
+  only_assigned_chats: Boolean(raw?.only_assigned_chats),
 });
 
 const normalizeRole = (raw: any): TeamRole =>
@@ -104,6 +111,7 @@ export const useTeam = () => {
   const [isAgent, setIsAgent] = useState(false);
   const [myPermissions, setMyPermissions] = useState<AgentPermissions>(DEFAULT_PERMISSIONS);
   const [myRole, setMyRole] = useState<TeamRole | null>(null);
+  const [myUserId, setMyUserId] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -112,6 +120,7 @@ export const useTeam = () => {
       setLoading(false);
       return;
     }
+    setMyUserId(user.id);
 
     // Am I an agent?
     const { data: meAgent } = await supabase
@@ -161,5 +170,5 @@ export const useTeam = () => {
 
   const canWrite = !isAgent || myRole !== "viewer";
 
-  return { agents, loading, plan, limit, ownerId, isAgent, myPermissions, myRole, canWrite, refresh };
+  return { agents, loading, plan, limit, ownerId, isAgent, myPermissions, myRole, myUserId, canWrite, refresh };
 };
