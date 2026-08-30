@@ -306,7 +306,7 @@ export const ConversationsList = ({
     } finally {
       setLoading(false);
     }
-  }, [viewMode, platform, whatsappAccountId]);
+  }, [viewMode, platform, whatsappAccountId, isAgent, myPermissions.only_assigned_chats, myUserId]);
 
   // Load all available tags for the filter
   const fetchAllTags = useCallback(async () => {
