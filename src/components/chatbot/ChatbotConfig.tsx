@@ -128,38 +128,30 @@ export const ChatbotConfig = ({ whatsappAccountId, whatsappAccountName }: Chatbo
   const saveConfig = async () => {
     setSaving(true);
     try {
+      const payload = {
+        whatsapp_account_id: whatsappAccountId,
+        agent_user_id: effectiveAgentId ?? null,
+        name: config.name,
+        is_enabled: config.is_enabled,
+        mode: config.mode,
+        ai_system_prompt: config.ai_system_prompt,
+        ai_greeting: config.ai_greeting,
+        escalation_keywords: config.escalation_keywords,
+        welcome_message: config.welcome_message,
+        fallback_message: config.fallback_message,
+        auto_end_on_leaf: config.auto_end_on_leaf,
+      };
       if (config.id) {
         const { error } = await supabase
           .from('chatbot_configs')
-          .update({
-            name: config.name,
-            is_enabled: config.is_enabled,
-            mode: config.mode,
-            ai_system_prompt: config.ai_system_prompt,
-            ai_greeting: config.ai_greeting,
-            escalation_keywords: config.escalation_keywords,
-            welcome_message: config.welcome_message,
-            fallback_message: config.fallback_message,
-            auto_end_on_leaf: config.auto_end_on_leaf,
-          })
+          .update(payload)
           .eq('id', config.id);
 
         if (error) throw error;
       } else {
         const { data, error } = await supabase
           .from('chatbot_configs')
-          .insert({
-            whatsapp_account_id: whatsappAccountId,
-            name: config.name,
-            is_enabled: config.is_enabled,
-            mode: config.mode,
-            ai_system_prompt: config.ai_system_prompt,
-            ai_greeting: config.ai_greeting,
-            escalation_keywords: config.escalation_keywords,
-            welcome_message: config.welcome_message,
-            fallback_message: config.fallback_message,
-            auto_end_on_leaf: config.auto_end_on_leaf,
-          })
+          .insert(payload)
           .select()
           .single();
 
