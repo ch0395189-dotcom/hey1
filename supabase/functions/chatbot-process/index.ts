@@ -223,17 +223,28 @@ Deno.serve(async (req) => {
     const currentPlatform = platform || 'whatsapp';
     const customerIdentifier = recipient_id || customer_phone;
 
-    // Get chatbot config - for now, chatbot configs are linked to whatsapp_account_id
-    // For other platforms, we use platform_account_id as whatsapp_account_id
+    // Each agent can have their own bot. Look up the conversation's assignee
+    // and use the agent's bot if one is enabled; otherwise fall back to the
+    // owner's bot (the default for all conversations, backward compatible).
+    let assignedTo: string | null = null;
+    if (conversation_id) {
+      const { data: convRow } = await supabase
+        .from('conversations')
+        .select('assigned_to')
+        .eq('id', conversation_id)
+        .maybeSingle();
+      assignedTo = convRow?.assigned_to ?? null;
+    }
+
     const { data: config, error: configError } = await supabase
-      .from('chatbot_configs')
-      .select('*')
-      .eq('whatsapp_account_id', accountId)
-      .eq('is_enabled', true)
-      .single();
+      .rpc('effective_chatbot_config', {
+        p_account: accountId,
+        p_assigned_to: assignedTo,
+      })
+      .maybeSingle();
 
     if (configError || !config) {
-      console.log('No active chatbot config found for account:', accountId);
+      console.log('No active chatbot config found for account:', accountId, 'assigned_to:', assignedTo);
       return new Response(JSON.stringify({ processed: false, reason: 'no_config' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });

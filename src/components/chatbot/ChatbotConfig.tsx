@@ -18,7 +18,8 @@ import { AIConfig } from './AIConfig';
 import { VoiceAgent } from './VoiceAgent';
 import { ConsentDialog } from './ConsentDialog';
 import { usePlanLimits } from '@/hooks/usePlanLimits';
-import { Lock } from 'lucide-react';
+import { useTeam } from '@/hooks/useTeam';
+import { Lock, UserCircle } from 'lucide-react';
 
 interface ChatbotConfigProps {
   whatsappAccountId: string;
@@ -47,6 +48,10 @@ export const ChatbotConfig = ({ whatsappAccountId, whatsappAccountName }: Chatbo
   const [accountPhone, setAccountPhone] = useState<string | undefined>(undefined);
   const { plan } = usePlanLimits();
   const voiceAgentEnabled = plan === 'esoterico_pro' || plan === 'esoterico_rental';
+  const { isAgent, myUserId, agents } = useTeam();
+  // null = bot del dueño (principal). Para agentes, siempre es su propio user id.
+  const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
+  const effectiveAgentId = isAgent ? myUserId : selectedAgentId;
   const [config, setConfig] = useState<ChatbotConfigData>({
     whatsapp_account_id: whatsappAccountId,
     name: 'Mi Chatbot',
@@ -65,18 +70,37 @@ export const ChatbotConfig = ({ whatsappAccountId, whatsappAccountName }: Chatbo
   useEffect(() => {
     fetchConfig();
     fetchConsent();
-  }, [whatsappAccountId]);
+  }, [whatsappAccountId, effectiveAgentId]);
 
   const fetchConfig = async () => {
     setLoading(true);
-    const { data, error } = await supabase
+    let query = supabase
       .from('chatbot_configs')
       .select('*')
-      .eq('whatsapp_account_id', whatsappAccountId)
-      .single();
+      .eq('whatsapp_account_id', whatsappAccountId);
+    if (effectiveAgentId) {
+      query = query.eq('agent_user_id', effectiveAgentId);
+    } else {
+      query = query.is('agent_user_id', null);
+    }
+    const { data, error } = await query.maybeSingle();
 
     if (data) {
       setConfig(data as ChatbotConfigData);
+    } else {
+      // No config yet for this scope: reset to defaults.
+      setConfig({
+        whatsapp_account_id: whatsappAccountId,
+        name: isAgent && effectiveAgentId ? 'Mi Chatbot' : 'Bot principal',
+        is_enabled: false,
+        mode: 'manual',
+        ai_system_prompt: 'Eres un asistente amable y profesional. Responde de manera concisa y útil.',
+        ai_greeting: '¡Hola! Soy un asistente virtual. ¿En qué puedo ayudarte?',
+        escalation_keywords: ['agente', 'humano', 'persona', 'hablar con alguien'],
+        welcome_message: '¡Hola! Bienvenido. ¿En qué puedo ayudarte?',
+        fallback_message: 'No entendí tu mensaje. ¿Podrías reformularlo?',
+        auto_end_on_leaf: false,
+      });
     }
     setLoading(false);
   };
@@ -104,38 +128,30 @@ export const ChatbotConfig = ({ whatsappAccountId, whatsappAccountName }: Chatbo
   const saveConfig = async () => {
     setSaving(true);
     try {
+      const payload = {
+        whatsapp_account_id: whatsappAccountId,
+        agent_user_id: effectiveAgentId ?? null,
+        name: config.name,
+        is_enabled: config.is_enabled,
+        mode: config.mode,
+        ai_system_prompt: config.ai_system_prompt,
+        ai_greeting: config.ai_greeting,
+        escalation_keywords: config.escalation_keywords,
+        welcome_message: config.welcome_message,
+        fallback_message: config.fallback_message,
+        auto_end_on_leaf: config.auto_end_on_leaf,
+      };
       if (config.id) {
         const { error } = await supabase
           .from('chatbot_configs')
-          .update({
-            name: config.name,
-            is_enabled: config.is_enabled,
-            mode: config.mode,
-            ai_system_prompt: config.ai_system_prompt,
-            ai_greeting: config.ai_greeting,
-            escalation_keywords: config.escalation_keywords,
-            welcome_message: config.welcome_message,
-            fallback_message: config.fallback_message,
-            auto_end_on_leaf: config.auto_end_on_leaf,
-          })
+          .update(payload)
           .eq('id', config.id);
 
         if (error) throw error;
       } else {
         const { data, error } = await supabase
           .from('chatbot_configs')
-          .insert({
-            whatsapp_account_id: whatsappAccountId,
-            name: config.name,
-            is_enabled: config.is_enabled,
-            mode: config.mode,
-            ai_system_prompt: config.ai_system_prompt,
-            ai_greeting: config.ai_greeting,
-            escalation_keywords: config.escalation_keywords,
-            welcome_message: config.welcome_message,
-            fallback_message: config.fallback_message,
-            auto_end_on_leaf: config.auto_end_on_leaf,
-          })
+          .insert(payload)
           .select()
           .single();
 
@@ -178,7 +194,7 @@ export const ChatbotConfig = ({ whatsappAccountId, whatsappAccountName }: Chatbo
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className="text-2xl font-bold flex items-center gap-2">
             <Bot className="h-6 w-6" />
@@ -189,6 +205,30 @@ export const ChatbotConfig = ({ whatsappAccountId, whatsappAccountName }: Chatbo
           </p>
         </div>
         <div className="flex items-center gap-4">
+          {/* Selector de bot: principal (dueño) o bot de un agente */}
+          {isAgent ? (
+            <span className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground border rounded-md px-3 py-1.5">
+              <UserCircle className="h-4 w-4" />
+              Mi bot de agente
+            </span>
+          ) : agents.length > 0 ? (
+            <Select
+              value={selectedAgentId ?? '__owner__'}
+              onValueChange={(v) => setSelectedAgentId(v === '__owner__' ? null : v)}
+            >
+              <SelectTrigger className="w-[220px]">
+                <SelectValue placeholder="Bot principal" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__owner__">Bot principal (dueño)</SelectItem>
+                {agents.map((a) => (
+                  <SelectItem key={a.agent_user_id} value={a.agent_user_id}>
+                    {a.agent_name || a.agent_email}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : null}
           <div className="flex items-center gap-2">
             <Switch
               checked={config.is_enabled}

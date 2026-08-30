@@ -294,6 +294,7 @@ export type Database = {
       }
       chatbot_configs: {
         Row: {
+          agent_user_id: string | null
           ai_greeting: string | null
           ai_system_prompt: string | null
           auto_end_on_leaf: boolean
@@ -309,6 +310,7 @@ export type Database = {
           whatsapp_account_id: string
         }
         Insert: {
+          agent_user_id?: string | null
           ai_greeting?: string | null
           ai_system_prompt?: string | null
           auto_end_on_leaf?: boolean
@@ -324,6 +326,7 @@ export type Database = {
           whatsapp_account_id: string
         }
         Update: {
+          agent_user_id?: string | null
           ai_greeting?: string | null
           ai_system_prompt?: string | null
           auto_end_on_leaf?: boolean
@@ -342,7 +345,7 @@ export type Database = {
           {
             foreignKeyName: "chatbot_configs_whatsapp_account_id_fkey"
             columns: ["whatsapp_account_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "whatsapp_accounts"
             referencedColumns: ["id"]
           },
@@ -2150,6 +2153,7 @@ export type Database = {
         Args: { p_agent_user_id: string; p_conversation_id: string }
         Returns: undefined
       }
+      can_edit_owner_chatbot: { Args: { account_id: string }; Returns: boolean }
       can_manage_chatbot_account: {
         Args: { account_id: string }
         Returns: boolean
@@ -2175,6 +2179,23 @@ export type Database = {
           p_user_id: string
         }
         Returns: boolean
+      }
+      effective_chatbot_config: {
+        Args: { p_account: string; p_assigned_to: string }
+        Returns: {
+          agent_user_id: string
+          ai_greeting: string
+          ai_system_prompt: string
+          auto_end_on_leaf: boolean
+          escalation_keywords: string[]
+          fallback_message: string
+          id: string
+          is_enabled: boolean
+          mode: string
+          name: string
+          welcome_message: string
+          whatsapp_account_id: string
+        }[]
       }
       get_agent_limit: { Args: { _user_id: string }; Returns: number }
       get_conversation_previews: {
