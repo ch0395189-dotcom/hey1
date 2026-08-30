@@ -284,6 +284,9 @@ export const TeamManagement = () => {
                 <p className="text-sm text-muted-foreground truncate">{a.agent_email}</p>
               </div>
               <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => { setEditTarget(a); setEditName(a.agent_name || ""); setEditEmail(a.agent_email); }}>
+                  <Pencil className="w-4 h-4" />
+                </Button>
                 <Button variant="outline" size="sm" onClick={() => { setPermsTarget(a); setPermsDraft(a.permissions); setRoleDraft(a.team_role); }}>
                   <ShieldCheck className="w-4 h-4" />
                 </Button>
