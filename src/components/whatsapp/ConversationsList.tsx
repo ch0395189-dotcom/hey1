@@ -627,6 +627,33 @@ export const ConversationsList = ({
     }
   };
 
+  const handleBulkAssign = async (agentId: string | null) => {
+    if (selectedIds.size === 0) return;
+    setBulkLoading(true);
+    try {
+      const ids = Array.from(selectedIds);
+      for (const id of ids) {
+        const { error } = await supabase.rpc('assign_conversation', {
+          p_conversation_id: id,
+          p_agent_user_id: agentId as any,
+        });
+        if (error) throw error;
+      }
+      toast.success(
+        agentId
+          ? `${ids.length} conversación(es) asignada(s)`
+          : `${ids.length} conversación(es) sin asignar`
+      );
+      exitSelectMode();
+      fetchConversations();
+    } catch (error: any) {
+      console.error('Error assigning:', error);
+      toast.error(error?.message || 'Error al asignar conversaciones');
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
   const maybeSendReport = async (
     convs: Conversation[],
     reason: string,
