@@ -28,6 +28,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { RoundRobinSettings } from "@/components/team/RoundRobinSettings";
 import { UserPlus, Trash2, KeyRound, Users, Loader2, ShieldCheck } from "lucide-react";
 
 const PLAN_LABEL: Record<string, string> = {
@@ -93,7 +94,7 @@ const PermissionsForm = ({
 );
 
 export const TeamManagement = () => {
-  const { agents, loading, plan, limit, refresh, isAgent } = useTeam();
+  const { agents, loading, plan, limit, refresh, isAgent, ownerId } = useTeam();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -214,6 +215,12 @@ export const TeamManagement = () => {
           Añadir agente
         </Button>
       </div>
+
+      <RoundRobinSettings
+        ownerId={ownerId}
+        plan={plan}
+        activeAgents={agents.filter((a) => a.is_active).length}
+      />
 
       {!canAdd && (
         <Card className="p-4 mb-4 bg-muted/50 border-dashed">
