@@ -144,17 +144,28 @@ serve(async (req) => {
 
       let q = admin.from("team_agents").select("id").eq("agent_user_id", agentUserId);
       if (!isAdmin) q = q.eq("owner_id", ownerId);
-      const { data: link } = await q.maybeSingle();
-      if (!link) return json({ error: "Agente no encontrado" }, 200);
+      const { data: links, error: findErr } = await q;
+      if (findErr) return json({ error: `Error buscando agente: ${findErr.message}` }, 200);
+      if (!links || links.length === 0) return json({ error: "Agente no encontrado" }, 200);
 
       // Unassign conversations from this agent
-      await admin
+      const { error: unassignErr } = await admin
         .from("conversations")
         .update({ assigned_to: null })
         .eq("assigned_to", agentUserId);
+      if (unassignErr) console.error("unassign error", unassignErr.message);
 
-      await admin.from("team_agents").delete().eq("id", link.id);
-      await admin.auth.admin.deleteUser(agentUserId);
+      const { error: delLinkErr } = await admin
+        .from("team_agents")
+        .delete()
+        .in("id", links.map((l) => l.id));
+      if (delLinkErr) return json({ error: `No se pudo eliminar el vínculo: ${delLinkErr.message}` }, 200);
+
+      const { error: delUserErr } = await admin.auth.admin.deleteUser(agentUserId);
+      if (delUserErr) {
+        console.error("deleteUser error", delUserErr.message);
+        return json({ ok: true, warning: `Vínculo eliminado, pero el usuario auth no se pudo borrar: ${delUserErr.message}` });
+      }
       return json({ ok: true });
     }
 

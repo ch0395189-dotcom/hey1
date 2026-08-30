@@ -995,8 +995,8 @@ const Dashboard = () => {
       )}
       </div>
 
-      {/* Mobile FAB - Support - hide when conversation is open */}
-      {activeView === 'inbox' && !selectedConversation && (
+      {/* Mobile FAB - Support - hide when conversation is open or user is an agent */}
+      {activeView === 'inbox' && !selectedConversation && !isAgent && (
         <button
           onClick={() => {
             const phone = "573238261825";
