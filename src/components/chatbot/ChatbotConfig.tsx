@@ -18,7 +18,8 @@ import { AIConfig } from './AIConfig';
 import { VoiceAgent } from './VoiceAgent';
 import { ConsentDialog } from './ConsentDialog';
 import { usePlanLimits } from '@/hooks/usePlanLimits';
-import { Lock } from 'lucide-react';
+import { useTeam } from '@/hooks/useTeam';
+import { Lock, UserCircle } from 'lucide-react';
 
 interface ChatbotConfigProps {
   whatsappAccountId: string;
