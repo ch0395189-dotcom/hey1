@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useTeam, AgentPermissions, DEFAULT_PERMISSIONS, TeamAgent, TeamRole, TEAM_ROLES, ROLE_PERMISSIONS } from "@/hooks/useTeam";
+import { useTeam, AgentPermissions, DEFAULT_PERMISSIONS, TeamAgent, TeamRole, TEAM_ROLES, ROLE_PERMISSIONS, AGENT_COLORS } from "@/hooks/useTeam";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { RoundRobinSettings } from "@/components/team/RoundRobinSettings";
-import { UserPlus, Trash2, KeyRound, Users, Loader2, ShieldCheck, Pencil } from "lucide-react";
+import { UserPlus, Trash2, KeyRound, Users, Loader2, ShieldCheck, Pencil, Palette } from "lucide-react";
 
 const PLAN_LABEL: Record<string, string> = {
   starter: "Starter",
@@ -113,6 +113,8 @@ export const TeamManagement = () => {
   const [editTarget, setEditTarget] = useState<TeamAgent | null>(null);
   const [editName, setEditName] = useState("");
   const [editEmail, setEditEmail] = useState("");
+  const [colorTarget, setColorTarget] = useState<TeamAgent | null>(null);
+  const [colorDraft, setColorDraft] = useState<string>(AGENT_COLORS[0]);
 
   const applyRole = (role: TeamRole, setPerms: (p: AgentPermissions) => void) => {
     setPerms({ ...ROLE_PERMISSIONS[role] });
@@ -203,6 +205,23 @@ export const TeamManagement = () => {
     refresh();
   };
 
+  const saveColor = async () => {
+    if (!colorTarget) return;
+    setSubmitting(true);
+    const { error } = await supabase
+      .from("team_agents")
+      .update({ color: colorDraft })
+      .eq("id", colorTarget.id);
+    setSubmitting(false);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Color actualizado" });
+    setColorTarget(null);
+    refresh();
+  };
+
   const saveProfile = async () => {
     if (!editTarget) return;
     const email = editEmail.trim();
@@ -271,6 +290,11 @@ export const TeamManagement = () => {
             <Card key={a.id} className="p-4 flex items-center justify-between gap-3 flex-wrap">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
+                  <span
+                    className="w-3 h-3 rounded-full shrink-0 border border-border"
+                    style={{ backgroundColor: a.color }}
+                    aria-hidden="true"
+                  />
                   <p className="font-medium truncate">{a.agent_name || a.agent_email}</p>
                   {a.is_active ? (
                     <Badge variant="secondary">Activo</Badge>
@@ -284,6 +308,14 @@ export const TeamManagement = () => {
                 <p className="text-sm text-muted-foreground truncate">{a.agent_email}</p>
               </div>
               <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  title="Color del agente"
+                  onClick={() => { setColorTarget(a); setColorDraft(a.color); }}
+                >
+                  <Palette className="w-4 h-4" style={{ color: a.color }} />
+                </Button>
                 <Button variant="outline" size="sm" onClick={() => { setEditTarget(a); setEditName(a.agent_name || ""); setEditEmail(a.agent_email); }}>
                   <Pencil className="w-4 h-4" />
                 </Button>
@@ -398,6 +430,48 @@ export const TeamManagement = () => {
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditTarget(null)} disabled={submitting}>Cancelar</Button>
             <Button onClick={saveProfile} disabled={submitting}>
+              {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Guardar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Color dialog */}
+      <Dialog open={!!colorTarget} onOpenChange={(o) => { if (!o) setColorTarget(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Color del agente</DialogTitle>
+            <DialogDescription>
+              Se mostrará como etiqueta en los chats asignados a {colorTarget?.agent_name || colorTarget?.agent_email}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-wrap gap-2">
+            {AGENT_COLORS.map((c) => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => setColorDraft(c)}
+                aria-label={`Color ${c}`}
+                className={`w-9 h-9 rounded-full border-2 transition-transform ${
+                  colorDraft === c ? "border-foreground scale-110" : "border-transparent"
+                }`}
+                style={{ backgroundColor: c }}
+              />
+            ))}
+          </div>
+          <div className="flex items-center gap-3">
+            <Label className="text-sm">Personalizado</Label>
+            <input
+              type="color"
+              value={colorDraft}
+              onChange={(e) => setColorDraft(e.target.value)}
+              className="h-9 w-16 rounded border border-border bg-transparent p-1"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setColorTarget(null)} disabled={submitting}>Cancelar</Button>
+            <Button onClick={saveColor} disabled={submitting}>
               {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Guardar
             </Button>
