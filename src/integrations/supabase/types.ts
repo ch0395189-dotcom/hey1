@@ -2144,6 +2144,14 @@ export type Database = {
         Args: { p_agent_user_id: string; p_conversation_id: string }
         Returns: undefined
       }
+      can_manage_chatbot_account: {
+        Args: { account_id: string }
+        Returns: boolean
+      }
+      can_manage_chatbot_config: {
+        Args: { config_id: string }
+        Returns: boolean
+      }
       check_message_limit: { Args: { _user_id: string }; Returns: Json }
       clone_chatbot_to_account: {
         Args: {
