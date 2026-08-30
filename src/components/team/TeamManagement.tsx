@@ -110,6 +110,9 @@ export const TeamManagement = () => {
   const [permsTarget, setPermsTarget] = useState<TeamAgent | null>(null);
   const [permsDraft, setPermsDraft] = useState<AgentPermissions>(DEFAULT_PERMISSIONS);
   const [roleDraft, setRoleDraft] = useState<TeamRole>("agent");
+  const [editTarget, setEditTarget] = useState<TeamAgent | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editEmail, setEditEmail] = useState("");
 
   const applyRole = (role: TeamRole, setPerms: (p: AgentPermissions) => void) => {
     setPerms({ ...ROLE_PERMISSIONS[role] });
