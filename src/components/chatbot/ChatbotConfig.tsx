@@ -194,7 +194,7 @@ export const ChatbotConfig = ({ whatsappAccountId, whatsappAccountName }: Chatbo
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className="text-2xl font-bold flex items-center gap-2">
             <Bot className="h-6 w-6" />
@@ -205,6 +205,30 @@ export const ChatbotConfig = ({ whatsappAccountId, whatsappAccountName }: Chatbo
           </p>
         </div>
         <div className="flex items-center gap-4">
+          {/* Selector de bot: principal (dueño) o bot de un agente */}
+          {isAgent ? (
+            <span className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground border rounded-md px-3 py-1.5">
+              <UserCircle className="h-4 w-4" />
+              Mi bot de agente
+            </span>
+          ) : agents.length > 0 ? (
+            <Select
+              value={selectedAgentId ?? '__owner__'}
+              onValueChange={(v) => setSelectedAgentId(v === '__owner__' ? null : v)}
+            >
+              <SelectTrigger className="w-[220px]">
+                <SelectValue placeholder="Bot principal" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__owner__">Bot principal (dueño)</SelectItem>
+                {agents.map((a) => (
+                  <SelectItem key={a.agent_user_id} value={a.agent_user_id}>
+                    {a.agent_name || a.agent_email}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : null}
           <div className="flex items-center gap-2">
             <Switch
               checked={config.is_enabled}
