@@ -822,13 +822,26 @@ Deno.serve(async (req) => {
                 continue; // skip node-based chatbot for this message
               }
 
-              // Check if chatbot is enabled and should process this message
+              // Check if a chatbot is enabled and should process this message.
+              // Each agent may have their own bot; effective_chatbot_config
+              // returns the agent's bot when the conversation is assigned to
+              // an agent with one enabled, otherwise the owner's default bot.
+              let assignedAgentId: string | null = null;
+              try {
+                const { data: convAssign } = await supabase
+                  .from('conversations')
+                  .select('assigned_to')
+                  .eq('id', conversationId)
+                  .maybeSingle();
+                assignedAgentId = convAssign?.assigned_to ?? null;
+              } catch (_e) { /* ignore */ }
+
               const { data: chatbotConfig } = await supabase
-                .from('chatbot_configs')
-                .select('is_enabled')
-                .eq('whatsapp_account_id', whatsappAccount.id)
-                .eq('is_enabled', true)
-                .single();
+                .rpc('effective_chatbot_config', {
+                  p_account: whatsappAccount.id,
+                  p_assigned_to: assignedAgentId,
+                })
+                .maybeSingle();
 
               // Saltar el chatbot para mensajes "unsupported" de Meta (red cruzada / SMS):
               // no tenemos contenido real al que responder.
