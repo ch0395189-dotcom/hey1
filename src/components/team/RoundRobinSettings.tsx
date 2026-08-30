@@ -115,8 +115,9 @@ export const RoundRobinSettings = ({ ownerId, plan, activeAgents }: Props) => {
           <p className="text-sm text-muted-foreground mt-1 max-w-xl">
             Cada chat nuevo que llegue a cualquiera de tus números se asigna automáticamente al
             siguiente agente del equipo, en rotación, sin repetir hasta completar el ciclo.
-            Actualmente hay {activeAgents} agente{activeAgents === 1 ? "" : "s"} activo
-            {activeAgents === 1 ? "" : "s"} en la rotación.
+            Actualmente hay {rotationAgents.filter((a) => a.round_robin_enabled).length} de{" "}
+            {activeAgents} agente{activeAgents === 1 ? "" : "s"} activo
+            {activeAgents === 1 ? "" : "s"} participando en la rotación.
           </p>
         </div>
         {loading ? (
