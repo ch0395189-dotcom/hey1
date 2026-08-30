@@ -58,7 +58,7 @@ const plans: Array<{
       "3 números de WhatsApp",
       "Mensajes ilimitados",
       "10 agentes",
-      "API personalizada",
+      "Enrutamiento Round Robin",
       "Account manager",
     ],
     popular: false,

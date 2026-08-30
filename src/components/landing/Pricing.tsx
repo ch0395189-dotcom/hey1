@@ -103,7 +103,7 @@ const plans: Array<{
       "3 números de WhatsApp",
       "Mensajes ilimitados",
       "10 agentes / subcuentas",
-      "API personalizada",
+      "Enrutamiento Round Robin",
       "Automatizaciones",
       "Integraciones CRM",
       "Account manager",
