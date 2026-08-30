@@ -345,7 +345,21 @@ const Dashboard = () => {
     // Importante: el admin tiene RLS que le permite ver TODAS las cuentas, por eso
     // filtramos explícitamente por el usuario efectivo (o el impersonado) para que
     // no aparezcan números de otros clientes en su bandeja.
-    const effectiveUserId = getImpersonationId() || activeSession?.user?.id || null;
+    let effectiveUserId = getImpersonationId() || activeSession?.user?.id || null;
+
+    // Si el usuario conectado es un agente, trabajar sobre las cuentas de su dueño
+    if (!getImpersonationId() && activeSession?.user?.id) {
+      const { data: agentRow } = await supabase
+        .from('team_agents')
+        .select('owner_id')
+        .eq('agent_user_id', activeSession.user.id)
+        .eq('is_active', true)
+        .maybeSingle();
+      if (agentRow?.owner_id) {
+        effectiveUserId = agentRow.owner_id;
+      }
+    }
+
     const fetchAccounts = async () => {
       return await supabase
         .from('whatsapp_accounts')
