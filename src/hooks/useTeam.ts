@@ -160,12 +160,24 @@ export const useTeam = () => {
     ]);
 
     setPlan(subs?.plan ?? "starter");
-    setAgents(((list ?? []) as any[]).map((a) => ({
-      ...a,
-      permissions: normalizePermissions(a.permissions),
-      team_role: normalizeRole(a.team_role),
-      color: a.color || AGENT_COLORS[0],
-    })));
+    // Ensure each agent shows a distinct color. Use the stored color when unique;
+    // otherwise assign the next available palette color as a visual fallback.
+    const usedColors = new Set<string>();
+    const resolved = ((list ?? []) as any[]).map((a, idx) => {
+      const stored = a.color || AGENT_COLORS[idx % AGENT_COLORS.length];
+      let color = stored;
+      if (usedColors.has(color)) {
+        color = AGENT_COLORS.find((c) => !usedColors.has(c)) ?? stored;
+      }
+      usedColors.add(color);
+      return {
+        ...a,
+        permissions: normalizePermissions(a.permissions),
+        team_role: normalizeRole(a.team_role),
+        color,
+      };
+    });
+    setAgents(resolved);
     setLoading(false);
   }, []);
 
