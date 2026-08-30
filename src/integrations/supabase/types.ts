@@ -1322,6 +1322,36 @@ export type Database = {
         }
         Relationships: []
       }
+      round_robin_settings: {
+        Row: {
+          created_at: string
+          enabled: boolean
+          include_owner: boolean
+          last_agent_user_id: string | null
+          last_assigned_at: string | null
+          owner_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          enabled?: boolean
+          include_owner?: boolean
+          last_agent_user_id?: string | null
+          last_assigned_at?: string | null
+          owner_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          enabled?: boolean
+          include_owner?: boolean
+          last_agent_user_id?: string | null
+          last_assigned_at?: string | null
+          owner_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       scheduled_messages: {
         Row: {
           account_id: string
@@ -2173,6 +2203,10 @@ export type Database = {
       is_agent_of: { Args: { _owner_id: string }; Returns: boolean }
       is_conversation_blocked: { Args: { conv_id: string }; Returns: boolean }
       normalize_phone: { Args: { p: string }; Returns: string }
+      round_robin_assign: {
+        Args: { _conversation_id: string }
+        Returns: string
+      }
       team_member_can_write: { Args: { _user_id: string }; Returns: boolean }
       user_owns_chatbot_config: {
         Args: { config_id: string }
