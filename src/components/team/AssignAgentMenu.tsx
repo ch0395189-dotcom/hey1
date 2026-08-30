@@ -25,6 +25,7 @@ interface AgentOption {
   agent_user_id: string;
   agent_email: string;
   agent_name: string | null;
+  color: string | null;
 }
 
 export const AssignAgentMenu = ({ conversationId, currentAssignee, onAssigned, onOpenChange }: Props) => {
@@ -54,7 +55,7 @@ export const AssignAgentMenu = ({ conversationId, currentAssignee, onAssigned, o
       setIsOwner(true);
       const { data } = await supabase
         .from("team_agents")
-        .select("agent_user_id, agent_email, agent_name")
+        .select("agent_user_id, agent_email, agent_name, color")
         .eq("owner_id", user.id)
         .eq("is_active", true);
       setAgents((data as AgentOption[]) ?? []);
@@ -111,8 +112,13 @@ export const AssignAgentMenu = ({ conversationId, currentAssignee, onAssigned, o
         {agents.map((a) => (
           <DropdownMenuItem key={a.agent_user_id} onClick={() => assign(a.agent_user_id)}>
             {currentAssignee === a.agent_user_id && <Check className="w-3 h-3 mr-2" />}
-            <span className={currentAssignee === a.agent_user_id ? "" : "ml-5"}>
-              {a.agent_name || a.agent_email}
+            <span className={`flex items-center gap-2 min-w-0 ${currentAssignee === a.agent_user_id ? "" : "ml-5"}`}>
+              <span
+                className="w-2.5 h-2.5 rounded-full shrink-0"
+                style={{ backgroundColor: a.color || "#6366f1" }}
+                aria-hidden="true"
+              />
+              <span className="truncate">{a.agent_name || a.agent_email}</span>
             </span>
           </DropdownMenuItem>
         ))}

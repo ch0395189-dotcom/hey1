@@ -12,6 +12,11 @@ export interface AgentPermissions {
   only_assigned_chats: boolean;
 }
 
+export const AGENT_COLORS = [
+  "#6366f1", "#ec4899", "#f59e0b", "#10b981", "#3b82f6",
+  "#ef4444", "#8b5cf6", "#14b8a6", "#f97316", "#64748b",
+];
+
 export type TeamRole = "admin" | "supervisor" | "agent" | "viewer";
 
 export const TEAM_ROLES: { value: TeamRole; label: string; description: string }[] = [
@@ -79,6 +84,7 @@ export interface TeamAgent {
   created_at: string;
   permissions: AgentPermissions;
   team_role: TeamRole;
+  color: string;
 }
 
 const PLAN_LIMITS: Record<string, number> = {
@@ -148,7 +154,7 @@ export const useTeam = () => {
       supabase.from("subscriptions").select("plan").eq("user_id", user.id).maybeSingle(),
       supabase
         .from("team_agents")
-        .select("id, agent_user_id, agent_email, agent_name, is_active, created_at, permissions, team_role")
+        .select("id, agent_user_id, agent_email, agent_name, is_active, created_at, permissions, team_role, color")
         .eq("owner_id", user.id)
         .order("created_at", { ascending: true }),
     ]);
@@ -158,6 +164,7 @@ export const useTeam = () => {
       ...a,
       permissions: normalizePermissions(a.permissions),
       team_role: normalizeRole(a.team_role),
+      color: a.color || AGENT_COLORS[0],
     })));
     setLoading(false);
   }, []);

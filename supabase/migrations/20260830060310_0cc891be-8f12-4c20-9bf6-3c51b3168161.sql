@@ -1,0 +1,1 @@
+ALTER TABLE public.team_agents ADD COLUMN IF NOT EXISTS color text NOT NULL DEFAULT '#6366f1';

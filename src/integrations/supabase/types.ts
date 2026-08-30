@@ -1465,6 +1465,7 @@ export type Database = {
           agent_email: string
           agent_name: string | null
           agent_user_id: string
+          color: string
           created_at: string
           id: string
           is_active: boolean
@@ -1477,6 +1478,7 @@ export type Database = {
           agent_email: string
           agent_name?: string | null
           agent_user_id: string
+          color?: string
           created_at?: string
           id?: string
           is_active?: boolean
@@ -1489,6 +1491,7 @@ export type Database = {
           agent_email?: string
           agent_name?: string | null
           agent_user_id?: string
+          color?: string
           created_at?: string
           id?: string
           is_active?: boolean
