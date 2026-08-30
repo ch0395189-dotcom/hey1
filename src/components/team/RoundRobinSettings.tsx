@@ -140,6 +140,34 @@ export const RoundRobinSettings = ({ ownerId, plan, activeAgents }: Props) => {
           </Label>
         </div>
       )}
+
+      {enabled && !loading && rotationAgents.length > 0 && (
+        <div className="mt-4 pt-4 border-t space-y-2">
+          <p className="text-sm font-medium">Agentes en la rotación</p>
+          <p className="text-xs text-muted-foreground">
+            Pausa manualmente a un agente para que no reciba chats nuevos. Sus chats actuales no cambian.
+          </p>
+          {rotationAgents.map((a) => (
+            <div key={a.id} className="flex items-center justify-between gap-3 py-1.5">
+              <div className="flex items-center gap-2 min-w-0">
+                <span
+                  className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: a.color }}
+                />
+                <span className="text-sm truncate">{a.agent_name || a.agent_email}</span>
+                {!a.round_robin_enabled && (
+                  <Badge variant="outline" className="text-xs">Pausado</Badge>
+                )}
+              </div>
+              <Switch
+                checked={a.round_robin_enabled}
+                disabled={togglingId === a.id}
+                onCheckedChange={(v) => toggleAgent(a, v)}
+              />
+            </div>
+          ))}
+        </div>
+      )}
     </Card>
   );
 };
