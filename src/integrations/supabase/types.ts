@@ -1471,6 +1471,7 @@ export type Database = {
           is_active: boolean
           owner_id: string
           permissions: Json
+          round_robin_enabled: boolean
           team_role: string
           updated_at: string
         }
@@ -1484,6 +1485,7 @@ export type Database = {
           is_active?: boolean
           owner_id: string
           permissions?: Json
+          round_robin_enabled?: boolean
           team_role?: string
           updated_at?: string
         }
@@ -1497,6 +1499,7 @@ export type Database = {
           is_active?: boolean
           owner_id?: string
           permissions?: Json
+          round_robin_enabled?: boolean
           team_role?: string
           updated_at?: string
         }
