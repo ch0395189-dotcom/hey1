@@ -134,6 +134,10 @@ serve(async (req) => {
       return json({ ok: true, agent_user_id: newUserId });
     }
 
+    // Platform admins can act on any owner's agents (e.g. while impersonating or from admin panel)
+    let { data: isAdmin } = await admin.rpc("has_role", { _user_id: ownerId, _role: "admin" });
+    isAdmin = Boolean(isAdmin);
+
     if (action === "remove") {
       const agentUserId = String(body.agent_user_id || "");
       if (!agentUserId) return json({ error: "agent_user_id requerido" }, 200);
@@ -154,9 +158,34 @@ serve(async (req) => {
       return json({ ok: true });
     }
 
-    // Platform admins can act on any owner's agents (e.g. while impersonating or from admin panel)
-    let { data: isAdmin } = await admin.rpc("has_role", { _user_id: ownerId, _role: "admin" });
-    isAdmin = Boolean(isAdmin);
+    if (action === "update_profile") {
+      const agentUserId = String(body.agent_user_id || "");
+      const newEmail = String(body.email || "").trim().toLowerCase();
+      const newName = String(body.name || "").trim();
+      if (!agentUserId) return json({ error: "agent_user_id requerido" }, 200);
+      if (!newEmail) return json({ error: "Email requerido" }, 200);
+
+      let q = admin.from("team_agents").select("id, agent_email, agent_name").eq("agent_user_id", agentUserId);
+      if (!isAdmin) q = q.eq("owner_id", ownerId);
+      const { data: link } = await q.maybeSingle();
+      if (!link) return json({ error: "Agente no encontrado" }, 200);
+
+      const updateFields: Record<string, unknown> = { updated_at: new Date().toISOString() };
+      if (newEmail && newEmail !== link.agent_email) {
+        updateFields.agent_email = newEmail;
+        const { error: emailErr } = await admin.auth.admin.updateUserById(agentUserId, { email: newEmail, email_confirm: true });
+        if (emailErr) return json({ error: emailErr.message }, 200);
+      }
+      if (newName && newName !== link.agent_name) {
+        updateFields.agent_name = newName;
+        const { error: metaErr } = await admin.auth.admin.updateUserById(agentUserId, { user_metadata: { full_name: newName, role: "agent", owner_id: ownerId } });
+        if (metaErr) return json({ error: metaErr.message }, 200);
+      }
+
+      const { error } = await admin.from("team_agents").update(updateFields).eq("id", link.id);
+      if (error) return json({ error: error.message }, 200);
+      return json({ ok: true });
+    }
 
     if (action === "reset_password") {
       const agentUserId = String(body.agent_user_id || "");
