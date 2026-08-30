@@ -213,7 +213,7 @@ const Dashboard = () => {
   usePushHeartbeat();
   const { isSuspended, loading: suspendedLoading, plan: suspendedPlan, daysExpired, reason: suspendedReason } = useSubscriptionGuard();
   const { usage: msgUsage, blocked: msgBlocked, loading: msgUsageLoading } = useMessageLimit();
-  const { isAgent, myPermissions } = useTeam();
+  const { isAgent, myPermissions, loading: teamLoading } = useTeam();
   const canViewContacts = !isAgent || myPermissions.view_contacts;
   const canViewStatistics = !isAgent || myPermissions.view_statistics;
 
@@ -538,7 +538,7 @@ const Dashboard = () => {
     navigate("/");
   };
 
-  if (isInitializing || (!accountCheckFinished && hasWhatsAppAccount === null)) {
+  if (isInitializing || teamLoading || (!accountCheckFinished && hasWhatsAppAccount === null)) {
     return (
       <div className="h-[100dvh] flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -551,13 +551,14 @@ const Dashboard = () => {
     return <SuspendedServiceScreen plan={suspendedPlan} daysExpired={daysExpired} reason={suspendedReason} />;
   }
 
-  // Bloquear acceso si se agotaron los mensajes del mes (no admins)
-  if (!isAdmin && !msgUsageLoading && msgBlocked && msgUsage) {
+  // Bloquear acceso si se agotaron los mensajes del mes (no admins ni agentes)
+  if (!isAdmin && !isAgent && !msgUsageLoading && msgBlocked && msgUsage) {
     return <MessageLimitBlockScreen usage={msgUsage} plan={suspendedPlan} />;
   }
 
-  // Show setup if no WhatsApp accounts
-  if (hasWhatsAppAccount === false) {
+  // Show setup if no WhatsApp accounts (los agentes nunca ven el asistente
+  // de "usuario nuevo": entran directo a la bandeja del dueño)
+  if (hasWhatsAppAccount === false && !isAgent) {
     return (
       <div className="h-[100dvh] flex bg-background">
         <motion.aside
