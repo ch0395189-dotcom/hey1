@@ -88,7 +88,7 @@ export const ConversationsList = ({
   const [conversations, setConversations] = useState<Conversation[]>(
     () => getCachedConversations<Conversation>(cacheKey) || []
   );
-  const { isAgent, myPermissions } = useTeam();
+  const { isAgent, myPermissions, myUserId } = useTeam();
   const canArchive = !isAgent || myPermissions.archive_conversations;
   const canBlock = !isAgent || myPermissions.block_contacts;
   const [searchQuery, setSearchQuery] = useState("");
@@ -242,6 +242,11 @@ export const ConversationsList = ({
 
       if (whatsappAccountId) {
         query = query.eq('whatsapp_account_id', whatsappAccountId);
+      }
+
+      // Agents restricted to only their assigned chats
+      if (isAgent && myPermissions.only_assigned_chats && myUserId) {
+        query = query.eq('assigned_to', myUserId);
       }
 
       const { data, error } = await query;

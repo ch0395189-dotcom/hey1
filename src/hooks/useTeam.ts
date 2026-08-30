@@ -120,6 +120,7 @@ export const useTeam = () => {
       setLoading(false);
       return;
     }
+    setMyUserId(user.id);
 
     // Am I an agent?
     const { data: meAgent } = await supabase
@@ -169,5 +170,5 @@ export const useTeam = () => {
 
   const canWrite = !isAgent || myRole !== "viewer";
 
-  return { agents, loading, plan, limit, ownerId, isAgent, myPermissions, myRole, canWrite, refresh };
+  return { agents, loading, plan, limit, ownerId, isAgent, myPermissions, myRole, myUserId, canWrite, refresh };
 };
