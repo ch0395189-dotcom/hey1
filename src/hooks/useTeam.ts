@@ -9,6 +9,7 @@ export interface AgentPermissions {
   archive_conversations: boolean;
   view_contacts: boolean;
   view_statistics: boolean;
+  only_assigned_chats: boolean;
 }
 
 export type TeamRole = "admin" | "supervisor" | "agent" | "viewer";

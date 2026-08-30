@@ -14,6 +14,7 @@ const PERMISSION_KEYS = [
   "archive_conversations",
   "view_contacts",
   "view_statistics",
+  "only_assigned_chats",
 ] as const;
 
 function sanitizePermissions(input: unknown): Record<string, boolean> {
