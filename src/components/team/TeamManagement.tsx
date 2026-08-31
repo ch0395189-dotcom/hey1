@@ -298,6 +298,17 @@ export const TeamManagement = () => {
         </Button>
       </div>
 
+      <Tabs defaultValue="agents" className="w-full">
+        <TabsList className="mb-4">
+          <TabsTrigger value="agents">Agentes</TabsTrigger>
+          <TabsTrigger value="workspace">Vista por agente</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="workspace">
+          <AgentWorkspaceView agents={agents} accounts={accounts} />
+        </TabsContent>
+
+        <TabsContent value="agents" className="space-y-4">
       <RoundRobinSettings
         ownerId={ownerId}
         plan={plan}
