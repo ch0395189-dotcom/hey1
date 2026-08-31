@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useTeam, AgentPermissions, DEFAULT_PERMISSIONS, TeamAgent, TeamRole, TEAM_ROLES, ROLE_PERMISSIONS, AGENT_COLORS } from "@/hooks/useTeam";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useTeam, AgentPermissions, DEFAULT_PERMISSIONS, TeamAgent, TeamRole, TEAM_ROLES, ROLE_PERMISSIONS, AGENT_COLORS, TeamAccount } from "@/hooks/useTeam";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -95,7 +96,7 @@ const PermissionsForm = ({
 );
 
 export const TeamManagement = () => {
-  const { agents, loading, plan, limit, refresh, isAgent, ownerId } = useTeam();
+  const { agents, accounts, loading, plan, limit, refresh, isAgent, ownerId } = useTeam();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -115,6 +116,28 @@ export const TeamManagement = () => {
   const [editEmail, setEditEmail] = useState("");
   const [colorTarget, setColorTarget] = useState<TeamAgent | null>(null);
   const [colorDraft, setColorDraft] = useState<string>(AGENT_COLORS[0]);
+  const [newAccountId, setNewAccountId] = useState<string>("all");
+  const [editAccountId, setEditAccountId] = useState<string>("all");
+
+  const accountLabel = (acc: TeamAccount) => acc.display_name?.trim() || acc.phone_number;
+  const accountName = (id: string | null) => {
+    const acc = accounts.find((a) => a.id === id);
+    return acc ? accountLabel(acc) : "Todas las cuentas";
+  };
+
+  const AccountSelect = ({ value, onChange }: { value: string; onChange: (v: string) => void }) => (
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger>
+        <SelectValue placeholder="Equipo / cuenta de WhatsApp" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="all">Todas las cuentas</SelectItem>
+        {accounts.map((acc) => (
+          <SelectItem key={acc.id} value={acc.id}>{accountLabel(acc)}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
 
   const applyRole = (role: TeamRole, setPerms: (p: AgentPermissions) => void) => {
     setPerms({ ...ROLE_PERMISSIONS[role] });
@@ -150,10 +173,17 @@ export const TeamManagement = () => {
       toast({ title: "Error", description: (data as any)?.error || error?.message, variant: "destructive" });
       return;
     }
+    if (newAccountId !== "all" && ownerId) {
+      await supabase
+        .from("team_agents")
+        .update({ whatsapp_account_id: newAccountId })
+        .eq("owner_id", ownerId)
+        .eq("agent_email", email.trim());
+    }
     toast({ title: "Agente creado", description: `${email} ya puede iniciar sesión.` });
     setOpen(false);
     setName(""); setEmail(""); setPassword("");
-    setNewRole("agent"); setNewPermissions({ ...ROLE_PERMISSIONS.agent });
+    setNewRole("agent"); setNewPermissions({ ...ROLE_PERMISSIONS.agent }); setNewAccountId("all");
     refresh();
   };
 
@@ -238,6 +268,10 @@ export const TeamManagement = () => {
       toast({ title: "Error", description: (data as any)?.error || error?.message, variant: "destructive" });
       return;
     }
+    await supabase
+      .from("team_agents")
+      .update({ whatsapp_account_id: editAccountId === "all" ? null : editAccountId })
+      .eq("id", editTarget.id);
     toast({ title: "Información actualizada", description: `El agente ahora usa ${email}.` });
     setEditTarget(null);
     refresh();
@@ -263,7 +297,9 @@ export const TeamManagement = () => {
       <RoundRobinSettings
         ownerId={ownerId}
         plan={plan}
-        activeAgents={agents.filter((a) => a.is_active).length}
+        agents={agents}
+        accounts={accounts}
+        onAgentsChanged={refresh}
       />
 
       {!canAdd && (
@@ -306,6 +342,9 @@ export const TeamManagement = () => {
                   </Badge>
                 </div>
                 <p className="text-sm text-muted-foreground truncate">{a.agent_email}</p>
+                <p className="text-xs text-muted-foreground truncate mt-0.5">
+                  Equipo: {accountName(a.whatsapp_account_id)}
+                </p>
               </div>
               <div className="flex items-center gap-2">
                 <Button
@@ -316,7 +355,7 @@ export const TeamManagement = () => {
                 >
                   <Palette className="w-4 h-4" style={{ color: a.color }} />
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => { setEditTarget(a); setEditName(a.agent_name || ""); setEditEmail(a.agent_email); }}>
+                <Button variant="outline" size="sm" onClick={() => { setEditTarget(a); setEditName(a.agent_name || ""); setEditEmail(a.agent_email); setEditAccountId(a.whatsapp_account_id ?? "all"); }}>
                   <Pencil className="w-4 h-4" />
                 </Button>
                 <Button variant="outline" size="sm" onClick={() => { setPermsTarget(a); setPermsDraft(a.permissions); setRoleDraft(a.team_role); }}>
@@ -356,6 +395,13 @@ export const TeamManagement = () => {
               <Label>Contraseña temporal</Label>
               <Input type="text" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Mínimo 6 caracteres" />
               <p className="text-xs text-muted-foreground mt-1">Compártela con tu agente. Podrá cambiarla después.</p>
+            </div>
+            <div>
+              <Label>Equipo (cuenta de WhatsApp)</Label>
+              <AccountSelect value={newAccountId} onChange={setNewAccountId} />
+              <p className="text-xs text-muted-foreground mt-1">
+                El agente entrará en la rotación de esa cuenta. "Todas las cuentas" participa en todos los equipos.
+              </p>
             </div>
             <Separator className="my-2" />
             <div>
@@ -425,6 +471,10 @@ export const TeamManagement = () => {
             <div>
               <Label>Email</Label>
               <Input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} placeholder="agente@empresa.com" />
+            </div>
+            <div>
+              <Label>Equipo (cuenta de WhatsApp)</Label>
+              <AccountSelect value={editAccountId} onChange={setEditAccountId} />
             </div>
           </div>
           <DialogFooter>
