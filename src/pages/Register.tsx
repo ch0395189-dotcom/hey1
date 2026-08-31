@@ -17,7 +17,7 @@ const PLAN_OPTIONS: Array<{ key: PlanKey; name: string; price: string; note: str
   { key: "professional", name: "Professional", price: "$149.900 COP/mes", note: "1 número, equipo y 10.000 mensajes" },
   { key: "esoterico_pro", name: "Nichos Difíciles", price: "$199.900 COP/mes", note: "Número blindado anti-bloqueo" },
   { key: "esoterico_rental", name: "Nichos Difíciles + Alquiler", price: "$300.000 COP/mes", note: "Incluye número en alquiler: eliges uno de la lista disponible" },
-  { key: "enterprise", name: "Enterprise", price: "$399.000 COP/mes", note: "3 números, mensajes ilimitados y 10 agentes" },
+  { key: "enterprise", name: "Enterprise", price: "$399.000 COP/mes", note: "3 números, 3 equipos y mensajes ilimitados" },
 ];
 
 const Register = () => {
