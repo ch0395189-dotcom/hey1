@@ -197,20 +197,37 @@ export const RoundRobinSettings = ({ ownerId, plan, agents, accounts, onAgentsCh
                           style={{ backgroundColor: a.color }}
                         />
                         <span className="text-sm truncate">{a.agent_name || a.agent_email}</span>
-                        {!a.whatsapp_account_id && (
+                        {!a.whatsapp_account_id ? (
                           <Badge variant="outline" className="text-xs">Todas</Badge>
+                        ) : (
+                          <Badge variant="secondary" className="text-xs">Solo esta cuenta</Badge>
                         )}
                         {!a.round_robin_enabled && (
                           <Badge variant="outline" className="text-xs">Pausado</Badge>
                         )}
                       </div>
-                      <Switch
-                        checked={a.round_robin_enabled}
-                        disabled={togglingId === a.id}
-                        onCheckedChange={(v) => toggleAgent(a, v)}
-                      />
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        {team.key !== "global" && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={togglingId === a.id}
+                            onClick={() =>
+                              assignAgentToAccount(a, a.whatsapp_account_id ? null : team.key)
+                            }
+                          >
+                            {a.whatsapp_account_id ? "Liberar" : "Fijar aquí"}
+                          </Button>
+                        )}
+                        <Switch
+                          checked={a.round_robin_enabled}
+                          disabled={togglingId === a.id}
+                          onCheckedChange={(v) => toggleAgent(a, v)}
+                        />
+                      </div>
                     </div>
                   ))}
+
                 </div>
               )}
             </Card>
