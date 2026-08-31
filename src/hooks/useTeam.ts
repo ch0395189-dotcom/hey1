@@ -170,7 +170,7 @@ export const useTeam = () => {
     setMyRole(null);
     setMyPermissions(DEFAULT_PERMISSIONS);
 
-    const [{ data: subs }, { data: list }, { data: accs }, { data: teamRows }] = await Promise.all([
+    const [{ data: subs }, { data: list }, { data: accs }, { data: teamRows }, { data: override }] = await Promise.all([
       supabase.from("subscriptions").select("plan").eq("user_id", user.id).maybeSingle(),
       supabase
         .from("team_agents")
