@@ -387,6 +387,8 @@ export const TeamManagement = () => {
           ))}
         </div>
       )}
+        </TabsContent>
+      </Tabs>
 
       {/* Invite dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
