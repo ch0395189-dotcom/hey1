@@ -25,10 +25,11 @@ import { NumberPricingConfig } from '@/components/admin/NumberPricingConfig';
 import { NewAndRenewals } from '@/components/admin/NewAndRenewals';
 import { BoldPaymentsMonitor } from '@/components/admin/BoldPaymentsMonitor';
 import { TokenAuditPanel } from '@/components/admin/TokenAuditPanel';
+import { UserLimitsManager } from '@/components/admin/UserLimitsManager';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Shield, Users, CreditCard, Bell, Coins, BarChart3, Bot, Phone, Mail, UserX, Link2, ShieldAlert, MailWarning, Clock, Megaphone, RotateCcw, PhoneCall, Repeat, Activity, ShoppingCart, KeyRound, MousePointerClick } from 'lucide-react';
+import { ArrowLeft, Shield, Users, CreditCard, Bell, Coins, BarChart3, Bot, Phone, Mail, UserX, Link2, ShieldAlert, MailWarning, Clock, Megaphone, RotateCcw, PhoneCall, Repeat, Activity, ShoppingCart, KeyRound, MousePointerClick, SlidersHorizontal } from 'lucide-react';
 
 const Admin = () => {
   const navigate = useNavigate();
@@ -163,6 +164,10 @@ const Admin = () => {
               <Repeat className="h-4 w-4" />
               <span className="hidden sm:inline">Nuevos y Renovaciones</span>
             </TabsTrigger>
+            <TabsTrigger value="limits" className="flex items-center gap-2">
+              <SlidersHorizontal className="h-4 w-4" />
+              <span className="hidden sm:inline">Límites</span>
+            </TabsTrigger>
             <TabsTrigger value="token-audit" className="flex items-center gap-2">
               <KeyRound className="h-4 w-4" />
               <span className="hidden sm:inline">Tokens</span>
@@ -250,6 +255,10 @@ const Admin = () => {
 
           <TabsContent value="wa-clicks">
             <WhatsAppButtonStats />
+          </TabsContent>
+
+          <TabsContent value="limits">
+            <UserLimitsManager />
           </TabsContent>
 
           <TabsContent value="token-audit">
