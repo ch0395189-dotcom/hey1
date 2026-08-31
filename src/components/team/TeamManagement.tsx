@@ -30,6 +30,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { RoundRobinSettings } from "@/components/team/RoundRobinSettings";
+import { AgentWorkspaceView } from "@/components/team/AgentWorkspaceView";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UserPlus, Trash2, KeyRound, Users, Loader2, ShieldCheck, Pencil, Palette } from "lucide-react";
 
 const PLAN_LABEL: Record<string, string> = {
