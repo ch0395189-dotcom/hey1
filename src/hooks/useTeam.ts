@@ -137,6 +137,7 @@ export const useTeam = () => {
   const [myUserId, setMyUserId] = useState<string | null>(null);
   const [accounts, setAccounts] = useState<TeamAccount[]>([]);
   const [teams, setTeams] = useState<WorkTeam[]>([]);
+  const [agentLimitOverride, setAgentLimitOverride] = useState<number | null>(null);
 
 
   const refresh = useCallback(async () => {
@@ -232,7 +233,7 @@ export const useTeam = () => {
     refresh();
   }, [refresh]);
 
-  const limit = PLAN_LIMITS[plan] ?? 1;
+  const limit = agentLimitOverride ?? PLAN_LIMITS[plan] ?? 1;
 
   const canWrite = !isAgent || myRole !== "viewer";
 
