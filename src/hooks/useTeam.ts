@@ -212,6 +212,7 @@ export const useTeam = () => {
         color,
         whatsapp_account_id: a.whatsapp_account_id ?? null,
         round_robin_enabled: a.round_robin_enabled !== false,
+        team_id: a.team_id ?? null,
       };
     });
     setAgents(resolved);
@@ -226,5 +227,5 @@ export const useTeam = () => {
 
   const canWrite = !isAgent || myRole !== "viewer";
 
-  return { agents, accounts, loading, plan, limit, ownerId, isAgent, myPermissions, myRole, myUserId, canWrite, refresh };
+  return { agents, accounts, teams, loading, plan, limit, ownerId, isAgent, myPermissions, myRole, myUserId, canWrite, refresh };
 };
