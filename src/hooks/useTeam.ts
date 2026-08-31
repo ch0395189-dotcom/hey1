@@ -136,6 +136,8 @@ export const useTeam = () => {
   const [myRole, setMyRole] = useState<TeamRole | null>(null);
   const [myUserId, setMyUserId] = useState<string | null>(null);
   const [accounts, setAccounts] = useState<TeamAccount[]>([]);
+  const [teams, setTeams] = useState<WorkTeam[]>([]);
+
 
   const refresh = useCallback(async () => {
     setLoading(true);
