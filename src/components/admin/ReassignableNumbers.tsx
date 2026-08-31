@@ -319,7 +319,58 @@ export const ReassignableNumbers = () => {
                     <TableRow key={a.id}>
                       <TableCell>
                         <div className="font-medium">{a.display_name || a.phone_number}</div>
-                        <div className="text-xs text-muted-foreground">{a.phone_number}</div>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <button
+                              type="button"
+                              className="text-xs text-primary underline-offset-2 hover:underline cursor-pointer text-left"
+                              title="Tocar para escribir por WhatsApp"
+                            >
+                              {a.phone_number}
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-64 p-3" align="start">
+                            {(() => {
+                              const wa = normalizeWaPhone(a.phone_number);
+                              if (!wa) {
+                                return (
+                                  <div className="flex items-start gap-2 text-sm text-destructive">
+                                    <XCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                                    <div>
+                                      <p className="font-medium">No tiene WhatsApp</p>
+                                      <p className="text-xs text-muted-foreground">El número no tiene un formato válido.</p>
+                                    </div>
+                                  </div>
+                                );
+                              }
+                              return (
+                                <div className="flex flex-col gap-2">
+                                  <p className="text-sm font-medium flex items-center gap-2">
+                                    <MessageCircle className="h-4 w-4 text-green-600" /> Tiene WhatsApp
+                                  </p>
+                                  <Button
+                                    size="sm"
+                                    className="w-full"
+                                    onClick={() => window.open(`https://wa.me/${wa}`, "_blank", "noopener,noreferrer")}
+                                  >
+                                    <MessageCircle className="h-4 w-4 mr-2" /> Escribir por WhatsApp
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="w-full"
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(`+${wa}`).catch(() => {});
+                                      toast({ title: "Copiado", description: `+${wa}` });
+                                    }}
+                                  >
+                                    <Copy className="h-4 w-4 mr-2" /> Copiar número
+                                  </Button>
+                                </div>
+                              );
+                            })()}
+                          </PopoverContent>
+                        </Popover>
                         <div className="text-xs text-muted-foreground">{a.connection_type || "meta"}</div>
                       </TableCell>
                       <TableCell>
