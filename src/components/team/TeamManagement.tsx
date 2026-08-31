@@ -30,6 +30,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { RoundRobinSettings } from "@/components/team/RoundRobinSettings";
+import { AgentWorkspaceView } from "@/components/team/AgentWorkspaceView";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UserPlus, Trash2, KeyRound, Users, Loader2, ShieldCheck, Pencil, Palette } from "lucide-react";
 
 const PLAN_LABEL: Record<string, string> = {
@@ -147,14 +149,16 @@ export const TeamManagement = () => {
 
   if (isAgent) {
     return (
-      <div className="p-6">
-        <Card className="p-6 text-center">
-          <Users className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
-          <h2 className="font-semibold text-lg">Eres parte de un equipo</h2>
+      <div className="p-4 md:p-6 max-w-4xl mx-auto w-full space-y-4">
+        <Card className="p-4">
+          <h2 className="font-semibold text-lg flex items-center gap-2">
+            <Users className="w-5 h-5" /> Mi equipo
+          </h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Solo el propietario de la cuenta puede gestionar agentes.
+            Solo el propietario de la cuenta puede gestionar agentes. Abajo ves tu cuenta asignada y tus chats.
           </p>
         </Card>
+        <AgentWorkspaceView isAgent />
       </div>
     );
   }
@@ -294,6 +298,17 @@ export const TeamManagement = () => {
         </Button>
       </div>
 
+      <Tabs defaultValue="agents" className="w-full">
+        <TabsList className="mb-4">
+          <TabsTrigger value="agents">Agentes</TabsTrigger>
+          <TabsTrigger value="workspace">Vista por agente</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="workspace">
+          <AgentWorkspaceView agents={agents} accounts={accounts} />
+        </TabsContent>
+
+        <TabsContent value="agents" className="space-y-4">
       <RoundRobinSettings
         ownerId={ownerId}
         plan={plan}
@@ -372,6 +387,8 @@ export const TeamManagement = () => {
           ))}
         </div>
       )}
+        </TabsContent>
+      </Tabs>
 
       {/* Invite dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
