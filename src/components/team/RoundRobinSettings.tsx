@@ -97,6 +97,25 @@ export const RoundRobinSettings = ({ ownerId, plan, agents, accounts, onAgentsCh
     onAgentsChanged?.();
   };
 
+  const assignAgentToAccount = async (agent: TeamAgent, accountId: string | null) => {
+    setTogglingId(agent.id);
+    const { error } = await supabase
+      .from("team_agents")
+      .update({ whatsapp_account_id: accountId })
+      .eq("id", agent.id);
+    setTogglingId(null);
+    if (error) {
+      toast({ title: "No se pudo asignar", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({
+      title: accountId ? "Agente fijado a esta cuenta" : "Agente disponible en todas las cuentas",
+      description: agent.agent_name || agent.agent_email,
+    });
+    onAgentsChanged?.();
+  };
+
+
   if (!isEnterprise) return null;
 
   const teams: { key: string; title: string; subtitle: string; members: TeamAgent[] }[] =
