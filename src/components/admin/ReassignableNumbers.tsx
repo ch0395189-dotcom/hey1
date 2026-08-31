@@ -6,7 +6,17 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, RefreshCw, Link2, RotateCcw, History, Search, ArrowDownWideNarrow, ArrowUpNarrowWide } from "lucide-react";
+import { Loader2, RefreshCw, Link2, RotateCcw, History, Search, ArrowDownWideNarrow, ArrowUpNarrowWide, MessageCircle, Copy, XCircle } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+
+// Normaliza a solo dígitos; WhatsApp requiere formato internacional sin "+"
+const normalizeWaPhone = (raw: string | null | undefined): string | null => {
+  if (!raw) return null;
+  const digits = raw.replace(/\D/g, "");
+  // Un número válido de WhatsApp tiene entre 8 y 15 dígitos (E.164)
+  if (digits.length < 8 || digits.length > 15) return null;
+  return digits;
+};
 
 interface WAAccount {
   id: string;
