@@ -147,14 +147,16 @@ export const TeamManagement = () => {
 
   if (isAgent) {
     return (
-      <div className="p-6">
-        <Card className="p-6 text-center">
-          <Users className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
-          <h2 className="font-semibold text-lg">Eres parte de un equipo</h2>
+      <div className="p-4 md:p-6 max-w-4xl mx-auto w-full space-y-4">
+        <Card className="p-4">
+          <h2 className="font-semibold text-lg flex items-center gap-2">
+            <Users className="w-5 h-5" /> Mi equipo
+          </h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Solo el propietario de la cuenta puede gestionar agentes.
+            Solo el propietario de la cuenta puede gestionar agentes. Abajo ves tu cuenta asignada y tus chats.
           </p>
         </Card>
+        <AgentWorkspaceView isAgent />
       </div>
     );
   }
