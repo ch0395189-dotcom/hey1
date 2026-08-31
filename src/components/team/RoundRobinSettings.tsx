@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -97,6 +98,25 @@ export const RoundRobinSettings = ({ ownerId, plan, agents, accounts, onAgentsCh
     onAgentsChanged?.();
   };
 
+  const assignAgentToAccount = async (agent: TeamAgent, accountId: string | null) => {
+    setTogglingId(agent.id);
+    const { error } = await supabase
+      .from("team_agents")
+      .update({ whatsapp_account_id: accountId })
+      .eq("id", agent.id);
+    setTogglingId(null);
+    if (error) {
+      toast({ title: "No se pudo asignar", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({
+      title: accountId ? "Agente fijado a esta cuenta" : "Agente disponible en todas las cuentas",
+      description: agent.agent_name || agent.agent_email,
+    });
+    onAgentsChanged?.();
+  };
+
+
   if (!isEnterprise) return null;
 
   const teams: { key: string; title: string; subtitle: string; members: TeamAgent[] }[] =
@@ -178,20 +198,37 @@ export const RoundRobinSettings = ({ ownerId, plan, agents, accounts, onAgentsCh
                           style={{ backgroundColor: a.color }}
                         />
                         <span className="text-sm truncate">{a.agent_name || a.agent_email}</span>
-                        {!a.whatsapp_account_id && (
+                        {!a.whatsapp_account_id ? (
                           <Badge variant="outline" className="text-xs">Todas</Badge>
+                        ) : (
+                          <Badge variant="secondary" className="text-xs">Solo esta cuenta</Badge>
                         )}
                         {!a.round_robin_enabled && (
                           <Badge variant="outline" className="text-xs">Pausado</Badge>
                         )}
                       </div>
-                      <Switch
-                        checked={a.round_robin_enabled}
-                        disabled={togglingId === a.id}
-                        onCheckedChange={(v) => toggleAgent(a, v)}
-                      />
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        {team.key !== "global" && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={togglingId === a.id}
+                            onClick={() =>
+                              assignAgentToAccount(a, a.whatsapp_account_id ? null : team.key)
+                            }
+                          >
+                            {a.whatsapp_account_id ? "Liberar" : "Fijar aquí"}
+                          </Button>
+                        )}
+                        <Switch
+                          checked={a.round_robin_enabled}
+                          disabled={togglingId === a.id}
+                          onCheckedChange={(v) => toggleAgent(a, v)}
+                        />
+                      </div>
                     </div>
                   ))}
+
                 </div>
               )}
             </Card>
