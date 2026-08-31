@@ -87,6 +87,7 @@ export interface TeamAgent {
   color: string;
   whatsapp_account_id: string | null;
   round_robin_enabled: boolean;
+  team_id: string | null;
 }
 
 export interface TeamAccount {
@@ -94,6 +95,14 @@ export interface TeamAccount {
   phone_number: string;
   display_name: string | null;
 }
+
+export interface WorkTeam {
+  id: string;
+  name: string;
+  whatsapp_account_id: string | null;
+  created_at: string;
+}
+
 
 const PLAN_LIMITS: Record<string, number> = {
   starter: 1,
