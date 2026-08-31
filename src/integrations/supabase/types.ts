@@ -1329,31 +1329,45 @@ export type Database = {
         Row: {
           created_at: string
           enabled: boolean
+          id: string
           include_owner: boolean
           last_agent_user_id: string | null
           last_assigned_at: string | null
           owner_id: string
           updated_at: string
+          whatsapp_account_id: string | null
         }
         Insert: {
           created_at?: string
           enabled?: boolean
+          id?: string
           include_owner?: boolean
           last_agent_user_id?: string | null
           last_assigned_at?: string | null
           owner_id: string
           updated_at?: string
+          whatsapp_account_id?: string | null
         }
         Update: {
           created_at?: string
           enabled?: boolean
+          id?: string
           include_owner?: boolean
           last_agent_user_id?: string | null
           last_assigned_at?: string | null
           owner_id?: string
           updated_at?: string
+          whatsapp_account_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "round_robin_settings_whatsapp_account_id_fkey"
+            columns: ["whatsapp_account_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       scheduled_messages: {
         Row: {
@@ -1477,6 +1491,7 @@ export type Database = {
           round_robin_enabled: boolean
           team_role: string
           updated_at: string
+          whatsapp_account_id: string | null
         }
         Insert: {
           agent_email: string
@@ -1491,6 +1506,7 @@ export type Database = {
           round_robin_enabled?: boolean
           team_role?: string
           updated_at?: string
+          whatsapp_account_id?: string | null
         }
         Update: {
           agent_email?: string
@@ -1505,8 +1521,17 @@ export type Database = {
           round_robin_enabled?: boolean
           team_role?: string
           updated_at?: string
+          whatsapp_account_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "team_agents_whatsapp_account_id_fkey"
+            columns: ["whatsapp_account_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       tiktok_lead_routes: {
         Row: {
