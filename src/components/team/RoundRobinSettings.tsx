@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
@@ -6,62 +6,80 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Repeat, Loader2 } from "lucide-react";
+import type { TeamAgent, TeamAccount } from "@/hooks/useTeam";
 
 interface Props {
   ownerId: string | null;
   plan: string;
-  activeAgents: number;
+  agents: TeamAgent[];
+  accounts: TeamAccount[];
+  onAgentsChanged?: () => void;
 }
 
-interface RotationAgent {
-  id: string;
-  agent_name: string | null;
-  agent_email: string;
-  color: string;
-  round_robin_enabled: boolean;
+interface Settings {
+  enabled: boolean;
+  include_owner: boolean;
 }
 
-export const RoundRobinSettings = ({ ownerId, plan, activeAgents }: Props) => {
+const accountLabel = (acc: TeamAccount) =>
+  acc.display_name?.trim() || acc.phone_number || "Cuenta de WhatsApp";
+
+export const RoundRobinSettings = ({ ownerId, plan, agents, accounts, onAgentsChanged }: Props) => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [enabled, setEnabled] = useState(false);
-  const [includeOwner, setIncludeOwner] = useState(false);
-  const [rotationAgents, setRotationAgents] = useState<RotationAgent[]>([]);
+  const [savingKey, setSavingKey] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [settings, setSettings] = useState<Record<string, Settings>>({});
 
   const isEnterprise = plan === "enterprise";
 
-  useEffect(() => {
-    let active = true;
-    const load = async () => {
-      if (!ownerId) return;
-      const [{ data }, { data: list }] = await Promise.all([
-        supabase
-          .from("round_robin_settings")
-          .select("enabled, include_owner")
-          .eq("owner_id", ownerId)
-          .maybeSingle(),
-        supabase
-          .from("team_agents")
-          .select("id, agent_name, agent_email, color, round_robin_enabled")
-          .eq("owner_id", ownerId)
-          .eq("is_active", true)
-          .order("created_at", { ascending: true }),
-      ]);
-      if (!active) return;
-      setEnabled(!!data?.enabled);
-      setIncludeOwner(!!data?.include_owner);
-      setRotationAgents((list ?? []) as RotationAgent[]);
-      setLoading(false);
-    };
-    load();
-    return () => {
-      active = false;
-    };
+  const load = useCallback(async () => {
+    if (!ownerId) return;
+    const { data } = await supabase
+      .from("round_robin_settings")
+      .select("whatsapp_account_id, enabled, include_owner")
+      .eq("owner_id", ownerId);
+    const map: Record<string, Settings> = {};
+    (data ?? []).forEach((row: any) => {
+      map[row.whatsapp_account_id ?? "global"] = {
+        enabled: !!row.enabled,
+        include_owner: !!row.include_owner,
+      };
+    });
+    setSettings(map);
+    setLoading(false);
   }, [ownerId]);
 
-  const toggleAgent = async (agent: RotationAgent, value: boolean) => {
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const save = async (accountId: string, next: Partial<Settings>) => {
+    if (!ownerId) return;
+    const current = settings[accountId] ?? { enabled: false, include_owner: false };
+    const payload = {
+      owner_id: ownerId,
+      whatsapp_account_id: accountId === "global" ? null : accountId,
+      enabled: next.enabled ?? current.enabled,
+      include_owner: next.include_owner ?? current.include_owner,
+    };
+    setSavingKey(accountId);
+    const { error } = await supabase
+      .from("round_robin_settings")
+      .upsert(payload, { onConflict: "owner_id,whatsapp_account_id" });
+    setSavingKey(null);
+    if (error) {
+      toast({ title: "No se pudo guardar", description: error.message, variant: "destructive" });
+      return;
+    }
+    setSettings((prev) => ({
+      ...prev,
+      [accountId]: { enabled: payload.enabled, include_owner: payload.include_owner },
+    }));
+    toast({ title: payload.enabled ? "Rotación equitativa activada" : "Rotación equitativa desactivada" });
+  };
+
+  const toggleAgent = async (agent: TeamAgent, value: boolean) => {
     setTogglingId(agent.id);
     const { error } = await supabase
       .from("team_agents")
@@ -72,102 +90,114 @@ export const RoundRobinSettings = ({ ownerId, plan, activeAgents }: Props) => {
       toast({ title: "No se pudo actualizar", description: error.message, variant: "destructive" });
       return;
     }
-    setRotationAgents((prev) =>
-      prev.map((a) => (a.id === agent.id ? { ...a, round_robin_enabled: value } : a))
-    );
     toast({
       title: value ? "Agente activado en la rotación" : "Agente pausado en la rotación",
       description: agent.agent_name || agent.agent_email,
     });
-  };
-
-  const save = async (next: { enabled?: boolean; include_owner?: boolean }) => {
-    if (!ownerId) return;
-    setSaving(true);
-    const payload = {
-      owner_id: ownerId,
-      enabled: next.enabled ?? enabled,
-      include_owner: next.include_owner ?? includeOwner,
-    };
-    const { error } = await supabase
-      .from("round_robin_settings")
-      .upsert(payload, { onConflict: "owner_id" });
-    setSaving(false);
-    if (error) {
-      toast({ title: "No se pudo guardar", description: error.message, variant: "destructive" });
-      return;
-    }
-    setEnabled(payload.enabled);
-    setIncludeOwner(payload.include_owner);
-    toast({ title: payload.enabled ? "Rotación equitativa activada" : "Rotación equitativa desactivada" });
+    onAgentsChanged?.();
   };
 
   if (!isEnterprise) return null;
 
+  const teams: { key: string; title: string; subtitle: string; members: TeamAgent[] }[] =
+    accounts.length > 0
+      ? accounts.map((acc) => ({
+          key: acc.id,
+          title: accountLabel(acc),
+          subtitle: acc.phone_number,
+          members: agents.filter(
+            (a) => a.is_active && (a.whatsapp_account_id === acc.id || !a.whatsapp_account_id)
+          ),
+        }))
+      : [
+          {
+            key: "global",
+            title: "Todas las cuentas",
+            subtitle: "Conecta un número de WhatsApp para crear equipos por cuenta",
+            members: agents.filter((a) => a.is_active),
+          },
+        ];
+
   return (
-    <Card className="p-4 mb-4">
-      <div className="flex items-start justify-between gap-3 flex-wrap">
-        <div className="min-w-0">
-          <h2 className="font-semibold flex items-center gap-2">
-            <Repeat className="w-4 h-4" /> Enrutamiento Round Robin
-            <Badge variant="secondary">Enterprise</Badge>
-          </h2>
-          <p className="text-sm text-muted-foreground mt-1 max-w-xl">
-            Cada chat nuevo que llegue a cualquiera de tus números se asigna automáticamente al
-            siguiente agente del equipo, en rotación, sin repetir hasta completar el ciclo.
-            Actualmente hay {rotationAgents.filter((a) => a.round_robin_enabled).length} de{" "}
-            {activeAgents} agente{activeAgents === 1 ? "" : "s"} activo
-            {activeAgents === 1 ? "" : "s"} participando en la rotación.
-          </p>
-        </div>
-        {loading ? (
-          <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-        ) : (
-          <Switch checked={enabled} disabled={saving} onCheckedChange={(v) => save({ enabled: v })} />
-        )}
+    <div className="space-y-3 mb-4">
+      <div className="flex items-center gap-2">
+        <Repeat className="w-4 h-4" />
+        <h2 className="font-semibold">Equipos por cuenta de WhatsApp</h2>
+        <Badge variant="secondary">Enterprise</Badge>
       </div>
+      <p className="text-sm text-muted-foreground">
+        Cada cuenta de WhatsApp tiene su propio equipo y su rotación equitativa independiente.
+      </p>
 
-      {enabled && !loading && (
-        <div className="flex items-center gap-3 mt-4 pt-4 border-t">
-          <Switch
-            id="rr-include-owner"
-            checked={includeOwner}
-            disabled={saving}
-            onCheckedChange={(v) => save({ include_owner: v })}
-          />
-          <Label htmlFor="rr-include-owner" className="text-sm font-normal cursor-pointer">
-            Incluirme a mí en la rotación
-          </Label>
-        </div>
-      )}
-
-      {enabled && !loading && rotationAgents.length > 0 && (
-        <div className="mt-4 pt-4 border-t space-y-2">
-          <p className="text-sm font-medium">Agentes en la rotación</p>
-          <p className="text-xs text-muted-foreground">
-            Pausa manualmente a un agente para que no reciba chats nuevos. Sus chats actuales no cambian.
-          </p>
-          {rotationAgents.map((a) => (
-            <div key={a.id} className="flex items-center justify-between gap-3 py-1.5">
-              <div className="flex items-center gap-2 min-w-0">
-                <span
-                  className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: a.color }}
-                />
-                <span className="text-sm truncate">{a.agent_name || a.agent_email}</span>
-                {!a.round_robin_enabled && (
-                  <Badge variant="outline" className="text-xs">Pausado</Badge>
-                )}
+      {loading ? (
+        <Card className="p-6 flex justify-center">
+          <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+        </Card>
+      ) : (
+        teams.map((team) => {
+          const s = settings[team.key] ?? { enabled: false, include_owner: false };
+          const saving = savingKey === team.key;
+          return (
+            <Card key={team.key} className="p-4">
+              <div className="flex items-start justify-between gap-3 flex-wrap">
+                <div className="min-w-0">
+                  <h3 className="font-medium truncate">{team.title}</h3>
+                  <p className="text-xs text-muted-foreground truncate">{team.subtitle}</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {team.members.length} agente{team.members.length === 1 ? "" : "s"} en este equipo
+                  </p>
+                </div>
+                <Switch checked={s.enabled} disabled={saving} onCheckedChange={(v) => save(team.key, { enabled: v })} />
               </div>
-              <Switch
-                checked={a.round_robin_enabled}
-                disabled={togglingId === a.id}
-                onCheckedChange={(v) => toggleAgent(a, v)}
-              />
-            </div>
-          ))}
-        </div>
+
+              {s.enabled && (
+                <div className="flex items-center gap-3 mt-4 pt-4 border-t">
+                  <Switch
+                    id={`rr-owner-${team.key}`}
+                    checked={s.include_owner}
+                    disabled={saving}
+                    onCheckedChange={(v) => save(team.key, { include_owner: v })}
+                  />
+                  <Label htmlFor={`rr-owner-${team.key}`} className="text-sm font-normal cursor-pointer">
+                    Incluirme a mí en la rotación de esta cuenta
+                  </Label>
+                </div>
+              )}
+
+              {s.enabled && team.members.length > 0 && (
+                <div className="mt-4 pt-4 border-t space-y-2">
+                  <p className="text-sm font-medium">Agentes en la rotación</p>
+                  <p className="text-xs text-muted-foreground">
+                    Pausa manualmente a un agente para que no reciba chats nuevos. Sus chats actuales no cambian.
+                  </p>
+                  {team.members.map((a) => (
+                    <div key={a.id} className="flex items-center justify-between gap-3 py-1.5">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span
+                          className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: a.color }}
+                        />
+                        <span className="text-sm truncate">{a.agent_name || a.agent_email}</span>
+                        {!a.whatsapp_account_id && (
+                          <Badge variant="outline" className="text-xs">Todas</Badge>
+                        )}
+                        {!a.round_robin_enabled && (
+                          <Badge variant="outline" className="text-xs">Pausado</Badge>
+                        )}
+                      </div>
+                      <Switch
+                        checked={a.round_robin_enabled}
+                        disabled={togglingId === a.id}
+                        onCheckedChange={(v) => toggleAgent(a, v)}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+          );
+        })
       )}
-    </Card>
+    </div>
   );
 };
