@@ -1489,6 +1489,7 @@ export type Database = {
           owner_id: string
           permissions: Json
           round_robin_enabled: boolean
+          team_id: string | null
           team_role: string
           updated_at: string
           whatsapp_account_id: string | null
@@ -1504,6 +1505,7 @@ export type Database = {
           owner_id: string
           permissions?: Json
           round_robin_enabled?: boolean
+          team_id?: string | null
           team_role?: string
           updated_at?: string
           whatsapp_account_id?: string | null
@@ -1519,13 +1521,56 @@ export type Database = {
           owner_id?: string
           permissions?: Json
           round_robin_enabled?: boolean
+          team_id?: string | null
           team_role?: string
           updated_at?: string
           whatsapp_account_id?: string | null
         }
         Relationships: [
           {
+            foreignKeyName: "team_agents_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "team_agents_whatsapp_account_id_fkey"
+            columns: ["whatsapp_account_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      teams: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          owner_id: string
+          updated_at: string
+          whatsapp_account_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          owner_id: string
+          updated_at?: string
+          whatsapp_account_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          owner_id?: string
+          updated_at?: string
+          whatsapp_account_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "teams_whatsapp_account_id_fkey"
             columns: ["whatsapp_account_id"]
             isOneToOne: false
             referencedRelation: "whatsapp_accounts"
