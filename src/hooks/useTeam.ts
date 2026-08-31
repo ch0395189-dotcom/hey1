@@ -188,7 +188,16 @@ export const useTeam = () => {
         .select("id, name, whatsapp_account_id, created_at")
         .eq("owner_id", user.id)
         .order("created_at", { ascending: true }),
+      (supabase as any)
+        .from("user_limit_overrides")
+        .select("max_agents")
+        .eq("user_id", user.id)
+        .maybeSingle(),
     ]);
+
+    setAgentLimitOverride(
+      typeof override?.max_agents === "number" ? override.max_agents : null,
+    );
 
     setAccounts((accs ?? []) as TeamAccount[]);
     setTeams((teamRows ?? []) as WorkTeam[]);
