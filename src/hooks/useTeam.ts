@@ -137,6 +137,7 @@ export const useTeam = () => {
   const [myUserId, setMyUserId] = useState<string | null>(null);
   const [accounts, setAccounts] = useState<TeamAccount[]>([]);
   const [teams, setTeams] = useState<WorkTeam[]>([]);
+  const [agentLimitOverride, setAgentLimitOverride] = useState<number | null>(null);
 
 
   const refresh = useCallback(async () => {
@@ -170,7 +171,7 @@ export const useTeam = () => {
     setMyRole(null);
     setMyPermissions(DEFAULT_PERMISSIONS);
 
-    const [{ data: subs }, { data: list }, { data: accs }, { data: teamRows }] = await Promise.all([
+    const [{ data: subs }, { data: list }, { data: accs }, { data: teamRows }, { data: override }] = await Promise.all([
       supabase.from("subscriptions").select("plan").eq("user_id", user.id).maybeSingle(),
       supabase
         .from("team_agents")
@@ -188,7 +189,16 @@ export const useTeam = () => {
         .select("id, name, whatsapp_account_id, created_at")
         .eq("owner_id", user.id)
         .order("created_at", { ascending: true }),
+      (supabase as any)
+        .from("user_limit_overrides")
+        .select("max_agents")
+        .eq("user_id", user.id)
+        .maybeSingle(),
     ]);
+
+    setAgentLimitOverride(
+      typeof override?.max_agents === "number" ? override.max_agents : null,
+    );
 
     setAccounts((accs ?? []) as TeamAccount[]);
     setTeams((teamRows ?? []) as WorkTeam[]);
@@ -223,7 +233,7 @@ export const useTeam = () => {
     refresh();
   }, [refresh]);
 
-  const limit = PLAN_LIMITS[plan] ?? 1;
+  const limit = agentLimitOverride ?? PLAN_LIMITS[plan] ?? 1;
 
   const canWrite = !isAgent || myRole !== "viewer";
 

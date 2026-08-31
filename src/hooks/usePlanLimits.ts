@@ -38,6 +38,7 @@ export const usePlanLimits = (): PlanLimits => {
   const [plan, setPlan] = useState<PlanKey | null>(null);
   const [currentCount, setCurrentCount] = useState(0);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [override, setOverride] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -61,6 +62,13 @@ export const usePlanLimits = (): PlanLimits => {
           .eq("user_id", user.id),
         supabase.rpc("has_role", { _user_id: user.id, _role: "admin" }),
       ]);
+
+      const { data: ov } = await (supabase as any)
+        .from("user_limit_overrides")
+        .select("max_whatsapp_accounts")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      setOverride(typeof ov?.max_whatsapp_accounts === "number" ? ov.max_whatsapp_accounts : null);
 
       setPlan((sub?.plan as PlanKey) ?? "starter");
       setCurrentCount(count ?? 0);
@@ -104,7 +112,7 @@ export const usePlanLimits = (): PlanLimits => {
   }, [load]);
 
   const planKey = (plan ?? "starter") as PlanKey;
-  const whatsappLimit = isAdmin ? Infinity : (WHATSAPP_LIMITS[planKey] ?? 1);
+  const whatsappLimit = isAdmin ? Infinity : (override ?? WHATSAPP_LIMITS[planKey] ?? 1);
 
   return {
     loading,
