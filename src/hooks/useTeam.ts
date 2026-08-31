@@ -87,6 +87,7 @@ export interface TeamAgent {
   color: string;
   whatsapp_account_id: string | null;
   round_robin_enabled: boolean;
+  team_id: string | null;
 }
 
 export interface TeamAccount {
@@ -94,6 +95,14 @@ export interface TeamAccount {
   phone_number: string;
   display_name: string | null;
 }
+
+export interface WorkTeam {
+  id: string;
+  name: string;
+  whatsapp_account_id: string | null;
+  created_at: string;
+}
+
 
 const PLAN_LIMITS: Record<string, number> = {
   starter: 1,
@@ -127,6 +136,8 @@ export const useTeam = () => {
   const [myRole, setMyRole] = useState<TeamRole | null>(null);
   const [myUserId, setMyUserId] = useState<string | null>(null);
   const [accounts, setAccounts] = useState<TeamAccount[]>([]);
+  const [teams, setTeams] = useState<WorkTeam[]>([]);
+
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -159,11 +170,11 @@ export const useTeam = () => {
     setMyRole(null);
     setMyPermissions(DEFAULT_PERMISSIONS);
 
-    const [{ data: subs }, { data: list }, { data: accs }] = await Promise.all([
+    const [{ data: subs }, { data: list }, { data: accs }, { data: teamRows }] = await Promise.all([
       supabase.from("subscriptions").select("plan").eq("user_id", user.id).maybeSingle(),
       supabase
         .from("team_agents")
-        .select("id, agent_user_id, agent_email, agent_name, is_active, created_at, permissions, team_role, color, whatsapp_account_id, round_robin_enabled")
+        .select("id, agent_user_id, agent_email, agent_name, is_active, created_at, permissions, team_role, color, whatsapp_account_id, round_robin_enabled, team_id")
         .eq("owner_id", user.id)
         .order("created_at", { ascending: true }),
       supabase
@@ -172,9 +183,16 @@ export const useTeam = () => {
         .eq("user_id", user.id)
         .eq("is_active", true)
         .order("created_at", { ascending: true }),
+      supabase
+        .from("teams")
+        .select("id, name, whatsapp_account_id, created_at")
+        .eq("owner_id", user.id)
+        .order("created_at", { ascending: true }),
     ]);
 
     setAccounts((accs ?? []) as TeamAccount[]);
+    setTeams((teamRows ?? []) as WorkTeam[]);
+
 
     setPlan(subs?.plan ?? "starter");
     // Ensure each agent shows a distinct color. Use the stored color when unique;
@@ -194,6 +212,7 @@ export const useTeam = () => {
         color,
         whatsapp_account_id: a.whatsapp_account_id ?? null,
         round_robin_enabled: a.round_robin_enabled !== false,
+        team_id: a.team_id ?? null,
       };
     });
     setAgents(resolved);
@@ -208,5 +227,5 @@ export const useTeam = () => {
 
   const canWrite = !isAgent || myRole !== "viewer";
 
-  return { agents, accounts, loading, plan, limit, ownerId, isAgent, myPermissions, myRole, myUserId, canWrite, refresh };
+  return { agents, accounts, teams, loading, plan, limit, ownerId, isAgent, myPermissions, myRole, myUserId, canWrite, refresh };
 };

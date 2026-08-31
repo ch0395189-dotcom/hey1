@@ -31,6 +31,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { RoundRobinSettings } from "@/components/team/RoundRobinSettings";
 import { AgentWorkspaceView } from "@/components/team/AgentWorkspaceView";
+import { TeamsManager } from "@/components/team/TeamsManager";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UserPlus, Trash2, KeyRound, Users, Loader2, ShieldCheck, Pencil, Palette } from "lucide-react";
 
@@ -98,7 +99,7 @@ const PermissionsForm = ({
 );
 
 export const TeamManagement = () => {
-  const { agents, accounts, loading, plan, limit, refresh, isAgent, ownerId } = useTeam();
+  const { agents, accounts, teams, loading, plan, limit, refresh, isAgent, ownerId } = useTeam();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -301,8 +302,19 @@ export const TeamManagement = () => {
       <Tabs defaultValue="agents" className="w-full">
         <TabsList className="mb-4">
           <TabsTrigger value="agents">Agentes</TabsTrigger>
+          <TabsTrigger value="teams">Equipos</TabsTrigger>
           <TabsTrigger value="workspace">Vista por agente</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="teams">
+          <TeamsManager
+            ownerId={ownerId}
+            teams={teams}
+            agents={agents}
+            accounts={accounts}
+            onChanged={refresh}
+          />
+        </TabsContent>
 
         <TabsContent value="workspace">
           <AgentWorkspaceView agents={agents} accounts={accounts} />

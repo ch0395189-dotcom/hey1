@@ -348,25 +348,30 @@ const Dashboard = () => {
     let effectiveUserId = getImpersonationId() || activeSession?.user?.id || null;
 
     // Si el usuario conectado es un agente, trabajar sobre las cuentas de su dueño
+    let agentAccountId: string | null = null;
     if (!getImpersonationId() && activeSession?.user?.id) {
       const { data: agentRow } = await supabase
         .from('team_agents')
-        .select('owner_id')
+        .select('owner_id, whatsapp_account_id')
         .eq('agent_user_id', activeSession.user.id)
         .eq('is_active', true)
         .maybeSingle();
       if (agentRow?.owner_id) {
         effectiveUserId = agentRow.owner_id;
+        agentAccountId = (agentRow as { whatsapp_account_id?: string | null }).whatsapp_account_id ?? null;
       }
     }
 
     const fetchAccounts = async () => {
-      return await supabase
+      let q = supabase
         .from('whatsapp_accounts')
         .select('id, display_name, phone_number, user_id')
-        .eq('user_id', effectiveUserId ?? '')
-        .order('created_at', { ascending: false });
+        .eq('user_id', effectiveUserId ?? '');
+      // Un agente asignado a un equipo solo ve la cuenta de WhatsApp de ese equipo
+      if (agentAccountId) q = q.eq('id', agentAccountId);
+      return await q.order('created_at', { ascending: false });
     };
+
 
     let { data, error } = await fetchAccounts();
 
