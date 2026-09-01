@@ -18,7 +18,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, RefreshCw, Link2, RotateCcw, History, Search, ArrowDownWideNarrow, ArrowUpNarrowWide, MessageCircle, Copy, XCircle, Inbox, Trash2, RadioTower } from "lucide-react";
+import { Loader2, RefreshCw, Link2, RotateCcw, History, Search, ArrowDownWideNarrow, ArrowUpNarrowWide, MessageCircle, Copy, XCircle, Inbox, Trash2, RadioTower, CheckSquare, Square } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 // Normaliza a solo dígitos; WhatsApp requiere formato internacional sin "+"
@@ -90,6 +91,9 @@ export const ReassignableNumbers = () => {
   const [checkingMeta, setCheckingMeta] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ userId: string; label: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -198,7 +202,55 @@ export const ReassignableNumbers = () => {
     }
   };
 
-  useEffect(() => { load().then(() => checkMeta(true)); }, []);
+  const toggleUser = (userId: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(userId)) next.delete(userId);
+      else next.add(userId);
+      return next;
+    });
+  };
+
+  const toggleGroup = (rows: typeof reassignable) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      const groupIds = new Set(rows.map((r) => r.account.user_id));
+      const allSelected = Array.from(groupIds).every((id) => next.has(id));
+      if (allSelected) {
+        groupIds.forEach((id) => next.delete(id));
+      } else {
+        groupIds.forEach((id) => next.add(id));
+      }
+      return next;
+    });
+  };
+
+  const clearSelection = () => setSelected(new Set());
+
+  const bulkDelete = async () => {
+    setBulkDeleting(true);
+    const ids = Array.from(selected);
+    let ok = 0;
+    let fail = 0;
+    for (const userId of ids) {
+      try {
+        const { error } = await supabase.functions.invoke("admin-delete-user", { body: { userId } });
+        if (error) throw error;
+        ok += 1;
+      } catch {
+        fail += 1;
+      }
+    }
+    setBulkDeleting(false);
+    setBulkDeleteOpen(false);
+    clearSelection();
+    if (fail === 0) {
+      toast({ title: "Eliminados", description: `${ok} usuario(s) eliminados correctamente` });
+    } else {
+      toast({ title: "Parcial", description: `${ok} eliminados, ${fail} fallaron`, variant: "destructive" });
+    }
+    await load();
+  };
 
 
   // Calidad real: prioriza lo consultado en Meta, si no usa lo almacenado
@@ -351,6 +403,13 @@ export const ReassignableNumbers = () => {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-9">
+                <Checkbox
+                  checked={rows.length > 0 && rows.every((r) => selected.has(r.account.user_id))}
+                  onCheckedChange={() => toggleGroup(rows)}
+                  aria-label="Seleccionar todos"
+                />
+              </TableHead>
               <TableHead>Número</TableHead>
               <TableHead>Calidad</TableHead>
               <TableHead>Dueño actual</TableHead>
@@ -372,6 +431,13 @@ export const ReassignableNumbers = () => {
               const sl = subLabel(a.user_id);
               return (
                 <TableRow key={a.id}>
+                  <TableCell>
+                    <Checkbox
+                      checked={selected.has(a.user_id)}
+                      onCheckedChange={() => toggleUser(a.user_id)}
+                      aria-label={`Seleccionar ${ownerEmail || ownerName || a.user_id.slice(0, 8)}`}
+                    />
+                  </TableCell>
                   <TableCell>
                     <div className="font-medium">{a.display_name || a.phone_number}</div>
                     <Popover>
@@ -562,6 +628,21 @@ export const ReassignableNumbers = () => {
             {sortOldest ? "Más antiguo" : "Más reciente"}
           </Button>
           <Badge variant="secondary">{reassignable.length}</Badge>
+          {selected.size > 0 && (
+            <div className="flex items-center gap-2 ml-auto">
+              <Badge variant="destructive">{selected.size} seleccionado(s)</Badge>
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={() => setBulkDeleteOpen(true)}
+              >
+                <Trash2 className="w-4 h-4 mr-1" /> Eliminar seleccionados
+              </Button>
+              <Button size="sm" variant="outline" onClick={clearSelection}>
+                Limpiar
+              </Button>
+            </div>
+          )}
         </div>
 
         <Tabs defaultValue="UNKNOWN">
@@ -638,6 +719,24 @@ export const ReassignableNumbers = () => {
             <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={(e) => { e.preventDefault(); deleteUser(); }} disabled={deleting}>
               {deleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null} Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar {selected.size} usuario(s)?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se eliminarán permanentemente {selected.size} usuario(s) y todos sus datos asociados
+              (conversaciones, cuentas, pagos). Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={(e) => { e.preventDefault(); bulkDelete(); }} disabled={bulkDeleting}>
+              {bulkDeleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null} Eliminar {selected.size}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
