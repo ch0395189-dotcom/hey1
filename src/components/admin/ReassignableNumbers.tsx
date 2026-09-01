@@ -624,6 +624,24 @@ export const ReassignableNumbers = () => {
           )}
         </div>
       </CardContent>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar usuario?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se eliminará permanentemente {deleteTarget?.label} y todos sus datos asociados
+              (conversaciones, cuentas, pagos). Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={(e) => { e.preventDefault(); deleteUser(); }} disabled={deleting}>
+              {deleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null} Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 };
