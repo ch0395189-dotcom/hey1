@@ -628,6 +628,21 @@ export const ReassignableNumbers = () => {
             {sortOldest ? "Más antiguo" : "Más reciente"}
           </Button>
           <Badge variant="secondary">{reassignable.length}</Badge>
+          {selected.size > 0 && (
+            <div className="flex items-center gap-2 ml-auto">
+              <Badge variant="destructive">{selected.size} seleccionado(s)</Badge>
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={() => setBulkDeleteOpen(true)}
+              >
+                <Trash2 className="w-4 h-4 mr-1" /> Eliminar seleccionados
+              </Button>
+              <Button size="sm" variant="outline" onClick={clearSelection}>
+                Limpiar
+              </Button>
+            </div>
+          )}
         </div>
 
         <Tabs defaultValue="UNKNOWN">
