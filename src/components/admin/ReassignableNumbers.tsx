@@ -403,6 +403,13 @@ export const ReassignableNumbers = () => {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-9">
+                <Checkbox
+                  checked={rows.length > 0 && rows.every((r) => selected.has(r.account.user_id))}
+                  onCheckedChange={() => toggleGroup(rows)}
+                  aria-label="Seleccionar todos"
+                />
+              </TableHead>
               <TableHead>Número</TableHead>
               <TableHead>Calidad</TableHead>
               <TableHead>Dueño actual</TableHead>
