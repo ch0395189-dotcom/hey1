@@ -432,6 +432,13 @@ export const ReassignableNumbers = () => {
               return (
                 <TableRow key={a.id}>
                   <TableCell>
+                    <Checkbox
+                      checked={selected.has(a.user_id)}
+                      onCheckedChange={() => toggleUser(a.user_id)}
+                      aria-label={`Seleccionar ${ownerEmail || ownerName || a.user_id.slice(0, 8)}`}
+                    />
+                  </TableCell>
+                  <TableCell>
                     <div className="font-medium">{a.display_name || a.phone_number}</div>
                     <Popover>
                       <PopoverTrigger asChild>
