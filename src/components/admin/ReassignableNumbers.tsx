@@ -723,6 +723,24 @@ export const ReassignableNumbers = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar {selected.size} usuario(s)?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se eliminarán permanentemente {selected.size} usuario(s) y todos sus datos asociados
+              (conversaciones, cuentas, pagos). Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={(e) => { e.preventDefault(); bulkDelete(); }} disabled={bulkDeleting}>
+              {bulkDeleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null} Eliminar {selected.size}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 };
