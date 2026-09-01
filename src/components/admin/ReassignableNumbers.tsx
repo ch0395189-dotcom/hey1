@@ -202,7 +202,55 @@ export const ReassignableNumbers = () => {
     }
   };
 
-  useEffect(() => { load().then(() => checkMeta(true)); }, []);
+  const toggleUser = (userId: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(userId)) next.delete(userId);
+      else next.add(userId);
+      return next;
+    });
+  };
+
+  const toggleGroup = (rows: typeof reassignable) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      const groupIds = new Set(rows.map((r) => r.account.user_id));
+      const allSelected = Array.from(groupIds).every((id) => next.has(id));
+      if (allSelected) {
+        groupIds.forEach((id) => next.delete(id));
+      } else {
+        groupIds.forEach((id) => next.add(id));
+      }
+      return next;
+    });
+  };
+
+  const clearSelection = () => setSelected(new Set());
+
+  const bulkDelete = async () => {
+    setBulkDeleting(true);
+    const ids = Array.from(selected);
+    let ok = 0;
+    let fail = 0;
+    for (const userId of ids) {
+      try {
+        const { error } = await supabase.functions.invoke("admin-delete-user", { body: { userId } });
+        if (error) throw error;
+        ok += 1;
+      } catch {
+        fail += 1;
+      }
+    }
+    setBulkDeleting(false);
+    setBulkDeleteOpen(false);
+    clearSelection();
+    if (fail === 0) {
+      toast({ title: "Eliminados", description: `${ok} usuario(s) eliminados correctamente` });
+    } else {
+      toast({ title: "Parcial", description: `${ok} eliminados, ${fail} fallaron`, variant: "destructive" });
+    }
+    await load();
+  };
 
 
   // Calidad real: prioriza lo consultado en Meta, si no usa lo almacenado
