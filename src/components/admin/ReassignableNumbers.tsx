@@ -161,7 +161,45 @@ export const ReassignableNumbers = () => {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  // Consulta el estado REAL en Meta (calidad y conectividad) de todas las cuentas
+  const checkMeta = async (silent = false) => {
+    setCheckingMeta(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-wa-meta-status");
+      if (error) throw error;
+      const map: Record<string, { status?: string; quality?: string | null; error?: string | null }> = {};
+      (data?.results ?? []).forEach((r: any) => {
+        map[r.id] = { status: r.status, quality: r.quality ?? null, error: r.error ?? null };
+      });
+      setMetaStatus(map);
+      if (!silent) toast({ title: "Estado actualizado", description: "Se consultó el estado real en Meta" });
+    } catch (e: any) {
+      if (!silent) toast({ title: "Error", description: e.message ?? "No se pudo consultar Meta", variant: "destructive" });
+    } finally {
+      setCheckingMeta(false);
+    }
+  };
+
+  const deleteUser = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const { error } = await supabase.functions.invoke("admin-delete-user", {
+        body: { userId: deleteTarget.userId },
+      });
+      if (error) throw error;
+      toast({ title: "Usuario eliminado", description: deleteTarget.label });
+      setDeleteTarget(null);
+      await load();
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message ?? "No se pudo eliminar", variant: "destructive" });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  useEffect(() => { load().then(() => checkMeta(true)); }, []);
+
 
   const reassignable = useMemo(() => {
     const rows = accounts
