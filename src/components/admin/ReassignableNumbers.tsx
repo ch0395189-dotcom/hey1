@@ -201,6 +201,22 @@ export const ReassignableNumbers = () => {
   useEffect(() => { load().then(() => checkMeta(true)); }, []);
 
 
+  // Calidad real: prioriza lo consultado en Meta, si no usa lo almacenado
+  const effectiveQuality = (a: WAAccount): string | null => {
+    const m = metaStatus[a.id]?.quality;
+    const raw = (m ?? a.quality_rating ?? "") as string;
+    const up = raw.toUpperCase().trim();
+    if (!up) return null;
+    return up;
+  };
+
+  const bucketOf = (a: WAAccount): "GREEN" | "UNKNOWN" | "NA" => {
+    const q = effectiveQuality(a);
+    if (q === "GREEN") return "GREEN";
+    if (q === "UNKNOWN") return "UNKNOWN";
+    return "NA";
+  };
+
   const reassignable = useMemo(() => {
     const rows = accounts
       .filter((a) => !a.quality_paused && isGoodQuality(effectiveQuality(a)))
