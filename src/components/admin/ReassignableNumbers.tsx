@@ -91,6 +91,9 @@ export const ReassignableNumbers = () => {
   const [checkingMeta, setCheckingMeta] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ userId: string; label: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
