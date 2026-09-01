@@ -330,6 +330,195 @@ export const ReassignableNumbers = () => {
     return <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
   }
 
+  const subLabel = (userId: string) => {
+    const sub = subs[userId];
+    if (!sub) return { text: "Sin suscripción", variant: "destructive" as const };
+    const end = sub.status === "trialing" ? sub.trial_end : sub.current_period_end;
+    const expired = end ? new Date(end) < new Date() : false;
+    const dateTxt = end ? new Date(end).toLocaleDateString() : "sin fecha";
+    return {
+      text: `${sub.plan ?? "—"} · ${sub.status ?? "—"} · ${expired ? "vencido" : "vence"} ${dateTxt}`,
+      variant: (expired || sub.status !== "active" ? "destructive" : "secondary") as "destructive" | "secondary",
+    };
+  };
+
+  const renderTable = (rows: typeof reassignable) => {
+    if (rows.length === 0) {
+      return <p className="text-sm text-muted-foreground py-8 text-center">No hay números en este estado.</p>;
+    }
+    return (
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Número</TableHead>
+              <TableHead>Calidad</TableHead>
+              <TableHead>Dueño actual</TableHead>
+              <TableHead>Suscripción</TableHead>
+              <TableHead>Inactividad / Motivo</TableHead>
+              <TableHead>Acciones</TableHead>
+              <TableHead className="min-w-[280px]">Reasignar a</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map(({ account: a, reasons, inactivityDays }) => {
+              const ownerEmail = emails[a.user_id];
+              const ownerName = profiles[a.user_id];
+              const inputEmail = (targetEmail[a.id] ?? "").trim().toLowerCase();
+              const resolvedId = inputEmail ? emailToId[inputEmail] : null;
+              const inactLabel = Number.isFinite(inactivityDays) ? `${Math.floor(inactivityDays)}d` : "—";
+              const quality = effectiveQuality(a);
+              const meta = metaStatus[a.id];
+              const sl = subLabel(a.user_id);
+              return (
+                <TableRow key={a.id}>
+                  <TableCell>
+                    <div className="font-medium">{a.display_name || a.phone_number}</div>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          className="text-xs text-primary underline-offset-2 hover:underline cursor-pointer text-left"
+                          title="Tocar para escribir por WhatsApp"
+                        >
+                          {a.phone_number}
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-64 p-3" align="start">
+                        {(() => {
+                          const wa = normalizeWaPhone(a.phone_number);
+                          if (!wa) {
+                            return (
+                              <div className="flex items-start gap-2 text-sm text-destructive">
+                                <XCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                                <div>
+                                  <p className="font-medium">No tiene WhatsApp</p>
+                                  <p className="text-xs text-muted-foreground">El número no tiene un formato válido.</p>
+                                </div>
+                              </div>
+                            );
+                          }
+                          return (
+                            <div className="flex flex-col gap-2">
+                              <p className="text-sm font-medium flex items-center gap-2">
+                                <MessageCircle className="h-4 w-4 text-green-600" /> Tiene WhatsApp
+                              </p>
+                              <Button
+                                size="sm"
+                                className="w-full"
+                                onClick={() => window.open(`https://wa.me/${wa}`, "_blank", "noopener,noreferrer")}
+                              >
+                                <MessageCircle className="h-4 w-4 mr-2" /> Escribir por WhatsApp
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="w-full"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(`+${wa}`).catch(() => {});
+                                  toast({ title: "Copiado", description: `+${wa}` });
+                                }}
+                              >
+                                <Copy className="h-4 w-4 mr-2" /> Copiar número
+                              </Button>
+                            </div>
+                          );
+                        })()}
+                      </PopoverContent>
+                    </Popover>
+                    <div className="text-xs text-muted-foreground">{a.connection_type || "meta"}</div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      variant="outline"
+                      className={quality === "GREEN" ? "border-green-600 text-green-700" : ""}
+                    >
+                      {quality ?? "N/A"}
+                    </Badge>
+                    {meta?.status && (
+                      <div className="text-xs text-muted-foreground mt-1">{meta.status}</div>
+                    )}
+                    {meta?.error && (
+                      <div className="text-xs text-destructive mt-1 max-w-[160px] break-words">{meta.error}</div>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <div className="text-sm">{ownerName || ownerEmail || a.user_id.slice(0, 8)}</div>
+                    {ownerEmail && ownerName && <div className="text-xs text-muted-foreground">{ownerEmail}</div>}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={sl.variant} className="whitespace-normal text-left">{sl.text}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-col gap-1">
+                      <Badge variant="outline" className="w-fit">{inactLabel}</Badge>
+                      {reasons.map((r) => (
+                        <Badge key={r} variant="secondary" className="w-fit">{r}</Badge>
+                      ))}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-col gap-2">
+                      <Button size="sm" variant="outline" onClick={() => navigate(`/admin/inbox/${a.user_id}`)}>
+                        <Inbox className="w-4 h-4 mr-1" /> Bandeja
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() =>
+                          setDeleteTarget({ userId: a.user_id, label: ownerEmail || ownerName || a.user_id.slice(0, 8) })
+                        }
+                      >
+                        <Trash2 className="w-4 h-4 mr-1" /> Eliminar usuario
+                      </Button>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-col gap-2">
+                      <div className="flex gap-2">
+                        <Input
+                          type="email"
+                          placeholder="email del nuevo dueño"
+                          value={targetEmail[a.id] ?? ""}
+                          onChange={(e) => setTargetEmail((s) => ({ ...s, [a.id]: e.target.value }))}
+                          className="h-8 text-sm"
+                        />
+                        <Button
+                          size="sm"
+                          onClick={() => reassign(a.id, resolvedId)}
+                          disabled={busy === a.id || !resolvedId}
+                        >
+                          {busy === a.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
+                        </Button>
+                      </div>
+                      <Input
+                        placeholder="motivo (requerido)"
+                        value={targetReason[a.id] ?? ""}
+                        onChange={(e) => setTargetReason((s) => ({ ...s, [a.id]: e.target.value }))}
+                        className="h-8 text-sm"
+                      />
+                      {inputEmail && !resolvedId && (
+                        <p className="text-xs text-destructive">Email no encontrado</p>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => reassign(a.id, myUserId)}
+                        disabled={busy === a.id || !myUserId}
+                      >
+                        Asignar a mí
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
+    );
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -337,182 +526,55 @@ export const ReassignableNumbers = () => {
           <div>
             <CardTitle className="flex items-center gap-2"><RotateCcw className="h-5 w-5" /> Números reasignables</CardTitle>
             <CardDescription>
-              Números en buen estado (calidad GREEN, no pausados) cuyo dueño tiene el plan vencido o no inicia sesión hace {INACTIVE_DAYS}+ días.
+              Números no pausados cuyo dueño tiene el plan vencido o no inicia sesión hace {INACTIVE_DAYS}+ días.
+              Divididos por su estado real de calidad en Meta.
             </CardDescription>
           </div>
-          <Button variant="outline" size="sm" onClick={load}>
-            <RefreshCw className="w-4 h-4 mr-2" /> Recargar
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => checkMeta(false)} disabled={checkingMeta}>
+              {checkingMeta ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RadioTower className="w-4 h-4 mr-2" />}
+              Verificar estado real
+            </Button>
+            <Button variant="outline" size="sm" onClick={load}>
+              <RefreshCw className="w-4 h-4 mr-2" /> Recargar
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
-        {reassignable.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-8 text-center">
-            No hay números reasignables en este momento.
-          </p>
-        ) : (
-          <div className="overflow-x-auto">
-            <div className="flex items-center gap-2 mb-3 flex-wrap">
-              <div className="relative flex-1 min-w-[220px]">
-                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar por número, nombre, email o plan..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="pl-8 h-9"
-                />
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setSortOldest((s) => !s)}
-                title={sortOldest ? "Ordenado: más antiguo primero" : "Ordenado: más reciente primero"}
-              >
-                {sortOldest ? <ArrowDownWideNarrow className="w-4 h-4 mr-1" /> : <ArrowUpNarrowWide className="w-4 h-4 mr-1" />}
-                {sortOldest ? "Más antiguo" : "Más reciente"}
-              </Button>
-              <Badge variant="secondary">{reassignable.length}</Badge>
-            </div>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Número</TableHead>
-                  <TableHead>Calidad</TableHead>
-                  <TableHead>Dueño actual</TableHead>
-                  <TableHead>Inactividad / Motivo</TableHead>
-                  <TableHead className="min-w-[280px]">Reasignar a</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {reassignable.map(({ account: a, reasons, inactivityDays }) => {
-                  const ownerEmail = emails[a.user_id];
-                  const ownerName = profiles[a.user_id];
-                  const sub = subs[a.user_id];
-                  const inputEmail = (targetEmail[a.id] ?? "").trim().toLowerCase();
-                  const resolvedId = inputEmail ? emailToId[inputEmail] : null;
-                  const inactLabel = Number.isFinite(inactivityDays)
-                    ? `${Math.floor(inactivityDays)}d`
-                    : "—";
-                  return (
-                    <TableRow key={a.id}>
-                      <TableCell>
-                        <div className="font-medium">{a.display_name || a.phone_number}</div>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <button
-                              type="button"
-                              className="text-xs text-primary underline-offset-2 hover:underline cursor-pointer text-left"
-                              title="Tocar para escribir por WhatsApp"
-                            >
-                              {a.phone_number}
-                            </button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-64 p-3" align="start">
-                            {(() => {
-                              const wa = normalizeWaPhone(a.phone_number);
-                              if (!wa) {
-                                return (
-                                  <div className="flex items-start gap-2 text-sm text-destructive">
-                                    <XCircle className="h-4 w-4 mt-0.5 shrink-0" />
-                                    <div>
-                                      <p className="font-medium">No tiene WhatsApp</p>
-                                      <p className="text-xs text-muted-foreground">El número no tiene un formato válido.</p>
-                                    </div>
-                                  </div>
-                                );
-                              }
-                              return (
-                                <div className="flex flex-col gap-2">
-                                  <p className="text-sm font-medium flex items-center gap-2">
-                                    <MessageCircle className="h-4 w-4 text-green-600" /> Tiene WhatsApp
-                                  </p>
-                                  <Button
-                                    size="sm"
-                                    className="w-full"
-                                    onClick={() => window.open(`https://wa.me/${wa}`, "_blank", "noopener,noreferrer")}
-                                  >
-                                    <MessageCircle className="h-4 w-4 mr-2" /> Escribir por WhatsApp
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="w-full"
-                                    onClick={() => {
-                                      navigator.clipboard.writeText(`+${wa}`).catch(() => {});
-                                      toast({ title: "Copiado", description: `+${wa}` });
-                                    }}
-                                  >
-                                    <Copy className="h-4 w-4 mr-2" /> Copiar número
-                                  </Button>
-                                </div>
-                              );
-                            })()}
-                          </PopoverContent>
-                        </Popover>
-                        <div className="text-xs text-muted-foreground">{a.connection_type || "meta"}</div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="border-green-600 text-green-700">
-                          {a.quality_rating || "N/A"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-sm">{ownerName || ownerEmail || a.user_id.slice(0, 8)}</div>
-                        {ownerEmail && ownerName && <div className="text-xs text-muted-foreground">{ownerEmail}</div>}
-                        {sub && <div className="text-xs text-muted-foreground">{sub.plan} · {sub.status}</div>}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col gap-1">
-                          <Badge variant="outline" className="w-fit">{inactLabel}</Badge>
-                          {reasons.map((r) => (
-                            <Badge key={r} variant="secondary" className="w-fit">{r}</Badge>
-                          ))}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col gap-2">
-                          <div className="flex gap-2">
-                            <Input
-                              type="email"
-                              placeholder="email del nuevo dueño"
-                              value={targetEmail[a.id] ?? ""}
-                              onChange={(e) => setTargetEmail((s) => ({ ...s, [a.id]: e.target.value }))}
-                              className="h-8 text-sm"
-                            />
-                            <Button
-                              size="sm"
-                              onClick={() => reassign(a.id, resolvedId)}
-                              disabled={busy === a.id || !resolvedId}
-                            >
-                              {busy === a.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
-                            </Button>
-                          </div>
-                          <Input
-                            placeholder="motivo (requerido)"
-                            value={targetReason[a.id] ?? ""}
-                            onChange={(e) => setTargetReason((s) => ({ ...s, [a.id]: e.target.value }))}
-                            className="h-8 text-sm"
-                          />
-                          {inputEmail && !resolvedId && (
-                            <p className="text-xs text-destructive">Email no encontrado</p>
-                          )}
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => reassign(a.id, myUserId)}
-                            disabled={busy === a.id || !myUserId}
-                          >
-                            Asignar a mí
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+        <div className="flex items-center gap-2 mb-3 flex-wrap">
+          <div className="relative flex-1 min-w-[220px]">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por número, nombre, email o plan..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-8 h-9"
+            />
           </div>
-        )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setSortOldest((s) => !s)}
+            title={sortOldest ? "Ordenado: más antiguo primero" : "Ordenado: más reciente primero"}
+          >
+            {sortOldest ? <ArrowDownWideNarrow className="w-4 h-4 mr-1" /> : <ArrowUpNarrowWide className="w-4 h-4 mr-1" />}
+            {sortOldest ? "Más antiguo" : "Más reciente"}
+          </Button>
+          <Badge variant="secondary">{reassignable.length}</Badge>
+        </div>
+
+        <Tabs defaultValue="UNKNOWN">
+          <TabsList>
+            <TabsTrigger value="UNKNOWN">UNKNOWN ({groups.UNKNOWN.length})</TabsTrigger>
+            <TabsTrigger value="NA">N/A ({groups.NA.length})</TabsTrigger>
+            <TabsTrigger value="GREEN">GREEN ({groups.GREEN.length})</TabsTrigger>
+          </TabsList>
+          <TabsContent value="UNKNOWN">{renderTable(groups.UNKNOWN)}</TabsContent>
+          <TabsContent value="NA">{renderTable(groups.NA)}</TabsContent>
+          <TabsContent value="GREEN">{renderTable(groups.GREEN)}</TabsContent>
+        </Tabs>
+
 
         <div className="mt-10">
           <div className="flex items-center gap-2 mb-3">
