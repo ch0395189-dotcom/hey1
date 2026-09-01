@@ -288,7 +288,14 @@ export const ReassignableNumbers = () => {
       sortOldest ? b.inactivityDays - a.inactivityDays : a.inactivityDays - b.inactivityDays
     );
     return filtered;
-  }, [accounts, subs, lastSignIn, search, sortOldest, emails, profiles]);
+  }, [accounts, subs, lastSignIn, search, sortOldest, emails, profiles, metaStatus]);
+
+  const groups = useMemo(() => {
+    const g: Record<"GREEN" | "UNKNOWN" | "NA", typeof reassignable> = { GREEN: [], UNKNOWN: [], NA: [] };
+    reassignable.forEach((r) => { g[bucketOf(r.account)].push(r); });
+    return g;
+  }, [reassignable, metaStatus]);
+
 
   const reassign = async (accountId: string, newUserId: string | null) => {
     if (!newUserId) {
