@@ -86,7 +86,12 @@ export const ReassignableNumbers = () => {
   const [history, setHistory] = useState<LogRow[]>([]);
   const [search, setSearch] = useState("");
   const [sortOldest, setSortOldest] = useState(true);
+  const [metaStatus, setMetaStatus] = useState<Record<string, { status?: string; quality?: string | null; error?: string | null }>>({});
+  const [checkingMeta, setCheckingMeta] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ userId: string; label: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const load = async () => {
     setLoading(true);
