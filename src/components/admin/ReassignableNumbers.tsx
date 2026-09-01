@@ -203,7 +203,7 @@ export const ReassignableNumbers = () => {
 
   const reassignable = useMemo(() => {
     const rows = accounts
-      .filter((a) => !a.quality_paused && isGoodQuality(a.quality_rating))
+      .filter((a) => !a.quality_paused && isGoodQuality(effectiveQuality(a)))
       .map((a) => {
         const sub = subs[a.user_id];
         const last = lastSignIn[a.user_id];
