@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { prepareAttachedAudioForWhatsApp, prepareRecordedAudioForWhatsApp, preloadAudioEncoder, sniffAudioContainer } from "@/utils/audioConvert";
+import { prepareAttachedAudioForWhatsApp, prepareRecordedAudioForWhatsApp, prepareVoiceNoteForWhatsApp, preloadAudioEncoder, sniffAudioContainer } from "@/utils/audioConvert";
 import { compressMediaIfNeeded, formatFileSize, exceedsWhatsAppLimit } from "@/utils/mediaCompressor";
 import { getFriendlyWhatsappError } from "@/lib/whatsappErrors";
 import { detectOTP } from "@/lib/otpDetect";
