@@ -924,7 +924,7 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
         throw new Error('Tu dispositivo generó un audio que WhatsApp no puede reproducir. Grábalo nuevamente e intenta enviarlo.');
       }
       const extension = sniffed.ext;
-      const contentType = sniffed.mime;
+      const contentType = sniffed.container === 'ogg' ? 'audio/ogg; codecs=opus' : sniffed.mime;
 
       const fileName = `audio_${Date.now()}.${extension}`;
       const filePath = `${conversation.id}/${fileName}`;
