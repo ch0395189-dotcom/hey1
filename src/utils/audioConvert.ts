@@ -70,6 +70,27 @@ export async function convertToWhatsAppAudio(input: Blob): Promise<Blob> {
 export const convertToOggOpus = convertToWhatsAppAudio;
 
 /**
+ * Convierte un audio (ej. TTS de voz clonada en MP3) al formato exacto de una
+ * nota de voz de WhatsApp: OGG/Opus mono 48 kHz. Así el mensaje llega con la
+ * burbuja de nota de voz y no como archivo adjunto.
+ */
+export async function prepareVoiceNoteForWhatsApp(input: Blob): Promise<Blob> {
+  if (!input || input.size === 0) throw new Error('El audio está vacío.');
+
+  if (await isRealOggContainer(input)) return input;
+
+  try {
+    const { encodeBlobToOggOpus } = await import('./oggOpusEncode');
+    const ogg = await encodeBlobToOggOpus(input);
+    if (!(await isRealOggContainer(ogg))) throw new Error('OGG inválido');
+    return ogg;
+  } catch (err) {
+    console.warn('[audioConvert] OGG/Opus encode failed, sending original:', err);
+    return input;
+  }
+}
+
+/**
  * Prepara una grabación del micrófono para enviarla por WhatsApp.
  * Siempre devuelve un contenedor que Meta puede decodificar.
  */
