@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
-import { Loader2, Save, RotateCcw, Search, SlidersHorizontal } from 'lucide-react';
+import { Loader2, Save, RotateCcw, Search, SlidersHorizontal, Plus } from 'lucide-react';
 
 interface Row {
   user_id: string;
@@ -113,19 +113,12 @@ export const UserLimitsManager = () => {
     return Number.isFinite(n) && n >= 0 ? Math.floor(n) : null;
   };
 
-  const save = async (r: Row) => {
-    const d = draftFor(r);
+  const persist = async (r: Row, payload: { max_agents: number | null; max_whatsapp_accounts: number | null; max_messages: number | null }) => {
     setSavingId(r.user_id);
     try {
-      const payload = {
-        user_id: r.user_id,
-        max_agents: parse(d.agents),
-        max_whatsapp_accounts: parse(d.wa),
-        max_messages: parse(d.messages),
-      };
       const { error } = await (supabase as any)
         .from('user_limit_overrides')
-        .upsert(payload, { onConflict: 'user_id' });
+        .upsert({ user_id: r.user_id, ...payload }, { onConflict: 'user_id' });
       if (error) throw error;
       toast({ title: 'Límites actualizados', description: r.email });
       setDrafts((prev) => { const n = { ...prev }; delete n[r.user_id]; return n; });
@@ -136,6 +129,28 @@ export const UserLimitsManager = () => {
       setSavingId(null);
     }
   };
+
+  const save = async (r: Row) => {
+    const d = draftFor(r);
+    await persist(r, {
+      max_agents: parse(d.agents),
+      max_whatsapp_accounts: parse(d.wa),
+      max_messages: parse(d.messages),
+    });
+  };
+
+  /** Suma cupos manualmente partiendo del uso actual si aún no hay override. */
+  const bump = async (r: Row, field: 'agents' | 'wa', delta: number) => {
+    const d = draftFor(r);
+    const currentAgents = parse(d.agents) ?? r.max_agents ?? r.agents_count;
+    const currentWa = parse(d.wa) ?? r.max_whatsapp_accounts ?? r.wa_count;
+    await persist(r, {
+      max_agents: field === 'agents' ? Math.max(0, currentAgents + delta) : currentAgents,
+      max_whatsapp_accounts: field === 'wa' ? Math.max(0, currentWa + delta) : currentWa,
+      max_messages: parse(d.messages) ?? r.max_messages,
+    });
+  };
+
 
   const reset = async (r: Row) => {
     setSavingId(r.user_id);
@@ -234,11 +249,24 @@ export const UserLimitsManager = () => {
                     </div>
                   </div>
 
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <Button size="sm" onClick={() => save(r)} disabled={savingId === r.user_id}>
                       {savingId === r.user_id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                       <span className="ml-2">Guardar</span>
                     </Button>
+                    <Button size="sm" variant="secondary" onClick={() => bump(r, 'agents', 1)} disabled={savingId === r.user_id}>
+                      <Plus className="h-4 w-4" />
+                      <span className="ml-1">1 agente</span>
+                    </Button>
+                    <Button size="sm" variant="secondary" onClick={() => bump(r, 'agents', 5)} disabled={savingId === r.user_id}>
+                      <Plus className="h-4 w-4" />
+                      <span className="ml-1">5 agentes</span>
+                    </Button>
+                    <Button size="sm" variant="secondary" onClick={() => bump(r, 'wa', 1)} disabled={savingId === r.user_id}>
+                      <Plus className="h-4 w-4" />
+                      <span className="ml-1">1 WhatsApp</span>
+                    </Button>
+
                     {custom && (
                       <Button size="sm" variant="outline" onClick={() => reset(r)} disabled={savingId === r.user_id}>
                         <RotateCcw className="h-4 w-4" />

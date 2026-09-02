@@ -92,6 +92,10 @@ const Admin = () => {
               <UserX className="h-4 w-4" />
               <span className="hidden sm:inline">Huérfanos</span>
             </TabsTrigger>
+            <TabsTrigger value="limits" className="flex items-center gap-2">
+              <SlidersHorizontal className="h-4 w-4" />
+              <span className="hidden sm:inline">Límites (agentes/números)</span>
+            </TabsTrigger>
             <TabsTrigger value="phones" className="flex items-center gap-2">
               <Phone className="h-4 w-4" />
               <span className="hidden sm:inline">Números</span>
@@ -163,10 +167,6 @@ const Admin = () => {
             <TabsTrigger value="new-renewals" className="flex items-center gap-2">
               <Repeat className="h-4 w-4" />
               <span className="hidden sm:inline">Nuevos y Renovaciones</span>
-            </TabsTrigger>
-            <TabsTrigger value="limits" className="flex items-center gap-2">
-              <SlidersHorizontal className="h-4 w-4" />
-              <span className="hidden sm:inline">Límites</span>
             </TabsTrigger>
             <TabsTrigger value="token-audit" className="flex items-center gap-2">
               <KeyRound className="h-4 w-4" />
