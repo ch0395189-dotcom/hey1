@@ -903,7 +903,12 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
       console.log('[Audio] Original type:', audioBlob.type, 'size:', audioBlob.size);
 
       try {
-        finalBlob = await prepareRecordedAudioForWhatsApp(audioBlob);
+        // Preferimos OGG/Opus (formato nativo de nota de voz de WhatsApp);
+        // si el dispositivo no puede codificarlo, caemos a MP3.
+        finalBlob = await prepareVoiceNoteForWhatsApp(audioBlob);
+        if (!(await sniffAudioContainer(finalBlob)).container.includes('ogg')) {
+          finalBlob = await prepareRecordedAudioForWhatsApp(audioBlob);
+        }
         console.log('[Audio] Prepared blob size:', finalBlob.size);
       } catch (convErr) {
         console.error('[Audio] audio prepare failed:', convErr);
