@@ -92,6 +92,10 @@ const Admin = () => {
               <UserX className="h-4 w-4" />
               <span className="hidden sm:inline">Huérfanos</span>
             </TabsTrigger>
+            <TabsTrigger value="limits" className="flex items-center gap-2">
+              <SlidersHorizontal className="h-4 w-4" />
+              <span className="hidden sm:inline">Límites (agentes/números)</span>
+            </TabsTrigger>
             <TabsTrigger value="phones" className="flex items-center gap-2">
               <Phone className="h-4 w-4" />
               <span className="hidden sm:inline">Números</span>
