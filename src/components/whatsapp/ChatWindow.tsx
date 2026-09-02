@@ -1161,12 +1161,12 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
       const mp3Buffer = await ttsRes.arrayBuffer();
       const mp3Blob = new Blob([mp3Buffer], { type: "audio/mpeg" });
 
-      // 2. El MP3 se envía tal cual: WhatsApp lo reproduce en todos los
-      //    dispositivos y evitamos conversiones que puedan fallar.
-      const finalBlob: Blob = mp3Blob;
+      // 2. Convertimos el MP3 a OGG/Opus: es el formato nativo de las notas de
+      //    voz de WhatsApp, así llega igual que un audio grabado normal.
+      const finalBlob: Blob = await prepareVoiceNoteForWhatsApp(mp3Blob);
       const sniffedTts = await sniffAudioContainer(finalBlob);
       const ext = sniffedTts.ext;
-      const contentType = sniffedTts.mime;
+      const contentType = sniffedTts.container === 'ogg' ? 'audio/ogg; codecs=opus' : sniffedTts.mime;
       const outFile = new File([finalBlob], `cloned_${Date.now()}.${ext}`, { type: contentType });
 
       // 3. Upload to storage
