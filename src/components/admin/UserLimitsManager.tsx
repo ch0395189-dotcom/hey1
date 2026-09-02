@@ -249,11 +249,24 @@ export const UserLimitsManager = () => {
                     </div>
                   </div>
 
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <Button size="sm" onClick={() => save(r)} disabled={savingId === r.user_id}>
                       {savingId === r.user_id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                       <span className="ml-2">Guardar</span>
                     </Button>
+                    <Button size="sm" variant="secondary" onClick={() => bump(r, 'agents', 1)} disabled={savingId === r.user_id}>
+                      <Plus className="h-4 w-4" />
+                      <span className="ml-1">1 agente</span>
+                    </Button>
+                    <Button size="sm" variant="secondary" onClick={() => bump(r, 'agents', 5)} disabled={savingId === r.user_id}>
+                      <Plus className="h-4 w-4" />
+                      <span className="ml-1">5 agentes</span>
+                    </Button>
+                    <Button size="sm" variant="secondary" onClick={() => bump(r, 'wa', 1)} disabled={savingId === r.user_id}>
+                      <Plus className="h-4 w-4" />
+                      <span className="ml-1">1 WhatsApp</span>
+                    </Button>
+
                     {custom && (
                       <Button size="sm" variant="outline" onClick={() => reset(r)} disabled={savingId === r.user_id}>
                         <RotateCcw className="h-4 w-4" />
