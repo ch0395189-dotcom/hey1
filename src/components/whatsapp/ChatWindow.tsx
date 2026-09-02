@@ -1072,12 +1072,12 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
     if (!conversation) return;
     setSendingClonedVoice(true);
     try {
-      // Fish Audio ya devuelve MP3, un formato que WhatsApp reproduce siempre.
-      // No hacemos conversiones extra para no introducir puntos de fallo.
-      const finalBlob: Blob = audioBlob;
+      // Convertimos a OGG/Opus para que WhatsApp lo entregue como NOTA DE VOZ
+      // (igual que un audio grabado en la app), no como archivo adjunto.
+      const finalBlob: Blob = await prepareVoiceNoteForWhatsApp(audioBlob);
       const sniffed = await sniffAudioContainer(finalBlob);
       const ext = sniffed.ext;
-      const contentType = sniffed.mime;
+      const contentType = sniffed.container === 'ogg' ? 'audio/ogg; codecs=opus' : sniffed.mime;
       const outFile = new File([finalBlob], `cloned_${Date.now()}.${ext}`, { type: contentType });
 
       const filePath = `${conversation.id}/cloned_${Date.now()}.${ext}`;
