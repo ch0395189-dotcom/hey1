@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
-import { Loader2, Save, RotateCcw, Search, SlidersHorizontal } from 'lucide-react';
+import { Loader2, Save, RotateCcw, Search, SlidersHorizontal, Plus } from 'lucide-react';
 
 interface Row {
   user_id: string;
