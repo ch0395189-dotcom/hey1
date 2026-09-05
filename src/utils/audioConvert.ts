@@ -187,3 +187,32 @@ export function isAlreadyWhatsAppCompatible(blob: Blob): boolean {
     t.includes('amr')
   );
 }
+
+/**
+ * Último control antes de subir a Storage: garantiza que el archivo sea un
+ * contenedor que Meta pueda decodificar y devuelve la extensión y el
+ * content-type reales. Si el OGG está corrupto (sin OpusHead) lo re-codifica
+ * a MP3 en vez de enviar algo que WhatsApp rechazará.
+ */
+export async function finalizeAudioForUpload(
+  input: Blob
+): Promise<{ blob: Blob; ext: string; contentType: string }> {
+  let blob = input;
+  let sniffed = await sniffAudioContainer(blob);
+
+  if (sniffed.container === 'ogg' && !(await isPlayableOggOpus(blob))) {
+    console.warn('[audioConvert] OGG sin OpusHead, re-codificando a MP3');
+    blob = await convertToWhatsAppAudio(input);
+    sniffed = await sniffAudioContainer(blob);
+  }
+
+  if (sniffed.container === 'webm' || sniffed.container === 'unknown') {
+    throw new Error('Tu dispositivo generó un audio que WhatsApp no puede reproducir. Grábalo nuevamente e intenta enviarlo.');
+  }
+
+  return {
+    blob,
+    ext: sniffed.ext,
+    contentType: sniffed.container === 'ogg' ? 'audio/ogg; codecs=opus' : sniffed.mime,
+  };
+}
