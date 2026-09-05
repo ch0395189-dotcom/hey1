@@ -1077,10 +1077,8 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
     try {
       // Convertimos a OGG/Opus para que WhatsApp lo entregue como NOTA DE VOZ
       // (igual que un audio grabado en la app), no como archivo adjunto.
-      const finalBlob: Blob = await prepareVoiceNoteForWhatsApp(audioBlob);
-      const sniffed = await sniffAudioContainer(finalBlob);
-      const ext = sniffed.ext;
-      const contentType = sniffed.container === 'ogg' ? 'audio/ogg; codecs=opus' : sniffed.mime;
+      const prepared: Blob = await prepareVoiceNoteForWhatsApp(audioBlob);
+      const { blob: finalBlob, ext, contentType } = await finalizeAudioForUpload(prepared);
       const outFile = new File([finalBlob], `cloned_${Date.now()}.${ext}`, { type: contentType });
 
       const filePath = `${conversation.id}/cloned_${Date.now()}.${ext}`;
