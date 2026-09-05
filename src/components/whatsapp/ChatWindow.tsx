@@ -918,13 +918,11 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
       // Never trust the blob MIME type: upload with the REAL container so Meta
       // downloads a file it can actually decode (otherwise el cliente solo
       // recibe la burbuja sin audio reproducible).
-      const sniffed = await sniffAudioContainer(finalBlob);
-      console.log('[Audio] Real container:', sniffed.container);
-      if (sniffed.container === 'webm' || sniffed.container === 'unknown') {
-        throw new Error('Tu dispositivo generó un audio que WhatsApp no puede reproducir. Grábalo nuevamente e intenta enviarlo.');
-      }
-      const extension = sniffed.ext;
-      const contentType = sniffed.container === 'ogg' ? 'audio/ogg; codecs=opus' : sniffed.mime;
+      const finalized = await finalizeAudioForUpload(finalBlob);
+      finalBlob = finalized.blob;
+      const extension = finalized.ext;
+      const contentType = finalized.contentType;
+      console.log('[Audio] Upload container:', extension, contentType);
 
       const fileName = `audio_${Date.now()}.${extension}`;
       const filePath = `${conversation.id}/${fileName}`;
