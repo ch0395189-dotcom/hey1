@@ -33,12 +33,13 @@ export const EmailsTable = () => {
   const load = async () => {
     setLoading(true);
     try {
-      const [{ data: profiles }, { data: subs }, { data: accounts }, { data: authData }] = await Promise.all([
-        supabase.from('profiles').select('user_id, full_name, created_at'),
-        supabase.from('subscriptions').select('user_id, plan, status, current_period_end'),
-        supabase.from('whatsapp_accounts').select('user_id, phone_number, is_active'),
+      const [profiles, subs, accounts, { data: authData }] = await Promise.all([
+        fetchAllRows<{ user_id: string; full_name: string | null; created_at: string }>('profiles', 'user_id, full_name, created_at'),
+        fetchAllRows<any>('subscriptions', 'user_id, plan, status, current_period_end'),
+        fetchAllRows<any>('whatsapp_accounts', 'user_id, phone_number, is_active'),
         supabase.functions.invoke('admin-get-users'),
       ]);
+
 
       const emailMap = new Map<string, string>();
       const list = (authData?.data?.users || authData?.users || []) as { id: string; email?: string }[];
