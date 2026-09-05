@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAllRows } from '@/lib/fetchAll';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -36,9 +37,9 @@ export const UserLimitsManager = () => {
   const load = async () => {
     setLoading(true);
     try {
-      const [{ data: profiles }, { data: subs }, { data: accounts }, { data: agents }, { data: overrides }, { data: authData }] =
+      const [profiles, { data: subs }, { data: accounts }, { data: agents }, { data: overrides }, { data: authData }] =
         await Promise.all([
-          supabase.from('profiles').select('user_id, full_name'),
+          fetchAllRows<{ user_id: string; full_name: string | null }>('profiles', 'user_id, full_name'),
           supabase.from('subscriptions').select('user_id, plan'),
           supabase.from('whatsapp_accounts').select('user_id, is_active'),
           supabase.from('team_agents').select('owner_id, is_active'),
