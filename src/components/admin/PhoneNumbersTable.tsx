@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAllRows } from '@/lib/fetchAll';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -85,10 +86,10 @@ export const PhoneNumbersTable = () => {
   const load = async () => {
     setLoading(true);
     try {
-      const [{ data: accounts }, { data: profiles }, { data: subs }, { data: authData }] = await Promise.all([
+      const [{ data: accounts }, profiles, subs, { data: authData }] = await Promise.all([
         supabase.from('whatsapp_accounts').select('id, phone_number, user_id, is_active, connection_type'),
-        supabase.from('profiles').select('user_id, full_name'),
-        supabase.from('subscriptions').select('user_id, plan, status, current_period_end'),
+        fetchAllRows<any>('profiles', 'user_id, full_name'),
+        fetchAllRows<any>('subscriptions', 'user_id, plan, status, current_period_end'),
         supabase.functions.invoke('admin-get-users'),
       ]);
 

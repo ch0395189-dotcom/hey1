@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAllRows } from '@/lib/fetchAll';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -55,15 +56,15 @@ export const NewAndRenewals = () => {
     try {
       const [{ data: usersData, error: usersErr }, profRes, subRes, boldRes, manRes] = await Promise.all([
         supabase.functions.invoke('admin-get-users'),
-        supabase.from('profiles').select('user_id, full_name, created_at'),
-        supabase.from('subscriptions').select('user_id, plan, status, current_period_end, created_at, updated_at'),
+        fetchAllRows<any>('profiles', 'user_id, full_name, created_at'),
+        fetchAllRows<any>('subscriptions', 'user_id, plan, status, current_period_end, created_at, updated_at'),
         supabase.from('bold_payments').select('user_id, amount, created_at, plan'),
         supabase.from('manual_payments').select('user_id, amount, created_at'),
       ]);
       if (usersErr) throw usersErr;
       setAuthUsers((usersData as any)?.users ?? []);
-      setProfiles((profRes.data ?? []) as Profile[]);
-      setSubs((subRes.data ?? []) as Subscription[]);
+      setProfiles((profRes ?? []) as Profile[]);
+      setSubs((subRes ?? []) as Subscription[]);
       const bold: Payment[] = ((boldRes.data ?? []) as any[]).map((p) => ({ ...p, source: 'bold' }));
       const manual: Payment[] = ((manRes.data ?? []) as any[]).map((p) => ({ ...p, source: 'manual', plan: null }));
       setPayments([...bold, ...manual]);

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAllRows } from '@/lib/fetchAll';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -30,10 +31,10 @@ export const NoWhatsAppOutreach = () => {
   const load = async () => {
     setLoading(true);
     try {
-      const [{ data: profiles }, { data: subs }, { data: accounts }, { data: authData }] = await Promise.all([
-        supabase.from('profiles').select('user_id, full_name, created_at'),
-        supabase.from('subscriptions').select('user_id, plan, status'),
-        supabase.from('whatsapp_accounts').select('user_id'),
+      const [profiles, subs, accounts, { data: authData }] = await Promise.all([
+        fetchAllRows<any>('profiles', 'user_id, full_name, created_at'),
+        fetchAllRows<any>('subscriptions', 'user_id, plan, status'),
+        fetchAllRows<any>('whatsapp_accounts', 'user_id'),
         supabase.functions.invoke('admin-get-users'),
       ]);
 
