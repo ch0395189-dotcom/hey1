@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAllRows } from '@/lib/fetchAll';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -31,10 +32,7 @@ export const OrphanUsers = () => {
   const fetchOrphans = async () => {
     setLoading(true);
     try {
-      const { data: profiles, error: pErr } = await supabase
-        .from('profiles')
-        .select('user_id, full_name, created_at');
-      if (pErr) throw pErr;
+      const profiles = await fetchAllRows<any>('profiles', 'user_id, full_name, created_at');
 
       const { data: waAccounts, error: wErr } = await supabase
         .from('whatsapp_accounts')

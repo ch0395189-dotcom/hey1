@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAllRows } from '@/lib/fetchAll';
 import { useAdminCheck } from '@/hooks/useAdminCheck';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -92,7 +93,7 @@ const Payments = () => {
         supabase.from('payment_alerts').select('*').order('sent_at', { ascending: false }),
         supabase.from('bold_payments' as any).select('*').order('created_at', { ascending: false }),
         supabase.from('credit_purchases').select('*').order('created_at', { ascending: false }),
-        supabase.from('profiles').select('user_id, full_name'),
+        fetchAllRows<any>('profiles', 'user_id, full_name'),
         supabase.functions.invoke('admin-get-users'),
       ]);
 
@@ -100,7 +101,7 @@ const Payments = () => {
       const authUsers = (authRes.data as any)?.users || [];
       authUsers.forEach((u: { id: string; email: string }) => emailMap.set(u.id, u.email));
 
-      const userOptions: UserOption[] = (profilesRes.data || []).map((p: any) => ({
+      const userOptions: UserOption[] = (profilesRes || []).map((p: any) => ({
         user_id: p.user_id,
         full_name: p.full_name,
         email: emailMap.get(p.user_id) || 'N/A',
