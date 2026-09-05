@@ -890,13 +890,18 @@ Deno.serve(async (req) => {
           if (value.statuses && value.statuses.length > 0) {
             for (const status of value.statuses) {
               const firstError = status.errors?.[0];
-              const nextStatus = status.status === 'failed'
-                ? `failed_${firstError?.code ?? 'unknown'}`
-                : status.status;
+              const isFailed = status.status === 'failed';
+              const updatePayload: Record<string, unknown> = { status: isFailed ? 'failed' : status.status };
+              if (isFailed) {
+                updatePayload.error_code = [
+                  firstError?.code ?? 'unknown',
+                  firstError?.error_data?.details || firstError?.title || firstError?.message || '',
+                ].filter(Boolean).join(' - ').slice(0, 500);
+              }
 
               const { error: updateError } = await supabase
                 .from('messages')
-                .update({ status: nextStatus })
+                .update(updatePayload)
                 .eq('whatsapp_message_id', status.id);
 
               if (updateError) {
