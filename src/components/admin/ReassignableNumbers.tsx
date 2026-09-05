@@ -202,6 +202,11 @@ export const ReassignableNumbers = () => {
     }
   };
 
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const toggleUser = (userId: string) => {
     setSelected((prev) => {
       const next = new Set(prev);
