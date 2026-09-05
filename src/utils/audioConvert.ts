@@ -92,15 +92,29 @@ export const convertToOggOpus = convertToWhatsAppAudio;
 export async function prepareVoiceNoteForWhatsApp(input: Blob): Promise<Blob> {
   if (!input || input.size === 0) throw new Error('El audio está vacío.');
 
-  if (await isRealOggContainer(input)) return input;
+  if (await isPlayableOggOpus(input)) return input;
+
+  // Si el blob dice ser OGG pero no tiene cabecera OpusHead, NO se puede
+  // enviar: Meta lo rechaza con 131053. Lo re-codificamos a MP3.
+  const looksLikeBrokenOgg = await isRealOggContainer(input);
 
   try {
     const { encodeBlobToOggOpus } = await import('./oggOpusEncode');
     const ogg = await encodeBlobToOggOpus(input);
-    if (!(await isRealOggContainer(ogg))) throw new Error('OGG inválido');
+    if (!(await isPlayableOggOpus(ogg))) throw new Error('OGG sin cabecera OpusHead');
     return ogg;
   } catch (err) {
-    console.warn('[audioConvert] OGG/Opus encode failed, sending original:', err);
+    console.warn('[audioConvert] OGG/Opus encode failed, falling back to MP3:', err);
+    try {
+      const mp3 = await convertToWhatsAppAudio(input);
+      const sniffed = await sniffAudioContainer(mp3);
+      if (sniffed.container === 'mp3') return mp3;
+    } catch (mp3Err) {
+      console.warn('[audioConvert] MP3 fallback failed:', mp3Err);
+    }
+    if (looksLikeBrokenOgg) {
+      throw new Error('No se pudo preparar el audio para WhatsApp. Intenta grabarlo de nuevo.');
+    }
     return input;
   }
 }
