@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAllRows } from '@/lib/fetchAll';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -32,12 +33,12 @@ export const ExpiredPlansOutreach = () => {
     setLoading(true);
     try {
       const nowIso = new Date().toISOString();
-      const [{ data: subs }, { data: profiles }, { data: authData }] = await Promise.all([
+      const [{ data: subs }, profiles, { data: authData }] = await Promise.all([
         supabase
           .from('subscriptions')
           .select('user_id, plan, status, trial_end')
           .or(`status.in.(canceled,past_due,unpaid),and(status.eq.trialing,trial_end.lt.${nowIso})`),
-        supabase.from('profiles').select('user_id, full_name'),
+        fetchAllRows<any>('profiles', 'user_id, full_name'),
         supabase.functions.invoke('admin-get-users'),
       ]);
 

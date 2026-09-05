@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAllRows } from '@/lib/fetchAll';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -62,7 +63,7 @@ export const CloneBotManager = () => {
       const emailMap = new Map<string, string>();
       authData?.users?.forEach((u: { id: string; email: string }) => emailMap.set(u.id, u.email));
 
-      const { data: profiles } = await supabase.from('profiles').select('user_id, full_name');
+      const profiles = await fetchAllRows<any>('profiles', 'user_id, full_name');
       const nameMap = new Map<string, string | null>();
       profiles?.forEach(p => nameMap.set(p.user_id, p.full_name));
 

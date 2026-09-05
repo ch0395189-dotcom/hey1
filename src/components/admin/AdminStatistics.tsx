@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAllRows } from '@/lib/fetchAll';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
@@ -46,12 +47,10 @@ export const AdminStatistics = () => {
   const fetchStats = async () => {
     setLoading(true);
     try {
-      const { data: profiles } = await supabase
-        .from('profiles').select('user_id, full_name, created_at');
-
-      const { data: subs } = await supabase
-        .from('subscriptions')
-        .select('user_id, plan, status, current_period_end, trial_end');
+      const [profiles, subs] = await Promise.all([
+        fetchAllRows<any>('profiles', 'user_id, full_name, created_at'),
+        fetchAllRows<any>('subscriptions', 'user_id, plan, status, current_period_end, trial_end'),
+      ]);
 
       const { data: { session } } = await supabase.auth.getSession();
       const usersMap: Record<string, { email: string; last_sign_in_at?: string | null }> = {};

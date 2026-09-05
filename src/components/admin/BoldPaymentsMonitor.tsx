@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAllRows } from '@/lib/fetchAll';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
@@ -133,7 +134,7 @@ export const BoldPaymentsMonitor = () => {
       if (Object.keys(emailsRef.current).length === 0) {
         const { data: usersData } = await supabase.functions.invoke('admin-get-users');
         const list = (usersData?.users || []) as Array<{ id: string; email?: string }>;
-        const { data: profiles } = await supabase.from('profiles').select('user_id, full_name');
+        const profiles = await fetchAllRows<any>('profiles', 'user_id, full_name');
         const nameMap = new Map((profiles || []).map((p) => [p.user_id, p.full_name]));
         const map: Record<string, { email: string; full_name: string | null }> = {};
         list.forEach((u) => {
