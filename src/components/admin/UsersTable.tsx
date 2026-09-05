@@ -98,17 +98,16 @@ export const UsersTable = () => {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('user_id, full_name, created_at');
+      const profiles = await fetchAllRows<{ user_id: string; full_name: string | null; created_at: string }>(
+        'profiles',
+        'user_id, full_name, created_at'
+      );
 
-      if (profilesError) throw profilesError;
+      const subscriptions = await fetchAllRows<any>(
+        'subscriptions',
+        'id, user_id, plan, status, trial_end, current_period_end, current_period_start'
+      );
 
-      const { data: subscriptions, error: subsError } = await supabase
-        .from('subscriptions')
-        .select('id, user_id, plan, status, trial_end, current_period_end, current_period_start');
-
-      if (subsError) throw subsError;
 
       const { data: authData, error: authError } = await supabase.functions.invoke('admin-get-users');
       
