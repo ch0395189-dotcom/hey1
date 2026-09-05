@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAllRows } from '@/lib/fetchAll';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -192,11 +193,7 @@ export const ManualPayments = () => {
 
   const fetchUsers = async () => {
     try {
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('user_id, full_name');
-
-      if (profilesError) throw profilesError;
+      const profiles = await fetchAllRows<any>('profiles', 'user_id, full_name');
 
       const { data: authData } = await supabase.functions.invoke('admin-get-users');
 

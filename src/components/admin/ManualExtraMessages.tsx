@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchAllRows } from '@/lib/fetchAll';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,7 +23,7 @@ export const ManualExtraMessages = () => {
 
   useEffect(() => {
     (async () => {
-      const { data: profiles } = await supabase.from('profiles').select('user_id, full_name');
+      const profiles = await fetchAllRows<any>('profiles', 'user_id, full_name');
       const { data: authData } = await supabase.functions.invoke('admin-get-users');
       const emailMap = new Map<string, string>();
       if (authData?.users) {
