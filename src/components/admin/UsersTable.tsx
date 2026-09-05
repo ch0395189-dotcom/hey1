@@ -1,3 +1,4 @@
+import { fetchAllRows } from '@/lib/fetchAll';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
