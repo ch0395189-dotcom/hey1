@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { prepareAttachedAudioForWhatsApp, prepareRecordedAudioForWhatsApp, prepareVoiceNoteForWhatsApp, preloadAudioEncoder, sniffAudioContainer } from "@/utils/audioConvert";
+import { finalizeAudioForUpload, prepareAttachedAudioForWhatsApp, prepareRecordedAudioForWhatsApp, prepareVoiceNoteForWhatsApp, preloadAudioEncoder, sniffAudioContainer } from "@/utils/audioConvert";
 import { compressMediaIfNeeded, formatFileSize, exceedsWhatsAppLimit } from "@/utils/mediaCompressor";
 import { getFriendlyWhatsappError } from "@/lib/whatsappErrors";
 import { detectOTP } from "@/lib/otpDetect";
@@ -918,13 +918,11 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
       // Never trust the blob MIME type: upload with the REAL container so Meta
       // downloads a file it can actually decode (otherwise el cliente solo
       // recibe la burbuja sin audio reproducible).
-      const sniffed = await sniffAudioContainer(finalBlob);
-      console.log('[Audio] Real container:', sniffed.container);
-      if (sniffed.container === 'webm' || sniffed.container === 'unknown') {
-        throw new Error('Tu dispositivo generó un audio que WhatsApp no puede reproducir. Grábalo nuevamente e intenta enviarlo.');
-      }
-      const extension = sniffed.ext;
-      const contentType = sniffed.container === 'ogg' ? 'audio/ogg; codecs=opus' : sniffed.mime;
+      const finalized = await finalizeAudioForUpload(finalBlob);
+      finalBlob = finalized.blob;
+      const extension = finalized.ext;
+      const contentType = finalized.contentType;
+      console.log('[Audio] Upload container:', extension, contentType);
 
       const fileName = `audio_${Date.now()}.${extension}`;
       const filePath = `${conversation.id}/${fileName}`;
@@ -1079,10 +1077,8 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
     try {
       // Convertimos a OGG/Opus para que WhatsApp lo entregue como NOTA DE VOZ
       // (igual que un audio grabado en la app), no como archivo adjunto.
-      const finalBlob: Blob = await prepareVoiceNoteForWhatsApp(audioBlob);
-      const sniffed = await sniffAudioContainer(finalBlob);
-      const ext = sniffed.ext;
-      const contentType = sniffed.container === 'ogg' ? 'audio/ogg; codecs=opus' : sniffed.mime;
+      const prepared: Blob = await prepareVoiceNoteForWhatsApp(audioBlob);
+      const { blob: finalBlob, ext, contentType } = await finalizeAudioForUpload(prepared);
       const outFile = new File([finalBlob], `cloned_${Date.now()}.${ext}`, { type: contentType });
 
       const filePath = `${conversation.id}/cloned_${Date.now()}.${ext}`;
@@ -1168,10 +1164,8 @@ export const ChatWindow = ({ conversation, onConversationUpdated, onBack }: Chat
 
       // 2. Convertimos el MP3 a OGG/Opus: es el formato nativo de las notas de
       //    voz de WhatsApp, así llega igual que un audio grabado normal.
-      const finalBlob: Blob = await prepareVoiceNoteForWhatsApp(mp3Blob);
-      const sniffedTts = await sniffAudioContainer(finalBlob);
-      const ext = sniffedTts.ext;
-      const contentType = sniffedTts.container === 'ogg' ? 'audio/ogg; codecs=opus' : sniffedTts.mime;
+      const preparedTts: Blob = await prepareVoiceNoteForWhatsApp(mp3Blob);
+      const { blob: finalBlob, ext, contentType } = await finalizeAudioForUpload(preparedTts);
       const outFile = new File([finalBlob], `cloned_${Date.now()}.${ext}`, { type: contentType });
 
       // 3. Upload to storage

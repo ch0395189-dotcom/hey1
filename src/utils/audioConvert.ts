@@ -22,6 +22,21 @@ export async function isRealOggContainer(input: Blob): Promise<boolean> {
 }
 
 /**
+ * Un OGG sin su página de cabecera (`OpusHead`) es basura para Meta: la API
+ * responde 131053 "Media upload error" y el audio nunca llega. Validamos que
+ * la primera página sea BOS y contenga OpusHead antes de enviar.
+ */
+export async function isPlayableOggOpus(input: Blob): Promise<boolean> {
+  const head = new Uint8Array(await input.slice(0, 128).arrayBuffer());
+  if (head.length < 32) return false;
+  const ascii = (start: number, len: number) =>
+    String.fromCharCode(...Array.from(head.slice(start, start + len)));
+  if (ascii(0, 4) !== 'OggS') return false;
+  if ((head[5] & 0x02) !== 0x02) return false; // primera página debe ser BOS
+  return ascii(0, 128).includes('OpusHead');
+}
+
+/**
  * Detecta el contenedor REAL leyendo los magic bytes. Nunca confiamos en
  * `blob.type`: varios navegadores móviles mienten y subir un WebM/MP4
  * etiquetado como `audio/ogg` hace que WhatsApp entregue una nota de voz rota.
@@ -77,15 +92,29 @@ export const convertToOggOpus = convertToWhatsAppAudio;
 export async function prepareVoiceNoteForWhatsApp(input: Blob): Promise<Blob> {
   if (!input || input.size === 0) throw new Error('El audio está vacío.');
 
-  if (await isRealOggContainer(input)) return input;
+  if (await isPlayableOggOpus(input)) return input;
+
+  // Si el blob dice ser OGG pero no tiene cabecera OpusHead, NO se puede
+  // enviar: Meta lo rechaza con 131053. Lo re-codificamos a MP3.
+  const looksLikeBrokenOgg = await isRealOggContainer(input);
 
   try {
     const { encodeBlobToOggOpus } = await import('./oggOpusEncode');
     const ogg = await encodeBlobToOggOpus(input);
-    if (!(await isRealOggContainer(ogg))) throw new Error('OGG inválido');
+    if (!(await isPlayableOggOpus(ogg))) throw new Error('OGG sin cabecera OpusHead');
     return ogg;
   } catch (err) {
-    console.warn('[audioConvert] OGG/Opus encode failed, sending original:', err);
+    console.warn('[audioConvert] OGG/Opus encode failed, falling back to MP3:', err);
+    try {
+      const mp3 = await convertToWhatsAppAudio(input);
+      const sniffed = await sniffAudioContainer(mp3);
+      if (sniffed.container === 'mp3') return mp3;
+    } catch (mp3Err) {
+      console.warn('[audioConvert] MP3 fallback failed:', mp3Err);
+    }
+    if (looksLikeBrokenOgg) {
+      throw new Error('No se pudo preparar el audio para WhatsApp. Intenta grabarlo de nuevo.');
+    }
     return input;
   }
 }
@@ -157,4 +186,33 @@ export function isAlreadyWhatsAppCompatible(blob: Blob): boolean {
     t.includes('aac') ||
     t.includes('amr')
   );
+}
+
+/**
+ * Último control antes de subir a Storage: garantiza que el archivo sea un
+ * contenedor que Meta pueda decodificar y devuelve la extensión y el
+ * content-type reales. Si el OGG está corrupto (sin OpusHead) lo re-codifica
+ * a MP3 en vez de enviar algo que WhatsApp rechazará.
+ */
+export async function finalizeAudioForUpload(
+  input: Blob
+): Promise<{ blob: Blob; ext: string; contentType: string }> {
+  let blob = input;
+  let sniffed = await sniffAudioContainer(blob);
+
+  if (sniffed.container === 'ogg' && !(await isPlayableOggOpus(blob))) {
+    console.warn('[audioConvert] OGG sin OpusHead, re-codificando a MP3');
+    blob = await convertToWhatsAppAudio(input);
+    sniffed = await sniffAudioContainer(blob);
+  }
+
+  if (sniffed.container === 'webm' || sniffed.container === 'unknown') {
+    throw new Error('Tu dispositivo generó un audio que WhatsApp no puede reproducir. Grábalo nuevamente e intenta enviarlo.');
+  }
+
+  return {
+    blob,
+    ext: sniffed.ext,
+    contentType: sniffed.container === 'ogg' ? 'audio/ogg; codecs=opus' : sniffed.mime,
+  };
 }

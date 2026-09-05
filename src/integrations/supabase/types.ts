@@ -901,6 +901,7 @@ export type Database = {
           conversation_id: string
           created_at: string
           direction: string
+          error_code: string | null
           id: string
           media_url: string | null
           message_type: string
@@ -912,6 +913,7 @@ export type Database = {
           conversation_id: string
           created_at?: string
           direction: string
+          error_code?: string | null
           id?: string
           media_url?: string | null
           message_type?: string
@@ -923,6 +925,7 @@ export type Database = {
           conversation_id?: string
           created_at?: string
           direction?: string
+          error_code?: string | null
           id?: string
           media_url?: string | null
           message_type?: string

@@ -91,7 +91,7 @@ export async function encodeBlobToOggOpus(input: Blob): Promise<Blob> {
       maxFramesPerPage: 40,
       resampleQuality: 3,
       bufferLength: 4096,
-      streamPages: false,
+      streamPages: true,
     });
   });
 
